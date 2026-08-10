@@ -4,7 +4,7 @@ import { SearchIcon } from '../ui/Icons'
 
 const NAV_LINKS = [
   { label: 'Home', to: '/' },
-  { label: 'Create' },
+  { label: 'Create', to: '/create' },
   { label: 'Discover', to: '/discover' },
 ]
 
