@@ -1,31 +1,49 @@
+import { NavLink } from 'react-router-dom'
 import Avatar from '../ui/Avatar'
 import { SearchIcon } from '../ui/Icons'
 
-const NAV_LINKS = ['Home', 'Create', 'Discover']
+const NAV_LINKS = [
+  { label: 'Home', to: '/' },
+  { label: 'Create' },
+  { label: 'Discover', to: '/discover' },
+]
 
-export default function Navbar({ activeLink = 'Home', onLinkClick, user }) {
+export default function Navbar({ user }) {
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-nav">
       <div className="mx-auto flex h-16 max-w-5xl items-center gap-8 px-6">
         <span className="text-2xl font-extrabold tracking-tight text-brand">Tear of God</span>
 
         <nav className="flex items-center gap-6">
-          {NAV_LINKS.map((label) => {
-            const isActive = label === activeLink
+          {NAV_LINKS.map(({ label, to }) => {
+            const className = ({ isActive }) =>
+              `border-b-2 pb-0.5 text-sm font-semibold transition-colors ${
+                isActive
+                  ? 'border-brand-accent text-ink-soft'
+                  : 'border-transparent text-muted hover:text-ink-soft'
+              }`
+
+            if (!to) {
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  className="border-b-2 border-transparent pb-0.5 text-sm font-semibold text-muted transition-colors hover:text-ink-soft"
+                >
+                  {label}
+                </button>
+              )
+            }
+
             return (
-              <button
+              <NavLink
                 key={label}
-                type="button"
-                onClick={() => onLinkClick?.(label)}
-                aria-current={isActive ? 'page' : undefined}
-                className={`border-b-2 pb-0.5 text-sm font-semibold transition-colors ${
-                  isActive
-                    ? 'border-brand-accent text-ink-soft'
-                    : 'border-transparent text-muted hover:text-ink-soft'
-                }`}
+                to={to}
+                end={to === '/'}
+                className={className}
               >
                 {label}
-              </button>
+              </NavLink>
             )
           })}
         </nav>
