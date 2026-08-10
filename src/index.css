@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+@theme {
+  /* Surfaces */
+  --color-canvas: #fdf8f1;
+  --color-surface: #ffffff;
+  --color-nav: #fefcf8;
+  --color-search: #f7f1e6;
+  --color-tag: #f5ede0;
+
+  /* Lines */
+  --color-line: #f0e9dc;
+  --color-line-soft: #efe7d9;
+
+  /* Text */
+  --color-brand: #8a6a1f;
+  --color-brand-accent: #c99a2e;
+  --color-ink: #2b2317;
+  --color-ink-soft: #3d2e14;
+  --color-muted: #7a6a52;
+  --color-item: #3f4a5a;
+  --color-action: #8a94a6;
+
+  /* Accents */
+  --color-pill-active: #f5c13d;
+  --color-avatar: #dbe7f5;
+  --color-avatar-ink: #4a6fa5;
+
+  /* Tier badges — fixed convention, see SDS.md 7.2 */
+  --color-tier-s: #f87171;
+  --color-tier-a: #fbbf24;
+  --color-tier-b: #fde047;
+  --color-tier-c: #86ca8a;
+  --color-tier-d: #7dc4e8;
+}
