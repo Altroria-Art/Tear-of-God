@@ -1,22 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import CategoryTabs from '../components/feed/CategoryTabs'
 import FeedCard from '../components/feed/FeedCard'
+import { useFeed } from '../context/feedContext'
 import { CATEGORIES, FOR_YOU, MOCK_POSTS } from '../data/mockFeed'
-import { selectPosts, shuffle } from '../lib/feed'
+import { selectPosts } from '../lib/feed'
 
 export default function HomeFeed() {
   const [activeCategory, setActiveCategory] = useState(FOR_YOU)
-  const [votes, setVotes] = useState({})
+  const { votes, voteOn, statsFor, forYouOrder } = useFeed()
 
-  // Random but stable for the session — reshuffling on every render would
-  // rearrange the feed under the reader.
-  const forYouOrder = useMemo(() => shuffle(MOCK_POSTS).map((post) => post.id), [])
-
-  function handleVote(postId, vote) {
-    setVotes((prev) => ({ ...prev, [postId]: prev[postId] === vote ? null : vote }))
-  }
-
-  const visiblePosts = selectPosts(MOCK_POSTS, activeCategory, { votes, forYouOrder })
+  const visiblePosts = selectPosts(MOCK_POSTS, activeCategory, { statsFor, forYouOrder })
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-6">
@@ -35,7 +28,8 @@ export default function HomeFeed() {
             key={post.id}
             post={post}
             vote={votes[post.id]}
-            onVote={(vote) => handleVote(post.id, vote)}
+            stats={statsFor(post)}
+            onVote={(vote) => voteOn(post.id, vote)}
           />
         ))}
       </div>

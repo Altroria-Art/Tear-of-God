@@ -1,27 +1,32 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
+import FeedProvider from './context/FeedProvider';
 import HomeFeed from './pages/HomeFeed';
 import Discover from './pages/Discover';
 import CategoryPage from './pages/CategoryPage';
 import TemplateDetailPage from './pages/TemplateDetailPage';
-import Create from './pages/Create'; 
+import PostDetail from './pages/PostDetail';
+import Create from './pages/Create';
 import RankTierList from './pages/RankTierList';
 
 function App() {
   return (
     <Router>
-      <Navbar /> 
+      <FeedProvider>
+        <Navbar />
 
-      <Routes>
-        <Route path="/" element={<HomeFeed />} />
-        <Route path="/create" element={<Create />} />
-        <Route path="/discover" element={<Discover />} />
+        <Routes>
+          <Route path="/" element={<HomeFeed />} />
+          <Route path="/create" element={<Create />} />
+          <Route path="/discover" element={<Discover />} />
 
-        <Route path="/rank" element={<RankTierList />} />
-        
-        <Route path="/category/:categoryId" element={<CategoryPage />} />
-        <Route path="/template/:templateId" element={<TemplateDetailPage />} />
-      </Routes>
+          <Route path="/rank" element={<RankTierList />} />
+
+          <Route path="/category/:categoryId" element={<CategoryPage />} />
+          <Route path="/template/:templateId" element={<TemplateDetailPage />} />
+          <Route path="/post/:postId" element={<PostDetail />} />
+        </Routes>
+      </FeedProvider>
     </Router>
   );
 }
