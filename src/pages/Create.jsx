@@ -1,13 +1,38 @@
 import React, { useState } from 'react';
-import { Settings, Upload, X } from 'lucide-react';
+import { Settings, Upload, X, ChevronDown, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // อย่าลืม Import ตัวนี้มาเพื่อใช้เปลี่ยนหน้า
 
 const CreateTierList = () => {
-  // State สำหรับจัดการโหมดและฟอร์ม
-  const [mode, setMode] = useState('normal'); // 'normal' | 'top10'
-  const [quickAddText, setQuickAddText] = useState('');
-  const [unrankedItems, setUnrankedItems] = useState([]);
+  const navigate = useNavigate(); // เรียกใช้งาน navigate
 
-  // ฟังก์ชันหั่นข้อความคั่นด้วยคอมมาเป็น Item Cards
+  const [mode, setMode] = useState('normal');
+  const [quickAddText, setQuickAddText] = useState('');
+  
+  // State สำหรับจัดการการ์ดไอเทมทั้งหมด
+  const [items, setItems] = useState([]);
+  
+  // State สำหรับจัดการแถว (Tiers)
+  const [tiers, setTiers] = useState([
+    { id: 't1', label: 'S', color: 'bg-red-400' },
+    { id: 't2', label: 'A', color: 'bg-orange-300' },
+    { id: 't3', label: 'B', color: 'bg-yellow-300' },
+    { id: 't4', label: 'C', color: 'bg-green-400' },
+    { id: 't5', label: 'D', color: 'bg-blue-400' },
+  ]);
+
+  const [activeSettingsTier, setActiveSettingsTier] = useState(null);
+
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('Anime');
+  const categories = ['Anime', 'Gaming', 'Movies'];
+
+  const availableColors = [
+    'bg-red-400', 'bg-orange-300', 'bg-amber-300', 'bg-yellow-300', 
+    'bg-lime-400', 'bg-green-400', 'bg-emerald-400', 'bg-teal-400', 
+    'bg-cyan-400', 'bg-blue-400', 'bg-indigo-400', 'bg-purple-400', 
+    'bg-fuchsia-400', 'bg-pink-400', 'bg-gray-400', 'bg-gray-200'
+  ];
+
   const handleGenerateCards = () => {
     if (!quickAddText.trim()) return;
     const newItems = quickAddText
@@ -15,30 +40,112 @@ const CreateTierList = () => {
       .map((item, index) => ({
         id: `item-${Date.now()}-${index}`,
         content: item.trim(),
+        tierId: null
       }))
       .filter((item) => item.content !== '');
     
-    setUnrankedItems([...unrankedItems, ...newItems]);
-    setQuickAddText(''); // เคลียร์ช่องพิมพ์
+    setItems([...items, ...newItems]);
+    setQuickAddText('');
   };
 
-  // ฟังก์ชันลบ Item
   const handleDeleteItem = (idToRemove) => {
-    setUnrankedItems(unrankedItems.filter(item => item.id !== idToRemove));
+    setItems(items.filter(item => item.id !== idToRemove));
   };
 
-  // ค่าสีสำหรับโหมด Normal (S, A, B, C, D)
-  const normalTiers = [
-    { label: 'S', color: 'bg-red-400' },
-    { label: 'A', color: 'bg-orange-300' },
-    { label: 'B', color: 'bg-yellow-300' },
-    { label: 'C', color: 'bg-green-400' },
-    { label: 'D', color: 'bg-blue-400' },
-  ];
+  const updateTierData = (id, field, value) => {
+    setTiers(tiers.map(tier => tier.id === id ? { ...tier, [field]: value } : tier));
+  };
+
+  // ================= ระบบ Drag and Drop =================
+  const handleDragStart = (e, itemId) => {
+    e.dataTransfer.setData('itemId', itemId);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault(); 
+  };
+
+  const handleDrop = (e, targetTierId) => {
+    e.preventDefault();
+    const draggedItemId = e.dataTransfer.getData('itemId');
+    
+    setItems(items.map(item => 
+      item.id === draggedItemId ? { ...item, tierId: targetTierId } : item
+    ));
+  };
+
+  // ฟังก์ชันช่วย Render การ์ด
+  const renderItemCard = (item) => (
+    <div 
+      key={item.id} 
+      draggable
+      onDragStart={(e) => handleDragStart(e, item.id)}
+      className="group relative bg-white w-20 h-20 rounded-md shadow-sm flex items-center justify-center p-2 text-center text-xs font-medium text-[#334155] border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-all z-10"
+    >
+      <span className="break-words line-clamp-3 leading-tight pointer-events-none">{item.content}</span>
+      
+      <button 
+        onClick={() => handleDeleteItem(item.id)}
+        className="absolute -top-1.5 -right-1.5 bg-white text-gray-400 hover:text-red-500 rounded-full p-0.5 shadow-sm border border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+      >
+        <X size={10} />
+      </button>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] p-8 font-sans text-gray-800">
-      {/* Header ของเพจ */}
+    <div className="min-h-screen bg-[#faf8f5] p-8 font-sans text-gray-800 relative">
+      
+      {/* ================= POPUP SETTINGS MODAL ================= */}
+      {activeSettingsTier && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#3b322c] text-white w-full max-w-md rounded-lg shadow-2xl relative border border-[#52463e]">
+            <button 
+              onClick={() => setActiveSettingsTier(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="p-8">
+              <h3 className="text-center font-bold text-base mb-6">Choose a Label Background Color:</h3>
+              <div className="flex flex-wrap justify-center gap-2.5 mb-8 px-4">
+                {availableColors.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => updateTierData(activeSettingsTier.id, 'color', color)}
+                    className={`w-8 h-8 rounded-full ${color} cursor-pointer border-2 transition-transform hover:scale-110 ${
+                      tiers.find(t => t.id === activeSettingsTier.id)?.color === color 
+                        ? 'border-white scale-110' 
+                        : 'border-transparent'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <h3 className="text-center font-bold text-base mb-4">Edit Label Text Below:</h3>
+              <input
+                type="text"
+                value={tiers.find(t => t.id === activeSettingsTier.id)?.label || ''}
+                onChange={(e) => updateTierData(activeSettingsTier.id, 'label', e.target.value)}
+                className="w-full bg-white text-black p-3.5 rounded-md outline-none focus:ring-2 focus:ring-[#8B6F4E] mb-6 font-medium shadow-inner"
+              />
+
+              {/* เอาปุ่ม Clear Row Images ออกไปแล้ว เหลือแค่ Save */}
+              <div className="flex justify-center">
+                <button 
+                  onClick={() => setActiveSettingsTier(null)}
+                  className="bg-[#5c4e45] hover:bg-[#4a3e37] text-white py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
         <h1 className="text-3xl font-bold mb-2">Create Tier List</h1>
         <p className="text-gray-500">Define your categories and rank items seamlessly.</p>
@@ -48,8 +155,6 @@ const CreateTierList = () => {
         
         {/* ================= LEFT SIDEBAR ================= */}
         <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          
-          {/* Mode Toggle */}
           <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex gap-2">
             <button 
               onClick={() => setMode('normal')}
@@ -65,7 +170,6 @@ const CreateTierList = () => {
             </button>
           </div>
 
-          {/* Form Settings */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-4">
             <div>
               <label className="block text-sm font-semibold mb-1">Template Name</label>
@@ -75,14 +179,48 @@ const CreateTierList = () => {
                 className="w-full bg-[#f4efe8] border-none rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#8B6F4E]"
               />
             </div>
-            <div>
+            
+            {/* Custom Dropdown */}
+            <div className="relative">
               <label className="block text-sm font-semibold mb-1">Category</label>
-              <select className="w-full bg-[#f4efe8] border-none rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#8B6F4E] appearance-none cursor-pointer">
-                <option>Anime</option>
-                <option>Gaming</option>
-                <option>Movies</option>
-              </select>
+              <div 
+                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                className={`w-full bg-[#f4efe8] rounded-lg p-3 flex justify-between items-center cursor-pointer transition-shadow ${isCategoryOpen ? 'ring-2 ring-[#8B6F4E]' : 'hover:bg-[#e8e2d8]'}`}
+              >
+                <span className="text-gray-700">{selectedCategory}</span>
+                <ChevronDown size={18} className={`text-gray-500 transition-transform duration-200 ${isCategoryOpen ? 'rotate-180' : ''}`} />
+              </div>
+
+              {isCategoryOpen && (
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsCategoryOpen(false)}
+                />
+              )}
+
+              {isCategoryOpen && (
+                <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.08)] z-20 overflow-hidden">
+                  {categories.map((cat) => (
+                    <div
+                      key={cat}
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        setIsCategoryOpen(false);
+                      }}
+                      className={`px-4 py-3 cursor-pointer flex justify-between items-center transition-colors ${
+                        selectedCategory === cat 
+                          ? 'bg-[#f4efe8] font-semibold text-[#7c5b36]' 
+                          : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      {cat}
+                      {selectedCategory === cat && <Check size={16} className="text-[#7c5b36]" />}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
             <div>
               <label className="block text-sm font-semibold mb-1">Description <span className="text-gray-400 font-normal">(Optional)</span></label>
               <textarea 
@@ -93,14 +231,12 @@ const CreateTierList = () => {
             </div>
           </div>
 
-          {/* Quick Add Items */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h3 className="font-semibold mb-2 flex items-center gap-2">
               <span className="text-xl">✨</span> Quick Add Items
             </h3>
             <p className="text-xs text-gray-500 mb-4">
               Type item names separated by commas to instantly generate text cards.
-              {mode === 'top10' && " Exactly 10 items required for Top 10 Mode."}
             </p>
             <textarea 
               value={quickAddText}
@@ -122,34 +258,41 @@ const CreateTierList = () => {
 
         {/* ================= RIGHT CANVAS ================= */}
         <div className="w-full lg:w-2/3 flex flex-col gap-6">
-          
-          {/* Main Tier Canvas */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Ranking Canvas</h2>
-              <button className="text-gray-400 hover:text-gray-600 transition-colors">
-                <Settings size={20} />
-              </button>
-            </div>
 
             <div className="flex flex-col gap-2">
-              {/* เรนเดอร์ Tiers ตามโหมดที่เลือก */}
               {mode === 'normal' ? (
-                // Normal Mode (S, A, B, C, D)
-                normalTiers.map((tier) => (
-                  <div key={tier.label} className="flex min-h-[80px] bg-[#f9f8f6] rounded-lg overflow-hidden border border-gray-100">
-                    <div className={`${tier.color} w-24 flex items-center justify-center text-white text-2xl font-bold shadow-[inset_-2px_0_4px_rgba(0,0,0,0.1)]`}>
+                tiers.map((tier) => (
+                  <div key={tier.id} className="flex min-h-[80px] bg-[#f9f8f6] rounded-lg overflow-hidden border border-gray-100">
+                    
+                    <div className={`${tier.color} w-24 flex items-center justify-center text-white text-2xl font-bold shadow-[inset_-2px_0_4px_rgba(0,0,0,0.1)] p-2 text-center break-words`}>
                       {tier.label}
                     </div>
-                    <div className="flex-1 p-2 flex flex-wrap gap-2 items-center">
-                      {/* พื้นที่สำหรับ Drop Item (รอต่อกับ Drag and Drop Library) */}
+
+                    {/* พื้นที่ Drop Item */}
+                    <div 
+                      className="flex-1 p-2 flex flex-wrap gap-2 items-center"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, tier.id)}
+                    >
+                      {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
                     </div>
+
+                    <div className="w-12 bg-transparent flex items-center justify-center border-l border-gray-200">
+                      <button 
+                        onClick={() => setActiveSettingsTier(tier)}
+                        className="text-gray-400 hover:text-[#7c5b36] hover:bg-[#f4efe8] transition-all p-2 rounded-full"
+                        title="Settings"
+                      >
+                        <Settings size={18} />
+                      </button>
+                    </div>
+
                   </div>
                 ))
               ) : (
-                // Top 10 Mode (1 - 10)
                 Array.from({ length: 10 }).map((_, idx) => (
-                  <div key={idx} className="flex min-h-[60px] bg-white rounded-lg overflow-hidden items-center gap-3">
+                   <div key={idx} className="flex min-h-[60px] bg-white overflow-hidden items-center gap-3 p-2 border border-gray-100 rounded-lg">
                     <div className="bg-[#6b5542] w-12 h-12 flex items-center justify-center text-white text-lg font-bold rounded-lg shrink-0">
                       {idx + 1}
                     </div>
@@ -163,34 +306,30 @@ const CreateTierList = () => {
 
             <hr className="my-6 border-gray-100" />
 
-            {/* Unranked Items Pool (แสดงเฉพาะเมื่อ Mode Normal หรือจัดหน้าให้อยู่กล่องเดียวกันตามภาพ) */}
+            {/* ================= UNRANKED ITEMS POOL ================= */}
             <div>
-              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Unranked Items Pool</h3>
-              <div className="bg-[#f4efe8] min-h-[120px] rounded-lg p-4 flex flex-wrap gap-3 border border-[#e8dfd3]">
-                {unrankedItems.length === 0 ? (
-                  <span className="text-gray-400 text-sm italic w-full text-center mt-8">No items yet. Generate them from the left panel.</span>
+              <h3 className="text-sm font-bold text-[#64748b] uppercase tracking-wider mb-3">Unranked Items Pool</h3>
+              
+              <div 
+                className="bg-[#f5f1ea] min-h-[140px] rounded-lg p-5 flex flex-wrap gap-3 border border-[#e8dfd3]"
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, null)}
+              >
+                {items.filter(item => item.tierId === null).length === 0 ? (
+                  <span className="text-gray-400 text-sm italic w-full text-center mt-8 pointer-events-none">
+                    No items yet. Generate them from the left panel.
+                  </span>
                 ) : (
-                  unrankedItems.map((item) => (
-                    <div key={item.id} className="group relative bg-white px-4 py-2 rounded-md shadow-sm text-sm font-medium border border-gray-100 flex items-center cursor-grab hover:shadow-md transition-shadow">
-                      {item.content}
-                      <button 
-                        onClick={() => handleDeleteItem(item.id)}
-                        className="absolute -top-2 -right-2 bg-white text-gray-400 hover:text-red-500 rounded-full p-0.5 shadow-sm border border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))
+                  items.filter(item => item.tierId === null).map(renderItemCard)
                 )}
               </div>
             </div>
 
-            {/* Footer Actions */}
-            <div className="flex justify-end items-center gap-4 mt-8 pt-4">
-              <button className="text-sm font-medium text-gray-600 hover:text-gray-900">
-                Save Draft
-              </button>
-              <button className="bg-[#7c5b36] hover:bg-[#63482a] text-white text-sm font-medium py-2.5 px-6 rounded-lg flex items-center gap-2 transition-colors">
+            <div className="flex justify-end items-center mt-8 pt-4">
+              <button 
+                onClick={() => navigate('/rank')}
+                className="bg-[#7c5b36] hover:bg-[#63482a] text-white text-sm font-medium py-2.5 px-6 rounded-lg flex items-center gap-2 transition-colors"
+              >
                 <Upload size={16} /> Publish List
               </button>
             </div>
