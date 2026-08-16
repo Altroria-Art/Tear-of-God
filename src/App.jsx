@@ -6,6 +6,7 @@ import CategoryPage from './pages/CategoryPage';
 import TemplateDetailPage from './pages/TemplateDetailPage';
 import Create from './pages/Create'; 
 import RankTierList from './pages/RankTierList';
+import Profile from './pages/Profile'; 
 
 function App() {
   return (
@@ -21,6 +22,9 @@ function App() {
         
         <Route path="/category/:categoryId" element={<CategoryPage />} />
         <Route path="/template/:templateId" element={<TemplateDetailPage />} />
+        
+        {/* 2. เพิ่ม Route สำหรับหน้า Profile */}
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </Router>
   );
