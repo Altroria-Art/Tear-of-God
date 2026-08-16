@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+
+# Env & secrets (never bake keys into the image)
+.env
+.env.local
+.env.*.local
+
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Editor / IDE
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Docs & design (not needed in the image)
+SDS.md
+README.md
+*.pdf
+docker-compose.yml
+Dockerfile
+.dockerignore
