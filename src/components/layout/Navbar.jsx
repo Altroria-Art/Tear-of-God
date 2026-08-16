@@ -1,70 +1,63 @@
-import { NavLink } from 'react-router-dom'
-import Avatar from '../ui/Avatar'
-import { SearchIcon } from '../ui/Icons'
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Search, User } from 'lucide-react';
 
-const NAV_LINKS = [
-  { label: 'Home', to: '/' },
-  { label: 'Create', to: '/create' },
-  { label: 'Discover', to: '/discover' },
-]
+const Navbar = () => {
+  const location = useLocation();
 
-export default function Navbar({ user }) {
+  // เอา font-bold ออกไปแล้ว ตัวหนังสือจะไม่หนาขึ้นเวลาถูกเลือก
+  const isActive = (path) => {
+    return location.pathname === path 
+      ? 'border-[#8B6F4E] text-black' 
+      : 'border-transparent text-gray-600 hover:text-black';
+  };
+
   return (
-    <header className="sticky top-0 z-10 border-b border-line bg-nav">
-      <div className="mx-auto flex h-16 max-w-5xl items-center gap-8 px-6">
-        <span className="text-2xl font-extrabold tracking-tight text-brand">Tear of God</span>
+    <nav className="bg-[#faf8f5] px-6 py-4 flex items-center justify-between sticky top-0 z-50 border-b border-[#e8dfd3]/50">
+      
+      {/* ฝั่งซ้าย: โลโก้ และ ลิงก์เมนู */}
+      <div className="flex items-center gap-10">
+        <Link to="/" className="text-[22px] font-black text-[#8B6F4E] tracking-tight hover:text-[#63482a] transition-colors">
+          Tear of God
+        </Link>
 
-        <nav className="flex items-center gap-6">
-          {NAV_LINKS.map(({ label, to }) => {
-            const className = ({ isActive }) =>
-              `border-b-2 pb-0.5 text-sm font-semibold transition-colors ${
-                isActive
-                  ? 'border-brand-accent text-ink-soft'
-                  : 'border-transparent text-muted hover:text-ink-soft'
-              }`
-
-            if (!to) {
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  className="border-b-2 border-transparent pb-0.5 text-sm font-semibold text-muted transition-colors hover:text-ink-soft"
-                >
-                  {label}
-                </button>
-              )
-            }
-
-            return (
-              <NavLink
-                key={label}
-                to={to}
-                end={to === '/'}
-                className={className}
-              >
-                {label}
-              </NavLink>
-            )
-          })}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-3">
-          {/* Presentational until search is in scope. */}
-          <div className="relative hidden sm:block">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted" />
-            <input
-              type="search"
-              placeholder="Search Tear of God..."
-              aria-label="Search Tear of God"
-              className="h-9 w-56 rounded-full bg-search py-2 pr-4 pl-9 text-sm text-ink placeholder:text-muted focus:outline-2 focus:outline-offset-2 focus:outline-brand-accent lg:w-64"
-            />
-          </div>
-
-          <button type="button" aria-label="Account" className="rounded-full">
-            <Avatar size="sm" name={user?.name} src={user?.avatarUrl} />
-          </button>
+        <div className="hidden md:flex items-center gap-6 text-sm font-medium">
+          <Link to="/" className={`pb-1 border-b-2 transition-all ${isActive('/')}`}>
+            Home
+          </Link>
+          <Link to="/create" className={`pb-1 border-b-2 transition-all ${isActive('/create')}`}>
+            Create
+          </Link>
+          <Link to="/discover" className={`pb-1 border-b-2 transition-all ${isActive('/discover')}`}>
+            Discover
+          </Link>
         </div>
       </div>
-    </header>
-  )
-}
+
+      {/* ฝั่งขวา: ค้นหา และ โปรไฟล์ */}
+      <div className="flex items-center gap-4">
+        
+        {/* ช่อง Search */}
+        <div className="relative hidden sm:block">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <input 
+            type="text" 
+            placeholder="Search Tear of God..." 
+            className="bg-[#f4efe8] border-none rounded-full py-2.5 pl-10 pr-4 text-sm w-56 lg:w-72 outline-none focus:ring-2 focus:ring-[#8B6F4E] text-gray-800 transition-shadow placeholder-gray-500"
+          />
+        </div>
+
+        {/* ปุ่มโปรไฟล์ (กดแล้วไปหน้า /profile) */}
+        <Link 
+          to="/profile" 
+          className="w-10 h-10 bg-[#f4efe8] rounded-full flex items-center justify-center text-gray-700 hover:bg-[#e8e2d8] hover:text-[#8B6F4E] transition-colors cursor-pointer"
+        >
+          <User size={18} strokeWidth={2.5} />
+        </Link>
+        
+      </div>
+    </nav>
+  );
+};
+
+export default Navbar;

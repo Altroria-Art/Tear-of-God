@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Settings, Upload, X, ChevronDown, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; // อย่าลืม Import ตัวนี้มาเพื่อใช้เปลี่ยนหน้า
+import { useNavigate } from 'react-router-dom';
 
 const CreateTierList = () => {
-  const navigate = useNavigate(); // เรียกใช้งาน navigate
+  const navigate = useNavigate();
 
   const [mode, setMode] = useState('normal');
   const [quickAddText, setQuickAddText] = useState('');
@@ -23,8 +23,9 @@ const CreateTierList = () => {
   const [activeSettingsTier, setActiveSettingsTier] = useState(null);
 
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState('Anime');
-  const categories = ['Anime', 'Gaming', 'Movies'];
+  
+  const [selectedCategory, setSelectedCategory] = useState('General');
+  const categories = ['General', 'Movie', 'Food', 'Sports'];
 
   const availableColors = [
     'bg-red-400', 'bg-orange-300', 'bg-amber-300', 'bg-yellow-300', 
@@ -131,7 +132,6 @@ const CreateTierList = () => {
                 className="w-full bg-white text-black p-3.5 rounded-md outline-none focus:ring-2 focus:ring-[#8B6F4E] mb-6 font-medium shadow-inner"
               />
 
-              {/* เอาปุ่ม Clear Row Images ออกไปแล้ว เหลือแค่ Save */}
               <div className="flex justify-center">
                 <button 
                   onClick={() => setActiveSettingsTier(null)}
@@ -180,15 +180,15 @@ const CreateTierList = () => {
               />
             </div>
             
-            {/* Custom Dropdown */}
+            {/* ================= Custom Dropdown สุดเท่ ================= */}
             <div className="relative">
               <label className="block text-sm font-semibold mb-1">Category</label>
               <div 
                 onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                className={`w-full bg-[#f4efe8] rounded-lg p-3 flex justify-between items-center cursor-pointer transition-shadow ${isCategoryOpen ? 'ring-2 ring-[#8B6F4E]' : 'hover:bg-[#e8e2d8]'}`}
+                className={`w-full bg-[#f4efe8] rounded-lg p-3 flex justify-between items-center cursor-pointer transition-all duration-200 border-2 ${isCategoryOpen ? 'border-[#8B6F4E] shadow-sm' : 'border-transparent hover:bg-[#e8e2d8]'}`}
               >
-                <span className="text-gray-700">{selectedCategory}</span>
-                <ChevronDown size={18} className={`text-gray-500 transition-transform duration-200 ${isCategoryOpen ? 'rotate-180' : ''}`} />
+                <span className="text-gray-700 font-medium">{selectedCategory}</span>
+                <ChevronDown size={18} className={`text-gray-500 transition-transform duration-300 ${isCategoryOpen ? 'rotate-180 text-[#8B6F4E]' : ''}`} />
               </div>
 
               {isCategoryOpen && (
@@ -199,7 +199,7 @@ const CreateTierList = () => {
               )}
 
               {isCategoryOpen && (
-                <div className="absolute top-full left-0 w-full mt-2 bg-white border border-gray-100 rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.08)] z-20 overflow-hidden">
+                <div className="absolute top-[calc(100%+4px)] left-0 w-full bg-white border border-gray-100 rounded-lg shadow-xl z-20 overflow-hidden">
                   {categories.map((cat) => (
                     <div
                       key={cat}
@@ -209,12 +209,12 @@ const CreateTierList = () => {
                       }}
                       className={`px-4 py-3 cursor-pointer flex justify-between items-center transition-colors ${
                         selectedCategory === cat 
-                          ? 'bg-[#f4efe8] font-semibold text-[#7c5b36]' 
-                          : 'hover:bg-gray-50 text-gray-700'
+                          ? 'bg-[#f4efe8] font-bold text-[#8B6F4E]' 
+                          : 'hover:bg-gray-50 text-gray-600'
                       }`}
                     >
                       {cat}
-                      {selectedCategory === cat && <Check size={16} className="text-[#7c5b36]" />}
+                      {selectedCategory === cat && <Check size={18} strokeWidth={2.5} className="text-[#8B6F4E]" />}
                     </div>
                   ))}
                 </div>
