@@ -1,11 +1,13 @@
 import { Link, useParams } from 'react-router-dom'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
+import AboutTemplateCard from '../components/post/AboutTemplateCard'
 import CommentSection from '../components/post/CommentSection'
 import Avatar from '../components/ui/Avatar'
 import { ArrowLeftIcon, CommentIcon, ShareIcon, ThumbsDownIcon, ThumbsUpIcon } from '../components/ui/Icons'
 import { useFeed } from '../context/feedContext'
 import { MOCK_POSTS } from '../data/mockFeed'
+import { getTemplate, templateItemCount } from '../data/mockTemplates'
 import { formatCount } from '../lib/feed'
 
 export default function PostDetail() {
@@ -30,65 +32,83 @@ export default function PostDetail() {
   const stats = statsFor(post)
   const postComments = comments[post.id] ?? []
 
+  const template = getTemplate(post.templateId)
+  const itemCount = template
+    ? templateItemCount(template)
+    : tiers.reduce((n, { items }) => n + items.length, 0)
+
   return (
-    <main className="mx-auto max-w-3xl px-6 py-6">
-      <Link
-        to="/"
-        aria-label="Back to feed"
-        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface p-2 text-ink-soft transition-colors hover:bg-search"
-      >
-        <ArrowLeftIcon className="h-5 w-5" />
-      </Link>
+    <main className="mx-auto max-w-6xl px-6 py-6">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div>
+          <Link
+            to="/"
+            aria-label="Back to feed"
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface p-2 text-ink-soft transition-colors hover:bg-search"
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+          </Link>
 
-      <article className="mt-4 rounded-2xl border border-line bg-surface p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Avatar name={author.name} src={author.avatarUrl} />
-          <div>
-            <p className="text-sm font-bold text-ink">{author.name}</p>
-            <p className="text-xs text-muted">{postedAt}</p>
-          </div>
+          <article className="mt-4 rounded-2xl border border-line bg-surface p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <Avatar name={author.name} src={author.avatarUrl} />
+              <div>
+                <p className="text-sm font-bold text-ink">{author.name}</p>
+                <p className="text-xs text-muted">{postedAt}</p>
+              </div>
+            </div>
+
+            <p className="mt-4 inline-block rounded-md bg-tag px-2 py-1 text-[10px] font-bold tracking-wider text-brand uppercase">
+              {category}
+            </p>
+
+            <h1 className="mt-2 text-2xl font-bold text-ink">{title}</h1>
+            {description && <p className="mt-2 text-sm text-muted">{description}</p>}
+
+            <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2">
+              {tiers.map(({ tier, items }) => (
+                <TierRow key={tier} tier={tier} items={items} />
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center border-t border-line pt-3">
+              <div className="flex items-center gap-5">
+                <ActionButton
+                  icon={ThumbsUpIcon}
+                  count={formatCount(stats.likes)}
+                  label="Like"
+                  pressed={vote === 'like'}
+                  activeClass="text-vote-up"
+                  onClick={() => voteOn(post.id, 'like')}
+                />
+                <ActionButton
+                  icon={ThumbsDownIcon}
+                  count={formatCount(stats.dislikes)}
+                  label="Dislike"
+                  pressed={vote === 'dislike'}
+                  activeClass="text-vote-down"
+                  onClick={() => voteOn(post.id, 'dislike')}
+                />
+                <ActionButton icon={CommentIcon} count={formatCount(stats.comments)} label="Comments" />
+              </div>
+              <div className="ml-auto">
+                <ActionButton icon={ShareIcon} label="Share" />
+              </div>
+            </div>
+          </article>
+
+          <CommentSection comments={postComments} onSubmit={(body) => addComment(post.id, body)} />
         </div>
 
-        <p className="mt-4 inline-block rounded-md bg-tag px-2 py-1 text-[10px] font-bold tracking-wider text-brand uppercase">
-          {category}
-        </p>
-
-        <h1 className="mt-2 text-2xl font-bold text-ink">{title}</h1>
-        {description && <p className="mt-2 text-sm text-muted">{description}</p>}
-
-        <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2">
-          {tiers.map(({ tier, items }) => (
-            <TierRow key={tier} tier={tier} items={items} />
-          ))}
-        </div>
-
-        <div className="mt-4 flex items-center border-t border-line pt-3">
-          <div className="flex items-center gap-5">
-            <ActionButton
-              icon={ThumbsUpIcon}
-              count={formatCount(stats.likes)}
-              label="Like"
-              pressed={vote === 'like'}
-              activeClass="text-vote-up"
-              onClick={() => voteOn(post.id, 'like')}
-            />
-            <ActionButton
-              icon={ThumbsDownIcon}
-              count={formatCount(stats.dislikes)}
-              label="Dislike"
-              pressed={vote === 'dislike'}
-              activeClass="text-vote-down"
-              onClick={() => voteOn(post.id, 'dislike')}
-            />
-            <ActionButton icon={CommentIcon} count={formatCount(stats.comments)} label="Comments" />
-          </div>
-          <div className="ml-auto">
-            <ActionButton icon={ShareIcon} label="Share" />
-          </div>
-        </div>
-      </article>
-
-      <CommentSection comments={postComments} onSubmit={(body) => addComment(post.id, body)} />
+        <aside className="lg:sticky lg:top-6 lg:self-start">
+          <AboutTemplateCard
+            name={template?.title ?? post.templateName}
+            description={template?.description}
+            itemCount={itemCount}
+            templateId={post.templateId}
+          />
+        </aside>
+      </div>
     </main>
   )
 }
