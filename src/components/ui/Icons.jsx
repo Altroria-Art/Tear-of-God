@@ -82,3 +82,21 @@ export function ShareIcon({ className }) {
     </Svg>
   )
 }
+
+export function ExportIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m7 10 5-5 5 5" />
+      <path d="M12 15V5" />
+    </Svg>
+  )
+}
+
+export function StarIcon({ className }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+      <path d="M12 2.5l2.95 5.98 6.6.96-4.78 4.66 1.13 6.58L12 17.57l-5.9 3.1 1.13-6.58L2.45 9.44l6.6-.96L12 2.5Z" />
+    </svg>
+  )
+}

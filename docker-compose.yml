@@ -4,6 +4,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?set in .env}
+        VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:?set in .env}
     ports:
-      - "8080:80"
+      - "${PORT:-8080}:80"
     restart: unless-stopped
+    # Reaps zombie processes and forwards signals properly.
+    init: true
