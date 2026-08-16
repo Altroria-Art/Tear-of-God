@@ -17,6 +17,7 @@ export const MOCK_POSTS = [
     description:
       'Settling the debate once and for all — ranking the players who defined the sport across every era.',
     templateName: 'GOAT NBA Players',
+    templateId: 'goat-nba',
     tiers: [
       { tier: 'S', items: ['Michael Jordan', 'LeBron James'] },
       { tier: 'A', items: ['Kobe Bryant', 'Magic Johnson'] },
@@ -31,6 +32,7 @@ export const MOCK_POSTS = [
     title: 'Best Sci-Fi Movies of the 2010s',
     description: 'A decade of ambitious, mind-bending sci-fi — ranked from must-watch to skippable.',
     templateName: 'Sci-Fi Movies',
+    templateId: 'best-sci-fi',
     tiers: [
       { tier: 'S', items: ['Inception', 'Arrival'] },
       { tier: 'A', items: ['Blade Runner 2049'] },
@@ -45,6 +47,7 @@ export const MOCK_POSTS = [
     title: 'Everyday Things That Are Secretly Perfect',
     description: 'The small, ordinary moments that quietly make life better than it has any right to be.',
     templateName: 'Everyday Things',
+    templateId: null,
     tiers: [
       { tier: 'S', items: ['Hot shower after work', 'A cold pillow'] },
       { tier: 'A', items: ['Fresh bedsheets', 'Empty inbox'] },
@@ -60,6 +63,7 @@ export const MOCK_POSTS = [
     title: 'Street Food Worth Flying For',
     description: 'Ranking the street eats worth booking a flight for, from unmissable to skip-it.',
     templateName: 'Street Food',
+    templateId: 'best-street-food',
     tiers: [
       { tier: 'S', items: ['Pad Kaphrao', 'Takoyaki'] },
       { tier: 'A', items: ['Banh Mi', 'Elote'] },
@@ -75,6 +79,7 @@ export const MOCK_POSTS = [
     title: 'Greatest World Cup Finals Ranked',
     description: 'The most iconic World Cup finals ever played, ranked by drama, stakes, and legacy.',
     templateName: 'World Cup Finals',
+    templateId: null,
     tiers: [
       { tier: 'S', items: ['2022 Argentina v France'] },
       { tier: 'A', items: ['1986 Argentina v West Germany', '1998 France v Brazil'] },
@@ -90,6 +95,7 @@ export const MOCK_POSTS = [
     title: 'Every Studio Ghibli Film, Ranked',
     description: 'Every feature from the Ghibli catalog, ranked from an all-time classic to a rewatch some day.',
     templateName: 'Studio Ghibli Films',
+    templateId: null,
     tiers: [
       { tier: 'S', items: ['Spirited Away', 'Princess Mononoke'] },
       { tier: 'A', items: ['My Neighbor Totoro', "Howl's Moving Castle"] },
@@ -105,6 +111,7 @@ export const MOCK_POSTS = [
     title: 'Instant Noodles Tier List',
     description: 'The pantry staples ranked, from the ones worth stockpiling to the ones you settle for.',
     templateName: 'Instant Noodles',
+    templateId: null,
     tiers: [
       { tier: 'S', items: ['Shin Ramyun Black'] },
       { tier: 'B', items: ['Indomie Mi Goreng', 'Buldak Carbonara'] },
@@ -120,6 +127,7 @@ export const MOCK_POSTS = [
     title: 'Ranking Every Season of the Year',
     description: 'An unapologetically biased ranking of the four seasons, from the best to the most tolerated.',
     templateName: 'Seasons',
+    templateId: null,
     tiers: [
       { tier: 'S', items: ['Autumn'] },
       { tier: 'A', items: ['Spring'] },
