@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+import { formatCount } from '../../lib/feed'
 import Avatar from '../ui/Avatar'
 import {
   CommentIcon,
@@ -6,23 +8,11 @@ import {
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from '../ui/Icons'
+import ActionButton from './ActionButton'
 import TierRow from './TierRow'
 
-function ActionButton({ icon: Icon, count, label }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      className="flex items-center gap-1.5 text-action transition-colors hover:text-ink-soft"
-    >
-      <Icon className="h-[18px] w-[18px]" />
-      {count != null && <span className="text-sm">{count}</span>}
-    </button>
-  )
-}
-
-export default function FeedCard({ post }) {
-  const { author, postedAt, category, title, templateName, tiers, stats } = post
+export default function FeedCard({ post, vote, stats, onVote }) {
+  const { author, postedAt, category, title, templateName, tiers } = post
 
   return (
     <article className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
@@ -48,7 +38,11 @@ export default function FeedCard({ post }) {
         {category}
       </p>
 
-      <h2 className="mt-2 text-xl font-bold text-ink">{title}</h2>
+      <h2 className="mt-2 text-xl font-bold text-ink">
+        <Link to={`/post/${post.id}`} className="transition-colors hover:text-brand">
+          {title}
+        </Link>
+      </h2>
 
       <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2">
         {tiers.map(({ tier, items }) => (
@@ -58,9 +52,28 @@ export default function FeedCard({ post }) {
 
       <div className="mt-4 flex items-center border-t border-line pt-3">
         <div className="flex items-center gap-5">
-          <ActionButton icon={ThumbsUpIcon} count={stats.likes} label="Like" />
-          <ActionButton icon={ThumbsDownIcon} label="Dislike" />
-          <ActionButton icon={CommentIcon} count={stats.comments} label="Comments" />
+          <ActionButton
+            icon={ThumbsUpIcon}
+            count={formatCount(stats.likes)}
+            label="Like"
+            pressed={vote === 'like'}
+            activeClass="text-vote-up"
+            onClick={() => onVote('like')}
+          />
+          <ActionButton
+            icon={ThumbsDownIcon}
+            count={formatCount(stats.dislikes)}
+            label="Dislike"
+            pressed={vote === 'dislike'}
+            activeClass="text-vote-down"
+            onClick={() => onVote('dislike')}
+          />
+          <ActionButton
+            icon={CommentIcon}
+            count={formatCount(stats.comments)}
+            label="Comments"
+            to={`/post/${post.id}`}
+          />
         </div>
         <div className="ml-auto">
           <ActionButton icon={ShareIcon} label="Share" />
