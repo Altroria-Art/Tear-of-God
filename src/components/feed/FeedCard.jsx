@@ -1,3 +1,4 @@
+import { formatCount, statsWithVote } from '../../lib/feed'
 import Avatar from '../ui/Avatar'
 import {
   CommentIcon,
@@ -8,12 +9,16 @@ import {
 } from '../ui/Icons'
 import TierRow from './TierRow'
 
-function ActionButton({ icon: Icon, count, label }) {
+function ActionButton({ icon: Icon, count, label, onClick, pressed, activeClass }) {
   return (
     <button
       type="button"
       aria-label={label}
-      className="flex items-center gap-1.5 text-action transition-colors hover:text-ink-soft"
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={`flex items-center gap-1.5 transition-colors ${
+        pressed ? `${activeClass} font-semibold` : 'text-action hover:text-ink-soft'
+      }`}
     >
       <Icon className="h-[18px] w-[18px]" />
       {count != null && <span className="text-sm">{count}</span>}
@@ -21,8 +26,9 @@ function ActionButton({ icon: Icon, count, label }) {
   )
 }
 
-export default function FeedCard({ post }) {
-  const { author, postedAt, category, title, templateName, tiers, stats } = post
+export default function FeedCard({ post, vote, onVote }) {
+  const { author, postedAt, category, title, templateName, tiers } = post
+  const stats = statsWithVote(post.stats, vote)
 
   return (
     <article className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
@@ -58,9 +64,23 @@ export default function FeedCard({ post }) {
 
       <div className="mt-4 flex items-center border-t border-line pt-3">
         <div className="flex items-center gap-5">
-          <ActionButton icon={ThumbsUpIcon} count={stats.likes} label="Like" />
-          <ActionButton icon={ThumbsDownIcon} label="Dislike" />
-          <ActionButton icon={CommentIcon} count={stats.comments} label="Comments" />
+          <ActionButton
+            icon={ThumbsUpIcon}
+            count={formatCount(stats.likes)}
+            label="Like"
+            pressed={vote === 'like'}
+            activeClass="text-vote-up"
+            onClick={() => onVote('like')}
+          />
+          <ActionButton
+            icon={ThumbsDownIcon}
+            count={formatCount(stats.dislikes)}
+            label="Dislike"
+            pressed={vote === 'dislike'}
+            activeClass="text-vote-down"
+            onClick={() => onVote('dislike')}
+          />
+          <ActionButton icon={CommentIcon} count={formatCount(stats.comments)} label="Comments" />
         </div>
         <div className="ml-auto">
           <ActionButton icon={ShareIcon} label="Share" />
