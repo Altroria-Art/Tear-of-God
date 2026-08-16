@@ -33,7 +33,7 @@ export function shuffle(items) {
 }
 
 // Which posts to render, in what order, for the active tab.
-export function selectPosts(posts, activeCategory, { votes, forYouOrder }) {
+export function selectPosts(posts, activeCategory, { statsFor, forYouOrder }) {
   if (activeCategory === FOR_YOU) {
     const order = new Map(forYouOrder.map((id, index) => [id, index]))
     return [...posts].sort((a, b) => (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity))
@@ -41,9 +41,7 @@ export function selectPosts(posts, activeCategory, { votes, forYouOrder }) {
 
   if (activeCategory === TRENDING) {
     return [...posts].sort(
-      (a, b) =>
-        engagementOf(statsWithVote(b.stats, votes[b.id])) -
-        engagementOf(statsWithVote(a.stats, votes[a.id])),
+      (a, b) => engagementOf(statsFor(b)) - engagementOf(statsFor(a)),
     )
   }
 

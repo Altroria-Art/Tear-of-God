@@ -1,4 +1,5 @@
-import { formatCount, statsWithVote } from '../../lib/feed'
+import { Link } from 'react-router-dom'
+import { formatCount } from '../../lib/feed'
 import Avatar from '../ui/Avatar'
 import {
   CommentIcon,
@@ -7,28 +8,11 @@ import {
   ThumbsDownIcon,
   ThumbsUpIcon,
 } from '../ui/Icons'
+import ActionButton from './ActionButton'
 import TierRow from './TierRow'
 
-function ActionButton({ icon: Icon, count, label, onClick, pressed, activeClass }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={`flex items-center gap-1.5 transition-colors ${
-        pressed ? `${activeClass} font-semibold` : 'text-action hover:text-ink-soft'
-      }`}
-    >
-      <Icon className="h-[18px] w-[18px]" />
-      {count != null && <span className="text-sm">{count}</span>}
-    </button>
-  )
-}
-
-export default function FeedCard({ post, vote, onVote }) {
+export default function FeedCard({ post, vote, stats, onVote }) {
   const { author, postedAt, category, title, templateName, tiers } = post
-  const stats = statsWithVote(post.stats, vote)
 
   return (
     <article className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
@@ -54,7 +38,11 @@ export default function FeedCard({ post, vote, onVote }) {
         {category}
       </p>
 
-      <h2 className="mt-2 text-xl font-bold text-ink">{title}</h2>
+      <h2 className="mt-2 text-xl font-bold text-ink">
+        <Link to={`/post/${post.id}`} className="transition-colors hover:text-brand">
+          {title}
+        </Link>
+      </h2>
 
       <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2">
         {tiers.map(({ tier, items }) => (
@@ -80,7 +68,12 @@ export default function FeedCard({ post, vote, onVote }) {
             activeClass="text-vote-down"
             onClick={() => onVote('dislike')}
           />
-          <ActionButton icon={CommentIcon} count={formatCount(stats.comments)} label="Comments" />
+          <ActionButton
+            icon={CommentIcon}
+            count={formatCount(stats.comments)}
+            label="Comments"
+            to={`/post/${post.id}`}
+          />
         </div>
         <div className="ml-auto">
           <ActionButton icon={ShareIcon} label="Share" />
