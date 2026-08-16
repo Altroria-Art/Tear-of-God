@@ -3,6 +3,7 @@ import Navbar from './components/layout/Navbar';
 import HomeFeed from './pages/HomeFeed';
 import Discover from './pages/Discover';
 import CategoryPage from './pages/CategoryPage';
+import TemplateDetailPage from './pages/TemplateDetailPage';
 import Create from './pages/Create'; 
 
 function App() {
@@ -18,6 +19,8 @@ function App() {
         <Route path="/discover" element={<Discover />} />
         
         <Route path="/category/:categoryId" element={<CategoryPage />} />
+        
+        <Route path="/template/:templateId" element={<TemplateDetailPage />} />
       </Routes>
     </Router>
   );

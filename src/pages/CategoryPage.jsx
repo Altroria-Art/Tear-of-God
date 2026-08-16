@@ -32,7 +32,7 @@ const CATEGORY_META = {
 const CATEGORY_TEMPLATES = {
   general: [
     {
-      id: 'general-1',
+      id: 'top-10-games',
       title: 'Top 10 Games of the Year',
       authorName: 'Alex M.',
       authorHandle: '@alexplays',
@@ -40,7 +40,7 @@ const CATEGORY_TEMPLATES = {
       tiers: { S: ['Elden Ring', 'Baldur’s Gate 3'], A: ['Tears of the Kingdom', 'Hades'] },
     },
     {
-      id: 'general-2',
+      id: 'best-books',
       title: 'Best Books to Read in 2026',
       authorName: 'Jane D.',
       authorHandle: '@janereads',
@@ -50,7 +50,7 @@ const CATEGORY_TEMPLATES = {
   ],
   movie: [
     {
-      id: 'movie-1',
+      id: 'best-sci-fi',
       title: 'Best Sci-Fi Movies',
       authorName: 'Sarah C.',
       authorHandle: '@scifi_sarah',
@@ -58,7 +58,7 @@ const CATEGORY_TEMPLATES = {
       tiers: { S: ['Inception', 'Arrival'], A: ['Blade Runner 2049', 'Interstellar'] },
     },
     {
-      id: 'movie-2',
+      id: 'greatest-superhero',
       title: 'Greatest Superhero Films',
       authorName: 'Nate B.',
       authorHandle: '@nerdynate',
@@ -68,7 +68,7 @@ const CATEGORY_TEMPLATES = {
   ],
   food: [
     {
-      id: 'food-1',
+      id: 'ultimate-ramen',
       title: 'Ultimate Ramen Rankings',
       authorName: 'Chef Mike',
       authorHandle: '@Chef_Mike',
@@ -76,7 +76,7 @@ const CATEGORY_TEMPLATES = {
       tiers: { S: ['Tonkotsu', 'Shoyu'], A: ['Miso', 'Shio'] },
     },
     {
-      id: 'food-2',
+      id: 'best-street-food',
       title: 'Best Street Food in Bangkok',
       authorName: 'Nok S.',
       authorHandle: '@streetbites_nok',
@@ -86,7 +86,7 @@ const CATEGORY_TEMPLATES = {
   ],
   sport: [
     {
-      id: 'sport-1',
+      id: 'goat-nba',
       title: 'GOAT NBA Players',
       authorName: 'Alex Mercer',
       authorHandle: '@hoop_alex',
@@ -94,7 +94,7 @@ const CATEGORY_TEMPLATES = {
       tiers: { S: ['Michael Jordan', 'LeBron James'], A: ['Kobe Bryant', 'Magic Johnson'] },
     },
     {
-      id: 'sport-2',
+      id: 'greatest-footballers',
       title: 'Greatest Footballers Ever',
       authorName: 'Diego M.',
       authorHandle: '@futbol_diego',
@@ -168,7 +168,10 @@ function TemplateCard({ template }) {
   const { title, authorName, authorHandle, views, tiers } = template
 
   return (
-    <article className="rounded-xl border border-gray-100 bg-white shadow-sm">
+    <Link
+      to={`/template/${template.id}`}
+      className="block rounded-xl border border-gray-100 bg-white shadow-sm"
+    >
       <div className="relative m-3 rounded-lg bg-[#F9F9F9] p-3">
         <span className="absolute top-2 right-2 rounded-md bg-white px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 shadow-sm">
           👥 {views}
@@ -187,13 +190,14 @@ function TemplateCard({ template }) {
         </div>
         <button
           type="button"
+          onClick={(e) => e.preventDefault()}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-yellow-400 py-2 font-semibold text-gray-900 transition-colors hover:bg-yellow-500"
         >
           <PlusIcon className="h-4 w-4" />
           Use
         </button>
       </div>
-    </article>
+    </Link>
   )
 }
 
