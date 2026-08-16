@@ -32,4 +32,8 @@
   --color-tier-b: #fde047;
   --color-tier-c: #86ca8a;
   --color-tier-d: #7dc4e8;
+
+  /* Vote states */
+  --color-vote-up: #2f6fd0;
+  --color-vote-down: #d0453b;
 }
