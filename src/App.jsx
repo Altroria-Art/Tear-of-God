@@ -8,6 +8,7 @@ import TemplateDetailPage from './pages/TemplateDetailPage';
 import PostDetail from './pages/PostDetail';
 import Create from './pages/Create';
 import RankTierList from './pages/RankTierList';
+import Profile from './pages/Profile'; 
 
 function App() {
   return (
@@ -19,12 +20,11 @@ function App() {
           <Route path="/" element={<HomeFeed />} />
           <Route path="/create" element={<Create />} />
           <Route path="/discover" element={<Discover />} />
-
           <Route path="/rank" element={<RankTierList />} />
-
           <Route path="/category/:categoryId" element={<CategoryPage />} />
           <Route path="/template/:templateId" element={<TemplateDetailPage />} />
           <Route path="/post/:postId" element={<PostDetail />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </FeedProvider>
     </Router>
