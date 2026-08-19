@@ -1,144 +1,217 @@
-import { Link } from 'react-router-dom'
-import Avatar from '../components/ui/Avatar'
-
-const CATEGORIES = [
-  { id: 'general', name: 'General', icon: '✨' },
-  { id: 'movie', name: 'Movie', icon: '🎬' },
-  { id: 'food', name: 'Food', icon: '🍜' },
-  { id: 'sport', name: 'Sport', icon: '🏆' },
-]
-
-// Placeholder until rankings are backed by the database.
-const POPULAR_TEMPLATES = [
-  {
-    id: 'goat-nba',
-    title: 'GOAT NBA Players',
-    authorHandle: '@hoop_alex',
-    views: '15.2k',
-    tiers: {
-      S: ['Michael Jordan', 'LeBron James'],
-      A: ['Kobe Bryant', 'Magic Johnson'],
-    },
-  },
-  {
-    id: 'best-sci-fi',
-    title: 'Best Sci-Fi Movies',
-    authorHandle: '@scifi_sarah',
-    views: '14.8k',
-    tiers: {
-      S: ['Inception', 'Arrival'],
-      A: ['Blade Runner 2049', 'Interstellar'],
-    },
-  },
-  {
-    id: 'ultimate-ramen',
-    title: 'Ultimate Ramen Rankings',
-    authorHandle: '@Chef_Mike',
-    views: '16.8k',
-    tiers: {
-      S: ['Tonkotsu', 'Shoyu'],
-      A: ['Miso', 'Shio'],
-    },
-  },
-]
-
-const TIER_BG = {
-  S: 'bg-tier-s',
-  A: 'bg-tier-a',
-}
-
-function TemplateCard({ template }) {
-  const { title, authorHandle, views, tiers } = template
-
-  return (
-    <Link
-      to={`/template/${template.id}`}
-      className="flex flex-col rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
-    >
-      <div className="relative mb-4 rounded-lg border border-gray-200 bg-[#FCFBF8] p-4">
-        <span className="absolute top-3 right-3 rounded-md bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 shadow-sm">
-          👤 {views}
-        </span>
-        <div className="space-y-3">
-          {Object.entries(tiers).map(([tier, items]) => (
-            <div key={tier} className="flex items-center gap-3">
-              <span
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-md px-2 py-1.5 text-lg font-bold text-white ${TIER_BG[tier]}`}
-              >
-                {tier}
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                {items.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <h3 className="text-xl font-bold text-gray-900">{title}</h3>
-      <div className="mt-3 flex items-center gap-2">
-        <Avatar size="sm" name={authorHandle} />
-        <span className="text-sm text-gray-600">{authorHandle}</span>
-      </div>
-      <button
-        type="button"
-        onClick={(e) => e.preventDefault()}
-        className="mt-5 w-full rounded-lg bg-pill-active py-2.5 font-semibold text-ink transition-colors hover:bg-brand-accent"
-      >
-        Use Template
-      </button>
-    </Link>
-  )
-}
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
 
 export default function Discover() {
+  const navigate = useNavigate();
+  const { currentUser } = useUser();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // ฟังก์ชันป้องกันการกดใช้งาน (เช่น ปุ่ม Use) ถ้ายังไม่ล็อกอินจะเด้งไปหน้า login
+  const handleProtectedAction = (callback) => {
+    if (!currentUser) {
+      alert('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้ครับ!');
+      navigate('/login');
+      return;
+    }
+    if (callback) callback();
+  };
+
+  const handleUseTemplate = (templateName) => {
+    handleProtectedAction(() => {
+      // พาไปหน้าสร้างหรือหน้าจัดอันดับพร้อม Template นั้นๆ
+      navigate('/create', { state: { templateName } });
+    });
+  };
+
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <header>
-        <h1 className="text-3xl font-bold text-ink">Discover</h1>
-        <p className="mt-2 text-muted">
-          Explore top tier lists and templates from the community.
-        </p>
-      </header>
+    <div className="bg-[#fef9f2] text-[#1d1c18] font-sans min-h-screen flex flex-col">
+      
+      {/* Main Content */}
+      <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
+        
+        {/* Header Section */}
+        <div className="mb-12">
+          <h1 className="text-4xl font-extrabold tracking-tight text-[#1d1c18] mb-2">Discover</h1>
+          <p className="text-base text-[#4b4639]">Explore top tier lists and templates from the community.</p>
+        </div>
 
-      <section className="mt-8">
-        <h2 className="mb-4 text-xl font-bold text-ink">Categories</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {CATEGORIES.map(({ id, name, icon }) => (
-            <Link
-              key={id}
-              to={`/category/${id}`}
-              className="flex aspect-square flex-col items-center justify-center gap-3 rounded-xl bg-search text-ink transition-colors hover:bg-tag"
-            >
-              <span className="text-4xl" aria-hidden="true">
-                {icon}
-              </span>
-              <span className="font-semibold">{name}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+        {/* Popular Templates Section */}
+        <section className="mb-16">
+          <div className="flex justify-between items-end mb-6">
+            <h2 className="text-2xl font-bold text-[#1d1c18]">Popular Templates</h2>
+            <button className="text-sm font-bold text-[#564600] hover:text-[#795900] transition-colors">View All</button>
+          </div>
 
-      <section className="mt-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-ink">Popular Templates</h2>
-          <a href="#" className="text-sm font-semibold text-brand hover:underline">
-            View All
-          </a>
-        </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {POPULAR_TEMPLATES.map((template) => (
-            <TemplateCard key={template.id} template={template} />
-          ))}
-        </div>
-      </section>
-    </main>
-  )
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+            
+            {/* Template Card 1 */}
+            <div className="bg-white border border-[#cec6b4] rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+              <div className="bg-[#f8f3ec] p-4 h-40 flex flex-col gap-2 relative">
+                <div className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-xs text-[#4b4639] flex items-center gap-1 z-10 shadow-xs">
+                  <span className="material-symbols-outlined text-[14px]">group</span> 15.2k
+                </div>
+                <div className="flex gap-2 h-1/2">
+                  <div className="bg-[#ff7f7f] w-12 flex items-center justify-center rounded-l text-white font-bold text-sm">S</div>
+                  <div className="bg-[#e6e2db] flex-grow rounded-r opacity-50 flex items-center gap-2 px-2 overflow-hidden">
+                    <span className="bg-white border border-[#cec6b4] rounded px-2 py-1 text-[10px] text-[#4b4639]">One Piece</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 h-1/2">
+                  <div className="bg-[#ffbf7f] w-12 flex items-center justify-center rounded-l text-white font-bold text-sm">A</div>
+                  <div className="bg-[#e6e2db] flex-grow rounded-r opacity-50 flex items-center gap-2 px-2 overflow-hidden">
+                    <span className="bg-white border border-[#cec6b4] rounded px-2 py-1 text-[10px] text-[#4b4639]">Naruto</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 flex-grow flex flex-col justify-between bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-[#1d1c18] mb-2">Top Shonen Anime</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-[#556074] text-white text-xs flex items-center justify-center font-bold">AL</div>
+                    <span className="text-sm text-[#4b4639]">@animelover</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleUseTemplate('Top Shonen Anime')}
+                  className="w-full py-2.5 bg-[#ffc329] hover:bg-[#f9bd22] text-[#261a00] font-bold rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
+                >
+                  Use Template
+                </button>
+              </div>
+            </div>
+
+            {/* Template Card 2 */}
+            <div className="bg-white border border-[#cec6b4] rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+              <div className="bg-[#f8f3ec] p-4 h-40 flex flex-col gap-2 relative">
+                <div className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-xs text-[#4b4639] flex items-center gap-1 z-10 shadow-xs">
+                  <span className="material-symbols-outlined text-[14px]">group</span> 8.4k
+                </div>
+                <div className="flex gap-2 h-1/2">
+                  <div className="bg-[#ff7f7f] w-12 flex items-center justify-center rounded-l text-white font-bold text-sm">S</div>
+                  <div className="bg-[#e6e2db] flex-grow rounded-r opacity-50 flex items-center gap-2 px-2 overflow-hidden">
+                    <span className="bg-white border border-[#cec6b4] rounded px-2 py-1 text-[10px] text-[#4b4639]">Se7en</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 h-1/2">
+                  <div className="bg-[#ffbf7f] w-12 flex items-center justify-center rounded-l text-white font-bold text-sm">A</div>
+                  <div className="bg-[#e6e2db] flex-grow rounded-r opacity-50 flex items-center gap-2 px-2 overflow-hidden">
+                    <span className="bg-white border border-[#cec6b4] rounded px-2 py-1 text-[10px] text-[#4b4639]">Fargo</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 flex-grow flex flex-col justify-between bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-[#1d1c18] mb-2">Best 90s Thrillers</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-[#705e16] text-white text-xs flex items-center justify-center font-bold">CP</div>
+                    <span className="text-sm text-[#4b4639]">@cinephile</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleUseTemplate('Best 90s Thrillers')}
+                  className="w-full py-2.5 bg-[#ffc329] hover:bg-[#f9bd22] text-[#261a00] font-bold rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
+                >
+                  Use Template
+                </button>
+              </div>
+            </div>
+
+            {/* Template Card 3 */}
+            <div className="bg-white border border-[#cec6b4] rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+              <div className="bg-[#f8f3ec] p-4 h-40 flex flex-col gap-2 relative">
+                <div className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-xs text-[#4b4639] flex items-center gap-1 z-10 shadow-xs">
+                  <span className="material-symbols-outlined text-[14px]">group</span> 22.1k
+                </div>
+                <div className="flex gap-2 h-1/2">
+                  <div className="bg-[#ff7f7f] w-12 flex items-center justify-center rounded-l text-white font-bold text-sm">S</div>
+                  <div className="bg-[#e6e2db] flex-grow rounded-r opacity-50 flex items-center gap-2 px-2 overflow-hidden">
+                    <span className="bg-white border border-[#cec6b4] rounded px-2 py-1 text-[10px] text-[#4b4639]">Tacos</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 h-1/2">
+                  <div className="bg-[#ffbf7f] w-12 flex items-center justify-center rounded-l text-white font-bold text-sm">A</div>
+                  <div className="bg-[#e6e2db] flex-grow rounded-r opacity-50 flex items-center gap-2 px-2 overflow-hidden">
+                    <span className="bg-white border border-[#cec6b4] rounded px-2 py-1 text-[10px] text-[#4b4639]">Crepes</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 flex-grow flex flex-col justify-between bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-[#1d1c18] mb-2">Street Food Classics</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-[#795900] text-white text-xs flex items-center justify-center font-bold">FD</div>
+                    <span className="text-sm text-[#4b4639]">@foodie_dave</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleUseTemplate('Street Food Classics')}
+                  className="w-full py-2.5 bg-[#ffc329] hover:bg-[#f9bd22] text-[#261a00] font-bold rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
+                >
+                  Use Template
+                </button>
+              </div>
+            </div>
+
+            {/* Template Card 4 */}
+            <div className="bg-white border border-[#cec6b4] rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+              <div className="bg-[#f8f3ec] p-4 h-40 flex flex-col gap-2 relative">
+                <div className="absolute top-2 right-2 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-xs text-[#4b4639] flex items-center gap-1 z-10 shadow-xs">
+                  <span className="material-symbols-outlined text-[14px]">group</span> 18.5k
+                </div>
+                <div className="flex gap-2 h-1/2">
+                  <div className="bg-[#ff7f7f] w-12 flex items-center justify-center rounded-l text-white font-bold text-sm">S</div>
+                  <div className="bg-[#e6e2db] flex-grow rounded-r opacity-50 flex items-center gap-2 px-2 overflow-hidden">
+                    <span className="bg-white border border-[#cec6b4] rounded px-2 py-1 text-[10px] text-[#4b4639]">Zelda: BotW</span>
+                  </div>
+                </div>
+                <div className="flex gap-2 h-1/2">
+                  <div className="bg-[#ffbf7f] w-12 flex items-center justify-center rounded-l text-white font-bold text-sm">A</div>
+                  <div className="bg-[#e6e2db] flex-grow rounded-r opacity-50 flex items-center gap-2 px-2 overflow-hidden">
+                    <span className="bg-white border border-[#cec6b4] rounded px-2 py-1 text-[10px] text-[#4b4639]">Mario Odyssey</span>
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 flex-grow flex flex-col justify-between bg-white">
+                <div>
+                  <h3 className="text-lg font-bold text-[#1d1c18] mb-2">Switch Games</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-[#ba1a1a] text-white text-xs flex items-center justify-center font-bold">NG</div>
+                    <span className="text-sm text-[#4b4639]">@nintendoguy</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleUseTemplate('Switch Games')}
+                  className="w-full py-2.5 bg-[#ffc329] hover:bg-[#f9bd22] text-[#261a00] font-bold rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
+                >
+                  Use Template
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        {/* Popular Hashtags Section */}
+        <section className="mb-16">
+          <div className="flex justify-between items-end mb-6">
+            <h2 className="text-2xl font-bold text-[#1d1c18]">Popular Hashtags</h2>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {['#anime', '#movies', '#gaming', '#food', '#sports', '#music', '#tierlist'].map((tag, idx) => (
+              <button 
+                key={idx}
+                onClick={() => alert(`Selected hashtag: ${tag}`)}
+                className="px-4 py-2 bg-[#f2ede6] border border-[#cec6b4] rounded-full text-[#4b4639] hover:bg-[#ece7e1] transition-colors font-bold text-sm shadow-xs"
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </section>
+
+      </main>
+
+    </div>
+  );
 }
