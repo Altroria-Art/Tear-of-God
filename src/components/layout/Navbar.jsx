@@ -1,15 +1,24 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Search, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Search, User, LogOut } from 'lucide-react';
+import { useUser } from '../../context/UserContext'; // นำเข้า UserContext เพื่อเช็คสถานะและ logout
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { currentUser, logout } = useUser(); // เพิ่ม logout เข้ามาใน destructure
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // สำหรับคุม Dropdown
 
-  // เอา font-bold ออกไปแล้ว ตัวหนังสือจะไม่หนาขึ้นเวลาถูกเลือก
   const isActive = (path) => {
     return location.pathname === path 
       ? 'border-[#8B6F4E] text-black' 
       : 'border-transparent text-gray-600 hover:text-black';
+  };
+
+  const handleLogout = () => {
+    logout(); // เรียกฟังก์ชัน logout จาก context
+    setIsDropdownOpen(false);
+    navigate('/login');
   };
 
   return (
@@ -47,13 +56,50 @@ const Navbar = () => {
           />
         </div>
 
-        {/* ปุ่มโปรไฟล์ (กดแล้วไปหน้า /profile) */}
-        <Link 
-          to="/profile" 
-          className="w-10 h-10 bg-[#f4efe8] rounded-full flex items-center justify-center text-gray-700 hover:bg-[#e8e2d8] hover:text-[#8B6F4E] transition-colors cursor-pointer"
-        >
-          <User size={18} strokeWidth={2.5} />
-        </Link>
+        {/* ปุ่มโปรไฟล์ / ล็อกอิน */}
+        <div className="relative">
+          {currentUser ? (
+            <>
+              {/* ปุ่มรูปโปรไฟล์ */}
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="w-10 h-10 bg-[#f4efe8] rounded-full flex items-center justify-center text-gray-700 hover:bg-[#e8e2d8] transition-colors cursor-pointer overflow-hidden shadow-sm border border-[#e8dfd3]"
+              >
+                {currentUser?.avatar_url ? (
+                  <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <User size={18} strokeWidth={2.5} />
+                )}
+              </button>
+
+              {/* Dropdown เมนู */}
+              {isDropdownOpen && (
+                <div className="absolute right-0 top-12 w-40 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+                  <Link 
+                    to="/profile" 
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#f4efe8]"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    Profile
+                  </Link>
+                  <button 
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <LogOut size={14} /> ออกจากระบบ
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <Link 
+              to="/login" 
+              className="w-10 h-10 bg-[#f4efe8] rounded-full flex items-center justify-center text-gray-700 hover:bg-[#e8e2d8] hover:text-[#8B6F4E] transition-colors cursor-pointer overflow-hidden shadow-sm border border-[#e8dfd3]"
+            >
+              <User size={18} strokeWidth={2.5} />
+            </Link>
+          )}
+        </div>
         
       </div>
     </nav>
