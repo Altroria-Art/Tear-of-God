@@ -17,7 +17,9 @@ export default function PostDetail() {
   const [post, setPost] = useState(null)
   const [comments, setComments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [vote, setVote] = useState(null)
+  const [userAction, setUserAction] = useState(() => {
+    try { return localStorage.getItem(`tog_interaction_${postId}`) } catch { return null }
+  })
 
   useEffect(() => {
     async function loadPost() {
@@ -56,8 +58,8 @@ export default function PostDetail() {
           description: data.description,
           tiers: tiers.length > 0 ? tiers : [{ tier: 'S', items: [] }],
           stats: { 
-            likes: data.stats?.likes || 0, 
-            dislikes: data.stats?.dislikes || 0, 
+            likes: (() => { const s = parseInt(localStorage.getItem(`tog_likes_${data.id}`)); return !isNaN(s) ? s : (data.stats?.likes || 0) })(),
+            dislikes: (() => { const s = parseInt(localStorage.getItem(`tog_dislikes_${data.id}`)); return !isNaN(s) ? s : (data.stats?.dislikes || 0) })(),
             comments: data.stats?.comments || (data.comments ? data.comments.length : 0) 
           }
         })
@@ -83,33 +85,58 @@ export default function PostDetail() {
     if (postId) loadPost()
   }, [postId])
 
+  const persistAction = (next) => {
+    try { localStorage.setItem(`tog_interaction_${postId}`, next) } catch {}
+  }
+
+  const persistCounts = (newLikes, newDislikes) => {
+    try {
+      localStorage.setItem(`tog_likes_${postId}`, newLikes);
+      localStorage.setItem(`tog_dislikes_${postId}`, newDislikes);
+    } catch {}
+  }
+
   const handleVote = (type) => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อนโหวตครับ!');
       return;
     }
-    
+
     setPost(prev => {
-      let newLikes = prev.stats.likes;
-      let newDislikes = prev.stats.dislikes;
+      let newLikes = prev.stats.likes
+      let newDislikes = prev.stats.dislikes
+      let nextAction = userAction
 
-      if (vote === type) {
-        if (type === 'like') newLikes -= 1;
-        if (type === 'dislike') newDislikes -= 1;
-        setVote(null);
+      if (type === 'like') {
+        if (userAction === 'liked') {
+          newLikes = Math.max(0, newLikes - 1)
+          nextAction = null
+        } else if (userAction === 'disliked') {
+          newDislikes = Math.max(0, newDislikes - 1)
+          newLikes += 1
+          nextAction = 'liked'
+        } else {
+          newLikes += 1
+          nextAction = 'liked'
+        }
       } else {
-        if (vote === 'like') newLikes -= 1;
-        if (type === 'dislike') newDislikes -= 1;
-
-        if (type === 'like') newLikes += 1;
-        if (type === 'dislike') newDislikes += 1;
-        setVote(type);
+        if (userAction === 'disliked') {
+          newDislikes = Math.max(0, newDislikes - 1)
+          nextAction = null
+        } else if (userAction === 'liked') {
+          newLikes = Math.max(0, newLikes - 1)
+          newDislikes += 1
+          nextAction = 'disliked'
+        } else {
+          newDislikes += 1
+          nextAction = 'disliked'
+        }
       }
 
-      return {
-        ...prev,
-        stats: { ...prev.stats, likes: newLikes, dislikes: newDislikes }
-      };
+      setUserAction(nextAction)
+      persistAction(nextAction)
+      persistCounts(newLikes, newDislikes)
+      return { ...prev, stats: { ...prev.stats, likes: newLikes, dislikes: newDislikes } }
     })
   }
 
@@ -215,7 +242,7 @@ export default function PostDetail() {
                   icon={ThumbsUpIcon} 
                   count={stats.likes} 
                   label="Like" 
-                  pressed={vote === 'like'}
+                  pressed={userAction === 'liked'}
                   activeClass="text-blue-600 font-bold"
                   onClick={() => handleVote('like')}
                 />
@@ -223,7 +250,7 @@ export default function PostDetail() {
                   icon={ThumbsDownIcon} 
                   count={stats.dislikes} 
                   label="Dislike" 
-                  pressed={vote === 'dislike'}
+                  pressed={userAction === 'disliked'}
                   activeClass="text-red-600 font-bold"
                   onClick={() => handleVote('dislike')}
                 />
