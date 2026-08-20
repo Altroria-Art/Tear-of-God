@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
+import { fetchRankings } from '../lib/api';
 import { ThumbsUp, ThumbsDown, MessageSquare, Copy } from 'lucide-react';
 
 function timeAgo(dateString) {
@@ -37,78 +37,72 @@ const TIER_COLORS = {
 
 // 📍 [ลบ mockKindredData ทิ้งไปเรียบร้อย บอทจะไม่มากวนใจอีก!]
 
-function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0 }) {
+function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null }) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
 
-  const [userAction, setUserAction] = useState(null); // 'liked' หรือ 'disliked'
+  const [userAction, setUserAction] = useState(initialUserVote);
   const [likes, setLikes] = useState(initialLikes);
   const [dislikes, setDislikes] = useState(initialDislikes);
 
-  // 📍 [แก้แล้ว]: ฟังก์ชันกด Like ส่งข้อมูลไปบันทึกลง Cloudflare D1 จริงๆ
-  const handleLike = async () => {
+  useEffect(() => {
+    setUserAction(initialUserVote);
+    setLikes(initialLikes);
+    setDislikes(initialDislikes);
+  }, [initialUserVote, initialLikes, initialDislikes]);
+
+  const handleLike = () => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนกดไลก์ครับ!');
-      navigate('/login');
+      alert('กรุณาเข้าสู่ระบบก่อนทำการโหวต');
       return;
     }
 
-    const newVoteType = userAction === 'liked' ? null : 'like';
+    const targetAction = userAction === 'liked' ? 'cancel' : 'like';
 
-    const result = await voteRanking({
-      rankingId: id,
-      userId: currentUser.id,
-      voteType: newVoteType
-    });
-
-    if (result.success !== false) {
-      if (userAction === 'liked') {
-        setLikes(prev => Math.max(0, prev - 1));
-        setUserAction(null);
-      } else if (userAction === 'disliked') {
-        setDislikes(prev => Math.max(0, prev - 1));
-        setLikes(prev => prev + 1);
-        setUserAction('liked');
-      } else {
-        setLikes(prev => prev + 1);
-        setUserAction('liked');
-      }
+    if (userAction === 'liked') {
+      setLikes(prev => Math.max(0, prev - 1));
+      setUserAction(null);
+    } else if (userAction === 'disliked') {
+      setDislikes(prev => Math.max(0, prev - 1));
+      setLikes(prev => prev + 1);
+      setUserAction('liked');
     } else {
-      alert('บันทึกการไลก์ไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'));
+      setLikes(prev => prev + 1);
+      setUserAction('liked');
     }
+
+    fetch('/api/votes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rankingId: id, userId: currentUser.id, action: targetAction })
+    }).catch(err => console.error('Vote API failed:', err));
   };
 
-  // 📍 [แก้แล้ว]: ฟังก์ชันกด Dislike ส่งข้อมูลไปบันทึกลง Cloudflare D1 จริงๆ
-  const handleDislike = async () => {
+  const handleDislike = () => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนกดดิสไลก์ครับ!');
-      navigate('/login');
+      alert('กรุณาเข้าสู่ระบบก่อนทำการโหวต');
       return;
     }
 
-    const newVoteType = userAction === 'disliked' ? null : 'dislike';
+    const targetAction = userAction === 'disliked' ? 'cancel' : 'dislike';
 
-    const result = await voteRanking({
-      rankingId: id,
-      userId: currentUser.id,
-      voteType: newVoteType
-    });
-
-    if (result.success !== false) {
-      if (userAction === 'disliked') {
-        setDislikes(prev => Math.max(0, prev - 1));
-        setUserAction(null);
-      } else if (userAction === 'liked') {
-        setLikes(prev => Math.max(0, prev - 1));
-        setDislikes(prev => prev + 1);
-        setUserAction('disliked');
-      } else {
-        setDislikes(prev => prev + 1);
-        setUserAction('disliked');
-      }
+    if (userAction === 'disliked') {
+      setDislikes(prev => Math.max(0, prev - 1));
+      setUserAction(null);
+    } else if (userAction === 'liked') {
+      setLikes(prev => Math.max(0, prev - 1));
+      setDislikes(prev => prev + 1);
+      setUserAction('disliked');
     } else {
-      alert('บันทึกการดิสไลก์ไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'));
+      setDislikes(prev => prev + 1);
+      setUserAction('disliked');
     }
+
+    fetch('/api/votes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rankingId: id, userId: currentUser.id, action: targetAction })
+    }).catch(err => console.error('Vote API failed:', err));
   };
 
   return (
@@ -141,13 +135,17 @@ export default function HomeFeed() {
   const [activeTab, setActiveTab] = useState('general');
 
   useEffect(() => {
+    let cancelled = false
+
     async function loadPosts() {
       setIsLoading(true);
-      // ดึงข้อมูลจริงจากฐานข้อมูล (แยกตามแท็บ General หรือ Kindred ถ้ามีระบบหลังบ้านรองรับ)
+      const userId = currentUser?.id || null;
+      console.log('[HomeFeed] fetching with userId:', userId);
       const { data } = await fetchRankings({
-        userId: currentUser?.id,
+        viewerId: userId,
         feedType: activeTab
       });
+      if (cancelled) return;
 
       if (data) {
         setPosts(data);
@@ -157,6 +155,7 @@ export default function HomeFeed() {
       setIsLoading(false);
     }
     loadPosts();
+    return () => { cancelled = true };
   }, [currentUser, activeTab]);
 
   const displayData = posts;
@@ -288,9 +287,10 @@ export default function HomeFeed() {
                 {/* Action Bar */}
                 <FeedCardActionBar
                   id={post.id}
-                  initialLikes={post.stats?.likes || 0}
-                  initialDislikes={post.stats?.dislikes || 0}
+                  initialLikes={post.stats?.totalLikes || 0}
+                  initialDislikes={post.stats?.totalDislikes || 0}
                   initialComments={post.stats?.comments || 0}
+                  initialUserVote={post.stats?.currentUserVote || null}
                 />
 
               </article>

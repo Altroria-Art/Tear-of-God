@@ -65,24 +65,25 @@ export async function updateProfile(userId, profileData) {
 export async function fetchRankings(categoryParam) {
   try {
     let url = `${API_URL}/api/rankings`;
-    
+
     if (typeof categoryParam === 'object' && categoryParam !== null) {
-      const { category, hashtag, userId } = categoryParam;
+      const { category, hashtag, userId, viewerId } = categoryParam;
       const params = new URLSearchParams();
-      
+
+      if (viewerId) params.append('userId', viewerId);
       if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
         params.append('category', category.toLowerCase());
       }
       if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
       if (userId) params.append('user_id', userId);
-      
+
       const queryStr = params.toString();
       if (queryStr) url += `?${queryStr}`;
-    } 
+    }
     else if (typeof categoryParam === 'string' && categoryParam) {
       url += `?category=${encodeURIComponent(categoryParam.toLowerCase())}`;
     }
-      
+
     const response = await fetch(url);
     return await response.json();
   } catch (error) {
@@ -91,9 +92,12 @@ export async function fetchRankings(categoryParam) {
   }
 }
 
-export async function fetchRanking(postId) {
+export async function fetchRanking(postId, viewerId) {
   try {
-    const response = await fetch(`${API_URL}/api/rankings?id=${postId}`);
+    const params = viewerId ? `&userId=${viewerId}` : '';
+    const url = `${API_URL}/api/rankings?id=${postId}${params}`;
+    console.log('[fetchRanking] URL:', url);
+    const response = await fetch(url);
     return await response.json();
   } catch (error) {
     return { data: null, error: 'ไม่สามารถดึงข้อมูลได้' };

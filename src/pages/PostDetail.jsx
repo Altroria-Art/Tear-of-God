@@ -7,8 +7,6 @@ import CommentSection from '../components/post/CommentSection'
 import Avatar from '../components/ui/Avatar'
 import { ArrowLeftIcon, CommentIcon, ShareIcon, ThumbsDownIcon, ThumbsUpIcon } from '../components/ui/Icons'
 import { useUser } from '../context/UserContext'
-
-// 📍 นำเข้า createComment มาใช้งาน
 import { fetchRanking, createComment } from '../lib/api'
 
 export default function PostDetail() {
@@ -18,130 +16,127 @@ export default function PostDetail() {
   const [post, setPost] = useState(null)
   const [comments, setComments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [userAction, setUserAction] = useState(() => {
-    try { return localStorage.getItem(`tog_interaction_${postId}`) } catch { return null }
-  })
+  const [userAction, setUserAction] = useState(null)
+  const [likesCount, setLikesCount] = useState(0)
+  const [dislikesCount, setDislikesCount] = useState(0)
 
   useEffect(() => {
+    if (!postId) return
+
+    let cancelled = false
+
     async function loadPost() {
       setIsLoading(true)
-      const { data, error } = await fetchRanking(postId)
+      try {
+        const userId = currentUser?.id || null
+        console.log('[PostDetail] fetching with userId:', userId)
+        const { data, error } = await fetchRanking(postId, userId)
+        if (cancelled) return
 
-      if (data) {
-        const tiersMap = {}
-        data.ranking_items?.forEach(ri => {
-          if (!tiersMap[ri.tier]) tiersMap[ri.tier] = []
-          
-          const realName = ri.item?.name || ri.item_name || ri.item_id;
-          const realImage = ri.item?.image_url || ri.item_image;
+        if (data) {
+          const postData = Array.isArray(data) ? data.find(p => p.id === postId) : data;
+          if (!postData) { setIsLoading(false); return; }
 
-          tiersMap[ri.tier].push({
-            id: ri.item_id,
-            name: realName,
-            image_url: realImage
+          const tiersMap = {}
+          postData.ranking_items?.forEach(ri => {
+            if (!tiersMap[ri.tier]) tiersMap[ri.tier] = []
+            const realName = ri.item?.name || ri.item_name || ri.item_id;
+            const realImage = ri.item?.image_url || ri.item_image;
+            tiersMap[ri.tier].push({ id: ri.item_id, name: realName, image_url: realImage })
           })
-        })
 
-        const tiers = Object.keys(tiersMap).map(tier => ({
-          tier: tier, 
-          items: tiersMap[tier]
-        }))
+          const tiers = Object.keys(tiersMap).map(tier => ({ tier, items: tiersMap[tier] }))
 
-        setPost({
-          id: data.id,
-          author: {
-            name: data.profile?.username || 'Unknown User',
-            avatarUrl: data.profile?.avatar_url
-          },
-          postedAt: new Date(data.created_at).toLocaleDateString(),
-          category: data.category,
-          title: data.title,
-          description: data.description,
-          tiers: tiers.length > 0 ? tiers : [{ tier: 'S', items: [] }],
-          stats: { 
-            likes: (() => { const s = parseInt(localStorage.getItem(`tog_likes_${data.id}`)); return !isNaN(s) ? s : (data.stats?.likes || 0) })(),
-            dislikes: (() => { const s = parseInt(localStorage.getItem(`tog_dislikes_${data.id}`)); return !isNaN(s) ? s : (data.stats?.dislikes || 0) })(),
-            comments: data.stats?.comments || (data.comments ? data.comments.length : 0) 
+          setPost({
+            id: postData.id,
+            author: { name: postData.profile?.username || 'Unknown User', avatarUrl: postData.profile?.avatar_url },
+            postedAt: new Date(postData.created_at).toLocaleDateString(),
+            category: postData.category,
+            title: postData.title,
+            description: postData.description,
+            tiers: tiers.length > 0 ? tiers : [{ tier: 'S', items: [] }],
+            commentsCount: postData.stats?.comments || (postData.comments ? postData.comments.length : 0)
+          })
+
+          setLikesCount(postData.stats?.totalLikes || 0)
+          setDislikesCount(postData.stats?.totalDislikes || 0)
+          setUserAction(postData.stats?.currentUserVote || null)
+
+          if (postData.comments) {
+            setComments(postData.comments.map(c => ({
+              id: c.id,
+              author: { name: c.username || 'Unknown', avatarUrl: c.avatar_url },
+              postedAt: new Date(c.created_at).toLocaleDateString(),
+              body: c.content
+            })))
           }
-        })
-
-        if (data.comments) {
-          const formattedComments = data.comments.map(c => ({
-            id: c.id,
-            author: {
-              name: c.username || 'Unknown',
-              avatarUrl: c.avatar_url
-            },
-            postedAt: new Date(c.created_at).toLocaleDateString(),
-            body: c.content
-          }))
-          setComments(formattedComments)
+        } else {
+          console.error("Failed to fetch post:", error)
         }
-      } else {
-        console.error("Failed to load post:", error)
+      } catch (err) {
+        console.error("Failed to fetch post:", err)
       }
       setIsLoading(false)
     }
-
-    if (postId) loadPost()
-  }, [postId])
-
-  const persistAction = (next) => {
-    try { localStorage.setItem(`tog_interaction_${postId}`, next) } catch {}
-  }
-
-  const persistCounts = (newLikes, newDislikes) => {
-    try {
-      localStorage.setItem(`tog_likes_${postId}`, newLikes);
-      localStorage.setItem(`tog_dislikes_${postId}`, newDislikes);
-    } catch {}
-  }
+    loadPost()
+    return () => { cancelled = true }
+  }, [postId, currentUser?.id])
 
   const handleVote = (type) => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนโหวตครับ!');
+      alert('กรุณาเข้าสู่ระบบก่อนทำการโหวต');
       return;
     }
 
-    setPost(prev => {
-      let newLikes = prev.stats.likes
-      let newDislikes = prev.stats.dislikes
-      let nextAction = userAction
+    let targetAction
 
-      if (type === 'like') {
-        if (userAction === 'liked') {
-          newLikes = Math.max(0, newLikes - 1)
-          nextAction = null
-        } else if (userAction === 'disliked') {
-          newDislikes = Math.max(0, newDislikes - 1)
-          newLikes += 1
-          nextAction = 'liked'
-        } else {
-          newLikes += 1
-          nextAction = 'liked'
-        }
+    let newLikes = likesCount
+    let newDislikes = dislikesCount
+    let nextAction = userAction
+
+    if (type === 'like') {
+      if (userAction === 'liked') {
+        newLikes = Math.max(0, newLikes - 1)
+        nextAction = null
+        targetAction = 'cancel'
+      } else if (userAction === 'disliked') {
+        newDislikes = Math.max(0, newDislikes - 1)
+        newLikes += 1
+        nextAction = 'liked'
+        targetAction = 'like'
       } else {
-        if (userAction === 'disliked') {
-          newDislikes = Math.max(0, newDislikes - 1)
-          nextAction = null
-        } else if (userAction === 'liked') {
-          newLikes = Math.max(0, newLikes - 1)
-          newDislikes += 1
-          nextAction = 'disliked'
-        } else {
-          newDislikes += 1
-          nextAction = 'disliked'
-        }
+        newLikes += 1
+        nextAction = 'liked'
+        targetAction = 'like'
       }
+    } else {
+      if (userAction === 'disliked') {
+        newDislikes = Math.max(0, newDislikes - 1)
+        nextAction = null
+        targetAction = 'cancel'
+      } else if (userAction === 'liked') {
+        newLikes = Math.max(0, newLikes - 1)
+        newDislikes += 1
+        nextAction = 'disliked'
+        targetAction = 'dislike'
+      } else {
+        newDislikes += 1
+        nextAction = 'disliked'
+        targetAction = 'dislike'
+      }
+    }
 
-      setUserAction(nextAction)
-      persistAction(nextAction)
-      persistCounts(newLikes, newDislikes)
-      return { ...prev, stats: { ...prev.stats, likes: newLikes, dislikes: newDislikes } }
-    })
+    setUserAction(nextAction)
+    setLikesCount(newLikes)
+    setDislikesCount(newDislikes)
+
+    fetch('/api/votes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rankingId: postId, userId: currentUser.id, action: targetAction })
+    }).catch(err => console.error('Vote API failed:', err))
   }
 
-  // 📍 [แก้ไขแล้ว]: ใช้ createComment จาก api.js แทนการ fetch ดิบๆ
   const handleAddComment = async (body) => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อนคอมเมนต์ครับ!');
@@ -156,20 +151,13 @@ export default function PostDetail() {
     });
 
     if (!error) {
-      const newComment = {
+      setComments([{
         id: data?.id || `comm_${Date.now()}`,
-        author: {
-          name: currentUser.username || 'User',
-          avatarUrl: currentUser.avatar_url
-        },
+        author: { name: currentUser.username || 'User', avatarUrl: currentUser.avatar_url },
         postedAt: 'Just now',
         body: body.trim()
-      }
-      setComments([newComment, ...comments]);
-      setPost(prev => ({
-        ...prev,
-        stats: { ...prev.stats, comments: prev.stats.comments + 1 }
-      }))
+      }, ...comments]);
+      setPost(prev => ({ ...prev, commentsCount: (prev.commentsCount || 0) + 1 }))
     } else {
       alert('คอมเมนต์ไม่สำเร็จ: ' + error);
     }
@@ -187,14 +175,12 @@ export default function PostDetail() {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
         <p className="text-lg font-bold text-gray-800">ไม่พบโพสต์ที่คุณตามหา</p>
-        <Link to="/" className="mt-2 inline-block text-sm text-blue-500 hover:underline">
-          กลับสู่หน้าหลัก
-        </Link>
+        <Link to="/" className="mt-2 inline-block text-sm text-blue-500 hover:underline">กลับสู่หน้าหลัก</Link>
       </main>
     )
   }
 
-  const { author, postedAt, category, title, description, tiers, stats } = post
+  const { author, postedAt, category, title, description, tiers, commentsCount } = post
   const itemCount = tiers.reduce((n, { items }) => n + items.length, 0)
 
   return (
@@ -229,28 +215,28 @@ export default function PostDetail() {
 
             <div className="mt-4 flex items-center border-t border-gray-100 pt-3">
               <div className="flex items-center gap-5">
-                <ActionButton 
-                  icon={ThumbsUpIcon} 
-                  count={stats.likes} 
-                  label="Like" 
+                <ActionButton
+                  icon={ThumbsUpIcon}
+                  count={likesCount}
+                  label="Like"
                   pressed={userAction === 'liked'}
                   activeClass="text-blue-600 font-bold"
                   onClick={() => handleVote('like')}
                 />
-                <ActionButton 
-                  icon={ThumbsDownIcon} 
-                  count={stats.dislikes} 
-                  label="Dislike" 
+                <ActionButton
+                  icon={ThumbsDownIcon}
+                  count={dislikesCount}
+                  label="Dislike"
                   pressed={userAction === 'disliked'}
                   activeClass="text-red-600 font-bold"
                   onClick={() => handleVote('dislike')}
                 />
-                <ActionButton icon={CommentIcon} count={stats.comments} label="Comments" />
+                <ActionButton icon={CommentIcon} count={commentsCount} label="Comments" />
               </div>
               <div className="ml-auto">
-                <ActionButton 
-                  icon={ShareIcon} 
-                  label="Share" 
+                <ActionButton
+                  icon={ShareIcon}
+                  label="Share"
                   onClick={() => {
                     navigator.clipboard.writeText(window.location.href);
                     alert('คัดลอกลิงก์โพสต์เรียบร้อยแล้ว!');
@@ -264,11 +250,7 @@ export default function PostDetail() {
         </div>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <AboutTemplateCard
-            name={title}
-            description={description}
-            itemCount={itemCount}
-          />
+          <AboutTemplateCard name={title} description={description} itemCount={itemCount} />
         </aside>
       </div>
     </main>
