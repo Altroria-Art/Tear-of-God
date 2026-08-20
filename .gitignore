@@ -28,3 +28,6 @@ dist-ssr
 .wrangler/
 *.sqlite
 *.sqlite3
+
+# contains real user emails/password hashes exported from production D1
+.d1-snapshot.sql

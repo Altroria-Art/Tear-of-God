@@ -80,12 +80,12 @@ INSERT OR IGNORE INTO comments (id, ranking_id, user_id, content) VALUES
 -- ==========================================
 -- 6. คะแนนโหวตจำลอง (Votes)
 -- ==========================================
-INSERT OR IGNORE INTO votes (ranking_id, user_id, vote_type) VALUES 
-('rank_001', 'user_001', 'up'),
-('rank_001', 'user_003', 'up'),
-('rank_002', 'user_001', 'up'),
-('rank_002', 'user_004', 'up'),
-('rank_003', 'user_002', 'up'),
-('rank_004', 'user_003', 'up');
+INSERT OR IGNORE INTO votes (id, ranking_id, user_id, vote_type) VALUES
+('vote_001', 'rank_001', 'user_001', 'like'),
+('vote_002', 'rank_001', 'user_003', 'like'),
+('vote_003', 'rank_002', 'user_001', 'like'),
+('vote_004', 'rank_002', 'user_004', 'like'),
+('vote_005', 'rank_003', 'user_002', 'like'),
+('vote_006', 'rank_004', 'user_003', 'like');
 
 PRAGMA foreign_keys = ON;
