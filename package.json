@@ -7,7 +7,15 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:full": "npm run build && wrangler pages dev dist",
+    "db:clean": "node -e \"require('fs').rmSync('.wrangler/state/v3/d1',{recursive:true,force:true})\"",
+    "db:schema": "wrangler d1 execute tear-of-god-db --local --file=./schema.sql",
+    "db:seed": "wrangler d1 execute tear-of-god-db --local --file=./seed.sql",
+    "db:reset": "npm run db:clean && npm run db:schema && npm run db:seed",
+    "db:pull": "wrangler d1 export tear-of-god-db --remote --output=./.d1-snapshot.sql",
+    "db:restore": "npm run db:clean && wrangler d1 execute tear-of-god-db --local --file=./.d1-snapshot.sql",
+    "db:sync": "npm run db:pull && npm run db:restore"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
@@ -28,6 +36,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
-    "vite": "^8.1.1"
+    "vite": "^8.1.1",
+    "wrangler": "^4.125.0"
   }
 }
