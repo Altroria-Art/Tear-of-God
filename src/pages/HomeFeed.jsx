@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 // Cloudflare backend logic — fetchRankings is the real API call
 import { fetchRankings } from '../lib/api';
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Copy } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy } from 'lucide-react';
 
 function timeAgo(dateString) {
   if (!dateString) return 'Just now';
@@ -73,6 +73,96 @@ const mockKindredData = [
     ],
   },
 ];
+
+function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0 }) {
+  const navigate = useNavigate();
+  const likesKey = `tog_likes_${id}`;
+  const dislikesKey = `tog_dislikes_${id}`;
+  const interactionKey = `tog_interaction_${id}`;
+
+  const [userAction, setUserAction] = useState(() => {
+    try { return localStorage.getItem(interactionKey) } catch { return null }
+  });
+  const [likes, setLikes] = useState(() => {
+    const stored = parseInt(localStorage.getItem(likesKey));
+    return !isNaN(stored) ? stored : initialLikes;
+  });
+  const [dislikes, setDislikes] = useState(() => {
+    const stored = parseInt(localStorage.getItem(dislikesKey));
+    return !isNaN(stored) ? stored : initialDislikes;
+  });
+
+  const persist = (next) => { try { localStorage.setItem(interactionKey, next) } catch {} };
+
+  const handleLike = () => {
+    if (userAction === 'liked') {
+      const newLikes = Math.max(0, likes - 1);
+      setLikes(newLikes);
+      setUserAction(null);
+      try { localStorage.setItem(likesKey, newLikes); } catch {}
+      persist(null);
+    } else if (userAction === 'disliked') {
+      const newDislikes = Math.max(0, dislikes - 1);
+      const newLikes = likes + 1;
+      setDislikes(newDislikes);
+      setLikes(newLikes);
+      setUserAction('liked');
+      try { localStorage.setItem(likesKey, newLikes); localStorage.setItem(dislikesKey, newDislikes); } catch {}
+      persist('liked');
+    } else {
+      const newLikes = likes + 1;
+      setLikes(newLikes);
+      setUserAction('liked');
+      try { localStorage.setItem(likesKey, newLikes); } catch {}
+      persist('liked');
+    }
+  };
+
+  const handleDislike = () => {
+    if (userAction === 'disliked') {
+      const newDislikes = Math.max(0, dislikes - 1);
+      setDislikes(newDislikes);
+      setUserAction(null);
+      try { localStorage.setItem(dislikesKey, newDislikes); } catch {}
+      persist(null);
+    } else if (userAction === 'liked') {
+      const newLikes = Math.max(0, likes - 1);
+      const newDislikes = dislikes + 1;
+      setLikes(newLikes);
+      setDislikes(newDislikes);
+      setUserAction('disliked');
+      try { localStorage.setItem(likesKey, newLikes); localStorage.setItem(dislikesKey, newDislikes); } catch {}
+      persist('disliked');
+    } else {
+      const newDislikes = dislikes + 1;
+      setDislikes(newDislikes);
+      setUserAction('disliked');
+      try { localStorage.setItem(dislikesKey, newDislikes); } catch {}
+      persist('disliked');
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+      <div className="flex items-center gap-6">
+        <div onClick={handleLike} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userAction === 'liked' ? 'text-blue-500' : 'text-gray-500 hover:text-gray-900'}`}>
+          <ThumbsUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
+          <span className="text-[13px] font-bold">{likes}</span>
+        </div>
+
+        <div onClick={handleDislike} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userAction === 'disliked' ? 'text-red-500' : 'text-gray-500 hover:text-gray-900'}`}>
+          <ThumbsDown size={18} className="group-hover:translate-y-0.5 transition-transform" />
+          <span className="text-[13px] font-bold">{dislikes}</span>
+        </div>
+
+        <div onClick={() => navigate(`/post/${id}#comments`)} className="flex items-center gap-1.5 text-gray-500 hover:text-[#fbbf24] cursor-pointer transition-colors">
+          <MessageSquare size={18} />
+          <span className="text-[13px] font-bold">{initialComments}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomeFeed() {
   const navigate = useNavigate();
@@ -224,34 +314,12 @@ export default function HomeFeed() {
                 </div>
 
                 {/* Action Bar */}
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 cursor-pointer transition-colors group">
-                      <ThumbsUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
-                      <span className="text-[13px] font-bold">{post.stats?.likes || 0}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 cursor-pointer transition-colors group">
-                      <ThumbsDown size={18} className="group-hover:translate-y-0.5 transition-transform" />
-                      {post.stats?.dislikes > 0 && <span className="text-[13px] font-bold">{post.stats.dislikes}</span>}
-                    </div>
-
-                    <div onClick={() => navigate(`/post/${post.id}`)} className="flex items-center gap-1.5 text-gray-500 hover:text-[#fbbf24] cursor-pointer transition-colors">
-                      <MessageSquare size={18} />
-                      <span className="text-[13px] font-bold">{post.stats?.comments || 0}</span>
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
-                      alert('คัดลอกลิงก์โพสต์เรียบร้อยแล้ว!');
-                    }}
-                    className="text-gray-400 hover:text-gray-800 transition-colors"
-                  >
-                    <Share2 size={18} />
-                  </button>
-                </div>
+                <FeedCardActionBar
+                  id={post.id}
+                  initialLikes={post.stats?.likes || 0}
+                  initialDislikes={post.stats?.dislikes || 0}
+                  initialComments={post.stats?.comments || 0}
+                />
 
               </article>
             );

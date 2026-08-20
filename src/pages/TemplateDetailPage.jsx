@@ -1,4 +1,5 @@
-import { useParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useParams, useLocation } from 'react-router-dom'
 import Avatar from '../components/ui/Avatar'
 import {
   ThumbsUpIcon,
@@ -64,29 +65,71 @@ function UserTopBar({ authorHandle, timeAgo }) {
   )
 }
 
-function ActionBar() {
+function TierListActionBar({ id, initialLikes = 1200, initialDislikes = 148, initialComments = 342 }) {
+  const key = `tog_interaction_${id}`
+  const saved = (() => { try { return localStorage.getItem(key) } catch { return null } })()
+  const [userAction, setUserAction] = useState(saved)
+  const [likesCount, setLikesCount] = useState(initialLikes + (saved === 'liked' ? 1 : 0))
+  const [dislikesCount, setDislikesCount] = useState(initialDislikes + (saved === 'disliked' ? 1 : 0))
+
+  const persist = (next) => { try { localStorage.setItem(key, next) } catch {} }
+
+  const handleLike = () => {
+    if (userAction === 'liked') {
+      setLikesCount((n) => Math.max(0, n - 1))
+      setUserAction(null)
+      persist(null)
+    } else if (userAction === 'disliked') {
+      setDislikesCount((n) => Math.max(0, n - 1))
+      setLikesCount((n) => n + 1)
+      setUserAction('liked')
+      persist('liked')
+    } else {
+      setLikesCount((n) => n + 1)
+      setUserAction('liked')
+      persist('liked')
+    }
+  }
+
+  const handleDislike = () => {
+    if (userAction === 'disliked') {
+      setDislikesCount((n) => Math.max(0, n - 1))
+      setUserAction(null)
+      persist(null)
+    } else if (userAction === 'liked') {
+      setLikesCount((n) => Math.max(0, n - 1))
+      setDislikesCount((n) => n + 1)
+      setUserAction('disliked')
+      persist('disliked')
+    } else {
+      setDislikesCount((n) => n + 1)
+      setUserAction('disliked')
+      persist('disliked')
+    }
+  }
+
   return (
     <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-sm text-gray-500">
       <div className="flex items-center gap-5">
-        <span className="flex cursor-pointer items-center gap-1.5">
+        <span onClick={handleLike} className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userAction === 'liked' ? 'text-blue-500' : 'hover:text-gray-700'}`}>
           <ThumbsUpIcon className="h-4 w-4" />
-          1.2k
+          {likesCount.toLocaleString()}
         </span>
-        <span className="flex cursor-pointer items-center gap-1.5">
+        <span onClick={handleDislike} className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userAction === 'disliked' ? 'text-red-500' : 'hover:text-gray-700'}`}>
           <ThumbsDownIcon className="h-4 w-4" />
-          148
+          {dislikesCount}
         </span>
-        <span className="flex cursor-pointer items-center gap-1.5">
+        <span className="flex cursor-pointer items-center gap-1.5 hover:text-gray-700 transition-colors">
           <CommentIcon className="h-4 w-4" />
-          342
+          {initialComments}
         </span>
       </div>
       <div className="flex items-center gap-4">
-        <span className="flex cursor-pointer items-center gap-1.5">
+        <span className="flex cursor-pointer items-center gap-1.5 hover:text-gray-700 transition-colors">
           <ExportIcon className="h-4 w-4" />
           Export
         </span>
-        <span className="flex cursor-pointer items-center gap-1.5">
+        <span className="flex cursor-pointer items-center gap-1.5 hover:text-gray-700 transition-colors">
           <ShareIcon className="h-4 w-4" />
           Share
         </span>
@@ -106,14 +149,21 @@ function TierListCard({ list }) {
       {Object.entries(list.tiers).map(([tier, items]) => (
         <TierRow key={tier} tier={tier} items={items} />
       ))}
-      <ActionBar />
+      <TierListActionBar id={list.id} />
     </div>
   )
 }
 
 export default function TemplateDetailPage() {
   const { templateId } = useParams()
+  const location = useLocation()
   const templateData = MOCK_TEMPLATES[templateId] || DEFAULT_TEMPLATE
+
+  useEffect(() => {
+    if (location.hash === '#comments') {
+      document.getElementById('comments-section')?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [location.hash])
 
   return (
     <main className="min-h-screen bg-[#FDF9F1]">
@@ -159,6 +209,11 @@ export default function TemplateDetailPage() {
           {templateData.rankings.map((list) => (
             <TierListCard key={list.id} list={list} />
           ))}
+        </section>
+
+        <section id="comments-section" className="mt-8 rounded-xl bg-white p-6 shadow-sm">
+          <h2 className="mb-4 text-2xl font-bold text-gray-900">Comments</h2>
+          <p className="text-gray-500">Comments coming soon...</p>
         </section>
       </div>
     </main>
