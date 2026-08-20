@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+// Cloudflare backend logic — fetchRankings is the real API call
 import { fetchRankings } from '../lib/api';
 import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Copy } from 'lucide-react';
 
@@ -35,12 +36,52 @@ const TIER_COLORS = {
   D: 'bg-[#7faaff] text-white',
 };
 
+// Placeholder data for the Kindred tab (until backend supports followed users)
+const mockKindredData = [
+  {
+    id: 'k-1',
+    profile: { username: 'ProGamerTH', avatar_url: null },
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    title: 'สุดยอดเกม RPG ในตำนาน',
+    hashtags: '#RPG,#Gaming',
+    stats: { likes: 3400, dislikes: 21, comments: 512 },
+    ranking_items: [
+      { item: { name: 'The Witcher 3' }, tier: 'S' },
+      { item: { name: 'Elden Ring' }, tier: 'S' },
+      { item: { name: 'Baldur\'s Gate 3' }, tier: 'A' },
+      { item: { name: 'Dark Souls' }, tier: 'A' },
+      { item: { name: 'Final Fantasy VII' }, tier: 'B' },
+      { item: { name: 'Dragon Age' }, tier: 'C' },
+      { item: { name: 'Skyrim' }, tier: 'D' },
+    ],
+  },
+  {
+    id: 'k-2',
+    profile: { username: 'AniFanClub', avatar_url: null },
+    created_at: new Date(Date.now() - 14400000).toISOString(),
+    title: '酝 tier list ตัวละครมังงะ',
+    hashtags: '#Shonen,#Anime',
+    stats: { likes: 1700, dislikes: 8, comments: 289 },
+    ranking_items: [
+      { item: { name: 'Goku' }, tier: 'S' },
+      { item: { name: 'Luffy' }, tier: 'S' },
+      { item: { name: 'Naruto' }, tier: 'A' },
+      { item: { name: 'Zoro' }, tier: 'A' },
+      { item: { name: 'Deku' }, tier: 'B' },
+      { item: { name: 'Tanjiro' }, tier: 'C' },
+      { item: { name: 'Boruto' }, tier: 'D' },
+    ],
+  },
+];
+
 export default function HomeFeed() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('general');
 
+  // Cloudflare backend data fetching — preserved as-is
   useEffect(() => {
     async function loadPosts() {
       setIsLoading(true);
@@ -56,18 +97,47 @@ export default function HomeFeed() {
     loadPosts();
   }, [currentUser]);
 
+  const displayData = activeTab === 'general' ? posts : mockKindredData;
+
   return (
     <div className="min-h-screen bg-[#fdfbf7] font-sans">
+      {/* Tab Navigation */}
+      <div className="sticky top-0 z-10 bg-[#fdfbf7]">
+        <div className="mx-auto flex max-w-3xl justify-center gap-8 px-4">
+          <button
+            type="button"
+            onClick={() => setActiveTab('general')}
+            className={`py-3 text-sm font-medium transition-colors ${
+              activeTab === 'general'
+                ? 'border-b-2 border-gray-900 font-bold text-gray-900'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            General
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('kindred')}
+            className={`py-3 text-sm font-medium transition-colors ${
+              activeTab === 'kindred'
+                ? 'border-b-2 border-gray-900 font-bold text-gray-900'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Kindred
+          </button>
+        </div>
+      </div>
+
       <main className="max-w-3xl mx-auto px-4 py-8">
-        
         <div className="space-y-6 mt-4">
-          {isLoading && (
+          {isLoading && activeTab === 'general' && (
             <p className="text-center text-sm font-medium text-gray-400 animate-pulse py-10">
               กำลังโหลดฟีดของคุณ...
             </p>
           )}
 
-          {!isLoading && posts.length === 0 && (
+          {!isLoading && displayData.length === 0 && (
             <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
               <p className="text-gray-500 font-medium">ยังไม่มีโพสต์ในระบบเลย</p>
               <button onClick={() => navigate('/create')} className="mt-4 text-sm font-bold text-[#fbbf24] hover:underline">
@@ -76,7 +146,7 @@ export default function HomeFeed() {
             </div>
           )}
 
-          {!isLoading && posts.map((post) => {
+          {!isLoading && displayData.map((post) => {
             const hashtags = post.hashtags ? post.hashtags.split(',').filter(t => t.trim() !== '') : [];
             const tierMap = groupItemsByTier(post.ranking_items);
             const tiers = Object.keys(tierMap).length > 0 ? Object.keys(tierMap) : ['S', 'A'];
@@ -132,7 +202,7 @@ export default function HomeFeed() {
                   {post.title}
                 </h2>
 
-                {/* 📍 Tier List Preview Blocks (แก้ตรงนี้ให้เป็นบล็อกสี่เหลี่ยมจัตุรัส w-20 h-20) */}
+                {/* Tier List Preview Blocks */}
                 <div className="space-y-2 mb-6">
                   {tiers.map((tier) => (
                     <div key={tier} className="flex bg-white rounded-xl border border-gray-100 overflow-hidden min-h-[50px] shadow-sm items-center">
@@ -187,7 +257,6 @@ export default function HomeFeed() {
             );
           })}
         </div>
-
       </main>
     </div>
   );
