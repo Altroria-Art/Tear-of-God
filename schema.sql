@@ -14,11 +14,10 @@ CREATE TABLE IF NOT EXISTS rankings (
   category TEXT,
   hashtags TEXT,
   user_id TEXT,
+  template_id TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
-
-ALTER TABLE rankings ADD COLUMN template_id TEXT;
 
 CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
