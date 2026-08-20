@@ -177,3 +177,19 @@ export async function fetchTemplate(templateId) {
     return { data: null, error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
   }
 }
+
+export async function fetchTemplates({ hashtag, category, limit } = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
+    if (category) params.append('category', category.toLowerCase());
+    if (limit) params.append('limit', limit);
+
+    const queryStr = params.toString();
+    const response = await fetch(`${API_URL}/api/templates${queryStr ? `?${queryStr}` : ''}`);
+    return await response.json();
+  } catch (error) {
+    console.error("fetchTemplates error:", error);
+    return { data: [], error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
+  }
+}
