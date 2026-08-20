@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-// Cloudflare backend logic — fetchRankings is the real API call
-import { fetchRankings } from '../lib/api';
+import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
 import { ThumbsUp, ThumbsDown, MessageSquare, Copy } from 'lucide-react';
 
 function timeAgo(dateString) {
@@ -36,109 +35,79 @@ const TIER_COLORS = {
   D: 'bg-[#7faaff] text-white',
 };
 
-// Placeholder data for the Kindred tab (until backend supports followed users)
-const mockKindredData = [
-  {
-    id: 'k-1',
-    profile: { username: 'ProGamerTH', avatar_url: null },
-    created_at: new Date(Date.now() - 3600000).toISOString(),
-    title: 'สุดยอดเกม RPG ในตำนาน',
-    hashtags: '#RPG,#Gaming',
-    stats: { likes: 3400, dislikes: 21, comments: 512 },
-    ranking_items: [
-      { item: { name: 'The Witcher 3' }, tier: 'S' },
-      { item: { name: 'Elden Ring' }, tier: 'S' },
-      { item: { name: 'Baldur\'s Gate 3' }, tier: 'A' },
-      { item: { name: 'Dark Souls' }, tier: 'A' },
-      { item: { name: 'Final Fantasy VII' }, tier: 'B' },
-      { item: { name: 'Dragon Age' }, tier: 'C' },
-      { item: { name: 'Skyrim' }, tier: 'D' },
-    ],
-  },
-  {
-    id: 'k-2',
-    profile: { username: 'AniFanClub', avatar_url: null },
-    created_at: new Date(Date.now() - 14400000).toISOString(),
-    title: '酝 tier list ตัวละครมังงะ',
-    hashtags: '#Shonen,#Anime',
-    stats: { likes: 1700, dislikes: 8, comments: 289 },
-    ranking_items: [
-      { item: { name: 'Goku' }, tier: 'S' },
-      { item: { name: 'Luffy' }, tier: 'S' },
-      { item: { name: 'Naruto' }, tier: 'A' },
-      { item: { name: 'Zoro' }, tier: 'A' },
-      { item: { name: 'Deku' }, tier: 'B' },
-      { item: { name: 'Tanjiro' }, tier: 'C' },
-      { item: { name: 'Boruto' }, tier: 'D' },
-    ],
-  },
-];
+// 📍 [ลบ mockKindredData ทิ้งไปเรียบร้อย บอทจะไม่มากวนใจอีก!]
 
 function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0 }) {
   const navigate = useNavigate();
-  const likesKey = `tog_likes_${id}`;
-  const dislikesKey = `tog_dislikes_${id}`;
-  const interactionKey = `tog_interaction_${id}`;
+  const { currentUser } = useUser();
 
-  const [userAction, setUserAction] = useState(() => {
-    try { return localStorage.getItem(interactionKey) } catch { return null }
-  });
-  const [likes, setLikes] = useState(() => {
-    const stored = parseInt(localStorage.getItem(likesKey));
-    return !isNaN(stored) ? stored : initialLikes;
-  });
-  const [dislikes, setDislikes] = useState(() => {
-    const stored = parseInt(localStorage.getItem(dislikesKey));
-    return !isNaN(stored) ? stored : initialDislikes;
-  });
+  const [userAction, setUserAction] = useState(null); // 'liked' หรือ 'disliked'
+  const [likes, setLikes] = useState(initialLikes);
+  const [dislikes, setDislikes] = useState(initialDislikes);
 
-  const persist = (next) => { try { localStorage.setItem(interactionKey, next) } catch {} };
+  // 📍 [แก้แล้ว]: ฟังก์ชันกด Like ส่งข้อมูลไปบันทึกลง Cloudflare D1 จริงๆ
+  const handleLike = async () => {
+    if (!currentUser) {
+      alert('กรุณาเข้าสู่ระบบก่อนกดไลก์ครับ!');
+      navigate('/login');
+      return;
+    }
 
-  const handleLike = () => {
-    if (userAction === 'liked') {
-      const newLikes = Math.max(0, likes - 1);
-      setLikes(newLikes);
-      setUserAction(null);
-      try { localStorage.setItem(likesKey, newLikes); } catch {}
-      persist(null);
-    } else if (userAction === 'disliked') {
-      const newDislikes = Math.max(0, dislikes - 1);
-      const newLikes = likes + 1;
-      setDislikes(newDislikes);
-      setLikes(newLikes);
-      setUserAction('liked');
-      try { localStorage.setItem(likesKey, newLikes); localStorage.setItem(dislikesKey, newDislikes); } catch {}
-      persist('liked');
+    const newVoteType = userAction === 'liked' ? null : 'like';
+
+    const result = await voteRanking({
+      rankingId: id,
+      userId: currentUser.id,
+      voteType: newVoteType
+    });
+
+    if (result.success !== false) {
+      if (userAction === 'liked') {
+        setLikes(prev => Math.max(0, prev - 1));
+        setUserAction(null);
+      } else if (userAction === 'disliked') {
+        setDislikes(prev => Math.max(0, prev - 1));
+        setLikes(prev => prev + 1);
+        setUserAction('liked');
+      } else {
+        setLikes(prev => prev + 1);
+        setUserAction('liked');
+      }
     } else {
-      const newLikes = likes + 1;
-      setLikes(newLikes);
-      setUserAction('liked');
-      try { localStorage.setItem(likesKey, newLikes); } catch {}
-      persist('liked');
+      alert('บันทึกการไลก์ไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'));
     }
   };
 
-  const handleDislike = () => {
-    if (userAction === 'disliked') {
-      const newDislikes = Math.max(0, dislikes - 1);
-      setDislikes(newDislikes);
-      setUserAction(null);
-      try { localStorage.setItem(dislikesKey, newDislikes); } catch {}
-      persist(null);
-    } else if (userAction === 'liked') {
-      const newLikes = Math.max(0, likes - 1);
-      const newDislikes = dislikes + 1;
-      setLikes(newLikes);
-      setDislikes(newDislikes);
-      setUserAction('disliked');
-      try { localStorage.setItem(likesKey, newLikes); localStorage.setItem(dislikesKey, newDislikes); } catch {}
-      persist('disliked');
+  // 📍 [แก้แล้ว]: ฟังก์ชันกด Dislike ส่งข้อมูลไปบันทึกลง Cloudflare D1 จริงๆ
+  const handleDislike = async () => {
+    if (!currentUser) {
+      alert('กรุณาเข้าสู่ระบบก่อนกดดิสไลก์ครับ!');
+      navigate('/login');
+      return;
+    }
+
+    const newVoteType = userAction === 'disliked' ? null : 'dislike';
+
+    const result = await voteRanking({
+      rankingId: id,
+      userId: currentUser.id,
+      voteType: newVoteType
+    });
+
+    if (result.success !== false) {
+      if (userAction === 'disliked') {
+        setDislikes(prev => Math.max(0, prev - 1));
+        setUserAction(null);
+      } else if (userAction === 'liked') {
+        setLikes(prev => Math.max(0, prev - 1));
+        setDislikes(prev => prev + 1);
+        setUserAction('disliked');
+      } else {
+        setDislikes(prev => prev + 1);
+        setUserAction('disliked');
+      }
     } else {
-      const newDislikes = dislikes + 1;
-      setDislikes(newDislikes);
-      setUserAction('disliked');
-      try { localStorage.setItem(dislikesKey, newDislikes); } catch {}
-      persist('disliked');
+      alert('บันทึกการดิสไลก์ไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'));
     }
   };
 
@@ -171,23 +140,26 @@ export default function HomeFeed() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('general');
 
-  // Cloudflare backend data fetching — preserved as-is
   useEffect(() => {
     async function loadPosts() {
       setIsLoading(true);
+      // ดึงข้อมูลจริงจากฐานข้อมูล (แยกตามแท็บ General หรือ Kindred ถ้ามีระบบหลังบ้านรองรับ)
       const { data } = await fetchRankings({
-        userId: currentUser?.id
+        userId: currentUser?.id,
+        feedType: activeTab
       });
 
       if (data) {
         setPosts(data);
+      } else {
+        setPosts([]);
       }
       setIsLoading(false);
     }
     loadPosts();
-  }, [currentUser]);
+  }, [currentUser, activeTab]);
 
-  const displayData = activeTab === 'general' ? posts : mockKindredData;
+  const displayData = posts;
 
   return (
     <div className="min-h-screen bg-[#fdfbf7] font-sans">
@@ -221,7 +193,7 @@ export default function HomeFeed() {
 
       <main className="max-w-3xl mx-auto px-4 py-8">
         <div className="space-y-6 mt-4">
-          {isLoading && activeTab === 'general' && (
+          {isLoading && (
             <p className="text-center text-sm font-medium text-gray-400 animate-pulse py-10">
               กำลังโหลดฟีดของคุณ...
             </p>

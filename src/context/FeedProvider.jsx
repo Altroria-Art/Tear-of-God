@@ -1,21 +1,20 @@
 import { useCallback, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom' // 1. นำเข้า useNavigate สำหรับเปลี่ยนหน้า
-import { MOCK_COMMENTS, MOCK_POSTS } from '../data/mockFeed'
-import { shuffle, statsWithVote } from '../lib/feed'
+import { useNavigate } from 'react-router-dom'
+import { statsWithVote } from '../lib/feed'
 import { FeedContext } from './feedContext'
-import { useUser } from './UserContext' // 2. นำเข้า useUser เพื่อเช็คสถานะล็อกอิน
+import { useUser } from './UserContext'
 
 export default function FeedProvider({ children }) {
   const navigate = useNavigate()
-  const { currentUser } = useUser() // 3. ดึงข้อมูล User ปัจจุบัน
+  const { currentUser } = useUser()
 
   const [votes, setVotes] = useState({})
-  const [comments, setComments] = useState(MOCK_COMMENTS)
+  const [comments, setComments] = useState({}) // เปลี่ยนจาก MOCK_COMMENTS เป็นค่าว่าง
   const [commentDeltas, setCommentDeltas] = useState({})
 
-  const forYouOrder = useMemo(() => shuffle(MOCK_POSTS).map((post) => post.id), [])
+  const forYouOrder = useMemo(() => [], []) // ไม่มี Mock Posts แล้ว ให้เป็น Array ว่าง
 
-  // 4. ฟังก์ชันกดโหวต / กดไลก์ (เช็คการล็อกอิน)
+  // ฟังก์ชันกดโหวต / กดไลก์ (เช็คการล็อกอิน)
   const voteOn = useCallback((postId, vote) => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อนกดไลก์หรือโหวตครับ!')
@@ -26,7 +25,7 @@ export default function FeedProvider({ children }) {
     setVotes((prev) => ({ ...prev, [postId]: prev[postId] === vote ? null : vote }))
   }, [currentUser, navigate])
 
-  // 5. ฟังก์ชันเพิ่มคอมเมนต์ (เช็คการล็อกอิน และใช้ชื่อ User จริง)
+  // ฟังก์ชันเพิ่มคอมเมนต์ (เช็คการล็อกอิน และใช้ชื่อ User จริง)
   const addComment = useCallback((postId, body) => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อนแสดงความคิดเห็นครับ!')
@@ -50,7 +49,7 @@ export default function FeedProvider({ children }) {
 
   const statsFor = useCallback(
     (post) => {
-      const base = statsWithVote(post.stats, votes[post.id])
+      const base = post?.stats ? statsWithVote(post.stats, votes[post.id]) : { likes: 0, dislikes: 0, comments: 0 }
       return { ...base, comments: base.comments + (commentDeltas[post.id] ?? 0) }
     },
     [votes, commentDeltas],

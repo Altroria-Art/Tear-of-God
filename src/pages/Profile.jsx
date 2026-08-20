@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { fetchRankings } from '../lib/api';
+import { fetchRankings, updateProfile } from '../lib/api'; // 📍 นำเข้า updateProfile
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -20,7 +20,6 @@ export default function Profile() {
     setDisplayName(currentUser.username || '');
     setBio(currentUser.bio || 'Master of tier lists. Categorizing the virtual world one tier at a time.');
 
-    // โหลดข้อมูล Tier List ทั้งหมดแล้วกรองเอาเฉพาะของผู้ใช้นี้
     async function loadUserPosts() {
       const { data } = await fetchRankings();
       if (data) {
@@ -31,8 +30,20 @@ export default function Profile() {
     loadUserPosts();
   }, [currentUser, navigate]);
 
-  const handleSaveChanges = (e) => {
+  // 📍 [แก้ไขแล้ว]: ยิง API บันทึกข้อมูลโปรไฟล์ของจริง
+  const handleSaveChanges = async (e) => {
     e.preventDefault();
+    
+    const { error } = await updateProfile(currentUser.id, { 
+      username: displayName, 
+      bio: bio 
+    });
+
+    if (error) {
+      alert('อัปเดตโปรไฟล์ไม่สำเร็จ: ' + error);
+      return;
+    }
+
     const updatedUser = { ...currentUser, username: displayName, bio };
     login(updatedUser); // อัปเดตข้อมูลใน Context / LocalStorage
     setIsEditOpen(false);

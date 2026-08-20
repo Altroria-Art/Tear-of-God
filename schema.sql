@@ -1,19 +1,4 @@
--- 🧹 1. สั่งลบตารางเก่าและตารางขยะทั้งหมดทิ้งก่อน
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS posts;
-DROP TABLE IF EXISTS templates;
-DROP TABLE IF EXISTS comments;
-DROP TABLE IF EXISTS likes;
-DROP TABLE IF EXISTS votes;
-DROP TABLE IF EXISTS ranking_items;
-DROP TABLE IF EXISTS items;
-DROP TABLE IF EXISTS rankings;
-DROP TABLE IF EXISTS profiles;
-
--- ✨ 2. สร้างโครงสร้างใหม่ (TierMaker Live Style)
-
--- ตารางผู้ใช้งาน
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id TEXT PRIMARY KEY,
   username TEXT,
   email TEXT UNIQUE,
@@ -22,54 +7,80 @@ CREATE TABLE profiles (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- ตาราง Ranking (รองรับ Hashtags)
-CREATE TABLE rankings (
+CREATE TABLE IF NOT EXISTS rankings (
   id TEXT PRIMARY KEY,
   title TEXT,
   description TEXT,
   category TEXT,
-  hashtags TEXT, -- เก็บแฮชแท็ก เช่น "#Gaming,#RPG"
+  hashtags TEXT,
   user_id TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES profiles(id)
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 
--- ตารางไอเทม
-CREATE TABLE items (
+ALTER TABLE rankings ADD COLUMN template_id TEXT;
+
+CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
   name TEXT,
   image_url TEXT
 );
 
--- ตารางความสัมพันธ์ (ไอเทมอยู่เทียร์ไหน)
-CREATE TABLE ranking_items (
+CREATE TABLE IF NOT EXISTS ranking_items (
   id TEXT PRIMARY KEY,
   ranking_id TEXT,
   item_id TEXT,
   tier TEXT,
   position INTEGER,
-  FOREIGN KEY (ranking_id) REFERENCES rankings(id)
+  FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE
 );
 
--- ตารางโหวต (รองรับทั้ง Like และ Dislike ไว้ทำสถิติฟีด)
-CREATE TABLE votes (
+CREATE TABLE IF NOT EXISTS votes (
   id TEXT PRIMARY KEY,
   ranking_id TEXT,
   user_id TEXT,
-  vote_type TEXT CHECK(vote_type IN ('like', 'dislike')), -- บังคับค่าให้เป็นแค่ like หรือ dislike
+  vote_type TEXT CHECK(vote_type IN ('like', 'dislike')),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(ranking_id, user_id), -- 1 คนโหวตได้ 1 ครั้งต่อโพสต์
-  FOREIGN KEY (ranking_id) REFERENCES rankings(id),
-  FOREIGN KEY (user_id) REFERENCES profiles(id)
+  UNIQUE(ranking_id, user_id),
+  FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 
--- ตารางคอมเมนต์
-CREATE TABLE comments (
+CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   ranking_id TEXT,
   user_id TEXT,
   content TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (ranking_id) REFERENCES rankings(id),
-  FOREIGN KEY (user_id) REFERENCES profiles(id)
+  FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS templates (
+  id TEXT PRIMARY KEY,
+  creator_id TEXT,
+  title TEXT,
+  description TEXT,
+  category TEXT,
+  use_count INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (creator_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS template_items (
+  id TEXT PRIMARY KEY,
+  template_id TEXT,
+  item_id TEXT,
+  position INTEGER,
+  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
+  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_rankings_user_id ON rankings(user_id);
+CREATE INDEX IF NOT EXISTS idx_rankings_category ON rankings(category);
+CREATE INDEX IF NOT EXISTS idx_rankings_template_id ON rankings(template_id);
+CREATE INDEX IF NOT EXISTS idx_ranking_items_ranking_id ON ranking_items(ranking_id);
+CREATE INDEX IF NOT EXISTS idx_votes_ranking_id ON votes(ranking_id);
+CREATE INDEX IF NOT EXISTS idx_comments_ranking_id ON comments(ranking_id);
+CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
+CREATE INDEX IF NOT EXISTS idx_template_items_template_id ON template_items(template_id);

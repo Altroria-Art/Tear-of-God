@@ -1,47 +1,62 @@
-// api/likes.js
-import { queryD1 } from './db.js';
-import crypto from 'crypto';
+export async function onRequest(context) {
+  const { request, env } = context;
+  const db = env.tear_of_god_db; // 📍 ใช้ชื่อ binding ให้ตรงกับ wrangler.toml
 
-export default async function handler(req, res) {
-  // รับเฉพาะ Method POST เท่านั้น
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
+  const jsonResponse = (data, status = 200) => {
+    return new Response(JSON.stringify(data), { 
+      status, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
+  };
+
+  if (request.method !== 'POST') {
+    return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
   }
 
   try {
-    const { rankingId } = req.body;
-    
-    // 📍 จำลอง User ID ไปก่อน (เดี๋ยวพอทำระบบ Login ค่อยดึง ID คนใช้จริงมาใส่)
-    const userId = 'user_123'; 
+    const body = await request.json();
+    const rankingId = body.rankingId || body.ranking_id;
+    const userId = body.userId || body.user_id;
+    const voteType = body.voteType; // 'like', 'dislike', หรือ null (กรณียกเลิกโหวต)
 
-    if (!rankingId) {
-      return res.status(400).json({ success: false, error: 'Missing rankingId' });
+    if (!rankingId || !userId) {
+      return jsonResponse({ success: false, error: 'Missing rankingId or userId' }, 400);
     }
 
-    // 1. เช็คก่อนว่า User คนนี้ เคยกดไลก์โพสต์นี้ไปหรือยัง?
-    const existingLike = await queryD1(
-      'SELECT id FROM likes WHERE ranking_id = ? AND user_id = ?',
-      [rankingId, userId]
-    );
+    // 1. เช็คว่า User เคยโหวตโพสต์นี้ไปหรือยัง
+    const { results: existing } = await db.prepare(
+      `SELECT * FROM votes WHERE ranking_id = ? AND user_id = ?`
+    ).bind(rankingId, userId).all();
 
-    // 2. ถ้ามีประวัติการกดไลก์แล้ว = ผู้ใช้ต้องการ "เลิกไลก์ (Unlike)"
-    if (existingLike.length > 0) {
-      await queryD1('DELETE FROM likes WHERE id = ?', [existingLike[0].id]);
-      return res.status(200).json({ success: true, data: null, message: 'Unliked' });
-    } 
-    
-    // 3. ถ้ายังไม่เคยไลก์ = ผู้ใช้ต้องการ "กดไลก์ (Like)"
-    else {
-      const newLikeId = crypto.randomUUID();
-      await queryD1(
-        'INSERT INTO likes (id, ranking_id, user_id) VALUES (?, ?, ?)',
-        [newLikeId, rankingId, userId]
-      );
-      return res.status(200).json({ success: true, data: { id: newLikeId }, message: 'Liked' });
+    // 2. ถ้า voteType เป็น null แปลว่าผู้ใช้กดย้ำเพื่อ "ยกเลิกไลก์/ดิสไลก์"
+    if (!voteType) {
+      if (existing.length > 0) {
+        await db.prepare(
+          `DELETE FROM votes WHERE ranking_id = ? AND user_id = ?`
+        ).bind(rankingId, userId).run();
+      }
+    } else {
+      // 3. ตรวจสอบความถูกต้องของประเภทการโหวต
+      if (voteType !== 'like' && voteType !== 'dislike') {
+        return jsonResponse({ success: false, error: 'Invalid vote type' }, 400);
+      }
+
+      if (existing.length > 0) {
+        // ถ้าเคยโหวตแล้ว ให้ Update เปลี่ยนสถานะ (เช่น จาก Like เป็น Dislike)
+        await db.prepare(
+          `UPDATE votes SET vote_type = ? WHERE ranking_id = ? AND user_id = ?`
+        ).bind(voteType, rankingId, userId).run();
+      } else {
+        // ถ้ายังไม่เคย ให้ Insert ข้อมูลใหม่
+        const voteId = crypto.randomUUID();
+        await db.prepare(
+          `INSERT INTO votes (id, ranking_id, user_id, vote_type) VALUES (?, ?, ?, ?)`
+        ).bind(voteId, rankingId, userId, voteType).run();
+      }
     }
 
+    return jsonResponse({ success: true, message: 'Vote updated successfully' });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ success: false, error: err.message });
+    return jsonResponse({ success: false, error: err.message }, 500);
   }
 }

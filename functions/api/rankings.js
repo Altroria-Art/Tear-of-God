@@ -123,21 +123,30 @@ export async function onRequest({ request, env }) {
         ).bind(payload.user_id, payload.username || 'Unknown', payload.avatar_url || '').run();
       }
       
-      await db.prepare(
-        `INSERT INTO rankings (id, title, description, category, hashtags, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+      const statements = [];
+
+      statements.push(db.prepare(
+        `INSERT INTO rankings (id, template_id, title, description, category, hashtags, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
       ).bind(
-        rankingId, payload.title || 'Untitled', payload.description || '', 
+        rankingId, payload.template_id || null, payload.title || 'Untitled', payload.description || '', 
         payload.category || 'general', payload.hashtags || '', payload.user_id
-      ).run();
+      ));
+
+      if (payload.template_id) {
+        statements.push(db.prepare(
+          `UPDATE templates SET use_count = use_count + 1 WHERE id = ?`
+        ).bind(payload.template_id));
+      }
 
       if (items && items.length > 0) {
-        const statements = items.map(item => {
-          return db.prepare(
+        items.forEach(item => {
+          statements.push(db.prepare(
             `INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?1, ?2, ?3, ?4, ?5)`
-          ).bind(crypto.randomUUID(), rankingId, item.item_id, item.tier, item.position);
+          ).bind(crypto.randomUUID(), rankingId, item.item_id, item.tier, item.position));
         });
-        await db.batch(statements);
       }
+
+      await db.batch(statements);
       return jsonResponse({ success: true, data: { id: rankingId, ...payload } }, 201);
     }
 
