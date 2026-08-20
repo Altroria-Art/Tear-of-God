@@ -8,7 +8,8 @@ import Avatar from '../components/ui/Avatar'
 import { ArrowLeftIcon, CommentIcon, ShareIcon, ThumbsDownIcon, ThumbsUpIcon } from '../components/ui/Icons'
 import { useUser } from '../context/UserContext'
 
-import { fetchRanking } from '../lib/api'
+// 📍 นำเข้า createComment มาใช้งาน
+import { fetchRanking, createComment } from '../lib/api'
 
 export default function PostDetail() {
   const { postId } = useParams()
@@ -140,7 +141,7 @@ export default function PostDetail() {
     })
   }
 
-  // 📍 [แก้ไขแล้ว]: ส่งคอมเมนต์บันทึกลง Database จริงผ่าน API
+  // 📍 [แก้ไขแล้ว]: ใช้ createComment จาก api.js แทนการ fetch ดิบๆ
   const handleAddComment = async (body) => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อนคอมเมนต์ครับ!');
@@ -148,39 +149,29 @@ export default function PostDetail() {
     }
     if (!body || !body.trim()) return;
 
-    try {
-      const response = await fetch('/api/comments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ranking_id: postId,
-          user_id: currentUser.id,
-          content: body.trim()
-        })
-      });
+    const { data, error } = await createComment({
+      ranking_id: postId,
+      user_id: currentUser.id,
+      content: body.trim()
+    });
 
-      const result = await response.json();
-      if (result.success) {
-        const newComment = {
-          id: result.data?.id || `comm_${Date.now()}`,
-          author: {
-            name: currentUser.username || 'User',
-            avatarUrl: currentUser.avatar_url
-          },
-          postedAt: 'Just now',
-          body: body.trim()
-        }
-        setComments([newComment, ...comments]);
-        setPost(prev => ({
-          ...prev,
-          stats: { ...prev.stats, comments: prev.stats.comments + 1 }
-        }))
-      } else {
-        alert('คอมเมนต์ไม่สำเร็จ: ' + (result.error || 'Unknown error'));
+    if (!error) {
+      const newComment = {
+        id: data?.id || `comm_${Date.now()}`,
+        author: {
+          name: currentUser.username || 'User',
+          avatarUrl: currentUser.avatar_url
+        },
+        postedAt: 'Just now',
+        body: body.trim()
       }
-    } catch (err) {
-      console.error('Error posting comment:', err);
-      alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+      setComments([newComment, ...comments]);
+      setPost(prev => ({
+        ...prev,
+        stats: { ...prev.stats, comments: prev.stats.comments + 1 }
+      }))
+    } else {
+      alert('คอมเมนต์ไม่สำเร็จ: ' + error);
     }
   }
 

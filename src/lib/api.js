@@ -44,6 +44,20 @@ export async function syncGoogleUser(userData) {
   }
 }
 
+// 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปเดตโปรไฟล์
+export async function updateProfile(userId, profileData) {
+  try {
+    const response = await fetch(`${API_URL}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_profile', user_id: userId, ...profileData })
+    });
+    return await response.json();
+  } catch (error) {
+    return { data: null, error: 'อัปเดตโปรไฟล์ไม่สำเร็จ' };
+  }
+}
+
 // ==========================================
 // ส่วนที่ 2: ระบบโพสต์จัดอันดับ (Rankings)
 // ==========================================
@@ -147,5 +161,19 @@ export async function createComment({ ranking_id, user_id, content }) {
     return await response.json();
   } catch (error) {
     return { data: null, error: 'ไม่สามารถสร้างคอมเมนต์ได้' };
+  }
+}
+
+// ==========================================
+// ส่วนที่ 4: ระบบเทมเพลต (Templates)
+// ==========================================
+
+export async function fetchTemplate(templateId) {
+  try {
+    const response = await fetch(`${API_URL}/api/templates?id=${templateId}`);
+    return await response.json();
+  } catch (error) {
+    console.error("fetchTemplate error:", error);
+    return { data: null, error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
   }
 }
