@@ -81,11 +81,11 @@ Responsive web application รันบน browser สมัยใหม่ (Chr
 | ID | Category | Requirement |
 |---|---|---|
 | NFR-1 | Performance | Home Feed ใช้ cursor-based pagination (ไม่ใช้ large `OFFSET`) เพื่อรองรับ Infinite Scroll โดยไม่หน่วง |
-| NFR-2 | Security | ใช้ Supabase Row Level Security (RLS): user แก้ไข/ลบได้เฉพาะ ranking/comment ของตัวเอง, เฉพาะ `role = admin` เท่านั้นที่ลบเนื้อหาคนอื่นหรือ ban user ได้ |
-| NFR-3 | Data Integrity | Tier label ต้องถูกจำกัดที่ 5 ค่าคงที่ผ่าน `CHECK` constraint หรือ Postgres `enum` ระดับฐานข้อมูล ไม่ใช่แค่ validate ฝั่ง frontend |
+| NFR-2 | Security | D1 (SQLite) ไม่มี Row Level Security ในตัวแบบ Postgres — enforce สิทธิ์ที่ชั้น API แทน: แต่ละ `functions/api/*` handler เช็คว่า `user_id` ที่แก้ไข/ลบตรงกับเจ้าของ record ก่อนอนุญาต, เฉพาะ `role = admin` เท่านั้นที่ข้ามเงื่อนไขนี้ได้ (ดู open issue เรื่อง session/token ใน NFR-6) |
+| NFR-3 | Data Integrity | Tier label ต้องถูกจำกัดที่ 5 ค่าคงที่ผ่าน `CHECK` constraint ที่ระดับ D1/SQLite (ไม่มี native `enum` type ใน SQLite) ไม่ใช่แค่ validate ฝั่ง frontend |
 | NFR-4 | Usability | Responsive layout ให้ตรงกับ wireframe ที่ออกแบบใน Google Stitch ทั้ง desktop และ mobile web |
 | NFR-5 | Scalability | Query สำหรับ trending/personalized feed ออกแบบให้ปรับเป็น materialized view ได้ภายหลังหากจำนวนผู้ใช้เพิ่มขึ้นมาก |
-| NFR-6 | Reliability | Session/token handling อ้างอิง Supabase Auth default (client ต้อง handle refresh token) |
+| NFR-6 | Reliability | Session handling: `functions/api/auth.js` ควรออก signed token (เช่น HMAC ผ่าน Web Crypto `crypto.subtle`, ใช้ `jsonwebtoken` ไม่ได้เพราะเป็น Node-only package) ให้ client เก็บและแนบมาทุก request แทนการส่ง `user_id` ตรงๆ ใน body — **ยังไม่ implement ในโค้ดปัจจุบัน (gap ด้าน security ที่ต้องแก้ก่อน production)** |
 
 ---
 
@@ -99,27 +99,31 @@ flowchart TB
         UI["React SPA<br/>Tailwind CSS"]
     end
 
-    subgraph Supabase["Supabase (BaaS)"]
-        Auth["Auth"]
-        DB[("PostgreSQL")]
-        Storage["Storage"]
-        Realtime["Realtime"]
+    subgraph CF["Cloudflare"]
+        FN["Pages Functions<br/>(functions/api/*)"]
+        DB[("D1 — SQLite")]
+        R2["R2 Storage<br/>(planned, not wired up)"]
     end
 
-    UI -->|"supabase-js: signUp / signIn"| Auth
-    UI -->|"supabase-js: CRUD ผ่าน RLS policy"| DB
-    UI -->|"supabase-js: upload avatar"| Storage
-    UI -.->|"subscribe: like/comment count"| Realtime
-    Realtime -.-> DB
+    subgraph FB["Firebase"]
+        FBAuth["Firebase Auth<br/>(Google Sign-In only)"]
+    end
+
+    UI -->|"fetch: POST /api/auth"| FN
+    UI -->|"fetch: /api/rankings, /api/templates, /api/votes, /api/comments"| FN
+    FN -->|"db.prepare(sql).bind(...)"| DB
+    UI -->|"signInWithPopup"| FBAuth
+    FBAuth -.->|"google_sync payload"| FN
+    UI -.->|"upload avatar/item image (planned)"| R2
 ```
 
-ระบบไม่มี custom backend server แยก — proposal ระบุ Backend = Supabase ตรง ๆ จึงออกแบบเป็น **BaaS architecture**: React เรียก Supabase ผ่าน `@supabase/supabase-js` โดยตรง ความปลอดภัยของข้อมูลอยู่ที่ชั้น RLS policy ในฐานข้อมูลแทนที่จะมี API layer คั่นกลาง
+ระบบมี custom backend server แยกจริง — เขียนเป็น Cloudflare Pages Functions (Workers runtime, ไม่ใช่ Node.js) แทนที่จะเป็น BaaS ตรงๆ ตามแผนตั้งต้น (ดู Section 9 ข้อ 1) React เรียก REST endpoint ของตัวเองผ่าน `fetch`, ไม่มี library SDK คั่นกลางแบบ `supabase-js` ความปลอดภัยของข้อมูลต้องอยู่ที่ชั้น API (`functions/api/*` เช็คสิทธิ์เอง) เพราะ D1 ไม่มี RLS ให้ใช้เหมือน Postgres ของ Supabase
 
 ### 5.2 Component Breakdown
 
 | Module | หน้าที่ | Screens ที่เกี่ยวข้อง |
 |---|---|---|
-| `auth/` | สมัคร/ล็อกอิน/ลืมรหัสผ่าน | Login |
+| `auth/` | สมัคร/ล็อกอิน (email+password ผ่าน `functions/api/auth.js`) / Google Sign-In ผ่าน Firebase | Login |
 | `feed/` | Home Feed, category tabs, infinite scroll, personalization | Home (For You/Trending/Anime/Movie/Food/Sport) |
 | `create/` | ฟอร์มสร้าง Template + Ranking Canvas (Normal/Top 10) | Create Tier List |
 | `discover/` | เรียกดู Template ตามหมวดหมู่, popular templates | Discover |
@@ -131,10 +135,12 @@ flowchart TB
 
 | Layer | เทคโนโลยี |
 |---|---|
-| Frontend | React |
-| UI Framework | Tailwind CSS |
-| Backend | Supabase (Auth, Database, Storage, Realtime) |
-| Database | PostgreSQL |
+| Frontend | React 19 + Vite, React Router v7 |
+| UI Framework | Tailwind CSS 4 |
+| Backend | Cloudflare Pages Functions (`functions/api/`), Workers runtime |
+| Database | Cloudflare D1 (SQLite) |
+| Storage | Cloudflare R2 (planned, not wired up yet) |
+| Auth | Custom email/password (D1) + Google Sign-In via Firebase Auth |
 | UX/UI Design | Google Stitch |
 
 ---
@@ -147,85 +153,90 @@ flowchart TB
 erDiagram
     PROFILES ||--o{ TEMPLATES : creates
     PROFILES ||--o{ RANKINGS : creates
-    PROFILES ||--o{ LIKES : gives
+    PROFILES ||--o{ VOTES : gives
     PROFILES ||--o{ COMMENTS : writes
-    CATEGORIES ||--o{ TEMPLATES : classifies
-    TEMPLATES ||--o{ TEMPLATE_ITEMS : contains
-    TEMPLATES ||--o{ RANKINGS : "ranked as"
+    TEMPLATES ||--o{ TEMPLATE_ITEMS : "defines pool"
+    ITEMS ||--o{ TEMPLATE_ITEMS : "included in"
+    ITEMS ||--o{ RANKING_ITEMS : "placed as"
+    TEMPLATES ||--o{ RANKINGS : "used by"
     RANKINGS ||--o{ RANKING_ITEMS : contains
-    TEMPLATE_ITEMS ||--o{ RANKING_ITEMS : "placed in"
-    RANKINGS ||--o{ LIKES : receives
+    RANKINGS ||--o{ VOTES : receives
     RANKINGS ||--o{ COMMENTS : receives
 
     PROFILES {
-        uuid id PK
+        text id PK
         string username
+        string email
+        string password
         string avatar_url
-        string bio
-        string role
-        timestamp created_at
-    }
-    CATEGORIES {
-        int id PK
-        string name
+        datetime created_at
     }
     TEMPLATES {
-        uuid id PK
-        uuid creator_id FK
-        int category_id FK
+        text id PK
+        text creator_id FK
         string title
         string description
-        string mode
+        string category
         int use_count
-        timestamp created_at
+        datetime created_at
     }
-    TEMPLATE_ITEMS {
-        uuid id PK
-        uuid template_id FK
-        string label
+    ITEMS {
+        text id PK
+        string name
         string image_url
     }
+    TEMPLATE_ITEMS {
+        text id PK
+        text template_id FK
+        text item_id FK
+    }
     RANKINGS {
-        uuid id PK
-        uuid template_id FK
-        uuid user_id FK
-        string note
-        timestamp created_at
+        text id PK
+        text template_id FK
+        text user_id FK
+        string title
+        string description
+        string category
+        string hashtags
+        datetime created_at
     }
     RANKING_ITEMS {
-        uuid id PK
-        uuid ranking_id FK
-        uuid item_id FK
-        string tier_label
+        text id PK
+        text ranking_id FK
+        text item_id FK
+        string tier
         int position
     }
-    LIKES {
-        uuid id PK
-        uuid ranking_id FK
-        uuid user_id FK
-        timestamp created_at
+    VOTES {
+        text id PK
+        text ranking_id FK
+        text user_id FK
+        string vote_type
+        datetime created_at
     }
     COMMENTS {
-        uuid id PK
-        uuid ranking_id FK
-        uuid user_id FK
+        text id PK
+        text ranking_id FK
+        text user_id FK
         string content
-        timestamp created_at
+        datetime created_at
     }
 ```
 
 ### 6.2 Table Descriptions
-- **profiles** — ต่อยอดจาก `auth.users` ของ Supabase (1-1), เก็บ `role` (`user` / `admin`) สำหรับ FR-11–13
-- **templates** — item pool ต้นแบบ, `mode` เป็น `normal` หรือ `top10`, `use_count` นับจำนวน ranking ที่ผูกกับ template นี้ (สำหรับ FR-9)
-- **template_items** — item ที่อยู่ใน pool ของ template หนึ่ง ๆ, `image_url` รองรับกรณี auto-generate จาก Quick Add (text-to-image block ตาม 4.1.4)
-- **rankings** — การจัดอันดับหนึ่งครั้งของ user หนึ่งคนต่อ template หนึ่งอัน (ทั้งของผู้สร้างเองและคน remix)
-- **ranking_items** — mapping ว่า item แต่ละตัวถูกจัดไว้ที่ tier ไหน (`tier_label` = S/A/B/C/D) หรือตำแหน่งไหน (`position` = 1–10 สำหรับ Top 10 Mode)
-- **likes / comments** — ผูกกับ `rankings` (ไม่ใช่ `templates`) เพราะ engagement เกิดที่ post ในฟีดซึ่งคือ ranking หนึ่ง ๆ ตาม wireframe
+- **profiles** — ตารางผู้ใช้หลักของระบบเอง (ไม่ได้ต่อยอดจาก Supabase `auth.users` อีกต่อไป) เก็บ `password` เอง (ต้อง hash ก่อนเก็บ — ดู open issue ด้านความปลอดภัยใน NFR-2/6) ยังไม่มีคอลัมน์ `role` สำหรับแยก admin ตาม FR-11–13 ต้องเพิ่มทีหลัง
+- **templates** — item pool ต้นแบบ, `use_count` นับจำนวน ranking ที่ผูกกับ template นี้ (สำหรับ FR-9); ยังไม่มีคอลัมน์ `mode` (`normal`/`top10`) ในตารางจริง ต้องเพิ่มถ้าจะรองรับ FR-7
+- **template_items** — bridge table ระหว่าง `templates` กับ `items` กลาง แทนที่จะ denormalize ชื่อ/รูปซ้ำในตัวเอง (ต่างจากดราฟต์แรกที่มี `template_items.label`/`image_url` ของตัวเอง) เพื่อให้ item ตัวเดียวกันใช้ซ้ำข้ามหลาย template ได้โดยไม่ต้อง insert ซ้ำใน `items`
+- **items** — item กลางของทั้งระบบ ทั้ง `template_items` และ `ranking_items` อ้างอิงมาที่นี่
+- **rankings** — การจัดอันดับหนึ่งครั้งของ user หนึ่งคน อาจผูกกับ `template_id` (กด Use Template มาจัด) หรือ `template_id = NULL` (สร้างอิสระโดยไม่มี template — ยังไม่มี UI แยกสองเคสนี้ชัดเจน ต้อง confirm กับทีมว่ายังต้องการโพสต์อิสระแบบไม่มี template อยู่ไหม)
+- **ranking_items** — mapping ว่า item แต่ละตัวถูกจัดไว้ที่ tier ไหน (`tier` = S/A/B/C/D) หรือตำแหน่งไหน (`position` = 1–10 สำหรับ Top 10 Mode)
+- **votes / comments** — ผูกกับ `rankings` (ไม่ใช่ `templates`) เพราะ engagement เกิดที่ post ในฟีดซึ่งคือ ranking หนึ่ง ๆ ตาม wireframe; `votes.vote_type` บังคับเป็น `like`/`dislike` ผ่าน `CHECK` constraint แทนตาราง `likes` แยก
 
 ### 6.3 Business Rule Constraints
-- **Fixed tier labels**: `ranking_items.tier_label` ต้องอยู่ในชุดค่าคงที่ (`S`,`A`,`B`,`C`,`D`) — บังคับด้วย `CHECK` constraint ที่ DB, ไม่ปล่อยให้ frontend เป็นเกราะป้องกันเดียว (NFR-3)
-- **Top 10 uniqueness**: เมื่อ `templates.mode = 'top10'`, `ranking_items.position` ต้อง unique ภายใน `ranking_id` เดียวกัน (1–10 ห้ามซ้ำ) — แนะนำใช้ unique constraint บนคู่ `(ranking_id, position)`
-- **Remix ห้ามแก้ tier label**: enforce ที่ frontend (UI ไม่ให้แก้ชื่อ tier) และควร enforce ซ้ำที่ DB layer (RLS policy หรือ trigger) เพราะ tier label เป็นคีย์สำคัญสำหรับการรวมสถิติข้าม ranking
+- **Fixed tier labels**: `ranking_items.tier` ต้องอยู่ในชุดค่าคงที่ (`S`,`A`,`B`,`C`,`D`) — บังคับด้วย `CHECK` constraint ที่ D1, ไม่ปล่อยให้ frontend เป็นเกราะป้องกันเดียว (NFR-3); ตาราง `ranking_items` ปัจจุบันยังไม่มี constraint นี้จริง ต้องเพิ่มใน `schema.sql`
+- **Top 10 uniqueness**: เมื่อ ranking มาจาก template ที่โหมด Top 10, `ranking_items.position` ต้อง unique ภายใน `ranking_id` เดียวกัน (1–10 ห้ามซ้ำ) — แนะนำใช้ unique constraint บนคู่ `(ranking_id, position)`
+- **Remix ห้ามแก้ item pool ที่มีอยู่**: item ใน `template_items` ของ template หนึ่งแก้ไม่ได้หลังสร้าง เพิ่มได้เฉพาะ item ใหม่ (ดู Section 9 ข้อ 2) — enforce ที่ frontend และควร enforce ซ้ำที่ชั้น API เพราะ D1 ไม่มี RLS/trigger ระดับ policy ให้ใช้เหมือน Supabase, ต้องเช็คเองใน `functions/api/*`
+- **use_count ต้องอัปเดตแบบ atomic**: ตอนสร้าง ranking ใหม่จาก template ต้อง `UPDATE templates SET use_count = use_count + 1` ในทรานแซกชันเดียวกับการ insert ranking (ใช้ `db.batch()` ของ D1) ไม่งั้นตัวเลขจะเพี้ยนถ้า request ล้มเหลวครึ่งทาง
 
 ---
 
@@ -270,7 +281,8 @@ erDiagram
 sequenceDiagram
     actor U as User
     participant FE as React Frontend
-    participant SB as Supabase (Auth + DB)
+    participant FN as Cloudflare Functions
+    participant D1 as Cloudflare D1
 
     U->>FE: เปิดหน้า "Create Tier List"
     FE->>U: แสดงฟอร์ม (name, category, description, mode)
@@ -278,40 +290,46 @@ sequenceDiagram
     FE->>FE: parse text เป็น item cards
     U->>FE: ลาก item ลง tier S/A/B/C/D
     U->>FE: กด "Publish List"
-    FE->>SB: INSERT templates (title, category_id, mode, creator_id)
-    SB-->>FE: template_id
-    FE->>SB: INSERT template_items (bulk)
-    SB-->>FE: item_ids
-    FE->>SB: INSERT rankings (template_id, user_id)
-    SB-->>FE: ranking_id
-    FE->>SB: INSERT ranking_items (ranking_id, item_id, tier_label)
-    SB-->>FE: success
+    FE->>FN: POST /api/templates { title, category, description }
+    FN->>D1: INSERT templates
+    D1-->>FN: template_id
+    FN->>D1: INSERT items + template_items (bulk)
+    D1-->>FN: item_ids
+    FN->>D1: INSERT rankings (template_id, user_id)
+    D1-->>FN: ranking_id
+    FN->>D1: INSERT ranking_items (ranking_id, item_id, tier)
+    D1-->>FN: success
+    FN-->>FE: { ranking_id, template_id }
     FE->>U: redirect ไป Home feed, แสดง post ใหม่
 ```
 
-### 8.3 Sequence Diagram: Remix Template
+### 8.3 Sequence Diagram: Remix Template ("Use Template")
 
 ```mermaid
 sequenceDiagram
     actor U as User
     participant FE as React Frontend
-    participant SB as Supabase (Auth + DB)
+    participant FN as Cloudflare Functions
+    participant D1 as Cloudflare D1
 
-    U->>FE: กด "Use Template" จาก Home/Discover
-    FE->>SB: SELECT template + template_items WHERE template_id
-    SB-->>FE: template data + items
-    FE->>U: แสดง Ranking Canvas (tier label fix, ห้ามแก้ชื่อ)
+    U->>FE: กด "Use Template" จาก Home/Discover/Post
+    FE->>FN: GET /api/templates?id=template_id
+    FN->>D1: SELECT templates + template_items JOIN items
+    D1-->>FN: template data + item pool
+    FN-->>FE: template data + items
+    FE->>U: แสดง Ranking Canvas (item pool fix, ห้ามลบของเดิม)
     U->>FE: จัด item ลง tier (เพิ่ม item ใหม่ได้)
     alt มี item ใหม่
-        FE->>SB: INSERT template_items ใหม่ (ผูกกับ template_id เดิม)
-        SB-->>FE: item_id ใหม่
+        FE->>FN: item ใหม่ส่งไปพร้อม payload ตอน publish
     end
     U->>FE: กด "Save Ranking"
-    FE->>SB: INSERT rankings (template_id, user_id)
-    SB-->>FE: ranking_id
-    FE->>SB: INSERT ranking_items (bulk)
-    SB-->>FE: success
-    FE->>SB: UPDATE templates SET use_count = use_count + 1
+    FE->>FN: POST /api/rankings { template_id, user_id, items }
+    FN->>D1: INSERT rankings (template_id, user_id) [batch]
+    FN->>D1: INSERT items ใหม่ (ถ้ามี) + template_items ใหม่ [batch]
+    FN->>D1: INSERT ranking_items (bulk) [batch]
+    FN->>D1: UPDATE templates SET use_count = use_count + 1 [batch เดียวกัน]
+    D1-->>FN: success
+    FN-->>FE: { ranking_id }
     FE->>U: แสดง ranking ที่เพิ่ง publish
 ```
 
@@ -321,11 +339,16 @@ sequenceDiagram
 
 Proposal ไม่ได้ลงรายละเอียดระดับ implementation ไว้ทั้งหมด ส่วนนี้สรุปจุดที่เอกสารนี้ "ตัดสินใจแทน" และควรให้ทีมยืนยันก่อนเริ่ม implement จริง:
 
-1. **BaaS ไม่มี custom backend** — ตีความจาก proposal ที่ระบุ Backend = Supabase ตรง ๆ ถ้าในทางปฏิบัติต้องการ logic ที่ซับซ้อนเกินกว่า RLS จะรองรับ (เช่น batch job คำนวณ trending หนัก ๆ) แนะนำเพิ่ม Supabase Edge Functions แทนการตั้ง server แยก เพื่อไม่ต้องดูแล infra เพิ่ม
-2. **Remix เพิ่ม item เข้า shared pool** — กำหนดให้ item ใหม่ที่เพิ่มระหว่าง remix ถูก insert เข้า `template_items` ของ template เดิม (ไม่ใช่แยกเฉพาะ ranking ของคนนั้น) เพื่อให้คน remix คนถัดไปเห็น item ครบและสถิติสะสมถูกต้อง — proposal ไม่ได้ระบุจุดนี้ชัดเจน ต้อง confirm กับทีม
-3. **Personalized feed แบบ query-time** — เริ่มจาก aggregate query (`COUNT` likes group by category ของ user ใน N วันล่าสุด) แทนการสร้างตารางสะสมคะแนนแยก เพื่อความง่ายในสโคปนักศึกษา ค่อย migrate เป็น materialized view ถ้าข้อมูลโตขึ้นจริง (NFR-5)
-4. **Admin เป็น protected route ใน SPA เดียวกัน** ไม่ใช่แอปแยก — ลด overhead การดูแลสองโปรเจกต์ ใช้ role-based guard ผ่าน `profiles.role`
+1. **[เดิม] BaaS ไม่มี custom backend** — decision นี้ล้าสมัยแล้ว ทีมเปลี่ยนมาเขียน custom backend เองเป็น Cloudflare Pages Functions (`functions/api/`) บน D1 แทน BaaS ตรงๆ ตาม Supabase; เหตุผลไม่ได้บันทึกไว้ในเอกสาร แต่ผลคือได้ควบคุม business logic เต็มที่และไม่ผูกกับ RLS policy ของผู้ให้บริการรายเดียว
+2. **Remix เพิ่ม item เข้า shared pool** — item ใหม่ที่เพิ่มระหว่าง remix ถูก insert เข้า `items` (item กลาง) แล้วผูกเพิ่มใน `template_items` ของ template เดิม (ไม่ใช่แยกเฉพาะ ranking ของคนนั้น) เพื่อให้คน remix คนถัดไปเห็น item ครบและสถิติสะสมถูกต้อง — ของเดิมใน `items` ไม่ถูกแก้ ลบ หรือย้ายออกจาก template เดิม แก้ได้แค่ "เพิ่ม"
+3. **Personalized feed แบบ query-time** — เริ่มจาก aggregate query (`COUNT` votes group by category ของ user ใน N วันล่าสุด) แทนการสร้างตารางสะสมคะแนนแยก เพื่อความง่ายในสโคปนักศึกษา ค่อย migrate เป็น materialized view ถ้าข้อมูลโตขึ้นจริง (NFR-5)
+4. **Admin เป็น protected route ใน SPA เดียวกัน** ไม่ใช่แอปแยก — ลด overhead การดูแลสองโปรเจกต์ ใช้ role-based guard ผ่าน `profiles.role` (คอลัมน์นี้ยังไม่มีจริงใน `schema.sql` ปัจจุบัน ต้องเพิ่ม)
 5. **Top 10 randomization** — ตีความ "สุ่มคำตอบมาทีละอัน" (4.3.2) เป็นกลไก client-side สุ่มลำดับ item จาก unranked pool มาให้ทีละตัว บังคับผู้ใช้เลือกตำแหน่งก่อนเห็นตัวถัดไป — ควร confirm กับทีมว่าตรงกับที่ตั้งใจไว้ เพราะ wireframe หน้า 12 แสดงแค่ layout ตำแหน่ง 1–10 ไม่ได้แสดงกลไกการสุ่มโดยตรง
+6. **Frontend สร้าง UI ของ Templates ไว้ล่วงหน้าบน mock data** — `TemplateDetailPage.jsx` และ `AboutTemplateCard.jsx` (sidebar ปุ่ม Use Template / View Community Average) มีหน้าตาสมบูรณ์แล้วตรงตาม wireframe แต่ต่อกับ `src/data/mockTemplates.js` เท่านั้น ยังไม่เคยเรียก API จริง สถานะปัจจุบัน:
+   - `schema.sql` ยังไม่มีตาราง `templates` / `template_items` — **ต้องเพิ่มก่อน** (ดู Section 6.1 ที่อัปเดตแล้ว)
+   - ยังไม่มี `functions/api/templates.js` — ต้องสร้างใหม่ รองรับอย่างน้อย `GET /api/templates?id=` (ดึง template + item pool + รายการ ranking ทั้งหมดที่ผูกกับ template นั้นสำหรับหน้า Community Rankings) และ `POST /api/templates` (สร้าง template ใหม่ตอน publish ครั้งแรก)
+   - ปุ่ม "Use Template" ใน `AboutTemplateCard.jsx` ยังไม่มี `onClick` และ `PostDetail.jsx` ไม่เคยส่ง prop `templateId` เข้าไปเลย ทำให้ปุ่ม "View Community Average" ปิดใช้งานถาวรในหน้าที่ใช้งานจริง (ไม่ใช่ปัญหาที่ `TemplateDetailPage.jsx` เอง)
+   - "Community Average" (ค่าเฉลี่ยของ community) ยังไม่มี logic คำนวณจริง ต้องเขียน aggregate query ต่อ item ต่อ template (เช่น tier ที่ถูกเลือกบ่อยที่สุด/mode ของ tier ในทุก ranking ที่ผูก template เดียวกัน) — เป็นจุดที่ตรงกับ "consensus ranking" ที่เป็น key differentiator ของโปรเจคนี้อยู่แล้ว
 
 ---
 
