@@ -16,6 +16,7 @@ export async function onRequestGet(context) {
   try {
     // ==========================================
     // โหมด list: GET /api/templates?hashtag=..&category=..&limit=..
+    // "uses" นับสดจากจำนวน rankings ที่ผูก template นี้ (ไม่ใช้ use_count ที่ seed ไว้)
     // ==========================================
     if (!templateId) {
       const hashtag = url.searchParams.get('hashtag');
@@ -23,7 +24,8 @@ export async function onRequestGet(context) {
       const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 100);
 
       let query = `
-        SELECT t.*, p.username, p.avatar_url
+        SELECT t.*, p.username, p.avatar_url,
+          (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) as live_uses
         FROM templates t
         LEFT JOIN profiles p ON t.creator_id = p.id
         WHERE 1=1
@@ -31,7 +33,7 @@ export async function onRequestGet(context) {
       const params = [];
       if (category && category !== 'null') { query += ` AND t.category = ?`; params.push(category); }
       if (hashtag) { query += ` AND t.hashtags LIKE ?`; params.push(`%${hashtag}%`); }
-      query += ` ORDER BY t.use_count DESC, t.created_at DESC LIMIT ?`;
+      query += ` ORDER BY live_uses DESC, t.created_at DESC LIMIT ?`;
       params.push(limit);
 
       const { results: templates } = await db.prepare(query).bind(...params).all();
@@ -60,7 +62,7 @@ export async function onRequestGet(context) {
         category: t.category,
         hashtags: t.hashtags,
         tiers: parseTiers(t.tiers),
-        use_count: t.use_count || 0,
+        use_count: t.live_uses || 0,
         profile: { username: t.username, avatar_url: t.avatar_url },
         template_items: itemsMap[t.id] || []
       }));
@@ -70,6 +72,10 @@ export async function onRequestGet(context) {
 
     // ==========================================
     // โหมด detail: GET /api/templates?id=..
+    // เอา rankings/comments ทั้งชุดออกจาก response นี้แล้ว (ไม่มี LIMIT มาก่อน = เสี่ยงเกิน
+    // ลิมิต 100 bound params ของ D1 เมื่อ template มี ranking เกิน 100 อัน) — ฝั่งหน้าเว็บ
+    // ดึงรายการ Community Rankings แบบแบ่งหน้าจาก GET /api/rankings?template_id=..&sort=..&page=..
+    // แทน ส่วนตารางนี้คืนแค่ meta + Community Average ที่คำนวณด้วย query เดียว
     // ==========================================
     const { results: templateResults } = await db.prepare(
       `SELECT t.*, p.username, p.avatar_url
@@ -83,88 +89,61 @@ export async function onRequestGet(context) {
     }
 
     const template = templateResults[0];
+    const tiersDef = parseTiers(template.tiers) || [];
+    const tierCount = tiersDef.length;
 
     const { results: templateItems } = await db.prepare(
       `SELECT * FROM template_items WHERE template_id = ? ORDER BY position ASC`
     ).bind(templateId).all();
 
-    const { results: comments } = await db.prepare(
-      `SELECT c.*, p.username, p.avatar_url
-       FROM comments c
-       LEFT JOIN profiles p ON c.user_id = p.id
-       WHERE c.ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)
-       ORDER BY c.created_at DESC`
+    const { results: useCountRows } = await db.prepare(
+      `SELECT COUNT(*) as n FROM rankings WHERE template_id = ?`
     ).bind(templateId).all();
 
-    const { results: rankings } = await db.prepare(
-      `SELECT r.*, p.username, p.avatar_url
-       FROM rankings r
-       LEFT JOIN profiles p ON r.user_id = p.id
-       WHERE r.template_id = ?
-       ORDER BY r.created_at DESC`
+    const { results: lastRankedRows } = await db.prepare(
+      `SELECT MAX(created_at) as latest FROM rankings WHERE template_id = ?`
     ).bind(templateId).all();
 
-    const { results: voteTotals } = await db.prepare(
-      `SELECT
-        SUM(CASE WHEN vote_type = 'like' THEN 1 ELSE 0 END) as likes,
-        SUM(CASE WHEN vote_type = 'dislike' THEN 1 ELSE 0 END) as dislikes
-       FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)`
+    // Community Average: ฮิสโตแกรมเดียว 1 bound param ไม่ว่า template จะมี ranking กี่อัน
+    const { results: histogram } = await db.prepare(
+      `SELECT ri.item_id, ri.tier, COUNT(*) as n
+       FROM ranking_items ri
+       WHERE ri.ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)
+         AND ri.tier IS NOT NULL
+       GROUP BY ri.item_id, ri.tier`
     ).bind(templateId).all();
 
-    const stats = {
-      likes: voteTotals[0]?.likes || 0,
-      dislikes: voteTotals[0]?.dislikes || 0,
-      comments: comments.length,
-      views: 0,
-      uses: template.use_count || 0
-    };
+    const tierLabelToIndex = {};
+    tiersDef.forEach((t, i) => { tierLabelToIndex[t.label] = i; });
 
-    // ดึง ranking_items + votes ของทุก ranking แบบ batched (กัน N+1 query ที่จะชนลิมิต 50 queries/invocation)
-    let rankingsWithItems = [];
-    if (rankings.length > 0) {
-      const rankingIds = rankings.map(r => r.id);
-      const placeholders = rankingIds.map(() => '?').join(',');
+    const itemAgg = {};
+    histogram.forEach(row => {
+      const idx = tierLabelToIndex[row.tier];
+      if (idx === undefined) return; // tier label ไม่ตรงกับ tiers ปัจจุบันของ template — ข้าม
+      const score = tierCount - idx; // tier บนสุด = คะแนนสูงสุด
+      if (!itemAgg[row.item_id]) itemAgg[row.item_id] = { sum: 0, count: 0 };
+      itemAgg[row.item_id].sum += score * row.n;
+      itemAgg[row.item_id].count += row.n;
+    });
 
-      const { results: allRankingItems } = await db.prepare(
-        `SELECT ri.*, i.name as item_name, i.image_url as item_image
-         FROM ranking_items ri
-         LEFT JOIN items i ON ri.item_id = i.id
-         WHERE ri.ranking_id IN (${placeholders})
-         ORDER BY ri.position ASC`
-      ).bind(...rankingIds).all();
+    const itemAverages = Object.entries(itemAgg).map(([itemId, agg]) => {
+      const avg = agg.sum / agg.count;
+      let idx = tierCount - Math.round(avg);
+      idx = Math.max(0, Math.min(tierCount - 1, idx));
+      return { item_id: itemId, avg, tierIndex: idx, votes: agg.count };
+    });
 
-      const rankingItemsMap = {};
-      allRankingItems.forEach(ri => {
-        if (!rankingItemsMap[ri.ranking_id]) rankingItemsMap[ri.ranking_id] = [];
-        rankingItemsMap[ri.ranking_id].push({
-          ...ri,
-          item: { id: ri.item_id, name: ri.item_name || ri.item_id, image_url: ri.item_image }
-        });
-      });
-
-      const { results: perRankingVotes } = await db.prepare(
-        `SELECT ranking_id,
-          SUM(CASE WHEN vote_type = 'like' THEN 1 ELSE 0 END) as likes,
-          SUM(CASE WHEN vote_type = 'dislike' THEN 1 ELSE 0 END) as dislikes
-         FROM votes WHERE ranking_id IN (${placeholders})
-         GROUP BY ranking_id`
-      ).bind(...rankingIds).all();
-
-      const votesMap = {};
-      perRankingVotes.forEach(v => { votesMap[v.ranking_id] = v; });
-
-      rankingsWithItems = rankings.map(ranking => ({
-        id: ranking.id,
-        is_average: false,
-        profile: { username: ranking.username, avatar_url: ranking.avatar_url },
-        created_at: ranking.created_at,
-        ranking_items: rankingItemsMap[ranking.id] || [],
-        stats: {
-          likes: votesMap[ranking.id]?.likes || 0,
-          dislikes: votesMap[ranking.id]?.dislikes || 0
-        }
-      }));
-    }
+    const communityAverage = tierCount > 0 ? {
+      updated_at: lastRankedRows[0]?.latest || null,
+      tiers: tiersDef.map((t, i) => ({
+        label: t.label,
+        color: t.color,
+        items: itemAverages
+          .filter(x => x.tierIndex === i)
+          .sort((a, b) => b.avg - a.avg)
+          .map(x => ({ name: x.item_id, avg: Math.round(x.avg * 100) / 100 }))
+      }))
+    } : null;
 
     const responseData = {
       id: template.id,
@@ -172,22 +151,54 @@ export async function onRequestGet(context) {
       description: template.description,
       category: template.category,
       hashtags: template.hashtags,
-      tiers: parseTiers(template.tiers),
+      tiers: tiersDef,
       profile: {
         username: template.username,
         avatar_url: template.avatar_url
       },
-      stats: stats,
+      stats: {
+        uses: useCountRows[0]?.n || 0,
+        views: template.view_count || 0
+      },
       template_items: templateItems.map(ti => ({
         ...ti,
         item: { id: ti.item_id, name: ti.item_id, image_url: null }
       })),
-      rankings: rankingsWithItems,
-      comments: comments
+      community_average: communityAverage
     };
 
     return Response.json({ success: true, data: responseData });
 
+  } catch (error) {
+    return Response.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// ==========================================
+// POST /api/templates — บันทึกว่า user คนนี้เปิดดู template นี้แล้ว (นับ view ครั้งแรกเท่านั้น)
+// body: { template_id, user_id }
+// ==========================================
+export async function onRequestPost(context) {
+  const { request, env } = context;
+  const db = env.tear_of_god_db;
+
+  try {
+    const { template_id, user_id } = await request.json();
+    if (!template_id || !user_id) {
+      return Response.json({ success: false, error: 'Missing template_id or user_id' }, { status: 400 });
+    }
+
+    const { meta } = await db.prepare(
+      `INSERT OR IGNORE INTO template_views (template_id, user_id) VALUES (?, ?)`
+    ).bind(template_id, user_id).run();
+
+    if (meta.changes > 0) {
+      await db.prepare(
+        `UPDATE templates SET view_count = view_count + 1 WHERE id = ?`
+      ).bind(template_id).run();
+    }
+
+    return Response.json({ success: true, counted: meta.changes > 0 });
   } catch (error) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }

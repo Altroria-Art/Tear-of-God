@@ -1,47 +1,36 @@
 import { useState, useEffect } from 'react'
-import { useParams, useLocation } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { ChevronDown, ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye } from 'lucide-react'
 import Avatar from '../components/ui/Avatar'
-import {
-  ThumbsUpIcon,
-  ThumbsDownIcon,
-  CommentIcon,
-  ShareIcon,
-  ExportIcon,
-  StarIcon,
-  TemplateIcon,
-} from '../components/ui/Icons'
-import CommentSection from '../components/post/CommentSection'
 import { useUser } from '../context/UserContext'
+import { fetchTemplate, fetchRankings, recordTemplateView, voteRanking } from '../lib/api'
+import { formatCount, timeAgo } from '../lib/format'
 
-// 📍 นำเข้าฟังก์ชันจาก api.js ทั้งหมดที่ต้องใช้
-import { fetchTemplate, createComment } from '../lib/api' 
+const PAGE_SIZE = 5
+const SORT_OPTIONS = [
+  { value: 'liked', label: 'Most Liked' },
+  { value: 'recent', label: 'Recent' },
+]
 
-const TIER_COLORS = {
-  S: 'bg-[#FF7E7E]',
-  A: 'bg-[#FFB05B]',
-  B: 'bg-[#FFF67B]',
-  C: 'bg-[#7BFF88]',
-  D: 'bg-[#7BCAFF]',
+// tier ที่เป็น NULL (ยังไม่ถูกจัด) ไม่นับเป็นแถวไอเทม — แต่ทุกแถว tier ของ template ยังคงแสดงเสมอ
+function groupItemsByTierOrder(rankingItems, tiersDef) {
+  const map = {}
+  tiersDef.forEach((t) => { map[t.label] = [] })
+  ;(rankingItems || []).forEach((ri) => {
+    if (!ri.tier || !(ri.tier in map)) return
+    map[ri.tier].push(ri.item?.name || ri.item_id)
+  })
+  return tiersDef.map((t) => ({ tier: t, items: map[t.label] }))
 }
 
-const groupItemsByTier = (rankingItems) => {
-  if (!rankingItems || !Array.isArray(rankingItems)) return {};
-  const map = {};
-  rankingItems.forEach((ri) => {
-    const tier = ri.tier || 'S';
-    if (!map[tier]) map[tier] = [];
-    map[tier].push(ri.item?.name || ri.item_name || ri.item_id || 'Unknown Item');
-  });
-  return map;
-};
-
-function TierRow({ tier, items }) {
+function TierListRow({ tier, items }) {
+  const isLong = tier.label.length > 2
   return (
     <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-2.5 last:border-b-0">
       <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-sm text-base font-bold text-white ${TIER_COLORS[tier] || 'bg-gray-400'}`}
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-sm text-white font-bold text-center leading-tight px-1 ${tier.color} ${isLong ? 'text-[10px]' : 'text-base'}`}
       >
-        {tier}
+        {tier.label}
       </span>
       <div className="flex flex-wrap items-center gap-2">
         {items.map((item, idx) => (
@@ -57,214 +46,169 @@ function TierRow({ tier, items }) {
   )
 }
 
-function AverageTopBar({ timeAgo }) {
+function AverageTopBar({ timeLabel }) {
   return (
     <div className="flex items-center justify-between px-4 py-3">
-      <span className="text-sm text-gray-500">{timeAgo}</span>
+      <span className="text-sm text-gray-500">{timeLabel}</span>
       <span className="flex items-center gap-1 rounded bg-[#9A7B38] px-2 py-1 text-xs text-white">
-        <StarIcon className="h-3.5 w-3.5" />
+        <Star size={14} />
         Community Average
       </span>
     </div>
   )
 }
 
-function UserTopBar({ authorHandle, timeAgo }) {
+function UserTopBar({ username, avatarUrl, timeLabel }) {
   return (
     <div className="flex items-center gap-2 px-4 py-3">
-      <Avatar size="sm" name={authorHandle} />
-      <span className="text-sm font-semibold text-gray-800">{authorHandle}</span>
+      <Avatar size="sm" name={username} src={avatarUrl} />
+      <span className="text-sm font-semibold text-gray-800">{username}</span>
       <span className="text-sm text-gray-400">·</span>
-      <span className="text-sm text-gray-500">{timeAgo}</span>
+      <span className="text-sm text-gray-500">{timeLabel}</span>
     </div>
   )
 }
 
-function TierListActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0 }) {
-  const key = `tog_interaction_template_${id}`
-  const saved = (() => { try { return localStorage.getItem(key) } catch { return null } })()
-  const [userAction, setUserAction] = useState(saved)
-  const [likesCount, setLikesCount] = useState(initialLikes + (saved === 'liked' ? 1 : 0))
-  const [dislikesCount, setDislikesCount] = useState(initialDislikes + (saved === 'disliked' ? 1 : 0))
+function RankingCard({ ranking, tiersDef }) {
+  const { currentUser } = useUser()
+  const navigate = useNavigate()
+  const [userAction, setUserAction] = useState(null)
+  const [likes, setLikes] = useState(ranking.stats?.likes || 0)
+  const [dislikes, setDislikes] = useState(ranking.stats?.dislikes || 0)
 
-  const persist = (next) => { try { localStorage.setItem(key, next) } catch {} }
+  const tierRows = groupItemsByTierOrder(ranking.ranking_items, tiersDef)
 
-  const handleLike = () => {
-    if (userAction === 'liked') {
-      setLikesCount((n) => Math.max(0, n - 1))
-      setUserAction(null)
-      persist(null)
-    } else if (userAction === 'disliked') {
-      setDislikesCount((n) => Math.max(0, n - 1))
-      setLikesCount((n) => n + 1)
-      setUserAction('liked')
-      persist('liked')
-    } else {
-      setLikesCount((n) => n + 1)
-      setUserAction('liked')
-      persist('liked')
+  const handleVote = async (type) => {
+    if (!currentUser) {
+      alert('กรุณาเข้าสู่ระบบก่อนโหวตครับ!')
+      navigate('/login')
+      return
     }
+
+    let nextAction = userAction
+    let nextLikes = likes
+    let nextDislikes = dislikes
+
+    if (type === 'like') {
+      if (userAction === 'liked') { nextLikes = Math.max(0, nextLikes - 1); nextAction = null }
+      else if (userAction === 'disliked') { nextDislikes = Math.max(0, nextDislikes - 1); nextLikes += 1; nextAction = 'liked' }
+      else { nextLikes += 1; nextAction = 'liked' }
+    } else {
+      if (userAction === 'disliked') { nextDislikes = Math.max(0, nextDislikes - 1); nextAction = null }
+      else if (userAction === 'liked') { nextLikes = Math.max(0, nextLikes - 1); nextDislikes += 1; nextAction = 'disliked' }
+      else { nextDislikes += 1; nextAction = 'disliked' }
+    }
+
+    setUserAction(nextAction)
+    setLikes(nextLikes)
+    setDislikes(nextDislikes)
+
+    const { error } = await voteRanking({
+      rankingId: ranking.id,
+      userId: currentUser.id,
+      voteType: nextAction === 'liked' ? 'like' : nextAction === 'disliked' ? 'dislike' : null
+    })
+    if (error) console.error('vote failed:', error)
   }
 
-  const handleDislike = () => {
-    if (userAction === 'disliked') {
-      setDislikesCount((n) => Math.max(0, n - 1))
-      setUserAction(null)
-      persist(null)
-    } else if (userAction === 'liked') {
-      setLikesCount((n) => Math.max(0, n - 1))
-      setDislikesCount((n) => n + 1)
-      setUserAction('disliked')
-      persist('disliked')
-    } else {
-      setDislikesCount((n) => n + 1)
-      setUserAction('disliked')
-      persist('disliked')
-    }
+  const handleShare = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/post/${ranking.id}`)
+    alert('คัดลอกลิงก์เรียบร้อยแล้ว!')
   }
 
-  return (
-    <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-sm text-gray-500">
-      <div className="flex items-center gap-5">
-        <span onClick={handleLike} className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userAction === 'liked' ? 'text-blue-500' : 'hover:text-gray-700'}`}>
-          <ThumbsUpIcon className="h-4 w-4" />
-          {likesCount.toLocaleString()}
-        </span>
-        <span onClick={handleDislike} className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userAction === 'disliked' ? 'text-red-500' : 'hover:text-gray-700'}`}>
-          <ThumbsDownIcon className="h-4 w-4" />
-          {dislikesCount}
-        </span>
-        <span className="flex cursor-pointer items-center gap-1.5 hover:text-gray-700 transition-colors">
-          <CommentIcon className="h-4 w-4" />
-          {initialComments}
-        </span>
-      </div>
-      <div className="flex items-center gap-4">
-        <span className="flex cursor-pointer items-center gap-1.5 hover:text-gray-700 transition-colors">
-          <ExportIcon className="h-4 w-4" />
-          Export
-        </span>
-        <span className="flex cursor-pointer items-center gap-1.5 hover:text-gray-700 transition-colors">
-          <ShareIcon className="h-4 w-4" />
-          Share
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function TierListCard({ list }) {
   return (
     <div className="mb-6 rounded-lg border border-gray-200 bg-white shadow-sm">
-      {list.isAverage ? (
-        <AverageTopBar timeAgo={list.timeAgo} />
-      ) : (
-        <UserTopBar authorHandle={list.authorHandle} timeAgo={list.timeAgo} />
-      )}
-      {Object.entries(list.tiers).map(([tier, items]) => (
-        <TierRow key={tier} tier={tier} items={items} />
-      ))}
-      <TierListActionBar 
-        id={list.id} 
-        initialLikes={list.stats?.likes}
-        initialDislikes={list.stats?.dislikes}
-        initialComments={list.stats?.comments}
+      <UserTopBar
+        username={ranking.profile?.username || 'User'}
+        avatarUrl={ranking.profile?.avatar_url}
+        timeLabel={timeAgo(ranking.created_at)}
       />
+      {tierRows.map(({ tier, items }) => (
+        <TierListRow key={tier.label} tier={tier} items={items} />
+      ))}
+      <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-sm text-gray-500">
+        <div className="flex items-center gap-5">
+          <span
+            onClick={() => handleVote('like')}
+            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userAction === 'liked' ? 'text-blue-500' : 'hover:text-gray-700'}`}
+          >
+            <ThumbsUp size={16} /> {formatCount(likes)}
+          </span>
+          <span
+            onClick={() => handleVote('dislike')}
+            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userAction === 'disliked' ? 'text-red-500' : 'hover:text-gray-700'}`}
+          >
+            <ThumbsDown size={16} /> {formatCount(dislikes)}
+          </span>
+          <Link to={`/post/${ranking.id}`} className="flex items-center gap-1.5 hover:text-gray-700 transition-colors">
+            <MessageSquare size={16} /> {formatCount(ranking.stats?.comments || 0)}
+          </Link>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5 text-gray-400">
+            <Download size={16} /> Export
+          </span>
+          <span onClick={handleShare} className="flex cursor-pointer items-center gap-1.5 hover:text-gray-700 transition-colors">
+            <Share2 size={16} /> Share
+          </span>
+        </div>
+      </div>
     </div>
   )
 }
 
 export default function TemplateDetailPage() {
   const { templateId } = useParams()
-  const location = useLocation()
+  const navigate = useNavigate()
   const { currentUser } = useUser()
 
-  const [templateData, setTemplateData] = useState(null)
-  const [comments, setComments] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [template, setTemplate] = useState(null)
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(true)
 
-  // 📍 ดึงข้อมูลเทมเพลตผ่าน API
+  const [rankings, setRankings] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [sort, setSort] = useState('liked')
+  const [isLoadingRankings, setIsLoadingRankings] = useState(true)
+  const [sortMenuOpen, setSortMenuOpen] = useState(false)
+
   useEffect(() => {
     async function loadTemplate() {
-      setIsLoading(true)
-      const { data, error } = await fetchTemplate(templateId)
-
-      if (data) {
-        setTemplateData({
-          id: data.id,
-          title: data.title,
-          description: data.description,
-          authorHandle: data.profile?.username || 'Community',
-          uses: data.stats?.uses || 0,
-          views: data.stats?.views || 0,
-          rankings: data.rankings?.map(r => ({
-            id: r.id,
-            isAverage: r.is_average,
-            authorHandle: r.profile?.username || 'User',
-            timeAgo: r.created_at ? new Date(r.created_at).toLocaleDateString() : 'Recently',
-            tiers: groupItemsByTier(r.ranking_items),
-            stats: r.stats
-          })) || []
-        })
-
-        if (data.comments) {
-          setComments(data.comments.map(c => ({
-            id: c.id,
-            author: {
-              name: c.username || c.profile?.username || 'Unknown User',
-              avatarUrl: c.avatar_url || c.profile?.avatar_url
-            },
-            postedAt: new Date(c.created_at).toLocaleDateString(),
-            body: c.content
-          })))
-        }
-      } else {
-        console.error("Failed to load template:", error)
-      }
-      setIsLoading(false)
+      setIsLoadingTemplate(true)
+      const { data } = await fetchTemplate(templateId)
+      if (data) setTemplate(data)
+      setIsLoadingTemplate(false)
     }
-
     if (templateId) loadTemplate()
   }, [templateId])
 
+  // นับ view ให้ template เฉพาะตอน login แล้ว — ฝั่ง API จะกันนับซ้ำให้เองถ้าเปิดซ้ำ
   useEffect(() => {
-    if (!isLoading && location.hash === '#comments') {
-      document.getElementById('comments-section')?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [location.hash, isLoading])
+    if (!templateId || !currentUser) return
+    recordTemplateView(templateId, currentUser.id)
+  }, [templateId, currentUser])
 
-  // 📍 ใช้ createComment จาก api.js เพื่อส่งข้อมูล
-  const handleAddComment = async (body) => {
+  useEffect(() => {
+    async function loadRankings() {
+      setIsLoadingRankings(true)
+      const { data, total: t } = await fetchRankings({ templateId, sort, page, limit: PAGE_SIZE })
+      setRankings(data || [])
+      setTotal(t || 0)
+      setIsLoadingRankings(false)
+    }
+    if (templateId) loadRankings()
+  }, [templateId, sort, page])
+
+  const handleUseTemplate = () => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนคอมเมนต์ครับ!');
-      return;
+      alert('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้ครับ!')
+      navigate('/login')
+      return
     }
-    if (!body || !body.trim()) return;
-
-    // หมายเหตุ: ใช้ ranking_id เป็น templateId ไปก่อน (ปรับได้ถ้า Backend ใช้ชื่อฟิลด์อื่น)
-    const { data, error } = await createComment({
-      ranking_id: templateId, 
-      user_id: currentUser.id,
-      content: body.trim()
-    });
-
-    if (!error) {
-      const newComment = {
-        id: data?.id || `comm_${Date.now()}`,
-        author: {
-          name: currentUser.username || 'User',
-          avatarUrl: currentUser.avatar_url
-        },
-        postedAt: 'Just now',
-        body: body.trim()
-      }
-      setComments([newComment, ...comments]);
-    } else {
-      alert('คอมเมนต์ไม่สำเร็จ: ' + error);
-    }
+    navigate(`/rank?template=${templateId}`)
   }
 
-  if (isLoading) {
+  if (isLoadingTemplate) {
     return (
       <main className="min-h-screen bg-[#FDF9F1] flex items-center justify-center">
         <p className="text-lg font-bold text-gray-500 animate-pulse">กำลังโหลดเทมเพลต...</p>
@@ -272,69 +216,138 @@ export default function TemplateDetailPage() {
     )
   }
 
-  if (!templateData) {
+  if (!template) {
     return (
       <main className="min-h-screen bg-[#FDF9F1] flex flex-col items-center justify-center gap-2">
         <p className="text-lg font-bold text-gray-800">ไม่พบเทมเพลตที่คุณตามหา</p>
-        <a href="/" className="text-blue-500 hover:underline">กลับสู่หน้าหลัก</a>
+        <Link to="/" className="text-blue-500 hover:underline">กลับสู่หน้าหลัก</Link>
       </main>
     )
   }
+
+  const tiersDef = template.tiers || []
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label || 'Most Liked'
+
+  const hasCommunityAverage = (template.community_average?.tiers || []).some((t) => t.items.length > 0)
+  const communityAvgRows = tiersDef.map((t) => {
+    const found = template.community_average?.tiers.find((x) => x.label === t.label)
+    return { tier: t, items: (found?.items || []).map((i) => i.name) }
+  })
 
   return (
     <main className="min-h-screen bg-[#FDF9F1]">
       <div className="mx-auto max-w-5xl px-4 py-8">
         <section className="mb-8 rounded-xl bg-white p-6 shadow-sm">
-          <h1 className="mb-4 text-3xl font-bold text-gray-900 md:text-4xl">
-            {templateData.title}
-          </h1>
+          <h1 className="mb-4 text-3xl font-bold text-gray-900 md:text-4xl">{template.title}</h1>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <Avatar size="sm" name={templateData.authorHandle} />
-              <span className="font-medium text-gray-800">{templateData.authorHandle}</span>
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
-                {templateData.uses} Uses
+              <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
+              <span className="font-medium text-gray-800">@{template.profile?.username || 'User'}</span>
+              <span className="text-gray-300">|</span>
+              <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                <Users size={14} /> {formatCount(template.stats?.uses)} Uses
               </span>
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
-                {templateData.views} Views
+              <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                <Eye size={14} /> {formatCount(template.stats?.views)} Views
               </span>
             </div>
 
             <button
               type="button"
+              onClick={handleUseTemplate}
               className="flex items-center gap-2 rounded-full bg-[#7A612A] px-6 py-2 font-semibold text-white transition-colors hover:bg-[#634f22]"
             >
-              <TemplateIcon className="h-4 w-4" />
-              Use Template
+              + Use Template
             </button>
           </div>
 
-          <p className="mt-4 max-w-3xl text-gray-600">{templateData.description}</p>
+          <p className="mt-4 max-w-3xl text-gray-600">{template.description}</p>
         </section>
 
         <section>
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gray-900">Community Rankings</h2>
-            <span className="flex items-center gap-1 text-sm text-gray-500">
-              Sort by:
-              <span className="font-semibold text-gray-700">Most Liked</span>
-            </span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setSortMenuOpen((o) => !o)}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                SORT BY: <span className="font-semibold text-gray-700">{currentSortLabel}</span>
+                <ChevronDown size={14} />
+              </button>
+              {sortMenuOpen && (
+                <div className="absolute right-0 top-8 w-40 rounded-lg border border-gray-100 bg-white py-2 shadow-xl z-50">
+                  {SORT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => { setSort(opt.value); setPage(1); setSortMenuOpen(false) }}
+                      className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-[#f4efe8]"
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          {templateData.rankings.length > 0 ? (
-            templateData.rankings.map((list) => (
-              <TierListCard key={list.id} list={list} />
-            ))
-          ) : (
+          {hasCommunityAverage && (
+            <div className="mb-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+              <AverageTopBar timeLabel={`Updated ${timeAgo(template.community_average.updated_at)}`} />
+              {communityAvgRows.map(({ tier, items }) => (
+                <TierListRow key={tier.label} tier={tier} items={items} />
+              ))}
+            </div>
+          )}
+
+          {isLoadingRankings ? (
+            <p className="text-gray-500 text-center py-10 animate-pulse">กำลังโหลด...</p>
+          ) : rankings.length === 0 ? (
             <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500">
               ยังไม่มีใครสร้าง Tier List จากเทมเพลตนี้ เป็นคนแรกเลยสิ!
             </div>
-          )}
-        </section>
+          ) : (
+            <>
+              {rankings.map((r) => (
+                <RankingCard key={r.id} ranking={r} tiersDef={tiersDef} />
+              ))}
 
-        <section id="comments-section" className="mt-8 rounded-xl bg-white p-6 shadow-sm">
-          <CommentSection comments={comments} onSubmit={handleAddComment} />
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="rounded-md border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p)}
+                      className={`rounded-md px-3 py-1.5 text-sm ${p === page ? 'bg-[#7A612A] text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="rounded-md border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </section>
       </div>
     </main>

@@ -55,7 +55,12 @@ export async function onRequest({ request, env }) {
         const category = url.searchParams.get('category');
         const hashtag = url.searchParams.get('hashtag');
         const currentUserId = url.searchParams.get('user_id');
-        
+        const templateId = url.searchParams.get('template_id');
+        const sort = url.searchParams.get('sort'); // 'recent' | 'liked'
+        const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
+        const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
+        const offset = (page - 1) * limit;
+
         let query = `
           SELECT r.*, p.username, p.avatar_url,
             (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'like') as likes_count,
@@ -66,19 +71,33 @@ export async function onRequest({ request, env }) {
           WHERE 1=1
         `;
         const params = [];
-        
+
         if (category && category !== 'null') { query += ` AND r.category = ?`; params.push(category); }
         if (hashtag) { query += ` AND r.hashtags LIKE ?`; params.push(`%${hashtag}%`); }
-        
+        if (templateId) { query += ` AND r.template_id = ?`; params.push(templateId); }
+
         if (currentUserId) {
-          query += ` ORDER BY (SELECT COUNT(*) FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id WHERE v.user_id = ? AND v.vote_type = 'like' AND fav_r.category = r.category) DESC, r.created_at DESC LIMIT 50`;
+          query += ` ORDER BY (SELECT COUNT(*) FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id WHERE v.user_id = ? AND v.vote_type = 'like' AND fav_r.category = r.category) DESC, r.created_at DESC`;
           params.push(currentUserId);
+        } else if (sort === 'liked') {
+          query += ` ORDER BY likes_count DESC, r.created_at DESC`;
         } else {
-          query += ` ORDER BY r.created_at DESC LIMIT 50`;
+          query += ` ORDER BY r.created_at DESC`;
         }
 
+        query += ` LIMIT ? OFFSET ?`;
+        params.push(limit, offset);
+
         const { results: rankings } = await db.prepare(query).bind(...params).all();
-        
+
+        let total = null;
+        if (templateId) {
+          const { results: totalRows } = await db.prepare(
+            `SELECT COUNT(*) as n FROM rankings WHERE template_id = ?`
+          ).bind(templateId).all();
+          total = totalRows[0]?.n || 0;
+        }
+
         let formattedRankings = [];
         if (rankings.length > 0) {
           const rankingIds = rankings.map(r => r.id);
@@ -89,6 +108,7 @@ export async function onRequest({ request, env }) {
             FROM ranking_items ri 
             LEFT JOIN items i ON ri.item_id = i.id 
             WHERE ri.ranking_id IN (${placeholders})
+            ORDER BY ri.position ASC
           `).bind(...rankingIds).all();
 
           const itemsMap = {};
@@ -108,7 +128,7 @@ export async function onRequest({ request, env }) {
           }));
         }
 
-        return jsonResponse({ success: true, data: formattedRankings });
+        return jsonResponse({ success: true, data: formattedRankings, page, limit, total });
       }
     }
 

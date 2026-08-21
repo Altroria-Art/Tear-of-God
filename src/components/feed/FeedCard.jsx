@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { formatCount } from '../../lib/feed'
+import { formatCount } from '../../lib/format'
 import Avatar from '../ui/Avatar'
 import {
   CommentIcon,

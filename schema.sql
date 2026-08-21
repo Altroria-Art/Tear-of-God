@@ -64,8 +64,16 @@ CREATE TABLE IF NOT EXISTS templates (
   hashtags TEXT,
   tiers TEXT,
   use_count INTEGER DEFAULT 0,
+  view_count INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (creator_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS template_views (
+  template_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (template_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS template_items (
@@ -85,3 +93,4 @@ CREATE INDEX IF NOT EXISTS idx_votes_ranking_id ON votes(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_comments_ranking_id ON comments(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
 CREATE INDEX IF NOT EXISTS idx_template_items_template_id ON template_items(template_id);
+CREATE INDEX IF NOT EXISTS idx_template_views_template ON template_views(template_id);

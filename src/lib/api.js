@@ -67,15 +67,19 @@ export async function fetchRankings(categoryParam) {
     let url = `${API_URL}/api/rankings`;
     
     if (typeof categoryParam === 'object' && categoryParam !== null) {
-      const { category, hashtag, userId } = categoryParam;
+      const { category, hashtag, userId, templateId, sort, page, limit } = categoryParam;
       const params = new URLSearchParams();
-      
+
       if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
         params.append('category', category.toLowerCase());
       }
       if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
       if (userId) params.append('user_id', userId);
-      
+      if (templateId) params.append('template_id', templateId);
+      if (sort) params.append('sort', sort);
+      if (page) params.append('page', page);
+      if (limit) params.append('limit', limit);
+
       const queryStr = params.toString();
       if (queryStr) url += `?${queryStr}`;
     } 
@@ -191,5 +195,20 @@ export async function fetchTemplates({ hashtag, category, limit } = {}) {
   } catch (error) {
     console.error("fetchTemplates error:", error);
     return { data: [], error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
+  }
+}
+
+// นับ view ให้ template — ฝั่ง API จะนับให้แค่ครั้งแรกที่ user คนนี้เปิดดู template นี้เท่านั้น
+export async function recordTemplateView(templateId, userId) {
+  try {
+    const response = await fetch(`${API_URL}/api/templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: templateId, user_id: userId })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("recordTemplateView error:", error);
+    return { success: false, error: 'บันทึกการเข้าชมไม่สำเร็จ' };
   }
 }
