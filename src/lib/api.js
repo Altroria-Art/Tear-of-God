@@ -182,12 +182,14 @@ export async function fetchTemplate(templateId) {
   }
 }
 
-export async function fetchTemplates({ hashtag, category, limit } = {}) {
+export async function fetchTemplates({ hashtag, category, limit, page, sort } = {}) {
   try {
     const params = new URLSearchParams();
     if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
     if (category) params.append('category', category.toLowerCase());
     if (limit) params.append('limit', limit);
+    if (page) params.append('page', page);
+    if (sort) params.append('sort', sort);
 
     const queryStr = params.toString();
     const response = await fetch(`${API_URL}/api/templates${queryStr ? `?${queryStr}` : ''}`);
@@ -195,6 +197,24 @@ export async function fetchTemplates({ hashtag, category, limit } = {}) {
   } catch (error) {
     console.error("fetchTemplates error:", error);
     return { data: [], error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
+  }
+}
+
+// ดึงรายการ hashtag ทั้งหมด พร้อมจำนวน template ที่ติดแท็กนั้น (แบ่งหน้า)
+export async function fetchHashtags({ page, limit, sort, q } = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    if (sort) params.append('sort', sort);
+    if (q) params.append('q', q);
+
+    const queryStr = params.toString();
+    const response = await fetch(`${API_URL}/api/hashtags${queryStr ? `?${queryStr}` : ''}`);
+    return await response.json();
+  } catch (error) {
+    console.error("fetchHashtags error:", error);
+    return { data: [], error: 'ไม่สามารถดึงข้อมูลแฮชแท็กได้' };
   }
 }
 

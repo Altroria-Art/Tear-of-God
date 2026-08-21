@@ -21,22 +21,42 @@ export async function onRequestGet(context) {
     if (!templateId) {
       const hashtag = url.searchParams.get('hashtag');
       const category = url.searchParams.get('category');
-      const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 100);
+      const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
+      const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
+      const offset = (page - 1) * limit;
+      const sort = url.searchParams.get('sort'); // 'popular' (default) | 'recent' | 'views'
 
-      let query = `
+      let whereSql = ` WHERE 1=1`;
+      const whereParams = [];
+      if (category && category !== 'null') { whereSql += ` AND t.category = ?`; whereParams.push(category); }
+      if (hashtag) {
+        // แมตช์แท็กแบบเป๊ะ (ไม่ใช่ substring) — ห่อทั้งสองฝั่งด้วย ',' แล้วค้นหา ',#tag,'
+        // ป้องกันปัญหา LIKE '%tag%' ที่ 'Pop' จะไปแมตช์ '#TPop' ด้วย (ดู docs/feature-discover-view-all-pages.md §4)
+        whereSql += ` AND instr(',' || lower(t.hashtags) || ',', lower(?)) > 0`;
+        whereParams.push(`,#${hashtag.replace(/^#/, '')},`);
+      }
+
+      let orderSql = ` ORDER BY live_uses DESC, t.created_at DESC, t.id DESC`;
+      if (sort === 'recent') orderSql = ` ORDER BY t.created_at DESC, t.id DESC`;
+      else if (sort === 'views') orderSql = ` ORDER BY t.view_count DESC, live_uses DESC, t.id DESC`;
+
+      const query = `
         SELECT t.*, p.username, p.avatar_url,
           (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) as live_uses
         FROM templates t
         LEFT JOIN profiles p ON t.creator_id = p.id
-        WHERE 1=1
+        ${whereSql}
+        ${orderSql}
+        LIMIT ? OFFSET ?
       `;
-      const params = [];
-      if (category && category !== 'null') { query += ` AND t.category = ?`; params.push(category); }
-      if (hashtag) { query += ` AND t.hashtags LIKE ?`; params.push(`%${hashtag}%`); }
-      query += ` ORDER BY live_uses DESC, t.created_at DESC LIMIT ?`;
-      params.push(limit);
+      const params = [...whereParams, limit, offset];
 
       const { results: templates } = await db.prepare(query).bind(...params).all();
+
+      const { results: totalRows } = await db.prepare(
+        `SELECT COUNT(*) as n FROM templates t${whereSql}`
+      ).bind(...whereParams).all();
+      const total = totalRows[0]?.n || 0;
 
       let itemsMap = {};
       if (templates.length > 0) {
@@ -67,7 +87,7 @@ export async function onRequestGet(context) {
         template_items: itemsMap[t.id] || []
       }));
 
-      return Response.json({ success: true, data });
+      return Response.json({ success: true, data, page, limit, total });
     }
 
     // ==========================================
@@ -198,7 +218,14 @@ export async function onRequestPost(context) {
       ).bind(template_id).run();
     }
 
-    return Response.json({ success: true, counted: meta.changes > 0 });
+    // ส่งเลข view_count ล่าสุดกลับไปด้วย — ฝั่ง client ต้องใช้ค่านี้แทนค่าที่ได้จาก GET
+    // เพราะ GET (fetchTemplate) กับ POST (recordTemplateView) ยิงพร้อมกันตอน mount
+    // ถ้า GET อ่านไปก่อน UPDATE ข้างบน commit จะได้เลขเก่ามาโชว์ (บั๊ก views ค้าง 0 จนกว่าจะรีเฟรช)
+    const { results } = await db.prepare(
+      `SELECT view_count FROM templates WHERE id = ?`
+    ).bind(template_id).all();
+
+    return Response.json({ success: true, counted: meta.changes > 0, views: results[0]?.view_count ?? 0 });
   } catch (error) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
