@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ChevronDown, ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye } from 'lucide-react'
 import Avatar from '../components/ui/Avatar'
+import Pagination from '../components/ui/Pagination'
+import SortDropdown from '../components/ui/SortDropdown'
 import { useUser } from '../context/UserContext'
 import { fetchTemplate, fetchRankings, recordTemplateView, voteRanking } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
@@ -170,22 +172,30 @@ export default function TemplateDetailPage() {
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState('liked')
   const [isLoadingRankings, setIsLoadingRankings] = useState(true)
-  const [sortMenuOpen, setSortMenuOpen] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     async function loadTemplate() {
       setIsLoadingTemplate(true)
-      const { data } = await fetchTemplate(templateId)
-      if (data) setTemplate(data)
+      // ยิง GET (อ่าน template) กับ POST (นับ view) พร้อมกันเพื่อไม่ให้ช้าลง แต่รอครบทั้งคู่
+      // ก่อนค่อย setState ครั้งเดียว — ค่า views ต้องเอาจาก POST เสมอ เพราะถ้าแยก effect กัน
+      // GET จะอ่าน view_count ไปก่อนที่ UPDATE ของ POST จะ commit ได้เลขเก่ามาโชว์ (ค้างจนกว่าจะรีเฟรช)
+      const [tplRes, viewRes] = await Promise.all([
+        fetchTemplate(templateId),
+        currentUser ? recordTemplateView(templateId, currentUser.id) : Promise.resolve(null)
+      ])
+      if (cancelled) return
+      if (tplRes.data) {
+        setTemplate(
+          viewRes?.views != null
+            ? { ...tplRes.data, stats: { ...tplRes.data.stats, views: viewRes.views } }
+            : tplRes.data
+        )
+      }
       setIsLoadingTemplate(false)
     }
     if (templateId) loadTemplate()
-  }, [templateId])
-
-  // นับ view ให้ template เฉพาะตอน login แล้ว — ฝั่ง API จะกันนับซ้ำให้เองถ้าเปิดซ้ำ
-  useEffect(() => {
-    if (!templateId || !currentUser) return
-    recordTemplateView(templateId, currentUser.id)
+    return () => { cancelled = true }
   }, [templateId, currentUser])
 
   useEffect(() => {
@@ -227,7 +237,6 @@ export default function TemplateDetailPage() {
 
   const tiersDef = template.tiers || []
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label || 'Most Liked'
 
   const hasCommunityAverage = (template.community_average?.tiers || []).some((t) => t.items.length > 0)
   const communityAvgRows = tiersDef.map((t) => {
@@ -269,30 +278,11 @@ export default function TemplateDetailPage() {
         <section>
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-gray-900">Community Rankings</h2>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setSortMenuOpen((o) => !o)}
-                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-              >
-                SORT BY: <span className="font-semibold text-gray-700">{currentSortLabel}</span>
-                <ChevronDown size={14} />
-              </button>
-              {sortMenuOpen && (
-                <div className="absolute right-0 top-8 w-40 rounded-lg border border-gray-100 bg-white py-2 shadow-xl z-50">
-                  {SORT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => { setSort(opt.value); setPage(1); setSortMenuOpen(false) }}
-                      className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-[#f4efe8]"
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <SortDropdown
+              value={sort}
+              options={SORT_OPTIONS}
+              onChange={(nextSort) => { setSort(nextSort); setPage(1) }}
+            />
           </div>
 
           {hasCommunityAverage && (
@@ -316,36 +306,7 @@ export default function TemplateDetailPage() {
                 <RankingCard key={r.id} ranking={r} tiersDef={tiersDef} />
               ))}
 
-              {totalPages > 1 && (
-                <div className="mt-6 flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                    className="rounded-md border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Prev
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setPage(p)}
-                      className={`rounded-md px-3 py-1.5 text-sm ${p === page ? 'bg-[#7A612A] text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                    className="rounded-md border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
+              <Pagination page={page} totalPages={totalPages} onChange={setPage} />
             </>
           )}
         </section>

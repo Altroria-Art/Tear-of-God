@@ -1,0 +1,104 @@
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useUser } from '../context/UserContext';
+import { fetchTemplates } from '../lib/api';
+import TemplateCard from '../components/template/TemplateCard';
+import Pagination from '../components/ui/Pagination';
+import SortDropdown from '../components/ui/SortDropdown';
+import { ArrowLeftIcon } from '../components/ui/Icons';
+
+const PAGE_SIZE = 12;
+const SORT_OPTIONS = [
+  { value: 'popular', label: 'Popular' },
+  { value: 'recent', label: 'Recent' },
+  { value: 'views', label: 'Most Viewed' },
+];
+
+export default function HashtagDetail() {
+  const { tag } = useParams();
+  const navigate = useNavigate();
+  const { currentUser } = useUser();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const sort = searchParams.get('sort') || 'popular';
+
+  const [templates, setTemplates] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setIsLoading(true);
+      const { data, total: t } = await fetchTemplates({ hashtag: tag, page, limit: PAGE_SIZE, sort });
+      setTemplates(data || []);
+      setTotal(t || 0);
+      setIsLoading(false);
+    }
+    if (tag) load();
+  }, [tag, page, sort]);
+
+  const handleProtectedAction = (callback) => {
+    if (!currentUser) {
+      alert('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้ครับ!');
+      navigate('/login');
+      return;
+    }
+    if (callback) callback();
+  };
+
+  const handleUseTemplate = (template) => {
+    handleProtectedAction(() => {
+      navigate(`/rank?template=${template.id}`);
+    });
+  };
+
+  const setPage = (p) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('page', String(p));
+    setSearchParams(next);
+  };
+
+  const handleSortChange = (nextSort) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('sort', nextSort);
+    next.set('page', '1');
+    setSearchParams(next);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  return (
+    <div className="bg-[#fef9f2] text-[#1d1c18] font-sans min-h-screen flex flex-col">
+      <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link
+              to="/discover/hashtags"
+              className="rounded-full border border-gray-300 p-2 text-gray-600 transition-colors hover:bg-gray-100"
+            >
+              <ArrowLeftIcon className="h-5 w-5" />
+            </Link>
+            <span className="bg-[#ffc329] text-[#261a00] font-bold px-4 py-1.5 rounded-full">#{tag}</span>
+            <p className="text-sm text-[#4b4639]">{total.toLocaleString()} templates</p>
+          </div>
+          <SortDropdown value={sort} options={SORT_OPTIONS} onChange={handleSortChange} label="Sort:" />
+        </div>
+
+        {isLoading ? (
+          <p className="text-gray-500 animate-pulse text-center py-10">กำลังโหลดเทมเพลต...</p>
+        ) : templates.length === 0 ? (
+          <p className="text-gray-500 text-center py-10">ยังไม่มีเทมเพลตที่ติดแท็กนี้</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+            {templates.map((template) => (
+              <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
+            ))}
+          </div>
+        )}
+
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+      </main>
+    </div>
+  );
+}

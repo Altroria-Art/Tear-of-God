@@ -1,22 +1,29 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { fetchTemplates } from '../lib/api';
+import { fetchTemplates, fetchHashtags } from '../lib/api';
 import TemplateCard from '../components/template/TemplateCard';
-import { formatCount } from '../lib/format';
+import HashtagPill from '../components/discover/HashtagPill';
 
 export default function Discover() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const [templates, setTemplates] = useState([]);
+  const [hashtags, setHashtags] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 📍 ดึงข้อมูล template จากฐานข้อมูลจริง (ครั้งเดียว แล้วแบ่งฝั่ง client)
+  // 📍 ดึงข้อมูล template + hashtag จากฐานข้อมูลจริง — เลขบน hashtag pill ต้องมาจาก
+  // /api/hashtags เสมอ (นับจากทุก template ใน DB) ไม่ใช่นับเองจาก 50 template ที่โหลดมาโชว์
+  // ไม่งั้นเลขจะไม่ตรงกับหน้า /discover/hashtags เมื่อจำนวน template เกิน 50
   useEffect(() => {
     async function loadDiscover() {
       setIsLoading(true);
-      const { data } = await fetchTemplates({ limit: 50 });
-      if (data) setTemplates(data);
+      const [tplRes, tagRes] = await Promise.all([
+        fetchTemplates({ limit: 50 }),
+        fetchHashtags({ limit: 30, sort: 'used' })
+      ]);
+      if (tplRes.data) setTemplates(tplRes.data);
+      if (tagRes.data) setHashtags(tagRes.data);
       setIsLoading(false);
     }
     loadDiscover();
@@ -37,36 +44,20 @@ export default function Discover() {
     });
   };
 
-  // นับ hashtag ทั้งหมดจากข้อมูลจริงที่ดึงมา (จำนวน template + ยอดใช้งานรวม)
-  const hashtagStats = useMemo(() => {
-    const stats = {};
-    templates.forEach((t) => {
-      (t.hashtags || '').split(',').filter(Boolean).forEach((tag) => {
-        if (!stats[tag]) stats[tag] = { count: 0, totalUse: 0 };
-        stats[tag].count += 1;
-        stats[tag].totalUse += t.use_count || 0;
-      });
-    });
-    return stats;
-  }, [templates]);
-
-  const popularHashtags = useMemo(
-    () => Object.entries(hashtagStats).sort((a, b) => b[1].count - a[1].count),
-    [hashtagStats]
-  );
-
   // section ต่อท้าย: ไล่จาก hashtag ที่มี template เยอะที่สุด (อย่างน้อย 3 อันถึงจะคุ้มเปิด section)
+  // ตัด section ที่ไม่มีการ์ดให้โชว์ทิ้ง — กันเคสที่ template ของแท็กนั้นไม่ติดอยู่ใน 50 อันแรก
+  // ที่โหลดมา (hashtags มาจาก /api/hashtags ซึ่งนับจากทุก template ใน DB ไม่ใช่แค่ 50 อันนี้)
   const hashtagSections = useMemo(
     () =>
-      Object.entries(hashtagStats)
-        .filter(([, stat]) => stat.count >= 3)
-        .sort((a, b) => b[1].count - a[1].count || b[1].totalUse - a[1].totalUse)
+      hashtags
+        .filter((h) => h.template_count >= 3)
         .slice(0, 3)
-        .map(([tag]) => ({
-          tag,
-          items: templates.filter((t) => (t.hashtags || '').split(',').includes(tag)).slice(0, 4)
-        })),
-    [hashtagStats, templates]
+        .map((h) => ({
+          tag: h.tag,
+          items: templates.filter((t) => (t.hashtags || '').split(',').includes(h.tag)).slice(0, 4)
+        }))
+        .filter((s) => s.items.length > 0),
+    [hashtags, templates]
   );
 
   const popularTemplates = templates.slice(0, 4);
@@ -83,7 +74,7 @@ export default function Discover() {
         <section className="mb-16">
           <div className="flex justify-between items-end mb-6">
             <h2 className="text-2xl font-bold text-[#1d1c18]">Popular Templates</h2>
-            <button type="button" className="text-sm font-bold text-[#4b4639] hover:underline">View All</button>
+            <Link to="/discover/templates" className="text-sm font-bold text-[#4b4639] hover:underline">View All</Link>
           </div>
 
           {isLoading ? (
@@ -102,17 +93,11 @@ export default function Discover() {
         <section className="mb-16">
           <div className="flex justify-between items-end mb-6">
             <h2 className="text-2xl font-bold text-[#1d1c18]">Popular Hashtags</h2>
-            <button type="button" className="text-sm font-bold text-[#4b4639] hover:underline">View All</button>
+            <Link to="/discover/hashtags" className="text-sm font-bold text-[#4b4639] hover:underline">View All</Link>
           </div>
           <div className="flex flex-wrap gap-3">
-            {popularHashtags.map(([tag, stat]) => (
-              <button
-                key={tag}
-                onClick={() => navigate(`/?hashtag=${tag.replace('#', '')}`)}
-                className="px-4 py-2 bg-[#f2ede6] border border-[#cec6b4] rounded-full text-[#4b4639] hover:bg-[#ece7e1] transition-colors font-bold text-sm shadow-xs"
-              >
-                {tag} <span className="text-[#9a927e] font-normal">({formatCount(stat.count)})</span>
-              </button>
+            {hashtags.map((h) => (
+              <HashtagPill key={h.tag} tag={h.tag} count={h.template_count} />
             ))}
           </div>
         </section>
@@ -121,7 +106,7 @@ export default function Discover() {
           <section key={tag} className="mb-16">
             <div className="flex justify-between items-end mb-6">
               <h2 className="text-2xl font-bold text-[#1d1c18]">{tag}</h2>
-              <button type="button" className="text-sm font-bold text-[#4b4639] hover:underline">View All</button>
+              <Link to={`/discover/hashtag/${encodeURIComponent(tag.replace('#', ''))}`} className="text-sm font-bold text-[#4b4639] hover:underline">View All</Link>
             </div>
             <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
               {items.map((template) => (

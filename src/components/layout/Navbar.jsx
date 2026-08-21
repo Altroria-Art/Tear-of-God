@@ -10,8 +10,9 @@ const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false); // สำหรับคุม Dropdown
 
   const isActive = (path) => {
-    return location.pathname === path 
-      ? 'border-[#8B6F4E] text-black' 
+    const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+    return active
+      ? 'border-[#8B6F4E] text-black'
       : 'border-transparent text-gray-600 hover:text-black';
   };
 

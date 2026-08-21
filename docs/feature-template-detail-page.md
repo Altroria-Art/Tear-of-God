@@ -86,7 +86,10 @@ tier ที่จะโชว์ = N - round(avg)   (clamp ให้อยู่
 ### `POST /api/templates`
 ```
 body: { template_id, user_id }
-→ { success, counted: boolean }   // counted=false แปลว่า user คนนี้เคยเปิดแล้ว ไม่ถูกนับซ้ำ
+→ { success, counted: boolean, views: number }
+// counted=false แปลว่า user คนนี้เคยเปิดแล้ว ไม่ถูกนับซ้ำ
+// views คือ view_count ล่าสุดหลังนับเสร็จแล้ว — ฝั่ง client ต้องใช้ค่านี้แทนค่าที่ได้จาก
+// GET /api/templates?id= เสมอ (ดูเหตุผลใน §8)
 ```
 
 Client wrappers: `src/lib/api.js` — `fetchTemplate(id)`, `fetchRankings({templateId, sort, page, limit})`, `recordTemplateView(id, userId)`, `voteRanking({rankingId, userId, voteType})`
@@ -119,3 +122,4 @@ Client wrappers: `src/lib/api.js` — `fetchTemplate(id)`, `fetchRankings({templ
 - **ช่องคอมเมนต์ระดับ template ถูกตัดออกจากหน้านี้แล้ว** เพราะของเดิมเขียนคอมเมนต์ด้วย `ranking_id = templateId` ซึ่งไม่มีจริงในตาราง `rankings` ทำให้คอมเมนต์หายทุกครั้งที่รีเฟรช — ถ้าจะเพิ่มคอมเมนต์ระดับ template กลับมาใหม่ ต้องเพิ่มคอลัมน์ `comments.template_id` จริงๆ ก่อน (ดู "นอกขอบเขต" ในแผนที่เกี่ยวข้อง) ไม่ใช่เอา field เดิมมาใช้ผิดความหมาย
 - **สี tier และชื่อ tier ต้องอ่านจาก `template.tiers` เสมอ** ห้าม hardcode แม็ป S/A/B/C/D อีก — ทุก component ที่เกี่ยวกับ tier ในหน้านี้ (`TierListRow`) รับ `tier: {label, color}` เป็น prop ไม่ใช่ตัวอักษรเดี่ยวๆ
 - `ranking_items.tier` ที่เป็น `NULL` ต้อง**ไม่**ถูกแปลงเป็น tier แรกอัตโนมัติ (บั๊กเดิมของโค้ด: `const tier = ri.tier || 'S'`) — โค้ดใหม่ข้ามแถวที่ `tier` เป็น falsy ไปเลย ทั้งตอนโชว์รายการ ranking และตอนคำนวณ community average
+- **ห้ามแยก `GET` (อ่าน template) กับ `POST` (นับ view) เป็นคนละ `useEffect` ที่ยิงพร้อมกันตอน mount** — เคยเป็นบั๊กจริง: `GET` อ่าน `templates.view_count` ไปก่อนที่ `UPDATE` ของ `POST` จะ commit เสร็จ ทำให้หน้าเว็บโชว์เลข views เก่า (มักเป็น `0`) ค้างอยู่จนกว่าจะรีเฟรชเอง แถม response ของ `POST` ก็ไม่ได้ถูกนำมาใช้เลย ตอนนี้รวมเป็น effect เดียวยิงด้วย `Promise.all` แล้วเอา `views` จาก `POST` มาทับค่าจาก `GET` เสมอ ดูโค้ดจริงที่ `src/pages/TemplateDetailPage.jsx`
