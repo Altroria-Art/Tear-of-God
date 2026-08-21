@@ -3,12 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchTemplates } from '../lib/api';
 import TemplateCard from '../components/template/TemplateCard';
-
-function formatCount(n) {
-  const num = n || 0;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
-  return `${num}`;
-}
+import { formatCount } from '../lib/format';
 
 export default function Discover() {
   const navigate = useNavigate();
@@ -56,7 +51,7 @@ export default function Discover() {
   }, [templates]);
 
   const popularHashtags = useMemo(
-    () => Object.entries(hashtagStats).sort((a, b) => b[1].totalUse - a[1].totalUse),
+    () => Object.entries(hashtagStats).sort((a, b) => b[1].count - a[1].count),
     [hashtagStats]
   );
 
@@ -116,7 +111,7 @@ export default function Discover() {
                 onClick={() => navigate(`/?hashtag=${tag.replace('#', '')}`)}
                 className="px-4 py-2 bg-[#f2ede6] border border-[#cec6b4] rounded-full text-[#4b4639] hover:bg-[#ece7e1] transition-colors font-bold text-sm shadow-xs"
               >
-                {tag} <span className="text-[#9a927e] font-normal">({formatCount(stat.totalUse)})</span>
+                {tag} <span className="text-[#9a927e] font-normal">({formatCount(stat.count)})</span>
               </button>
             ))}
           </div>
