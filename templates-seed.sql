@@ -10,7 +10,11 @@ INSERT OR IGNORE INTO profiles (id, username, email, avatar_url) VALUES
 ('curator_002', 'cinephile', 'cinephile@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=cinephile'),
 ('curator_003', 'foodie_dave', 'foodie_dave@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=foodie_dave'),
 ('curator_004', 'nintendoguy', 'nintendoguy@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=nintendoguy'),
-('curator_005', 'melodymaster', 'melodymaster@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=melodymaster');
+('curator_005', 'melodymaster', 'melodymaster@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=melodymaster'),
+('curator_006', 'code_sensei', 'code_sensei@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=code_sensei'),
+('curator_007', 'binge_watcher', 'binge_watcher@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=binge_watcher'),
+('curator_008', 'football_fanatic', 'football_fanatic@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=football_fanatic'),
+('curator_009', 'bookworm_nan', 'bookworm_nan@example.com', 'https://api.dicebear.com/7.x/avataaars/svg?seed=bookworm_nan');
 
 -- ==========================================
 -- 2. Templates (16 อัน กระจายตาม hashtag)
@@ -52,6 +56,48 @@ INSERT OR IGNORE INTO templates (id, creator_id, title, description, category, h
   '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 8100),
 ('tmpl_016', 'curator_005', 'เพลงร็อคไทยยุค 90', 'วงร็อคไทยตำนานที่นิยามยุคทองเพลงร็อค', 'music', '#Music,#RockThai',
   '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 5500);
+
+-- ==========================================
+-- 2b. Templates เพิ่มเติม (tmpl_017-020 คู่กับ rank_001-004 ที่ไม่เคยมี template,
+-- tmpl_021-032 เปิดหมวดใหม่: series, sports, book, และเพิ่ม tech/anime/gaming/food/music)
+-- ==========================================
+INSERT OR IGNORE INTO templates (id, creator_id, title, description, category, hashtags, tiers, use_count) VALUES
+('tmpl_017', 'curator_001', 'อนิเมะในดวงใจ ปี 2026', 'รวมอนิเมะที่เนื้อเรื่องโคตรพีคและงานภาพระดับพระเจ้า', 'anime', '#Anime,#2026',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 7200),
+('tmpl_018', 'curator_004', 'Open-World RPG ยอดนิยม', 'เกมโลกเปิดที่เล่นเพลินจนลืมเวลา', 'gaming', '#Gaming,#OpenWorld',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 9800),
+('tmpl_019', 'curator_006', 'ภาษาโปรแกรมสาย Dev', 'ภาษาโปรแกรมไหนรุ่ง ภาษาไหนร่วงในปีนี้', 'tech', '#Tech,#Programming',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 6100),
+('tmpl_020', 'curator_002', 'หนังไซไฟสายสมองแตก', 'ดูจบแล้วสมองไหล อินจัดจนต้องดูซ้ำ', 'movie', '#Movie,#MindBender',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 8400),
+
+('tmpl_021', 'curator_007', 'Netflix Originals ยอดฮิต', 'ซีรีส์ Netflix ที่ดูรวดเดียวจบทั้งซีซั่น', 'series', '#Series,#Netflix',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 10500),
+('tmpl_022', 'curator_007', 'K-Drama ในดวงใจ', 'ซีรีส์เกาหลีที่ดูแล้วต้องร้องไห้', 'series', '#Series,#KDrama',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 9100),
+('tmpl_023', 'curator_007', 'ซีรีส์ไทยยอดนิยม', 'ซีรีส์ไทยที่คนพูดถึงมากที่สุด', 'series', '#Series,#ThaiSeries',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 5800),
+
+('tmpl_024', 'curator_008', 'นักเตะพรีเมียร์ลีกที่เก่งที่สุด', 'จัดอันดับสตาร์พรีเมียร์ลีกยุคปัจจุบัน', 'sports', '#Sports,#PremierLeague',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 11200),
+('tmpl_025', 'curator_008', 'นักฟุตบอลไทยในดวงใจ', 'นักเตะทีมชาติไทยที่แฟนบอลรักที่สุด', 'sports', '#Sports,#ThaiFootball',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 4600),
+
+('tmpl_026', 'curator_009', 'นิยายแฟนตาซีที่ต้องอ่าน', 'นิยายแฟนตาซีที่พาหนีไปโลกอื่นได้จริง', 'book', '#Book,#Fantasy',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 6900),
+('tmpl_027', 'curator_009', 'หนังสือ Self-Help เปลี่ยนชีวิต', 'อ่านจบแล้วชีวิตเปลี่ยนจริง ไม่ใช่แค่แรงบันดาลใจ', 'book', '#Book,#SelfHelp',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 5200),
+
+('tmpl_028', 'curator_006', 'แบรนด์สมาร์ทโฟนยอดนิยม', 'แบรนด์มือถือไหนครองใจคนไทยที่สุด', 'tech', '#Tech,#Smartphone',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 8700),
+('tmpl_029', 'curator_001', 'อนิเมะกีฬาที่มันส์ที่สุด', 'อนิเมะกีฬาที่ดูแล้วฮึกเหิมอยากลุกไปวิ่ง', 'anime', '#Anime,#SportsAnime',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 6400),
+('tmpl_030', 'curator_004', 'เกม Esport ยอดนิยม', 'เกมแข่งขันที่มีซีนแข่งใหญ่ที่สุดตอนนี้', 'gaming', '#Gaming,#Esports',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 7800),
+('tmpl_031', 'curator_003', 'ของหวานไทยที่ต้องลอง', 'ขนมไทยที่กินแล้วต้องยกนิ้วให้', 'food', '#Food,#Dessert',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 5300),
+('tmpl_032', 'curator_005', 'เพลงป็อปสากลมาแรง', 'เพลงป็อปสากลที่ครองชาร์ตทั่วโลก', 'music', '#Music,#Pop',
+  '[{"label":"S","color":"bg-[#ff7f7f]"},{"label":"A","color":"bg-[#ffbf7f]"},{"label":"B","color":"bg-[#ffff7f]"},{"label":"C","color":"bg-[#7fff7f]"},{"label":"D","color":"bg-[#7fbfff]"}]', 8200);
 
 -- ==========================================
 -- 3. Template Items (ไอเทมในแต่ละ template)
@@ -155,5 +201,114 @@ INSERT OR IGNORE INTO template_items (id, template_id, item_id, tier, position) 
 ('ti_016_03','tmpl_016','Loso','A',2),('ti_016_04','tmpl_016','Big Ass','A',3),
 ('ti_016_05','tmpl_016','Clash',NULL,4),('ti_016_06','tmpl_016','Labanoon',NULL,5),
 ('ti_016_07','tmpl_016','Groove Riders',NULL,6),('ti_016_08','tmpl_016','Paradox',NULL,7);
+
+-- ==========================================
+-- 3b. Template Items เพิ่มเติม (tmpl_017-032)
+-- ==========================================
+INSERT OR IGNORE INTO template_items (id, template_id, item_id, tier, position) VALUES
+-- tmpl_017 อนิเมะในดวงใจ ปี 2026
+('ti_017_01','tmpl_017','Attack on Titan','S',0),('ti_017_02','tmpl_017','Demon Slayer','S',1),
+('ti_017_03','tmpl_017','One Piece','A',2),('ti_017_04','tmpl_017','Boruto','A',3),
+('ti_017_05','tmpl_017','Jujutsu Kaisen',NULL,4),('ti_017_06','tmpl_017','Chainsaw Man',NULL,5),
+('ti_017_07','tmpl_017','Spy x Family',NULL,6),('ti_017_08','tmpl_017','Frieren: Beyond Journey''s End',NULL,7),
+('ti_017_09','tmpl_017','Vinland Saga',NULL,8),('ti_017_10','tmpl_017','Mashle',NULL,9),
+
+-- tmpl_018 Open-World RPG ยอดนิยม
+('ti_018_01','tmpl_018','The Witcher 3','S',0),('ti_018_02','tmpl_018','Elden Ring','S',1),
+('ti_018_03','tmpl_018','Cyberpunk 2077','A',2),('ti_018_04','tmpl_018','Skyrim','A',3),
+('ti_018_05','tmpl_018','Horizon Zero Dawn',NULL,4),('ti_018_06','tmpl_018','Red Dead Redemption 2',NULL,5),
+('ti_018_07','tmpl_018','Ghost of Tsushima',NULL,6),('ti_018_08','tmpl_018','Starfield',NULL,7),
+('ti_018_09','tmpl_018','Breath of the Wild',NULL,8),('ti_018_10','tmpl_018','Fallout 4',NULL,9),
+
+-- tmpl_019 ภาษาโปรแกรมสาย Dev
+('ti_019_01','tmpl_019','TypeScript','S',0),('ti_019_02','tmpl_019','Python','S',1),
+('ti_019_03','tmpl_019','Rust','A',2),('ti_019_04','tmpl_019','PHP','A',3),
+('ti_019_05','tmpl_019','JavaScript',NULL,4),('ti_019_06','tmpl_019','Go',NULL,5),
+('ti_019_07','tmpl_019','Java',NULL,6),('ti_019_08','tmpl_019','C++',NULL,7),
+('ti_019_09','tmpl_019','Kotlin',NULL,8),('ti_019_10','tmpl_019','Swift',NULL,9),
+
+-- tmpl_020 หนังไซไฟสายสมองแตก
+('ti_020_01','tmpl_020','Interstellar','S',0),('ti_020_02','tmpl_020','Inception','S',1),
+('ti_020_03','tmpl_020','The Matrix','A',2),('ti_020_04','tmpl_020','Tenet','A',3),
+('ti_020_05','tmpl_020','Primer',NULL,4),('ti_020_06','tmpl_020','Donnie Darko',NULL,5),
+('ti_020_07','tmpl_020','Predestination',NULL,6),('ti_020_08','tmpl_020','Looper',NULL,7),
+('ti_020_09','tmpl_020','Edge of Tomorrow',NULL,8),('ti_020_10','tmpl_020','Source Code',NULL,9),
+
+-- tmpl_021 Netflix Originals ยอดฮิต
+('ti_021_01','tmpl_021','Stranger Things','S',0),('ti_021_02','tmpl_021','Wednesday','S',1),
+('ti_021_03','tmpl_021','The Witcher','A',2),('ti_021_04','tmpl_021','Money Heist','A',3),
+('ti_021_05','tmpl_021','Squid Game',NULL,4),('ti_021_06','tmpl_021','Dark',NULL,5),
+('ti_021_07','tmpl_021','Ozark',NULL,6),('ti_021_08','tmpl_021','The Crown',NULL,7),
+('ti_021_09','tmpl_021','Bridgerton',NULL,8),
+
+-- tmpl_022 K-Drama ในดวงใจ
+('ti_022_01','tmpl_022','Crash Landing on You','S',0),('ti_022_02','tmpl_022','Goblin','S',1),
+('ti_022_03','tmpl_022','Reply 1988','A',2),('ti_022_04','tmpl_022','Itaewon Class','A',3),
+('ti_022_05','tmpl_022','Hospital Playlist',NULL,4),('ti_022_06','tmpl_022','Vincenzo',NULL,5),
+('ti_022_07','tmpl_022','It''s Okay to Not Be Okay',NULL,6),('ti_022_08','tmpl_022','Business Proposal',NULL,7),
+('ti_022_09','tmpl_022','My Mister',NULL,8),
+
+-- tmpl_023 ซีรีส์ไทยยอดนิยม
+('ti_023_01','tmpl_023','บุพเพสันนิวาส','S',0),('ti_023_02','tmpl_023','เลือดข้นคนจาง','S',1),
+('ti_023_03','tmpl_023','เมีย 2018','A',2),('ti_023_04','tmpl_023','สืบสันดาน','A',3),
+('ti_023_05','tmpl_023','แปลรักฉันด้วยใจเธอ',NULL,4),('ti_023_06','tmpl_023','ฮอร์โมนส์ วัยว้าวุ่น',NULL,5),
+('ti_023_07','tmpl_023','กลิ่นกาสะลอง',NULL,6),('ti_023_08','tmpl_023','ทองเอก หมอยาท่าโฉลง',NULL,7),
+
+-- tmpl_024 นักเตะพรีเมียร์ลีกที่เก่งที่สุด
+('ti_024_01','tmpl_024','Erling Haaland','S',0),('ti_024_02','tmpl_024','Mohamed Salah','S',1),
+('ti_024_03','tmpl_024','Kevin De Bruyne','A',2),('ti_024_04','tmpl_024','Bukayo Saka','A',3),
+('ti_024_05','tmpl_024','Son Heung-min',NULL,4),('ti_024_06','tmpl_024','Declan Rice',NULL,5),
+('ti_024_07','tmpl_024','Cole Palmer',NULL,6),('ti_024_08','tmpl_024','Martin Odegaard',NULL,7),
+('ti_024_09','tmpl_024','Virgil van Dijk',NULL,8),('ti_024_10','tmpl_024','Rodri',NULL,9),
+
+-- tmpl_025 นักฟุตบอลไทยในดวงใจ
+('ti_025_01','tmpl_025','ธีรศิลป์ แดงดา','S',0),('ti_025_02','tmpl_025','ชนาธิป สรงกระสินธ์','S',1),
+('ti_025_03','tmpl_025','ธีราทร บุญมาทัน','A',2),('ti_025_04','tmpl_025','ศศลักษณ์ ไหประโคน','A',3),
+('ti_025_05','tmpl_025','สุภโชค สารชาติ',NULL,4),('ti_025_06','tmpl_025','ธีรเทพ วิโนทัย',NULL,5),
+('ti_025_07','tmpl_025','กวินทร์ ธรรมสัจจานันท์',NULL,6),('ti_025_08','tmpl_025','ปกป้อง ป้อมประเสริฐ',NULL,7),
+
+-- tmpl_026 นิยายแฟนตาซีที่ต้องอ่าน
+('ti_026_01','tmpl_026','The Name of the Wind','S',0),('ti_026_02','tmpl_026','A Game of Thrones','S',1),
+('ti_026_03','tmpl_026','The Way of Kings','A',2),('ti_026_04','tmpl_026','Mistborn','A',3),
+('ti_026_05','tmpl_026','The Hobbit',NULL,4),('ti_026_06','tmpl_026','Harry Potter and the Philosopher''s Stone',NULL,5),
+('ti_026_07','tmpl_026','The Fellowship of the Ring',NULL,6),('ti_026_08','tmpl_026','The Priory of the Orange Tree',NULL,7),
+('ti_026_09','tmpl_026','Six of Crows',NULL,8),
+
+-- tmpl_027 หนังสือ Self-Help เปลี่ยนชีวิต
+('ti_027_01','tmpl_027','Atomic Habits','S',0),('ti_027_02','tmpl_027','Deep Work','S',1),
+('ti_027_03','tmpl_027','Think and Grow Rich','A',2),('ti_027_04','tmpl_027','The 7 Habits of Highly Effective People','A',3),
+('ti_027_05','tmpl_027','The Subtle Art of Not Giving a F*ck',NULL,4),('ti_027_06','tmpl_027','Man''s Search for Meaning',NULL,5),
+('ti_027_07','tmpl_027','The Power of Now',NULL,6),('ti_027_08','tmpl_027','Grit',NULL,7),
+
+-- tmpl_028 แบรนด์สมาร์ทโฟนยอดนิยม
+('ti_028_01','tmpl_028','iPhone','S',0),('ti_028_02','tmpl_028','Samsung Galaxy','S',1),
+('ti_028_03','tmpl_028','Google Pixel','A',2),('ti_028_04','tmpl_028','Xiaomi','A',3),
+('ti_028_05','tmpl_028','OnePlus',NULL,4),('ti_028_06','tmpl_028','OPPO',NULL,5),
+('ti_028_07','tmpl_028','vivo',NULL,6),('ti_028_08','tmpl_028','ASUS ROG Phone',NULL,7),
+
+-- tmpl_029 อนิเมะกีฬาที่มันส์ที่สุด
+('ti_029_01','tmpl_029','Haikyuu!!','S',0),('ti_029_02','tmpl_029','Blue Lock','S',1),
+('ti_029_03','tmpl_029','Slam Dunk','A',2),('ti_029_04','tmpl_029','Kuroko''s Basketball','A',3),
+('ti_029_05','tmpl_029','Hajime no Ippo',NULL,4),('ti_029_06','tmpl_029','Captain Tsubasa',NULL,5),
+('ti_029_07','tmpl_029','Ace of Diamond',NULL,6),('ti_029_08','tmpl_029','Free!',NULL,7),
+
+-- tmpl_030 เกม Esport ยอดนิยม
+('ti_030_01','tmpl_030','League of Legends','S',0),('ti_030_02','tmpl_030','Valorant','S',1),
+('ti_030_03','tmpl_030','Counter-Strike 2','A',2),('ti_030_04','tmpl_030','Dota 2','A',3),
+('ti_030_05','tmpl_030','Overwatch 2',NULL,4),('ti_030_06','tmpl_030','RoV',NULL,5),
+('ti_030_07','tmpl_030','Mobile Legends',NULL,6),('ti_030_08','tmpl_030','Apex Legends',NULL,7),
+
+-- tmpl_031 ของหวานไทยที่ต้องลอง
+('ti_031_01','tmpl_031','ทับทิมกรอบ','S',0),('ti_031_02','tmpl_031','ข้าวเหนียวมะม่วง','S',1),
+('ti_031_03','tmpl_031','ลอดช่องสิงคโปร์','A',2),('ti_031_04','tmpl_031','บัวลอย','A',3),
+('ti_031_05','tmpl_031','ขนมชั้น',NULL,4),('ti_031_06','tmpl_031','ฝอยทอง',NULL,5),
+('ti_031_07','tmpl_031','ทองหยิบ',NULL,6),('ti_031_08','tmpl_031','สังขยาฟักทอง',NULL,7),
+
+-- tmpl_032 เพลงป็อปสากลมาแรง
+('ti_032_01','tmpl_032','Taylor Swift - Anti-Hero','S',0),('ti_032_02','tmpl_032','Dua Lipa - Houdini','S',1),
+('ti_032_03','tmpl_032','The Weeknd - Blinding Lights','A',2),('ti_032_04','tmpl_032','Billie Eilish - LUNCH','A',3),
+('ti_032_05','tmpl_032','Olivia Rodrigo - vampire',NULL,4),('ti_032_06','tmpl_032','Ariana Grande - yes, and?',NULL,5),
+('ti_032_07','tmpl_032','Sabrina Carpenter - Espresso',NULL,6),('ti_032_08','tmpl_032','Doja Cat - Paint The Town Red',NULL,7),
+('ti_032_09','tmpl_032','Chappell Roan - Good Luck, Babe!',NULL,8);
 
 PRAGMA foreign_keys = ON;

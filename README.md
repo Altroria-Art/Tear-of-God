@@ -43,6 +43,43 @@ If your local site looks out of date or shows old/fake profiles, that's not a ca
 
 `npm run db:sync` writes a `.d1-snapshot.sql` file containing real user emails and password hashes — it's gitignored; never commit or share it.
 
+## Deploying
+
+Deploys are manual — there is no CI and pushing to a branch does not auto-deploy. Two independent
+halves: the Pages app (frontend + `functions/api`) and the D1 seed data. Do them in this order.
+
+### 1. Frontend + API
+
+```
+npm run deploy      # build + wrangler pages deploy dist --branch=master
+```
+
+This is the only thing that ships `functions/api/*` and the built frontend to
+https://tear-of-god.pages.dev/. Requires `npx wrangler login` once per machine.
+
+### 2. D1 seed data (only when seed content changed)
+
+**Production D1 has real registered users and their real tier lists — never destroy that data.**
+Before pushing, check what's actually on remote (read-only, no PII downloaded):
+
+```
+npx wrangler d1 execute tear-of-god-db --remote --command "SELECT (SELECT COUNT(*) FROM profiles) profiles, (SELECT COUNT(*) FROM rankings) rankings"
+```
+
+Then push:
+
+```
+npm run db:push:remote
+```
+
+This regenerates `community-rankings-seed.sql`, runs `reset-seed-data.sql` (deletes only
+seed-owned rows — real accounts and real rankings are never touched, see the comments in that
+file for exactly which id patterns are safe), then reloads `seed.sql`, `templates-seed.sql`, and
+`community-rankings-seed.sql` in that order. Safe to re-run.
+
+Never run `db:migrate:0001` against any database that already has templates — it starts with
+`DROP TABLE templates`.
+
 ## Known gaps
 
 - R2 image upload/storage not implemented yet

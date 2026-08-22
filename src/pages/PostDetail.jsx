@@ -9,13 +9,14 @@ import { ArrowLeftIcon, CommentIcon, ShareIcon, ThumbsDownIcon, ThumbsUpIcon } f
 import { useUser } from '../context/UserContext'
 
 // 📍 นำเข้า createComment มาใช้งาน
-import { fetchRanking, createComment, voteRanking } from '../lib/api'
+import { fetchRanking, createComment, voteRanking, fetchTemplate } from '../lib/api'
 
 export default function PostDetail() {
   const { postId } = useParams()
   const { currentUser } = useUser()
 
   const [post, setPost] = useState(null)
+  const [template, setTemplate] = useState(null)
   const [comments, setComments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [userVote, setUserVote] = useState(null) // 'like' | 'dislike' | null — seed จาก data.user_vote เท่านั้น
@@ -47,6 +48,7 @@ export default function PostDetail() {
 
         setPost({
           id: data.id,
+          templateId: data.template_id ?? null,
           author: {
             name: data.profile?.username || 'Unknown User',
             avatarUrl: data.profile?.avatar_url
@@ -84,6 +86,21 @@ export default function PostDetail() {
 
     if (postId) loadPost()
   }, [postId, currentUser])
+
+  // แยก effect ต่างหากจาก loadPost — loadPost มี currentUser เป็น dep แล้ว
+  // ถ้ารวมกันจะยิง fetchTemplate ซ้ำทุกครั้งที่สถานะล็อกอินเปลี่ยน
+  useEffect(() => {
+    let cancelled = false
+    const tid = post?.templateId
+    if (!tid) {
+      setTemplate(null)
+      return
+    }
+    fetchTemplate(tid).then(({ data }) => {
+      if (!cancelled && data) setTemplate(data)
+    })
+    return () => { cancelled = true }
+  }, [post?.templateId])
 
   // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action —
   // กด like ซ้ำตอน like อยู่แล้ว = ยกเลิกโหวต (null) ดู docs/feature-like-dislike-voting.md §4
@@ -176,6 +193,8 @@ export default function PostDetail() {
 
   const { author, postedAt, category, title, description, tiers, stats } = post
   const itemCount = tiers.reduce((n, { items }) => n + items.length, 0)
+  // ใช้เฉพาะ template ที่ตรงกับโพสต์ปัจจุบัน — กัน metadata ของ template เก่าค้างจอตอนสลับโพสต์
+  const tpl = template?.id === post.templateId ? template : null
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-6">
@@ -245,9 +264,10 @@ export default function PostDetail() {
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <AboutTemplateCard
-            name={title}
-            description={description}
-            itemCount={itemCount}
+            templateId={post.templateId}
+            name={tpl?.title ?? title}
+            description={tpl?.description ?? description}
+            itemCount={tpl?.template_items?.length ?? itemCount}
           />
         </aside>
       </div>

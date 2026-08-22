@@ -65,39 +65,70 @@ export async function onRequest({ request, env }) {
         const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
         const offset = (page - 1) * limit;
 
-        // ⚠️ subquery user_vote อยู่ในส่วน SELECT → พารามิเตอร์ของมันต้องถูก bind "ก่อน"
-        // พารามิเตอร์ของ WHERE และ ORDER BY เสมอ (ดู docs/feature-like-dislike-voting.md §8)
-        let query = `
+        // sort ที่ระบุมาชัดเจนต้องชนะ personalized order เสมอ — ไม่งั้นหน้าที่ส่ง user_id มา
+        // เพื่อขอ user_vote (เช่น Template Detail) จะโดนแย่ง ORDER BY ไปแบบไม่ได้ตั้งใจ
+        const usePersonalized = !sort && !!currentUserId;
+
+        let orderExpr;
+        if (sort === 'liked') {
+          orderExpr = `(SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'like') DESC, r.created_at DESC, r.id DESC`;
+        } else if (sort === 'recent') {
+          orderExpr = `r.created_at DESC, r.id DESC`;
+        } else if (usePersonalized) {
+          orderExpr = `COALESCE(aff.affinity, 0) DESC, r.created_at DESC, r.id DESC`;
+        } else {
+          orderExpr = `r.created_at DESC, r.id DESC`;
+        }
+        // r.id เป็น tiebreaker เสมอ — created_at ละเอียดแค่วินาที ข้อมูลหลักร้อยแถวชนกันได้ง่าย
+        // ไม่มี tiebreaker แล้ว OFFSET จะเลื่อนหน้าซ้ำ/ข้ามแถวได้เวลา paginate
+
+        let pageWhere = `WHERE 1=1`;
+        const pageWhereParams = [];
+        if (category && category !== 'null') { pageWhere += ` AND r.category = ?`; pageWhereParams.push(category); }
+        if (hashtag) { pageWhere += ` AND r.hashtags LIKE ?`; pageWhereParams.push(`%${hashtag}%`); }
+        if (templateId) { pageWhere += ` AND r.template_id = ?`; pageWhereParams.push(templateId); }
+
+        // 2 ขั้น: (1) "page" เลือกแค่ id ของแถวที่ชนะ ORDER BY + LIMIT/OFFSET ก่อน
+        // (2) ค่อยคำนวณ likes/dislikes/comments/user_vote เฉพาะแถวที่ชนะเท่านั้น — ไม่งั้น
+        // ทั้ง 4 subquery จะถูกคำนวณให้ "ทุกแถวในตาราง" ก่อน LIMIT ตัด ซึ่งแพงมากเมื่อ
+        // ข้อมูลเยอะขึ้น (personalized order เดิมยิ่งแพงกว่านั้นอีก — เป็น correlated
+        // subquery ต่อแถวที่ re-scan รายการ ranking ทั้งหมดในหมวดเดียวกันซ้ำทุกแถว)
+        // "aff" คำนวณ affinity ของผู้ชมครั้งเดียว ไม่ใช่ต่อแถว — ใช้เฉพาะตอน personalized order
+        const query = `
+          WITH
+          ${usePersonalized ? `aff AS (
+            SELECT fav_r.category AS cat, COUNT(*) AS affinity
+            FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id
+            WHERE v.user_id = ? AND v.vote_type = 'like'
+            GROUP BY fav_r.category
+          ),` : ''}
+          page AS (
+            SELECT r.id AS rid, ROW_NUMBER() OVER (ORDER BY ${orderExpr}) AS rn
+            FROM rankings r
+            ${usePersonalized ? `LEFT JOIN aff ON aff.cat = r.category` : ''}
+            ${pageWhere}
+            ORDER BY ${orderExpr}
+            LIMIT ? OFFSET ?
+          )
           SELECT r.*, p.username, p.avatar_url,
             (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'like') as likes_count,
             (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'dislike') as dislikes_count,
             (SELECT COUNT(*) FROM comments WHERE ranking_id = r.id) as comments_count,
             ${currentUserId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
-          FROM rankings r
+          FROM page
+          JOIN rankings r ON r.id = page.rid
           LEFT JOIN profiles p ON r.user_id = p.id
-          WHERE 1=1
+          ORDER BY page.rn
         `;
-        const params = currentUserId ? [currentUserId] : [];
 
-        if (category && category !== 'null') { query += ` AND r.category = ?`; params.push(category); }
-        if (hashtag) { query += ` AND r.hashtags LIKE ?`; params.push(`%${hashtag}%`); }
-        if (templateId) { query += ` AND r.template_id = ?`; params.push(templateId); }
-
-        // sort ที่ระบุมาชัดเจนต้องชนะ personalized order เสมอ — ไม่งั้นหน้าที่ส่ง user_id มา
-        // เพื่อขอ user_vote (เช่น Template Detail) จะโดนแย่ง ORDER BY ไปแบบไม่ได้ตั้งใจ
-        if (sort === 'liked') {
-          query += ` ORDER BY likes_count DESC, r.created_at DESC`;
-        } else if (sort === 'recent') {
-          query += ` ORDER BY r.created_at DESC`;
-        } else if (currentUserId) {
-          query += ` ORDER BY (SELECT COUNT(*) FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id WHERE v.user_id = ? AND v.vote_type = 'like' AND fav_r.category = r.category) DESC, r.created_at DESC`;
-          params.push(currentUserId);
-        } else {
-          query += ` ORDER BY r.created_at DESC`;
-        }
-
-        query += ` LIMIT ? OFFSET ?`;
-        params.push(limit, offset);
+        // ลำดับ bind ต้องตรงกับลำดับที่ "?" ปรากฏจริงในข้อความ query ด้านบน:
+        // aff.user_id -> pageWhere (category/hashtag/template_id) -> LIMIT/OFFSET -> user_vote
+        const params = [
+          ...(usePersonalized ? [currentUserId] : []),
+          ...pageWhereParams,
+          limit, offset,
+          ...(currentUserId ? [currentUserId] : []),
+        ];
 
         const { results: rankings } = await db.prepare(query).bind(...params).all();
 
