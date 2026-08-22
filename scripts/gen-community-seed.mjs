@@ -118,6 +118,83 @@ const TEMPLATES = [
     items: ['ทับทิมกรอบ', 'ข้าวเหนียวมะม่วง', 'ลอดช่องสิงคโปร์', 'บัวลอย', 'ขนมชั้น', 'ฝอยทอง', 'ทองหยิบ', 'สังขยาฟักทอง'] },
   { id: 'tmpl_032', category: 'music', hashtags: '#Music,#Pop', title: 'เพลงป็อปสากลมาแรง', tiers: STD_TIERS,
     items: ['Taylor Swift - Anti-Hero', 'Dua Lipa - Houdini', 'The Weeknd - Blinding Lights', 'Billie Eilish - LUNCH', 'Olivia Rodrigo - vampire', 'Ariana Grande - yes, and?', 'Sabrina Carpenter - Espresso', 'Doja Cat - Paint The Town Red', 'Chappell Roan - Good Luck, Babe!'] },
+
+  // tmpl_033-062: เติม hashtag ที่มีแค่ template เดียวให้มีเพื่อน — ใช้ hashtag เดิมทั้งหมด
+  // ไม่มี tag ใหม่ (ดู docs/feature-hashtag-coverage-expansion.md)
+  { id: 'tmpl_033', category: 'anime', hashtags: '#Anime,#Fantasy,#Isekai', title: 'อนิเมะแฟนตาซีสุดมันส์', tiers: STD_TIERS,
+    items: ['Fairy Tail', 'Seven Deadly Sins', 'Made in Abyss', 'Log Horizon', 'Grimgar of Fantasy and Ash', 'Konosuba', 'The Devil is a Part-Timer', 'Rising of the Shield Hero'] },
+  { id: 'tmpl_034', category: 'anime', hashtags: '#Anime,#Retro,#Tierlist', title: 'อนิเมะยุค 90 ในตำนาน', tiers: STD_TIERS,
+    items: ['Neon Genesis Evangelion', 'Dragon Ball Z', 'Sailor Moon', 'Rurouni Kenshin', 'Yu Yu Hakusho', 'Slam Dunk', 'Ranma 1/2', 'Berserk'] },
+  { id: 'tmpl_035', category: 'anime', hashtags: '#Anime,#SportsAnime', title: 'อนิเมะกีฬาที่ถูกมองข้าม', tiers: STD_TIERS,
+    items: ['Yowamushi Pedal', 'Ping Pong the Animation', 'Cross Game', 'Prince of Tennis', 'Eyeshield 21', 'Major', 'Ookiku Furikabutte', 'Baby Steps'] },
+  { id: 'tmpl_036', category: 'anime', hashtags: '#Anime,#Thriller,#SciFi', title: 'อนิเมะจิตวิทยาเข้มข้น', tiers: STD_TIERS,
+    items: ['Death Note', 'Monster', 'Paranoia Agent', 'Serial Experiments Lain', 'Perfect Blue', 'Steins;Gate', 'Erased', 'Psycho-Pass'] },
+  { id: 'tmpl_037', category: 'anime', hashtags: '#Anime,#Gaming,#RPG', title: 'อนิเมะที่ดัดแปลงจากเกม', tiers: STD_TIERS,
+    items: ['Sword Art Online', 'Overlord', 'Log Horizon', 'No Game No Life', 'Btooom!', 'High Score Girl', 'Konosuba', '.hack//Sign'] },
+
+  { id: 'tmpl_038', category: 'gaming', hashtags: '#Gaming,#RPG,#OpenWorld', title: 'เกม RPG แนวตะวันตกสุดยิ่งใหญ่', tiers: STD_TIERS,
+    items: ['Fallout: New Vegas', 'Dragon Age: Origins', 'The Elder Scrolls V: Skyrim', 'Divinity: Original Sin 2', "Baldur's Gate 3", 'Pillars of Eternity', 'Kingdom Come: Deliverance', 'Mass Effect 2'] },
+  { id: 'tmpl_039', category: 'gaming', hashtags: '#Gaming,#Mobile,#RPG', title: 'เกมมือถือแนว RPG ยอดฮิต', tiers: STD_TIERS,
+    items: ['Genshin Impact', 'Honkai: Star Rail', 'AFK Arena', 'Epic Seven', 'Punishing: Gray Raven', 'Wuthering Waves', 'Zenless Zone Zero', 'Summoners War'] },
+  { id: 'tmpl_040', category: 'gaming', hashtags: '#Gaming,#Nintendo,#Retro', title: 'เกม Nintendo คลาสสิกในตำนาน', tiers: STD_TIERS,
+    items: ['Super Mario 64', 'The Legend of Zelda: Ocarina of Time', 'GoldenEye 007', 'Super Smash Bros. Melee', 'Pokemon Red and Blue', 'Metroid Prime', 'Donkey Kong Country', 'Star Fox 64'] },
+  { id: 'tmpl_041', category: 'gaming', hashtags: '#Gaming,#Esports', title: 'เกม Esport ที่มีคนดูมากที่สุด', tiers: STD_TIERS,
+    items: ['League of Legends', 'Dota 2', 'Counter-Strike 2', 'Valorant', 'PUBG: Battlegrounds', 'Fortnite', 'Rainbow Six Siege', 'StarCraft II'] },
+  { id: 'tmpl_042', category: 'gaming', hashtags: '#Gaming,#Souls,#OpenWorld', title: 'เกม Soulslike จากสตูดิโอญี่ปุ่น', tiers: STD_TIERS,
+    items: ['Elden Ring', 'Sekiro', 'Dark Souls', 'Bloodborne', "Demon's Souls", 'Nioh', 'Wo Long: Fallen Dynasty', 'Code Vein'] },
+
+  { id: 'tmpl_043', category: 'movie', hashtags: '#Movie,#Superhero', title: 'หนังแอ็คชั่นฟอร์มยักษ์', tiers: STD_TIERS,
+    items: ['Mad Max: Fury Road', 'John Wick', 'Mission: Impossible - Fallout', 'The Dark Knight', 'Die Hard', 'Terminator 2: Judgment Day', 'Gladiator', 'The Matrix'] },
+  { id: 'tmpl_044', category: 'movie', hashtags: '#Movie,#Crime,#Thriller', title: 'หนังอาชญากรรมสุดเข้มข้น', tiers: STD_TIERS,
+    items: ['The Godfather', 'Se7en', 'No Country for Old Men', 'The Departed', 'Prisoners', 'Zodiac', 'Gone Girl', 'Nightcrawler'] },
+  { id: 'tmpl_045', category: 'movie', hashtags: '#Movie,#SciFi,#MindBender', title: 'หนังไซไฟฟอร์มยักษ์', tiers: STD_TIERS,
+    items: ['Dune', 'Interstellar', 'Arrival', 'Blade Runner 2049', 'Edge of Tomorrow', 'The Prestige', 'Looper', 'Ex Machina'] },
+  { id: 'tmpl_046', category: 'movie', hashtags: '#Movie,#Superhero', title: 'หนังซูเปอร์ฮีโร่ที่ทำเงินสูงสุด', tiers: STD_TIERS,
+    items: ['Avengers: Endgame', 'Spider-Man: No Way Home', 'The Dark Knight', 'Black Panther', 'Deadpool', 'Joker', 'Avengers: Infinity War', 'Iron Man'] },
+
+  { id: 'tmpl_047', category: 'series', hashtags: '#Series,#Crime,#Netflix', title: 'ซีรีส์อาชญากรรมสืบสวน', tiers: STD_TIERS,
+    items: ['Mindhunter', 'True Detective', 'Breaking Bad', 'Better Call Saul', 'Sherlock', 'Narcos', 'Ozark', 'You'] },
+  { id: 'tmpl_048', category: 'series', hashtags: '#Series,#Fantasy,#Netflix', title: 'ซีรีส์แฟนตาซีระดับตำนาน', tiers: STD_TIERS,
+    items: ['Game of Thrones', 'The Witcher', 'House of the Dragon', 'The Wheel of Time', 'Shadow and Bone', 'The Last of Us', 'His Dark Materials', 'The Rings of Power'] },
+  { id: 'tmpl_049', category: 'series', hashtags: '#Series,#KDrama', title: 'ซีรีส์เกาหลีแนวโรแมนติก', tiers: STD_TIERS,
+    items: ['Crash Landing on You', 'Descendants of the Sun', 'Goblin', 'True Beauty', 'Start-Up', 'Nevertheless', 'W: Two Worlds', 'Twenty-Five Twenty-One'] },
+  { id: 'tmpl_050', category: 'series', hashtags: '#Series,#ThaiSeries,#Netflix', title: 'ซีรีส์ไทยแนวดราม่าเข้มข้น', tiers: STD_TIERS,
+    items: ['มณีนาคา', 'บุพเพสันนิวาส', 'เพลิงพระนาง', 'กรงกรรม', 'มนต์รักหนองผักกะแยง', 'เลือดข้นคนจาง', 'ปมรัก', 'ทองเอก หมอยาท่าโฉลง'] },
+
+  { id: 'tmpl_051', category: 'food', hashtags: '#Food,#Dessert', title: 'ของหวานนานาชาติที่ต้องลอง', tiers: STD_TIERS,
+    items: ['Tiramisu', 'Macaron', 'Creme Brulee', 'Mochi', 'Baklava', 'Churros', 'Gelato', 'Pavlova'] },
+  { id: 'tmpl_052', category: 'food', hashtags: '#Food,#StreetFood,#Thai', title: 'สตรีทฟู้ดเอเชียยอดนิยม', tiers: STD_TIERS,
+    items: ['ผัดไทย', 'Pad Kra Pao', 'ส้มตำ', 'Satay', 'Banh Mi', 'Takoyaki', 'Tteokbokki', 'Char Kway Teow'] },
+  { id: 'tmpl_053', category: 'food', hashtags: '#Food,#Thai', title: 'เมนูอาหารไทยประจำภาค', tiers: STD_TIERS,
+    items: ['แกงเขียวหวาน', 'ต้มยำกุ้ง', 'แกงมัสมั่น', 'ลาบหมู', 'น้ำพริกหนุ่ม', 'ขนมจีนน้ำยา', 'แกงส้ม', 'หมูกระทะ'] },
+
+  { id: 'tmpl_054', category: 'music', hashtags: '#Music,#Pop', title: 'เพลงป๊อปเกาหลี K-Pop มาแรง', tiers: STD_TIERS,
+    items: ['BTS', 'BLACKPINK', 'NewJeans', 'Stray Kids', 'TWICE', 'SEVENTEEN', 'aespa', 'IVE'] },
+  { id: 'tmpl_055', category: 'music', hashtags: '#Music,#RockThai,#Retro', title: 'เพลงไทยสตริงยุค 2000s', tiers: STD_TIERS,
+    items: ['Bodyslam', 'Palmy', 'Getsunova', 'Da Endorphine', 'Slot Machine', 'Portrait', 'Big Ass', 'Scrubb'] },
+  { id: 'tmpl_056', category: 'music', hashtags: '#Music,#TPop', title: 'ศิลปิน T-Pop หน้าใหม่มาแรง', tiers: STD_TIERS,
+    items: ['4EVE', 'PiXXiE', "BUS'YA", 'Three Man Down', 'Musketeers', 'Getsunova', 'F.HERO', 'Milli'] },
+
+  { id: 'tmpl_057', category: 'sports', hashtags: '#Sports', title: 'นักบาสเกตบอล NBA ที่เก่งที่สุด', tiers: STD_TIERS,
+    items: ['LeBron James', 'Michael Jordan', 'Stephen Curry', 'Kobe Bryant', 'Kevin Durant', 'Giannis Antetokounmpo', 'Magic Johnson', "Shaquille O'Neal"] },
+  { id: 'tmpl_058', category: 'sports', hashtags: '#Sports,#PremierLeague', title: 'นักเตะตำนานพรีเมียร์ลีก', tiers: STD_TIERS,
+    items: ['Thierry Henry', 'Steven Gerrard', 'Ryan Giggs', 'Frank Lampard', 'Wayne Rooney', 'Didier Drogba', 'Alan Shearer', 'Eric Cantona'] },
+
+  { id: 'tmpl_059', category: 'book', hashtags: '#Book,#Crime', title: 'นิยายสืบสวนสอบสวนคลาสสิก', tiers: STD_TIERS,
+    items: ['Sherlock Holmes', 'And Then There Were None', 'Murder on the Orient Express', 'The Girl with the Dragon Tattoo', 'Gone Girl', 'In Cold Blood', 'The Silence of the Lambs', 'Big Little Lies'] },
+  { id: 'tmpl_060', category: 'book', hashtags: '#Book,#SelfHelp', title: 'หนังสือพัฒนาตัวเองขายดี', tiers: STD_TIERS,
+    items: ['Rich Dad Poor Dad', 'The 4-Hour Workweek', 'How to Win Friends and Influence People', 'The Alchemist', 'Mindset', 'Start with Why', 'The Compound Effect', "Can't Hurt Me"] },
+
+  { id: 'tmpl_061', category: 'tech', hashtags: '#Tech,#Smartphone,#2026', title: 'แอปที่ต้องมีในมือถือปี 2026', tiers: STD_TIERS,
+    items: ['ChatGPT', 'TikTok', 'Instagram', 'Spotify', 'Notion', 'Canva', 'CapCut', 'Threads'] },
+  { id: 'tmpl_062', category: 'tech', hashtags: '#Tech,#Programming', title: 'ภาษาโปรแกรมสำหรับ AI/Data', tiers: STD_TIERS,
+    items: ['Python', 'R', 'Julia', 'SQL', 'Scala', 'MATLAB', 'JavaScript', 'C++'] },
+
+  // tmpl_063-064: เติมหลัง — #Movie ยังไม่ทะลุ 11 และ #ThaiFootball ยังค้างที่ 1 หลัง 033-062
+  { id: 'tmpl_063', category: 'movie', hashtags: '#Movie,#Thriller,#MindBender', title: 'หนังทริลเลอร์จิตวิทยา', tiers: STD_TIERS,
+    items: ['Shutter Island', 'Black Swan', 'Memento', 'Fight Club', 'American Psycho', 'The Silence of the Lambs', 'Gone Girl', 'Zodiac'] },
+  { id: 'tmpl_064', category: 'sports', hashtags: '#Sports,#ThaiFootball', title: 'สโมสรฟุตบอลไทยยอดนิยม', tiers: STD_TIERS,
+    items: ['บุรีรัมย์ ยูไนเต็ด', 'การท่าเรือ', 'บีจี ปทุม ยูไนเต็ด', 'เมืองทอง ยูไนเต็ด', 'ชลบุรี', 'สุพรรณบุรี', 'ราชบุรี มิตรผล', 'พีที ประจวบ'] },
 ];
 
 // Rankings-per-template: scaled from the old (now-retired) use_count so the
@@ -131,10 +208,21 @@ const OLD_USE_COUNT = {
   tmpl_021: 10500, tmpl_022: 9100, tmpl_023: 5800, tmpl_024: 11200,
   tmpl_025: 4600, tmpl_026: 6900, tmpl_027: 5200, tmpl_028: 8700,
   tmpl_029: 6400, tmpl_030: 7800, tmpl_031: 5300, tmpl_032: 8200,
+  tmpl_033: 6800, tmpl_034: 5900, tmpl_035: 4300, tmpl_036: 7400,
+  tmpl_037: 8100, tmpl_038: 9200, tmpl_039: 10300, tmpl_040: 6600,
+  tmpl_041: 7700, tmpl_042: 5400, tmpl_043: 11800, tmpl_044: 8900,
+  tmpl_045: 9600, tmpl_046: 12400, tmpl_047: 8300, tmpl_048: 10700,
+  tmpl_049: 9100, tmpl_050: 4900, tmpl_051: 5200, tmpl_052: 6100,
+  tmpl_053: 4700, tmpl_054: 11200, tmpl_055: 5800, tmpl_056: 6400,
+  tmpl_057: 13500, tmpl_058: 7900, tmpl_059: 5300, tmpl_060: 8600,
+  tmpl_061: 6200, tmpl_062: 4100, tmpl_063: 9400, tmpl_064: 5600,
 };
+// ลด rankings/template และ votes/ranking ลงจากรอบก่อน (avg ~21 / ~46) — เพิ่ม 30 template
+// ใหม่แล้วถ้าคงสัดส่วนเดิมไว้ votes (คอลัมน์ที่กิน write quota ของ D1 มากที่สุด — ดู
+// docs/feature-hashtag-coverage-expansion.md §4) จะพุ่งเกิน budget ของแผนฟรี
 function rankingCountFor(templateId) {
-  const base = Math.round(OLD_USE_COUNT[templateId] / 500) + 5;
-  return Math.max(12, Math.min(35, base));
+  const base = Math.round(OLD_USE_COUNT[templateId] / 1400) + 4;
+  return Math.max(5, Math.min(13, base));
 }
 
 // ---- community users ----
@@ -188,7 +276,9 @@ const USERS = [
 // Anonymous filler voters — never displayed by username, only used to reach
 // realistic vote totals. UNIQUE(ranking_id, user_id) on votes means the pool
 // must comfortably exceed the largest per-ranking vote count generated below.
-const FILLER_VOTER_COUNT = 300;
+// ลดจาก 300 เหลือ 120 ตามยอดโหวตสูงสุดที่ลดลง (voteCountFor เพดานใหม่ = 90) — เกิน
+// พอเป็น buffer แต่ไม่ต้องสร้าง profile เกินจำเป็น (profiles ก็นับรวมใน write quota ด้วย)
+const FILLER_VOTER_COUNT = 120;
 const FILLER_VOTERS = [];
 for (let i = 1; i <= FILLER_VOTER_COUNT; i++) {
   const n = String(i).padStart(4, '0');
@@ -261,12 +351,15 @@ function randomTimestampMs() {
   return BASE_DATE - daysAgo * 86400000 - hoursAgo * 3600000 - minsAgo * 60000;
 }
 
-// เดโพสต์ทั่วไปมียอดโหวตพอประมาณ ส่วนน้อยจะไวรัลยอดสูงลิ่ว — สัดส่วน 80/15/5
+// ลดยอดโหวตลงจากรอบก่อน (avg ~46 -> ~17) เพื่อให้ทั้งชุด seed อยู่ในงบ D1 write quota —
+// votes เป็นตารางที่กิน quota มากที่สุดเพราะไม่มีคอลัมน์ตัวนับ ต้อง insert จริงทุกโหวต
+// (ดู docs/feature-hashtag-coverage-expansion.md §4) — โพสต์ส่วนใหญ่ยังมียอดพอประมาณ
+// ส่วนน้อยยังไวรัลได้ แค่ไม่ใช่ทุกโพสต์แตะหลักร้อยเหมือนก่อน — สัดส่วน 88/10/2
 function voteCountFor() {
   const r = rng();
-  if (r < 0.05) return randInt(150, 280); // ไวรัล
-  if (r < 0.20) return randInt(50, 120); // กระแสดี
-  return randInt(15, 45); // ทั่วไป
+  if (r < 0.02) return randInt(55, 75); // ไวรัลสุด
+  if (r < 0.12) return randInt(25, 45); // กระแสดี
+  return randInt(3, 18); // ทั่วไป
 }
 
 // แบ่งเป็น "INSERT ... VALUES" หลายก้อน ก้อนละไม่เกิน chunkSize แถว กัน
