@@ -74,12 +74,14 @@ function UserTopBar({ username, avatarUrl, timeLabel }) {
 function RankingCard({ ranking, tiersDef }) {
   const { currentUser } = useUser()
   const navigate = useNavigate()
-  const [userAction, setUserAction] = useState(null)
+  // seed จาก ranking.user_vote เท่านั้น — ห้าม useState(null) เฉยๆ (ดู docs/feature-like-dislike-voting.md §8)
+  const [userVote, setUserVote] = useState(ranking.user_vote ?? null)
   const [likes, setLikes] = useState(ranking.stats?.likes || 0)
   const [dislikes, setDislikes] = useState(ranking.stats?.dislikes || 0)
 
   const tierRows = groupItemsByTierOrder(ranking.ranking_items, tiersDef)
 
+  // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
   const handleVote = async (type) => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อนโหวตครับ!')
@@ -87,30 +89,34 @@ function RankingCard({ ranking, tiersDef }) {
       return
     }
 
-    let nextAction = userAction
-    let nextLikes = likes
-    let nextDislikes = dislikes
+    const nextVote = userVote === type ? null : type
+    const prevVote = userVote
+    const prevLikes = likes
+    const prevDislikes = dislikes
 
-    if (type === 'like') {
-      if (userAction === 'liked') { nextLikes = Math.max(0, nextLikes - 1); nextAction = null }
-      else if (userAction === 'disliked') { nextDislikes = Math.max(0, nextDislikes - 1); nextLikes += 1; nextAction = 'liked' }
-      else { nextLikes += 1; nextAction = 'liked' }
+    let optimisticLikes = prevLikes
+    let optimisticDislikes = prevDislikes
+    if (prevVote === 'like') optimisticLikes = Math.max(0, optimisticLikes - 1)
+    if (prevVote === 'dislike') optimisticDislikes = Math.max(0, optimisticDislikes - 1)
+    if (nextVote === 'like') optimisticLikes += 1
+    if (nextVote === 'dislike') optimisticDislikes += 1
+
+    setUserVote(nextVote)
+    setLikes(optimisticLikes)
+    setDislikes(optimisticDislikes)
+
+    const result = await voteRanking({ rankingId: ranking.id, userId: currentUser.id, voteType: nextVote })
+
+    if (result.success !== false) {
+      setUserVote(result.userVote ?? null)
+      setLikes(result.likes ?? optimisticLikes)
+      setDislikes(result.dislikes ?? optimisticDislikes)
     } else {
-      if (userAction === 'disliked') { nextDislikes = Math.max(0, nextDislikes - 1); nextAction = null }
-      else if (userAction === 'liked') { nextLikes = Math.max(0, nextLikes - 1); nextDislikes += 1; nextAction = 'disliked' }
-      else { nextDislikes += 1; nextAction = 'disliked' }
+      setUserVote(prevVote)
+      setLikes(prevLikes)
+      setDislikes(prevDislikes)
+      console.error('vote failed:', result.error)
     }
-
-    setUserAction(nextAction)
-    setLikes(nextLikes)
-    setDislikes(nextDislikes)
-
-    const { error } = await voteRanking({
-      rankingId: ranking.id,
-      userId: currentUser.id,
-      voteType: nextAction === 'liked' ? 'like' : nextAction === 'disliked' ? 'dislike' : null
-    })
-    if (error) console.error('vote failed:', error)
   }
 
   const handleShare = () => {
@@ -132,13 +138,13 @@ function RankingCard({ ranking, tiersDef }) {
         <div className="flex items-center gap-5">
           <span
             onClick={() => handleVote('like')}
-            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userAction === 'liked' ? 'text-blue-500' : 'hover:text-gray-700'}`}
+            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'like' ? 'text-blue-500' : 'hover:text-gray-700'}`}
           >
             <ThumbsUp size={16} /> {formatCount(likes)}
           </span>
           <span
             onClick={() => handleVote('dislike')}
-            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userAction === 'disliked' ? 'text-red-500' : 'hover:text-gray-700'}`}
+            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'dislike' ? 'text-red-500' : 'hover:text-gray-700'}`}
           >
             <ThumbsDown size={16} /> {formatCount(dislikes)}
           </span>
@@ -201,13 +207,15 @@ export default function TemplateDetailPage() {
   useEffect(() => {
     async function loadRankings() {
       setIsLoadingRankings(true)
-      const { data, total: t } = await fetchRankings({ templateId, sort, page, limit: PAGE_SIZE })
+      // ส่ง userId ไปด้วยเพื่อให้ API คืน user_vote กลับมา — sort ที่ระบุไว้ (liked/recent) ยัง
+      // ชนะ personalized order เสมอ ไม่ถูก userId แย่งไป (แก้ไว้ที่ functions/api/rankings.js แล้ว)
+      const { data, total: t } = await fetchRankings({ templateId, sort, page, limit: PAGE_SIZE, userId: currentUser?.id })
       setRankings(data || [])
       setTotal(t || 0)
       setIsLoadingRankings(false)
     }
     if (templateId) loadRankings()
-  }, [templateId, sort, page])
+  }, [templateId, sort, page, currentUser])
 
   const handleUseTemplate = () => {
     if (!currentUser) {

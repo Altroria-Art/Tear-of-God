@@ -95,9 +95,11 @@ export async function fetchRankings(categoryParam) {
   }
 }
 
-export async function fetchRanking(postId) {
+export async function fetchRanking(postId, userId) {
   try {
-    const response = await fetch(`${API_URL}/api/rankings?id=${postId}`);
+    let url = `${API_URL}/api/rankings?id=${postId}`;
+    if (userId) url += `&user_id=${userId}`;
+    const response = await fetch(url);
     return await response.json();
   } catch (error) {
     return { data: null, error: 'ไม่สามารถดึงข้อมูลได้' };
