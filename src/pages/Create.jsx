@@ -3,10 +3,12 @@ import { Settings, Upload, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
+import { useToast } from '../components/ui/Toast';
 
 const CreateTierList = () => {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const toast = useToast();
 
   const [mode, setMode] = useState('normal');
   const [quickAddText, setQuickAddText] = useState('');
@@ -84,9 +86,18 @@ const CreateTierList = () => {
   );
 
   const handlePublish = async () => {
-    if (!currentUser) return alert('กรุณาเข้าสู่ระบบก่อน Publish Tier List');
-    if (!title.trim()) return alert('กรุณาตั้งชื่อ Template Name ก่อนครับ');
-    if (selectedHashtags.length === 0) return alert('กรุณาเลือก Hashtag อย่างน้อย 1 อันครับ');
+    if (!currentUser) return toast.warning('กรุณาเข้าสู่ระบบก่อน Publish Tier List');
+    if (!title.trim()) return toast.warning('กรุณาตั้งชื่อ Template Name ก่อนครับ');
+    if (selectedHashtags.length === 0) return toast.warning('กรุณาเลือก Hashtag อย่างน้อย 1 อันครับ');
+
+    // 📍 [เพิ่มใหม่]: ต้องมี item และจัด tier แล้วเท่านั้น — ไม่งั้นจะได้โพสต์เปล่า
+    const rankedItems = items.filter(item => item.tierId !== null);
+    if (items.length === 0) {
+      return toast.error('Please add an item and make your tier list.');
+    }
+    if (rankedItems.length === 0) {
+      return toast.error('Please make your tier list.');
+    }
 
     setIsPublishing(true);
     const rankingData = {
@@ -101,7 +112,7 @@ const CreateTierList = () => {
         username: currentUser.username,
         avatar_url: currentUser.avatar_url
       },
-      items: items.filter(item => item.tierId !== null).map((item, index) => {
+      items: rankedItems.map((item, index) => {
         const tierObj = tiers.find(t => t.id === item.tierId);
         return { item_id: item.content, tier: tierObj ? tierObj.label : 'S', position: index };
       })
@@ -111,9 +122,9 @@ const CreateTierList = () => {
     setIsPublishing(false);
 
     if (error) {
-      alert('เกิดข้อผิดพลาด: ' + error);
+      toast.error('เกิดข้อผิดพลาด: ' + error);
     } else {
-      alert('Publish เรียบร้อย!');
+      toast.success('Publish เรียบร้อย!');
       navigate('/');
     }
   };

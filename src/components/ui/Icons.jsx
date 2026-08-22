@@ -117,3 +117,40 @@ export function StarIcon({ className }) {
     </svg>
   )
 }
+
+export function CheckCircleIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8.5 12.2 2.4 2.4 4.6-5" />
+    </Svg>
+  )
+}
+
+export function AlertTriangleIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="M10.3 3.9 2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+      <path d="M12 9v4" />
+      <circle cx="12" cy="16.5" r="0.5" fill="currentColor" />
+    </Svg>
+  )
+}
+
+export function InfoCircleIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <circle cx="12" cy="7.8" r="0.5" fill="currentColor" />
+    </Svg>
+  )
+}
+
+export function CloseIcon({ className }) {
+  return (
+    <Svg className={className}>
+      <path d="m6 6 12 12M18 6 6 18" />
+    </Svg>
+  )
+}

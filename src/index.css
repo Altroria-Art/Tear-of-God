@@ -36,4 +36,34 @@
   /* Vote states */
   --color-vote-up: #2f6fd0;
   --color-vote-down: #d0453b;
+
+  /* Status (toast notifications) */
+  --color-status-success: #2fa36b;
+  --color-status-error: #e5484d;
+  --color-status-warning: #eda63a;
+  --color-status-info: #4c7fd0;
+
+  /* Toast motion */
+  --animate-toast-in: toast-in 0.28s cubic-bezier(0.21, 1.02, 0.73, 1);
+  --animate-toast-progress: toast-progress 4s linear forwards;
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes toast-progress {
+    from {
+      width: 100%;
+    }
+    to {
+      width: 0%;
+    }
+  }
 }
