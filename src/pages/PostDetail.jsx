@@ -9,7 +9,7 @@ import { ArrowLeftIcon, CommentIcon, ShareIcon, ThumbsDownIcon, ThumbsUpIcon } f
 import { useUser } from '../context/UserContext'
 
 // 📍 นำเข้า createComment มาใช้งาน
-import { fetchRanking, createComment } from '../lib/api'
+import { fetchRanking, createComment, voteRanking } from '../lib/api'
 
 export default function PostDetail() {
   const { postId } = useParams()
@@ -18,14 +18,12 @@ export default function PostDetail() {
   const [post, setPost] = useState(null)
   const [comments, setComments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [userAction, setUserAction] = useState(() => {
-    try { return localStorage.getItem(`tog_interaction_${postId}`) } catch { return null }
-  })
+  const [userVote, setUserVote] = useState(null) // 'like' | 'dislike' | null — seed จาก data.user_vote เท่านั้น
 
   useEffect(() => {
     async function loadPost() {
       setIsLoading(true)
-      const { data, error } = await fetchRanking(postId)
+      const { data, error } = await fetchRanking(postId, currentUser?.id)
 
       if (data) {
         const tiersMap = {}
@@ -58,12 +56,13 @@ export default function PostDetail() {
           title: data.title,
           description: data.description,
           tiers: tiers.length > 0 ? tiers : [{ tier: 'S', items: [] }],
-          stats: { 
-            likes: (() => { const s = parseInt(localStorage.getItem(`tog_likes_${data.id}`)); return !isNaN(s) ? s : (data.stats?.likes || 0) })(),
-            dislikes: (() => { const s = parseInt(localStorage.getItem(`tog_dislikes_${data.id}`)); return !isNaN(s) ? s : (data.stats?.dislikes || 0) })(),
-            comments: data.stats?.comments || (data.comments ? data.comments.length : 0) 
+          stats: {
+            likes: data.stats?.likes || 0,
+            dislikes: data.stats?.dislikes || 0,
+            comments: data.stats?.comments || (data.comments ? data.comments.length : 0)
           }
         })
+        setUserVote(data.user_vote ?? null)
 
         if (data.comments) {
           const formattedComments = data.comments.map(c => ({
@@ -84,61 +83,42 @@ export default function PostDetail() {
     }
 
     if (postId) loadPost()
-  }, [postId])
+  }, [postId, currentUser])
 
-  const persistAction = (next) => {
-    try { localStorage.setItem(`tog_interaction_${postId}`, next) } catch {}
-  }
-
-  const persistCounts = (newLikes, newDislikes) => {
-    try {
-      localStorage.setItem(`tog_likes_${postId}`, newLikes);
-      localStorage.setItem(`tog_dislikes_${postId}`, newDislikes);
-    } catch {}
-  }
-
-  const handleVote = (type) => {
+  // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action —
+  // กด like ซ้ำตอน like อยู่แล้ว = ยกเลิกโหวต (null) ดู docs/feature-like-dislike-voting.md §4
+  const handleVote = async (type) => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อนโหวตครับ!');
       return;
     }
 
-    setPost(prev => {
-      let newLikes = prev.stats.likes
-      let newDislikes = prev.stats.dislikes
-      let nextAction = userAction
+    const nextVote = userVote === type ? null : type
+    const prevVote = userVote
+    const prevStats = post.stats
 
-      if (type === 'like') {
-        if (userAction === 'liked') {
-          newLikes = Math.max(0, newLikes - 1)
-          nextAction = null
-        } else if (userAction === 'disliked') {
-          newDislikes = Math.max(0, newDislikes - 1)
-          newLikes += 1
-          nextAction = 'liked'
-        } else {
-          newLikes += 1
-          nextAction = 'liked'
-        }
-      } else {
-        if (userAction === 'disliked') {
-          newDislikes = Math.max(0, newDislikes - 1)
-          nextAction = null
-        } else if (userAction === 'liked') {
-          newLikes = Math.max(0, newLikes - 1)
-          newDislikes += 1
-          nextAction = 'disliked'
-        } else {
-          newDislikes += 1
-          nextAction = 'disliked'
-        }
-      }
+    // optimistic: อัปเดต UI ก่อนให้ตอบสนองทันที แล้วค่อยทับด้วยของจริงจาก response
+    let optimisticLikes = prevStats.likes
+    let optimisticDislikes = prevStats.dislikes
+    if (prevVote === 'like') optimisticLikes = Math.max(0, optimisticLikes - 1)
+    if (prevVote === 'dislike') optimisticDislikes = Math.max(0, optimisticDislikes - 1)
+    if (nextVote === 'like') optimisticLikes += 1
+    if (nextVote === 'dislike') optimisticDislikes += 1
 
-      setUserAction(nextAction)
-      persistAction(nextAction)
-      persistCounts(newLikes, newDislikes)
-      return { ...prev, stats: { ...prev.stats, likes: newLikes, dislikes: newDislikes } }
-    })
+    setUserVote(nextVote)
+    setPost(prev => ({ ...prev, stats: { ...prev.stats, likes: optimisticLikes, dislikes: optimisticDislikes } }))
+
+    const result = await voteRanking({ rankingId: postId, userId: currentUser.id, voteType: nextVote })
+
+    if (result.success !== false) {
+      setUserVote(result.userVote ?? null)
+      setPost(prev => ({ ...prev, stats: { ...prev.stats, likes: result.likes ?? prev.stats.likes, dislikes: result.dislikes ?? prev.stats.dislikes } }))
+    } else {
+      // rollback
+      setUserVote(prevVote)
+      setPost(prev => ({ ...prev, stats: prevStats }))
+      alert('บันทึกการโหวตไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'))
+    }
   }
 
   // 📍 [แก้ไขแล้ว]: ใช้ createComment จาก api.js แทนการ fetch ดิบๆ
@@ -233,15 +213,15 @@ export default function PostDetail() {
                   icon={ThumbsUpIcon} 
                   count={stats.likes} 
                   label="Like" 
-                  pressed={userAction === 'liked'}
+                  pressed={userVote === 'like'}
                   activeClass="text-blue-600 font-bold"
                   onClick={() => handleVote('like')}
                 />
-                <ActionButton 
-                  icon={ThumbsDownIcon} 
-                  count={stats.dislikes} 
-                  label="Dislike" 
-                  pressed={userAction === 'disliked'}
+                <ActionButton
+                  icon={ThumbsDownIcon}
+                  count={stats.dislikes}
+                  label="Dislike"
+                  pressed={userVote === 'dislike'}
                   activeClass="text-red-600 font-bold"
                   onClick={() => handleVote('dislike')}
                 />

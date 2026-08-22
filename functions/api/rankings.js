@@ -11,15 +11,18 @@ export async function onRequest({ request, env }) {
     // 🟢 [GET] ดึงข้อมูล
     if (request.method === 'GET') {
       if (id) {
+        // user_id ที่ส่งมาคือ "คนที่กำลังดู" (ไม่ใช่เจ้าของโพสต์) ใช้เพื่อรู้ว่าคนนี้เคยโหวตไว้ยังไง
+        const viewerId = url.searchParams.get('user_id');
         const { results: rankings } = await db.prepare(`
           SELECT r.*, p.username, p.avatar_url,
             (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'like') as likes_count,
             (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'dislike') as dislikes_count,
-            (SELECT COUNT(*) FROM comments WHERE ranking_id = r.id) as comments_count
-          FROM rankings r 
-          LEFT JOIN profiles p ON r.user_id = p.id 
+            (SELECT COUNT(*) FROM comments WHERE ranking_id = r.id) as comments_count,
+            ${viewerId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
+          FROM rankings r
+          LEFT JOIN profiles p ON r.user_id = p.id
           WHERE r.id = ?
-        `).bind(id).all();
+        `).bind(...(viewerId ? [viewerId, id] : [id])).all();
 
         if (rankings.length === 0) return jsonResponse({ success: false, error: 'Not found' }, 404);
         const ranking = rankings[0];
@@ -44,6 +47,7 @@ export async function onRequest({ request, env }) {
           ...ranking,
           profile: { id: ranking.user_id, username: ranking.username || 'Unknown', avatar_url: ranking.avatar_url },
           stats: { likes: ranking.likes_count, dislikes: ranking.dislikes_count, comments: ranking.comments_count },
+          user_vote: ranking.user_vote ?? null,
           ranking_items: items.map(ri => ({
             ...ri, item: { id: ri.item_id, name: ri.item_name || ri.item_id, image_url: ri.item_image }
           })),
@@ -61,26 +65,33 @@ export async function onRequest({ request, env }) {
         const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
         const offset = (page - 1) * limit;
 
+        // ⚠️ subquery user_vote อยู่ในส่วน SELECT → พารามิเตอร์ของมันต้องถูก bind "ก่อน"
+        // พารามิเตอร์ของ WHERE และ ORDER BY เสมอ (ดู docs/feature-like-dislike-voting.md §8)
         let query = `
           SELECT r.*, p.username, p.avatar_url,
             (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'like') as likes_count,
             (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'dislike') as dislikes_count,
-            (SELECT COUNT(*) FROM comments WHERE ranking_id = r.id) as comments_count
-          FROM rankings r 
+            (SELECT COUNT(*) FROM comments WHERE ranking_id = r.id) as comments_count,
+            ${currentUserId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
+          FROM rankings r
           LEFT JOIN profiles p ON r.user_id = p.id
           WHERE 1=1
         `;
-        const params = [];
+        const params = currentUserId ? [currentUserId] : [];
 
         if (category && category !== 'null') { query += ` AND r.category = ?`; params.push(category); }
         if (hashtag) { query += ` AND r.hashtags LIKE ?`; params.push(`%${hashtag}%`); }
         if (templateId) { query += ` AND r.template_id = ?`; params.push(templateId); }
 
-        if (currentUserId) {
+        // sort ที่ระบุมาชัดเจนต้องชนะ personalized order เสมอ — ไม่งั้นหน้าที่ส่ง user_id มา
+        // เพื่อขอ user_vote (เช่น Template Detail) จะโดนแย่ง ORDER BY ไปแบบไม่ได้ตั้งใจ
+        if (sort === 'liked') {
+          query += ` ORDER BY likes_count DESC, r.created_at DESC`;
+        } else if (sort === 'recent') {
+          query += ` ORDER BY r.created_at DESC`;
+        } else if (currentUserId) {
           query += ` ORDER BY (SELECT COUNT(*) FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id WHERE v.user_id = ? AND v.vote_type = 'like' AND fav_r.category = r.category) DESC, r.created_at DESC`;
           params.push(currentUserId);
-        } else if (sort === 'liked') {
-          query += ` ORDER BY likes_count DESC, r.created_at DESC`;
         } else {
           query += ` ORDER BY r.created_at DESC`;
         }
@@ -123,7 +134,8 @@ export async function onRequest({ request, env }) {
           formattedRankings = rankings.map(r => ({
              ...r, 
              profile: { id: r.user_id, username: r.username || 'Unknown', avatar_url: r.avatar_url },
-             stats: { likes: r.likes_count, dislikes: r.dislikes_count, comments: r.comments_count }, 
+             stats: { likes: r.likes_count, dislikes: r.dislikes_count, comments: r.comments_count },
+             user_vote: r.user_vote ?? null,
              ranking_items: itemsMap[r.id] || []
           }));
         }

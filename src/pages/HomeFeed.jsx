@@ -37,89 +37,63 @@ const TIER_COLORS = {
 
 // 📍 [ลบ mockKindredData ทิ้งไปเรียบร้อย บอทจะไม่มากวนใจอีก!]
 
-function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0 }) {
+function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null }) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
 
-  const [userAction, setUserAction] = useState(null); // 'liked' หรือ 'disliked'
+  // seed จาก post.user_vote ที่ API ส่งมาเท่านั้น — ห้าม useState(null) เฉยๆ
+  // (ดู docs/feature-like-dislike-voting.md §8)
+  const [userVote, setUserVote] = useState(initialUserVote);
   const [likes, setLikes] = useState(initialLikes);
   const [dislikes, setDislikes] = useState(initialDislikes);
 
-  // 📍 [แก้แล้ว]: ฟังก์ชันกด Like ส่งข้อมูลไปบันทึกลง Cloudflare D1 จริงๆ
-  const handleLike = async () => {
+  // state machine เดียวรับทั้ง like/dislike: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
+  const handleVote = async (type) => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อนกดไลก์ครับ!');
       navigate('/login');
       return;
     }
 
-    const newVoteType = userAction === 'liked' ? null : 'like';
+    const nextVote = userVote === type ? null : type;
+    const prevVote = userVote;
+    const prevLikes = likes;
+    const prevDislikes = dislikes;
 
-    const result = await voteRanking({
-      rankingId: id,
-      userId: currentUser.id,
-      voteType: newVoteType
-    });
+    let optimisticLikes = prevLikes;
+    let optimisticDislikes = prevDislikes;
+    if (prevVote === 'like') optimisticLikes = Math.max(0, optimisticLikes - 1);
+    if (prevVote === 'dislike') optimisticDislikes = Math.max(0, optimisticDislikes - 1);
+    if (nextVote === 'like') optimisticLikes += 1;
+    if (nextVote === 'dislike') optimisticDislikes += 1;
 
-    if (result.success !== false) {
-      if (userAction === 'liked') {
-        setLikes(prev => Math.max(0, prev - 1));
-        setUserAction(null);
-      } else if (userAction === 'disliked') {
-        setDislikes(prev => Math.max(0, prev - 1));
-        setLikes(prev => prev + 1);
-        setUserAction('liked');
-      } else {
-        setLikes(prev => prev + 1);
-        setUserAction('liked');
-      }
-    } else {
-      alert('บันทึกการไลก์ไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'));
-    }
-  };
+    setUserVote(nextVote);
+    setLikes(optimisticLikes);
+    setDislikes(optimisticDislikes);
 
-  // 📍 [แก้แล้ว]: ฟังก์ชันกด Dislike ส่งข้อมูลไปบันทึกลง Cloudflare D1 จริงๆ
-  const handleDislike = async () => {
-    if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนกดดิสไลก์ครับ!');
-      navigate('/login');
-      return;
-    }
-
-    const newVoteType = userAction === 'disliked' ? null : 'dislike';
-
-    const result = await voteRanking({
-      rankingId: id,
-      userId: currentUser.id,
-      voteType: newVoteType
-    });
+    const result = await voteRanking({ rankingId: id, userId: currentUser.id, voteType: nextVote });
 
     if (result.success !== false) {
-      if (userAction === 'disliked') {
-        setDislikes(prev => Math.max(0, prev - 1));
-        setUserAction(null);
-      } else if (userAction === 'liked') {
-        setLikes(prev => Math.max(0, prev - 1));
-        setDislikes(prev => prev + 1);
-        setUserAction('disliked');
-      } else {
-        setDislikes(prev => prev + 1);
-        setUserAction('disliked');
-      }
+      setUserVote(result.userVote ?? null);
+      setLikes(result.likes ?? optimisticLikes);
+      setDislikes(result.dislikes ?? optimisticDislikes);
     } else {
-      alert('บันทึกการดิสไลก์ไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'));
+      setUserVote(prevVote);
+      setLikes(prevLikes);
+      setDislikes(prevDislikes);
+      alert('บันทึกการโหวตไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'));
     }
   };
 
   return (
     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
       <div className="flex items-center gap-6">
-        <div onClick={handleLike} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userAction === 'liked' ? 'text-blue-500' : 'text-gray-500 hover:text-gray-900'}`}>
+        <div onClick={() => handleVote('like')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'like' ? 'text-blue-500' : 'text-gray-500 hover:text-gray-900'}`}>
           <ThumbsUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
           <span className="text-[13px] font-bold">{likes}</span>
         </div>
 
-        <div onClick={handleDislike} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userAction === 'disliked' ? 'text-red-500' : 'text-gray-500 hover:text-gray-900'}`}>
+        <div onClick={() => handleVote('dislike')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'dislike' ? 'text-red-500' : 'text-gray-500 hover:text-gray-900'}`}>
           <ThumbsDown size={18} className="group-hover:translate-y-0.5 transition-transform" />
           <span className="text-[13px] font-bold">{dislikes}</span>
         </div>
@@ -291,6 +265,7 @@ export default function HomeFeed() {
                   initialLikes={post.stats?.likes || 0}
                   initialDislikes={post.stats?.dislikes || 0}
                   initialComments={post.stats?.comments || 0}
+                  initialUserVote={post.user_vote ?? null}
                 />
 
               </article>

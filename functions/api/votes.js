@@ -55,7 +55,21 @@ export async function onRequest(context) {
       }
     }
 
-    return jsonResponse({ success: true, message: 'Vote updated successfully' });
+    // 4. อ่านค่าจริงหลังเขียนเสร็จแล้วส่งกลับไป — ฝั่ง client จะได้ไม่ต้องเดาด้วยการ +1/-1 เอง
+    //    (ดู docs/feature-like-dislike-voting.md §8 เรื่องเลขที่บวกเองแล้วเพี้ยนสะสม)
+    const { results: fresh } = await db.prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM votes WHERE ranking_id = ?1 AND vote_type = 'like') AS likes,
+         (SELECT COUNT(*) FROM votes WHERE ranking_id = ?1 AND vote_type = 'dislike') AS dislikes,
+         (SELECT vote_type FROM votes WHERE ranking_id = ?1 AND user_id = ?2) AS user_vote`
+    ).bind(rankingId, userId).all();
+
+    return jsonResponse({
+      success: true,
+      userVote: fresh[0]?.user_vote ?? null,
+      likes: fresh[0]?.likes ?? 0,
+      dislikes: fresh[0]?.dislikes ?? 0
+    });
   } catch (err) {
     return jsonResponse({ success: false, error: err.message }, 500);
   }
