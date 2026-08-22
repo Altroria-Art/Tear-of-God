@@ -1,38 +1,103 @@
-import React, { useState } from 'react';
-import { Settings, Upload, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Settings, Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
+
+const DEFAULT_TIERS = [
+  { id: 't1', label: 'S', color: 'bg-red-400' },
+  { id: 't2', label: 'A', color: 'bg-orange-300' },
+  { id: 't3', label: 'B', color: 'bg-yellow-300' },
+  { id: 't4', label: 'C', color: 'bg-green-400' },
+  { id: 't5', label: 'D', color: 'bg-blue-400' },
+];
+
+const DEFAULT_HASHTAGS = ['#Gaming', '#Anime', '#Movie', '#Food', '#Sports', '#Music'];
+
+// 📍 [ใหม่]: Autosave draft — เก็บงานที่พิมพ์/จัดค้างไว้ใน localStorage เพื่อกู้คืนหลังรีเฟรช
+const DRAFT_KEY = 'tog-create-draft';
+const DRAFT_VERSION = 1;
+
+function loadDraft() {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    if (!draft || draft.version !== DRAFT_VERSION) return null;
+    return draft;
+  } catch {
+    return null; // JSON พัง / storage ถูกปิด — เริ่มใหม่แบบไม่มี draft
+  }
+}
+
+function saveDraft(draft) {
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // storage เต็มหรือโหมด private — ไม่ autosave ก็ยังใช้หน้าได้ปกติ
+  }
+}
+
+function clearDraft() {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // เช่นเดียวกัน — ข้ามได้
+  }
+}
 
 const CreateTierList = () => {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const toast = useToast();
 
-  const [mode, setMode] = useState('normal');
+  // 📍 [ใหม่]: อ่าน draft ครั้งเดียวตอน mount แล้วเอามาเป็นค่า initial ของทุก state
+  const [draft] = useState(loadDraft);
+
+  const [mode, setMode] = useState(draft?.mode === 'top10' ? 'top10' : 'normal');
   const [quickAddText, setQuickAddText] = useState('');
-  
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+
+  const [title, setTitle] = useState(draft?.title ?? '');
+  const [description, setDescription] = useState(draft?.description ?? '');
   const [isPublishing, setIsPublishing] = useState(false);
-  
-  const [items, setItems] = useState([]);
-  const [tiers, setTiers] = useState([
-    { id: 't1', label: 'S', color: 'bg-red-400' },
-    { id: 't2', label: 'A', color: 'bg-orange-300' },
-    { id: 't3', label: 'B', color: 'bg-yellow-300' },
-    { id: 't4', label: 'C', color: 'bg-green-400' },
-    { id: 't5', label: 'D', color: 'bg-blue-400' },
-  ]);
+
+  // ลำดับ item ใน array = ลำดับการแสดงผลภายใน tier → restore แล้วตำแหน่งเดิมทุกชิ้น
+  const [items, setItems] = useState(
+    Array.isArray(draft?.items)
+      ? draft.items.filter(i => i && typeof i.content === 'string' && i.id != null)
+      : []
+  );
+  const [tiers, setTiers] = useState(
+    Array.isArray(draft?.tiers) && draft.tiers.length > 0 ? draft.tiers : DEFAULT_TIERS
+  );
 
   const [activeSettingsTier, setActiveSettingsTier] = useState(null);
 
   // 📍 ระบบ Hashtag (มาแทนที่ Category)
-  const [hashtags, setHashtags] = useState(['#Gaming', '#Anime', '#Movie', '#Food', '#Sports', '#Music']);
-  const [selectedHashtags, setSelectedHashtags] = useState([]);
+  const [hashtags, setHashtags] = useState(() => [
+    ...DEFAULT_HASHTAGS,
+    ...(Array.isArray(draft?.customHashtags) ? draft.customHashtags : []),
+  ]);
+  const [selectedHashtags, setSelectedHashtags] = useState(
+    Array.isArray(draft?.selectedHashtags) ? draft.selectedHashtags : []
+  );
   const [showNewTagInput, setShowNewTagInput] = useState(false);
   const [newTagText, setNewTagText] = useState('');
+
+  // 📍 [ใหม่]: autosave ทุกครั้งที่ข้อมูลที่ต้องจำเปลี่ยน (title/description/hashtags/items/tiers/mode)
+  useEffect(() => {
+    saveDraft({
+      version: DRAFT_VERSION,
+      title,
+      description,
+      mode,
+      tiers,
+      items,
+      selectedHashtags,
+      customHashtags: hashtags.filter(t => !DEFAULT_HASHTAGS.includes(t)),
+    });
+  }, [title, description, mode, tiers, items, selectedHashtags, hashtags]);
 
   const availableColors = [
     'bg-red-400', 'bg-orange-300', 'bg-amber-300', 'bg-yellow-300', 
@@ -70,20 +135,108 @@ const CreateTierList = () => {
     }
   };
 
-  const handleDragStart = (e, itemId) => e.dataTransfer.setData('itemId', itemId);
-  const handleDragOver = (e) => e.preventDefault(); 
+  const handleDragStart = (e, itemId) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('itemId', itemId);
+  };
+  const handleDragOver = (e) => e.preventDefault();
+
+  // 📍 [ใหม่]: ย้าย item ไป tier ปลายทางโดย "แทรก" ที่ลำดับ insertIndex ภายใน tier นั้น
+  // (order ใน tier = ลำดับการเรียงใน array — เดินเก็บทีละตัวแล้วแทรก dragged ตรงจุดที่ต้องการ)
+  const repositionItem = (list, draggedId, targetTierId, insertIndex) => {
+    const fromIndex = list.findIndex(i => i.id === draggedId);
+    if (fromIndex === -1) return list;
+    const dragged = { ...list[fromIndex], tierId: targetTierId };
+    const remaining = list.filter((_, idx) => idx !== fromIndex);
+
+    const sameTier = (i) => (i.tierId ?? null) === (targetTierId ?? null);
+    const clamped = Math.max(0, Math.min(insertIndex, remaining.filter(sameTier).length));
+
+    const result = [];
+    let seen = 0;
+    let placed = false;
+    for (const it of remaining) {
+      if (!placed && sameTier(it) && seen === clamped) {
+        result.push(dragged);
+        placed = true;
+      }
+      if (sameTier(it)) seen++;
+      result.push(it);
+    }
+    if (!placed) result.push(dragged); // กรณีแทรกท้ายสุดของ tier
+    return result;
+  };
+
+  // 📍 [ใหม่]: แปลงตำแหน่งเมาส์เป็นลำดับการแทรก — เทียบกับกึ่งกลางการ์ดแต่ละใบ (ไม่รวมใบที่กำลังลาก)
+  const getInsertIndexFromZone = (zoneEl, clientX, draggedItemId) => {
+    const cards = Array.from(zoneEl.querySelectorAll('[data-item-id]'))
+      .filter(el => el.dataset.itemId !== draggedItemId);
+    for (let i = 0; i < cards.length; i++) {
+      const box = cards[i].getBoundingClientRect();
+      if (clientX < box.left + box.width / 2) return i;
+    }
+    return cards.length;
+  };
+
   const handleDrop = (e, targetTierId) => {
     e.preventDefault();
     const draggedItemId = e.dataTransfer.getData('itemId');
-    setItems(items.map(item => item.id === draggedItemId ? { ...item, tierId: targetTierId } : item));
+    if (!draggedItemId) return;
+    const insertIndex = getInsertIndexFromZone(e.currentTarget, e.clientX, draggedItemId);
+    setItems(prev => repositionItem(prev, draggedItemId, targetTierId, insertIndex));
   };
 
-  const renderItemCard = (item) => (
-    <div key={item.id} draggable onDragStart={(e) => handleDragStart(e, item.id)} className="group relative bg-white w-20 h-20 rounded-md shadow-sm flex items-center justify-center p-2 text-center text-xs font-medium text-[#334155] border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-all z-10">
-      <span className="break-words line-clamp-3 leading-tight pointer-events-none">{item.content}</span>
-      <button onClick={() => handleDeleteItem(item.id)} className="absolute -top-1.5 -right-1.5 bg-white text-gray-400 hover:text-red-500 rounded-full p-0.5 shadow-sm border border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity z-20"><X size={10} /></button>
-    </div>
-  );
+  // 📍 [ใหม่]: ปุ่ม ◀ ▶ — สลับตำแหน่งกับเพื่อนบ้านใน tier เดียวกัน
+  const shiftItem = (itemId, direction) => {
+    setItems(prev => {
+      const item = prev.find(i => i.id === itemId);
+      if (!item) return prev;
+      const mates = prev.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
+      const pos = mates.findIndex(i => i.id === itemId);
+      const targetPos = pos + direction;
+      if (targetPos < 0 || targetPos >= mates.length) return prev;
+      return repositionItem(prev, itemId, item.tierId, targetPos);
+    });
+  };
+
+  const renderItemCard = (item) => {
+    const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
+    const pos = mates.findIndex(i => i.id === item.id);
+
+    return (
+      <div
+        key={item.id}
+        data-item-id={item.id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, item.id)}
+        className="group relative bg-white w-20 h-20 rounded-md shadow-sm flex items-center justify-center px-2 pt-2 pb-4 text-center text-xs font-medium text-[#334155] border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-all z-10"
+      >
+        <span className="break-words line-clamp-3 leading-tight pointer-events-none">{item.content}</span>
+
+        {/* 📍 [ใหม่]: ปุ่มย้ายซ้าย/ขวา — สลับลำดับภายใน tier เดียวกัน */}
+        <button
+          type="button"
+          onClick={() => shiftItem(item.id, -1)}
+          disabled={pos === 0}
+          aria-label="Move left"
+          className="absolute bottom-0.5 left-0.5 rounded p-0.5 text-gray-300 hover:text-[#7c5b36] disabled:opacity-30 disabled:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <ChevronLeft size={11} strokeWidth={2.5} />
+        </button>
+        <button
+          type="button"
+          onClick={() => shiftItem(item.id, 1)}
+          disabled={pos === mates.length - 1}
+          aria-label="Move right"
+          className="absolute bottom-0.5 right-0.5 rounded p-0.5 text-gray-300 hover:text-[#7c5b36] disabled:opacity-30 disabled:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <ChevronRight size={11} strokeWidth={2.5} />
+        </button>
+
+        <button onClick={() => handleDeleteItem(item.id)} className="absolute -top-1.5 -right-1.5 bg-white text-gray-400 hover:text-red-500 rounded-full p-0.5 shadow-sm border border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity z-20"><X size={10} /></button>
+      </div>
+    );
+  };
 
   const handlePublish = async () => {
     if (!currentUser) return toast.warning('กรุณาเข้าสู่ระบบก่อน Publish Tier List');
@@ -124,6 +277,7 @@ const CreateTierList = () => {
     if (error) {
       toast.error('เกิดข้อผิดพลาด: ' + error);
     } else {
+      clearDraft(); // 📍 [ใหม่]: publish สำเร็จ → ล้าง draft ใน localStorage
       toast.success('Publish เรียบร้อย!');
       navigate('/');
     }
