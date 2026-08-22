@@ -90,6 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_rankings_category ON rankings(category);
 CREATE INDEX IF NOT EXISTS idx_rankings_template_id ON rankings(template_id);
 CREATE INDEX IF NOT EXISTS idx_ranking_items_ranking_id ON ranking_items(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_votes_ranking_id ON votes(ranking_id);
+CREATE INDEX IF NOT EXISTS idx_votes_user_id ON votes(user_id, vote_type);
 CREATE INDEX IF NOT EXISTS idx_comments_ranking_id ON comments(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
 CREATE INDEX IF NOT EXISTS idx_template_items_template_id ON template_items(template_id);

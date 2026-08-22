@@ -1,7 +1,20 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { EyeIcon, TemplateIcon } from '../ui/Icons'
+import { useUser } from '../../context/UserContext'
 
 export default function AboutTemplateCard({ name, description, itemCount, templateId }) {
+  const navigate = useNavigate()
+  const { currentUser } = useUser()
+
+  const handleUseTemplate = () => {
+    if (!currentUser) {
+      alert('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้ครับ!')
+      navigate('/login')
+      return
+    }
+    navigate(`/rank?template=${templateId}`)
+  }
+
   return (
     <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
       <h2 className="text-lg font-bold text-ink">About this Template</h2>
@@ -14,6 +27,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
       <button
         type="button"
         disabled={!templateId}
+        onClick={handleUseTemplate}
         className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-pill-active py-2.5 font-semibold text-ink transition-colors hover:bg-brand-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-pill-active"
       >
         <TemplateIcon className="h-4 w-4" />

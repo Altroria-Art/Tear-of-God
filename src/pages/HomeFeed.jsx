@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
@@ -36,6 +36,8 @@ const TIER_COLORS = {
 };
 
 // 📍 [ลบ mockKindredData ทิ้งไปเรียบร้อย บอทจะไม่มากวนใจอีก!]
+
+const PAGE_SIZE = 5
 
 function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null }) {
   const navigate = useNavigate();
@@ -111,27 +113,76 @@ export default function HomeFeed() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const [posts, setPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(true) // หน้าแรกเท่านั้น — กันจอกระพริบตอน append หน้าถัดไป
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [activeTab, setActiveTab] = useState('general');
+  const loadingRef = useRef(false) // กันยิงซ้ำตอนเลื่อนเร็วๆ หรือ observer ยิงซ้อนตอนกำลังโหลดอยู่
+  const observerRef = useRef(null) // instance ของ IntersectionObserver ตัวปัจจุบัน (ผูกกับ sentinel node ล่าสุด)
 
+  // สลับแท็บ/ล็อกอิน ต้องเริ่มฟีดใหม่ตั้งแต่หน้า 1 เสมอ ไม่งั้นข้อมูลแท็บเก่าจะค้าง
+  // ปนกับแท็บใหม่ตอน infinite scroll ต่อท้าย
   useEffect(() => {
-    async function loadPosts() {
-      setIsLoading(true);
-      // ดึงข้อมูลจริงจากฐานข้อมูล (แยกตามแท็บ General หรือ Kindred ถ้ามีระบบหลังบ้านรองรับ)
+    let cancelled = false
+    async function loadFirstPage() {
+      setIsLoading(true)
+      setPosts([])
+      setPage(1)
+      setHasMore(true)
+      loadingRef.current = true
       const { data } = await fetchRankings({
         userId: currentUser?.id,
-        feedType: activeTab
-      });
-
-      if (data) {
-        setPosts(data);
-      } else {
-        setPosts([]);
-      }
-      setIsLoading(false);
+        feedType: activeTab,
+        page: 1,
+        limit: PAGE_SIZE
+      })
+      if (cancelled) return
+      setPosts(data || [])
+      setHasMore((data?.length || 0) === PAGE_SIZE)
+      setIsLoading(false)
+      loadingRef.current = false
     }
-    loadPosts();
+    loadFirstPage()
+    return () => { cancelled = true }
   }, [currentUser, activeTab]);
+
+  // ไม่มี total จาก API สำหรับฟีดทั่วไป (เฉพาะ template_id เท่านั้นที่ API คำนวณ total ให้ —
+  // ดู functions/api/rankings.js) เลยเช็คจบฟีดจากจำนวนที่ได้กลับมาน้อยกว่า PAGE_SIZE แทน
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || !hasMore) return
+    loadingRef.current = true
+    setIsLoadingMore(true)
+    const nextPage = page + 1
+    const { data } = await fetchRankings({
+      userId: currentUser?.id,
+      feedType: activeTab,
+      page: nextPage,
+      limit: PAGE_SIZE
+    })
+    setPosts(prev => [...prev, ...(data || [])])
+    setHasMore((data?.length || 0) === PAGE_SIZE)
+    setPage(nextPage)
+    setIsLoadingMore(false)
+    loadingRef.current = false
+  }, [page, hasMore, currentUser, activeTab]);
+
+  // callback ref แทน useRef+useEffect — React เรียก callback นี้เองทันทีที่ DOM node
+  // ของ sentinel ถูกสร้าง/ถอดออกจริงๆ (ตอน commit) ไม่ต้องเดาว่า effect จะ rerun
+  // ทันเวลาไหม (เคยพลาดมาแล้ว: ตอน isLoading เปลี่ยนจาก true→false โดยที่
+  // page/hasMore/currentUser/activeTab ไม่เปลี่ยนค่าเลย loadMore เลย memo อ้างตัวเดิม
+  // effect ที่ depend [loadMore] ไม่รีรัน เลยไม่เคย attach observer เข้ากับ node จริง)
+  const sentinelRef = useCallback((node) => {
+    if (observerRef.current) {
+      observerRef.current.disconnect()
+      observerRef.current = null
+    }
+    if (!node) return
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore()
+    })
+    observerRef.current.observe(node)
+  }, [loadMore]);
 
   const displayData = posts;
 
@@ -271,6 +322,24 @@ export default function HomeFeed() {
               </article>
             );
           })}
+
+          {/* เงื่อนไขต้องไม่มี isLoading — ถ้ามี sentinel จะยังไม่ mount ตอนโหลดหน้าแรก
+              เสร็จพอดี (page/hasMore/currentUser/activeTab ไม่เปลี่ยนค่าในจังหวะนั้น)
+              loadMore เลย memo อ้างตัวเดิม effect ที่ observe ไม่รีรันไปเจอ node จริง
+              ให้กันการยิงซ้ำตอนโหลดหน้าแรกด้วย loadingRef guard ใน loadMore แทน */}
+          {hasMore && <div ref={sentinelRef} className="h-1" />}
+
+          {isLoadingMore && (
+            <p className="text-center text-xs font-medium text-gray-400 animate-pulse py-4">
+              กำลังโหลดเพิ่ม...
+            </p>
+          )}
+
+          {!isLoading && !hasMore && displayData.length > 0 && (
+            <p className="text-center text-xs font-medium text-gray-400 py-6">
+              จบฟีดแล้ว
+            </p>
+          )}
         </div>
       </main>
     </div>

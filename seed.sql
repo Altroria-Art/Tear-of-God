@@ -12,12 +12,14 @@ INSERT OR IGNORE INTO profiles (id, username, email, avatar_url) VALUES
 
 -- ==========================================
 -- 2. โพสต์จัดอันดับปลอม (Rankings) - หลากหลายหมวด
+-- แต่ละอันผูกกับ template ที่มีไอเทมชุดเดียวกัน (template_id) เพื่อให้ปุ่ม
+-- Use Template / View Community Average ใช้งานได้จริง — ดู tmpl_017..020 ใน templates-seed.sql
 -- ==========================================
-INSERT OR IGNORE INTO rankings (id, title, description, category, user_id) VALUES 
-('rank_001', 'จัดอันดับอนิเมะในดวงใจ ปี 2026', 'รวมอนิเมะที่เนื้อเรื่องโคตรพีคและงานภาพระดับพระเจ้า', 'anime', 'user_002'),
-('rank_002', 'Tier List สุดยอดเกม RPG ในตำนาน', 'คัดมาเฉพาะเกมที่ใช้เวลาเล่นคุ้มค่าเงินที่สุด', 'games', 'user_003'),
-('rank_003', 'จัดอันดับภาษายอดฮิตสาย Tech', 'ภาษาโปรแกรมไหนรุ่ง ภาษาไหนร่วงในปีนี้', 'tech', 'user_004'),
-('rank_004', 'หนังไซไฟในดวงใจตลอดกาล', 'ดูจบแล้วสมองไหล อินจัดจนต้องดูซ้ำ', 'movies', 'user_005');
+INSERT OR IGNORE INTO rankings (id, title, description, category, hashtags, user_id, template_id, created_at) VALUES
+('rank_001', 'จัดอันดับอนิเมะในดวงใจ ปี 2026', 'รวมอนิเมะที่เนื้อเรื่องโคตรพีคและงานภาพระดับพระเจ้า', 'anime', '#Anime,#2026', 'user_002', 'tmpl_017', '2026-08-10 12:00:00'),
+('rank_002', 'Tier List สุดยอดเกม RPG ในตำนาน', 'คัดมาเฉพาะเกมที่ใช้เวลาเล่นคุ้มค่าเงินที่สุด', 'gaming', '#Gaming,#OpenWorld', 'user_003', 'tmpl_018', '2026-08-11 12:00:00'),
+('rank_003', 'จัดอันดับภาษายอดฮิตสาย Tech', 'ภาษาโปรแกรมไหนรุ่ง ภาษาไหนร่วงในปีนี้', 'tech', '#Tech,#Programming', 'user_004', 'tmpl_019', '2026-08-12 12:00:00'),
+('rank_004', 'หนังไซไฟในดวงใจตลอดกาล', 'ดูจบแล้วสมองไหล อินจัดจนต้องดูซ้ำ', 'movie', '#Movie,#MindBender', 'user_005', 'tmpl_020', '2026-08-13 12:00:00');
 
 -- ==========================================
 -- 3. รายการไอเทมทั้งหมด (ตาราง items)
@@ -45,27 +47,30 @@ INSERT OR IGNORE INTO items (id, name, image_url) VALUES
 
 -- ==========================================
 -- 4. จัดไอเทมลงกระดาน Tier (ตาราง ranking_items)
+-- item_id เก็บชื่อไอเทมตรงๆ (ไม่ใช่ FK เข้า items) ให้ตรงกับ template_items/community
+-- seed ทั้งหมด — Community Average (functions/api/templates.js) ใช้ item_id เป็นชื่อแสดงผล
+-- โดยตรง ไม่ join ตาราง items เลย ผูก FK ไว้จะโชว์ "item_001" ให้ผู้ใช้เห็นตรงๆ
 -- ==========================================
-INSERT OR IGNORE INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES 
+INSERT OR IGNORE INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES
 -- โพสต์ 1: อนิเมะ
-('ri_001', 'rank_001', 'item_001', 'S', 1),
-('ri_002', 'rank_001', 'item_002', 'A', 2),
-('ri_003', 'rank_001', 'item_003', 'S', 3),
-('ri_004', 'rank_001', 'item_004', 'C', 4),
+('ri_001', 'rank_001', 'Attack on Titan', 'S', 1),
+('ri_002', 'rank_001', 'Demon Slayer', 'A', 2),
+('ri_003', 'rank_001', 'One Piece', 'S', 3),
+('ri_004', 'rank_001', 'Boruto', 'C', 4),
 -- โพสต์ 2: เกม RPG
-('ri_005', 'rank_002', 'item_005', 'S', 1),
-('ri_006', 'rank_002', 'item_006', 'S', 2),
-('ri_007', 'rank_002', 'item_007', 'A', 3),
-('ri_008', 'rank_002', 'item_008', 'B', 4),
+('ri_005', 'rank_002', 'The Witcher 3', 'S', 1),
+('ri_006', 'rank_002', 'Elden Ring', 'S', 2),
+('ri_007', 'rank_002', 'Cyberpunk 2077', 'A', 3),
+('ri_008', 'rank_002', 'Skyrim', 'B', 4),
 -- โพสต์ 3: Tech
-('ri_009', 'rank_003', 'item_009', 'S', 1),
-('ri_010', 'rank_003', 'item_010', 'S', 2),
-('ri_011', 'rank_003', 'item_011', 'A', 3),
-('ri_012', 'rank_003', 'item_012', 'C', 4),
+('ri_009', 'rank_003', 'TypeScript', 'S', 1),
+('ri_010', 'rank_003', 'Python', 'S', 2),
+('ri_011', 'rank_003', 'Rust', 'A', 3),
+('ri_012', 'rank_003', 'PHP', 'C', 4),
 -- โพสต์ 4: หนัง
-('ri_013', 'rank_004', 'item_013', 'S', 1),
-('ri_014', 'rank_004', 'item_014', 'S', 2),
-('ri_015', 'rank_004', 'item_015', 'A', 3);
+('ri_013', 'rank_004', 'Interstellar', 'S', 1),
+('ri_014', 'rank_004', 'Inception', 'S', 2),
+('ri_015', 'rank_004', 'The Matrix', 'A', 3);
 
 -- ==========================================
 -- 5. คอมเมนต์ปลอมเดือดๆ (Comments)
