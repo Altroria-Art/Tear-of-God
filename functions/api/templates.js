@@ -36,13 +36,13 @@ export async function onRequestGet(context) {
         whereParams.push(`,#${hashtag.replace(/^#/, '')},`);
       }
 
-      let orderSql = ` ORDER BY live_uses DESC, t.created_at DESC, t.id DESC`;
+      let orderSql = ` ORDER BY t.use_count DESC, t.created_at DESC, t.id DESC`;
       if (sort === 'recent') orderSql = ` ORDER BY t.created_at DESC, t.id DESC`;
-      else if (sort === 'views') orderSql = ` ORDER BY t.view_count DESC, live_uses DESC, t.id DESC`;
+      else if (sort === 'views') orderSql = ` ORDER BY t.view_count DESC, t.use_count DESC, t.id DESC`;
 
       const query = `
         SELECT t.*, p.username, p.avatar_url,
-          (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) as live_uses
+          t.use_count as live_uses
         FROM templates t
         LEFT JOIN profiles p ON t.creator_id = p.id
         ${whereSql}

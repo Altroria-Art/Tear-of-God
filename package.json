@@ -25,14 +25,9 @@
     "db:push:remote": "node scripts/gen-community-seed.mjs && wrangler d1 execute tear-of-god-db --remote --file=./reset-seed-data.sql && wrangler d1 execute tear-of-god-db --remote --file=./seed.sql && wrangler d1 execute tear-of-god-db --remote --file=./templates-seed.sql && wrangler d1 execute tear-of-god-db --remote --file=./community-rankings-seed.sql"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.110.8",
     "@tailwindcss/vite": "^4.3.3",
-    "bcryptjs": "^3.0.3",
-    "dotenv": "^17.4.2",
     "firebase": "^12.17.1",
-    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.31.0",
-    "pg": "^8.23.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.2",

@@ -303,7 +303,7 @@ export default function HomeFeed() {
                             key={idx} 
                             className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-center text-xs font-medium text-gray-700 shadow-sm"
                           >
-                            <span className="w-full truncate text-[11px] leading-tight">{itemName}</span>
+                            <span className="w-full line-clamp-2 text-[11px] leading-normal">{itemName}</span>
                           </div>
                         ))}
                       </div>

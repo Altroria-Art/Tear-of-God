@@ -20,17 +20,17 @@ function ToastItem({ toast, onDismiss }) {
   return (
     <div
       role="status"
-      className={`pointer-events-auto relative overflow-hidden rounded-xl border border-line bg-surface shadow-lg shadow-black/10 animate-toast-in transition-all duration-200 ease-out ${
-        toast.leaving ? 'translate-y-2 scale-95 opacity-0' : ''
+      className={`pointer-events-auto relative overflow-hidden rounded-2xl border border-white/10 bg-surface/80 backdrop-blur-xl shadow-2xl shadow-black/20 animate-toast-in transition-all duration-300 ease-out ${
+        toast.leaving ? 'translate-y-[-10px] sm:translate-y-0 sm:translate-x-4 scale-95 opacity-0' : ''
       }`}
     >
       <div className="flex items-start gap-3 p-4 pr-9">
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${variant.chip} text-white`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${variant.chip} text-white shadow-inner`}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-4.5 w-4.5" />
         </span>
-        <p className="text-sm font-medium leading-snug text-ink pt-1">{toast.message}</p>
+        <p className="text-sm font-semibold leading-snug text-ink pt-2">{toast.message}</p>
       </div>
 
       <button
@@ -123,7 +123,7 @@ function ToastProvider({ children }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed bottom-6 right-6 z-[100] flex w-[min(24rem,calc(100vw-3rem))] flex-col gap-3"
+        className="pointer-events-none fixed top-4 left-1/2 -translate-x-1/2 sm:top-6 sm:right-6 sm:left-auto sm:translate-x-0 z-[100] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3"
       >
         {toasts.map((toast) => (
           <div
