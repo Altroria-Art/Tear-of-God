@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile } from '../lib/api'; // 📍 เพิ่ม fetchUserProfile สำหรับดูโปรไฟล์คนอื่น
+import { useToast } from '../components/ui/Toast';
 
 // "Oct 2024" จาก created_at ที่ได้จาก API (แทนที่ข้อความ hardcode เดิม)
 function formatJoined(dateString) {
@@ -15,6 +17,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const { userId: routeUserId } = useParams(); // 📍 /profile/:userId = ดูโปรไฟล์คนอื่น, /profile = ของตัวเอง
   const { currentUser, login } = useUser();
+  const toast = useToast();
 
   const profileUserId = routeUserId || currentUser?.id || null;
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.id;
@@ -86,14 +89,14 @@ export default function Profile() {
     });
 
     if (error) {
-      alert('อัปเดตโปรไฟล์ไม่สำเร็จ: ' + error);
+      toast.error('อัปเดตโปรไฟล์ไม่สำเร็จ: ' + error);
       return;
     }
 
     const updatedUser = { ...currentUser, username: displayName, bio };
     login(updatedUser); // อัปเดตข้อมูลใน Context / LocalStorage
     setIsEditOpen(false);
-    alert('อัปเดตโปรไฟล์สำเร็จ!');
+    toast.success('อัปเดตโปรไฟล์สำเร็จ!');
   };
 
   if (!currentUser && !routeUserId) return null;
@@ -232,9 +235,10 @@ export default function Profile() {
 
                   <div className="flex justify-between items-center text-xs text-gray-400">
                     <span>Recently added</span>
-                    <div className="flex gap-4">
-                      <span>👍 {post.stats?.likes || 0}</span>
-                      <span>💬 {post.stats?.comments || 0}</span>
+                    <div className="flex items-center gap-4 text-gray-500">
+                      <span className="flex items-center gap-1.5"><ThumbsUp size={14} /> {post.stats?.likes || 0}</span>
+                      <span className="flex items-center gap-1.5"><ThumbsDown size={14} /> {post.stats?.dislikes || 0}</span>
+                      <span className="flex items-center gap-1.5"><MessageSquare size={14} /> {post.stats?.comments || 0}</span>
                     </div>
                   </div>
                 </article>

@@ -7,6 +7,7 @@ import CommentSection from '../components/post/CommentSection'
 import Avatar from '../components/ui/Avatar'
 import { ArrowLeftIcon, CommentIcon, ShareIcon, ThumbsDownIcon, ThumbsUpIcon } from '../components/ui/Icons'
 import { useUser } from '../context/UserContext'
+import { useToast } from '../components/ui/Toast'
 
 // 📍 นำเข้า createComment มาใช้งาน
 import { fetchRanking, createComment, voteRanking, fetchTemplate } from '../lib/api'
@@ -14,6 +15,7 @@ import { fetchRanking, createComment, voteRanking, fetchTemplate } from '../lib/
 export default function PostDetail() {
   const { postId } = useParams()
   const { currentUser } = useUser()
+  const toast = useToast()
 
   const [post, setPost] = useState(null)
   const [template, setTemplate] = useState(null)
@@ -107,7 +109,7 @@ export default function PostDetail() {
   // กด like ซ้ำตอน like อยู่แล้ว = ยกเลิกโหวต (null) ดู docs/feature-like-dislike-voting.md §4
   const handleVote = async (type) => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนโหวตครับ!');
+      toast.warning('กรุณาเข้าสู่ระบบก่อนโหวตครับ!');
       return;
     }
 
@@ -135,14 +137,14 @@ export default function PostDetail() {
       // rollback
       setUserVote(prevVote)
       setPost(prev => ({ ...prev, stats: prevStats }))
-      alert('บันทึกการโหวตไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'))
+      toast.error('บันทึกการโหวตไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'))
     }
   }
 
   // 📍 [แก้ไขแล้ว]: ใช้ createComment จาก api.js แทนการ fetch ดิบๆ
   const handleAddComment = async (body) => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนคอมเมนต์ครับ!');
+      toast.warning('กรุณาเข้าสู่ระบบก่อนคอมเมนต์ครับ!');
       return;
     }
     if (!body || !body.trim()) return;
@@ -169,7 +171,7 @@ export default function PostDetail() {
         stats: { ...prev.stats, comments: prev.stats.comments + 1 }
       }))
     } else {
-      alert('คอมเมนต์ไม่สำเร็จ: ' + error);
+      toast.error('คอมเมนต์ไม่สำเร็จ: ' + error);
     }
   }
 
@@ -257,7 +259,7 @@ export default function PostDetail() {
                   label="Share" 
                   onClick={() => {
                     navigator.clipboard.writeText(window.location.href);
-                    alert('คัดลอกลิงก์โพสต์เรียบร้อยแล้ว!');
+                    toast.success('คัดลอกลิงก์โพสต์เรียบร้อยแล้ว!');
                   }}
                 />
               </div>

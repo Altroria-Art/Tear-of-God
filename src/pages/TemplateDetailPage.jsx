@@ -5,6 +5,7 @@ import Avatar from '../components/ui/Avatar'
 import Pagination from '../components/ui/Pagination'
 import SortDropdown from '../components/ui/SortDropdown'
 import { useUser } from '../context/UserContext'
+import { useToast } from '../components/ui/Toast'
 import { fetchTemplate, fetchRankings, recordTemplateView, voteRanking } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 
@@ -74,6 +75,7 @@ function UserTopBar({ username, avatarUrl, timeLabel }) {
 function RankingCard({ ranking, tiersDef }) {
   const { currentUser } = useUser()
   const navigate = useNavigate()
+  const toast = useToast()
   // seed จาก ranking.user_vote เท่านั้น — ห้าม useState(null) เฉยๆ (ดู docs/feature-like-dislike-voting.md §8)
   const [userVote, setUserVote] = useState(ranking.user_vote ?? null)
   const [likes, setLikes] = useState(ranking.stats?.likes || 0)
@@ -84,7 +86,7 @@ function RankingCard({ ranking, tiersDef }) {
   // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
   const handleVote = async (type) => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนโหวตครับ!')
+      toast.warning('กรุณาเข้าสู่ระบบก่อนโหวตครับ!')
       navigate('/login')
       return
     }
@@ -121,7 +123,7 @@ function RankingCard({ ranking, tiersDef }) {
 
   const handleShare = () => {
     navigator.clipboard.writeText(`${window.location.origin}/post/${ranking.id}`)
-    alert('คัดลอกลิงก์เรียบร้อยแล้ว!')
+    toast.success('คัดลอกลิงก์เรียบร้อยแล้ว!')
   }
 
   return (
@@ -169,6 +171,7 @@ export default function TemplateDetailPage() {
   const { templateId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useUser()
+  const toast = useToast()
 
   const [template, setTemplate] = useState(null)
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(true)

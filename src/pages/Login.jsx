@@ -3,10 +3,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { registerUser, loginUser, syncGoogleUser } from '../lib/api'; 
 import { signInWithGoogle } from '../lib/firebase';
+import { useToast } from '../components/ui/Toast';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useUser();
+  const toast = useToast();
   
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
@@ -17,7 +19,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      alert('กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน');
+      toast.warning('กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน');
       return;
     }
 
@@ -28,9 +30,9 @@ export default function Login() {
       setIsLoading(false);
 
       if (error) {
-        alert('สมัครสมาชิกไม่สำเร็จ: ' + error);
+        toast.error('สมัครสมาชิกไม่สำเร็จ: ' + error);
       } else {
-        alert('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ');
+        toast.success('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ');
         setIsRegister(false);
       }
     } else {
@@ -38,10 +40,10 @@ export default function Login() {
       setIsLoading(false);
 
       if (error) {
-        alert('เข้าสู่ระบบไม่สำเร็จ: ' + error);
+        toast.error('เข้าสู่ระบบไม่สำเร็จ: ' + error);
       } else {
         login(data);
-        alert('เข้าสู่ระบบสำเร็จ!');
+        toast.success('เข้าสู่ระบบสำเร็จ!');
         navigate('/');
       }
     }
@@ -54,18 +56,18 @@ export default function Login() {
 
     if (error) {
       setIsLoading(false);
-      alert('เข้าสู่ระบบด้วย Google ไม่สำเร็จ: ' + error);
+      toast.error('เข้าสู่ระบบด้วย Google ไม่สำเร็จ: ' + error);
     } else {
       // 2. ส่งข้อมูล Firebase ไปบันทึกลง Cloudflare D1
       const { data: dbUser, error: syncError } = await syncGoogleUser(firebaseUser);
       setIsLoading(false);
 
       if (syncError) {
-        alert('เกิดข้อผิดพลาดในการซิงค์ฐานข้อมูล: ' + syncError);
+        toast.error('เกิดข้อผิดพลาดในการซิงค์ฐานข้อมูล: ' + syncError);
       } else {
         // 3. บันทึกเข้าระบบหน้าเว็บ (Context)
         login(dbUser || firebaseUser);
-        alert(`ยินดีต้อนรับคุณ ${dbUser?.username || firebaseUser.username} เข้าสู่ระบบ!`);
+        toast.success(`ยินดีต้อนรับคุณ ${dbUser?.username || firebaseUser.username} เข้าสู่ระบบ!`);
         navigate('/');
       }
     }
