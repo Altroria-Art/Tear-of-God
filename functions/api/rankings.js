@@ -59,6 +59,8 @@ export async function onRequest({ request, env }) {
         const category = url.searchParams.get('category');
         const hashtag = url.searchParams.get('hashtag');
         const currentUserId = url.searchParams.get('user_id');
+        // author_id = "กรองเฉพาะโพสต์ของคนนี้" (หน้าโปรไฟล์) — ต่างจาก user_id ที่แปลว่า "คนกำลังดู"
+        const authorId = url.searchParams.get('author_id');
         const templateId = url.searchParams.get('template_id');
         const sort = url.searchParams.get('sort'); // 'recent' | 'liked'
         const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
@@ -67,7 +69,9 @@ export async function onRequest({ request, env }) {
 
         // sort ที่ระบุมาชัดเจนต้องชนะ personalized order เสมอ — ไม่งั้นหน้าที่ส่ง user_id มา
         // เพื่อขอ user_vote (เช่น Template Detail) จะโดนแย่ง ORDER BY ไปแบบไม่ได้ตั้งใจ
-        const usePersonalized = !sort && !!currentUserId;
+        // และเมื่อกรองด้วย author_id (หน้าโปรไฟล์) เราต้องการลำดับใหม่→เก่าของเจ้าของโพสต์
+        // เสมอ จึงปิด personalized order ไปด้วย
+        const usePersonalized = !sort && !!currentUserId && !authorId;
 
         let orderExpr;
         if (sort === 'liked') {
@@ -86,6 +90,7 @@ export async function onRequest({ request, env }) {
         const pageWhereParams = [];
         if (category && category !== 'null') { pageWhere += ` AND r.category = ?`; pageWhereParams.push(category); }
         if (hashtag) { pageWhere += ` AND r.hashtags LIKE ?`; pageWhereParams.push(`%${hashtag}%`); }
+        if (authorId) { pageWhere += ` AND r.user_id = ?`; pageWhereParams.push(authorId); }
         if (templateId) { pageWhere += ` AND r.template_id = ?`; pageWhereParams.push(templateId); }
 
         // 2 ขั้น: (1) "page" เลือกแค่ id ของแถวที่ชนะ ORDER BY + LIMIT/OFFSET ก่อน

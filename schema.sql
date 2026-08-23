@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   username TEXT,
   email TEXT UNIQUE,
   password TEXT,
+  bio TEXT,
   avatar_url TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

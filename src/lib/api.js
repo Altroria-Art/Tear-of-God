@@ -67,7 +67,7 @@ export async function fetchRankings(categoryParam) {
     let url = `${API_URL}/api/rankings`;
     
     if (typeof categoryParam === 'object' && categoryParam !== null) {
-      const { category, hashtag, userId, templateId, sort, page, limit } = categoryParam;
+      const { category, hashtag, userId, authorId, templateId, sort, page, limit } = categoryParam;
       const params = new URLSearchParams();
 
       if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
@@ -75,6 +75,8 @@ export async function fetchRankings(categoryParam) {
       }
       if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
       if (userId) params.append('user_id', userId);
+      // authorId = กรองเฉพาะโพสต์ของผู้ใช้คนนี้ (ใช้ตอนดูโปรไฟล์คนอื่น)
+      if (authorId) params.append('author_id', authorId);
       if (templateId) params.append('template_id', templateId);
       if (sort) params.append('sort', sort);
       if (page) params.append('page', page);
@@ -106,8 +108,18 @@ export async function fetchRanking(postId, userId) {
   }
 }
 
-export async function createRanking(rankingData) {
+// 📍 ดึงโปรไฟล์สาธารณะของผู้ใช้ (ใช้ตอนเปิดดูโปรไฟล์คนอื่นจากหน้าฟีด/โพสต์)
+export async function fetchUserProfile(userId) {
   try {
+    const response = await fetch(`${API_URL}/api/users?id=${encodeURIComponent(userId)}`);
+    return await response.json();
+  } catch (error) {
+    console.error("fetchUserProfile error:", error);
+    return { data: null, error: 'ไม่สามารถดึงข้อมูลโปรไฟล์ได้' };
+  }
+}
+
+export async function createRanking(rankingData) {  try {
     const response = await fetch(`${API_URL}/api/rankings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

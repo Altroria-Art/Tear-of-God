@@ -1,42 +1,88 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, updateProfile } from '../lib/api'; // 📍 นำเข้า updateProfile
+import { fetchRankings, updateProfile, fetchUserProfile } from '../lib/api'; // 📍 เพิ่ม fetchUserProfile สำหรับดูโปรไฟล์คนอื่น
+
+// "Oct 2024" จาก created_at ที่ได้จาก API (แทนที่ข้อความ hardcode เดิม)
+function formatJoined(dateString) {
+  if (!dateString) return null;
+  const d = new Date(dateString);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { userId: routeUserId } = useParams(); // 📍 /profile/:userId = ดูโปรไฟล์คนอื่น, /profile = ของตัวเอง
   const { currentUser, login } = useUser();
 
-  const [myPosts, setMyPosts] = useState([]);
+  const profileUserId = routeUserId || currentUser?.id || null;
+  const isOwnProfile = !routeUserId || routeUserId === currentUser?.id;
+
+  const [posts, setPosts] = useState([]);
+  const [profileUser, setProfileUser] = useState(null);
+  const [notFound, setNotFound] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
 
+  // ยังไม่ล็อกอินและไม่ระบุ user ใน URL = ไม่รู้จะดูโปรไฟล์ใคร → พาไปหน้าล็อกอิน
+  // (ส่วน /profile/:userId เปิดดูแบบไม่ล็อกอินได้ เพราะเป็นข้อมูลสาธารณะ)
   useEffect(() => {
-    if (!currentUser) {
-      navigate('/login');
-      return;
-    }
-    setDisplayName(currentUser.username || '');
-    setBio(currentUser.bio || 'Master of tier lists. Categorizing the virtual world one tier at a time.');
+    if (!currentUser && !routeUserId) navigate('/login');
+  }, [currentUser, routeUserId, navigate]);
 
-    async function loadUserPosts() {
-      const { data } = await fetchRankings();
-      if (data) {
-        const filtered = data.filter(p => p.profile?.username === currentUser.username);
-        setMyPosts(filtered);
+  // 📍 โหลดโปรไฟล์ + โพสต์ของเจ้าของโปรไฟล์ที่กำลังดู (ตัวเองหรือคนอื่นก็ใช้ flow เดียวกัน)
+  // เดิมโหลด "ทุกโพสต์ในระบบ" แ้วมา filter ด้วย username ฝั่ง client — พังทันทีที่คน rename
+  // และโหลดได้แค่ 50 โพสต์แรกเท่านั้น ตอนนี้กรองฝั่ง server ด้วย author_id แทน
+  useEffect(() => {
+    if (!profileUserId) return;
+    let cancelled = false;
+    setProfileUser(null);
+    setPosts([]);
+    setNotFound(false);
+    setIsLoading(true);
+
+    async function loadProfile() {
+      const { data, error } = await fetchUserProfile(profileUserId);
+      if (cancelled) return;
+      if (error || !data) {
+        setNotFound(true);
+        setIsLoading(false);
+        return;
+      }
+      setProfileUser(data);
+
+      const { data: postData } = await fetchRankings({
+        authorId: profileUserId,
+        sort: 'recent',
+        limit: 50,
+      });
+      if (!cancelled) {
+        setPosts(postData || []);
+        setIsLoading(false);
       }
     }
-    loadUserPosts();
-  }, [currentUser, navigate]);
+    loadProfile();
+    return () => { cancelled = true };
+  }, [profileUserId]);
 
-  // 📍 [แก้ไขแล้ว]: ยิง API บันทึกข้อมูลโปรไฟล์ของจริง
+  // ฟอร์มแก้ไข (เฉพาะโปรไฟล์ตัวเอง) sync กับ user ล่าสุดใน context
+  useEffect(() => {
+    if (isOwnProfile && currentUser) {
+      setDisplayName(currentUser.username || '');
+      setBio(currentUser.bio || 'Master of tier lists. Categorizing the virtual world one tier at a time.');
+    }
+  }, [isOwnProfile, currentUser]);
+
+  // 📍 [แก้ไขแล้ว]: ยิง API บันทึกข้อมูลโปรไฟล์ของจริง (เฉพาะเมื่อดูโปรไฟล์ตัวเอง)
   const handleSaveChanges = async (e) => {
     e.preventDefault();
-    
-    const { error } = await updateProfile(currentUser.id, { 
-      username: displayName, 
-      bio: bio 
+
+    const { error } = await updateProfile(currentUser.id, {
+      username: displayName,
+      bio: bio
     });
 
     if (error) {
@@ -50,45 +96,82 @@ export default function Profile() {
     alert('อัปเดตโปรไฟล์สำเร็จ!');
   };
 
-  if (!currentUser) return null;
+  if (!currentUser && !routeUserId) return null;
+
+  if (notFound) {
+    return (
+      <main className="bg-[#fdf8f4] min-h-screen flex items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-lg font-bold text-gray-800">ไม่พบผู้ใช้นี้ในระบบ</p>
+          <button onClick={() => navigate('/')} className="mt-2 text-sm font-bold text-[#7c5d22] hover:underline">
+            กลับสู่หน้าหลัก
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <main className="bg-[#fdf8f4] min-h-screen flex items-center justify-center px-4">
+        <p className="text-sm font-medium text-gray-400 animate-pulse">กำลังโหลดโปรไฟล์...</p>
+      </main>
+    );
+  }
+
+  // โปรไฟล์ตัวเอง: ค่าจาก context (สดหลังแก้ไข) ทับค่าจาก API — แต่ created_at/posts_count มีแค่ใน API
+  // โปรไฟล์คนอื่น: ใช้ค่าจาก API เท่านั้น (context เป็นข้อมูลของเราเอง ห้ามเอามาแสดง)
+  const displayUser = isOwnProfile
+    ? { ...(profileUser || {}), ...(currentUser || {}) }
+    : profileUser;
+  const joinedLabel = formatJoined(displayUser?.created_at) ?? '—';
+  const totalLikes = posts.reduce((n, p) => n + (p.stats?.likes || 0), 0);
 
   return (
     <div className="bg-[#fdf8f4] text-gray-900 antialiased min-h-screen flex flex-col font-sans">
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          
+
           {/* Left Sidebar: User Profile Info */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white p-6 rounded-2xl border border-[#f3e8df] shadow-sm text-center">
               <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden bg-[#f3e8df] border-2 border-[#7c5d22]">
-                {currentUser.avatar_url ? (
-                  <img src={currentUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                {displayUser?.avatar_url ? (
+                  <img src={displayUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-[#7c5d22]">
-                    {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : 'U'}
+                    {displayUser?.username ? displayUser.username.charAt(0).toUpperCase() : 'U'}
                   </div>
                 )}
               </div>
 
-              <h2 className="text-xl font-bold text-gray-900 mb-1">{currentUser.username}</h2>
-              <p className="text-xs text-gray-500 mb-4 leading-relaxed">{bio}</p>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">{displayUser?.username}</h2>
+              {/* 📍 bio จาก DB จริงแล้ว (migrations/0003_profile_bio.sql) — โชว์ได้ทั้งโปรไฟล์ตัวเองและคนอื่น */}
+              {displayUser?.bio ? (
+                <p className="text-xs text-gray-500 mb-4 leading-relaxed">{displayUser.bio}</p>
+              ) : (
+                <p className="text-xs text-gray-400 italic mb-4 leading-relaxed">ยังไม่ได้เขียน Bio</p>
+              )}
 
-              <button 
-                onClick={() => setIsEditOpen(true)}
-                className="w-full py-2 bg-[#fdf8f4] hover:bg-[#f3e8df] border border-[#f3e8df] text-[#7c5d22] font-bold rounded-xl text-sm transition-colors shadow-xs"
-              >
-                Edit Profile
-              </button>
+              {isOwnProfile && (
+                <button
+                  onClick={() => setIsEditOpen(true)}
+                  className="w-full py-2 bg-[#fdf8f4] hover:bg-[#f3e8df] border border-[#f3e8df] text-[#7c5d22] font-bold rounded-xl text-sm transition-colors shadow-xs"
+                >
+                  Edit Profile
+                </button>
+              )}
 
               <div className="mt-6 pt-6 border-t border-gray-100 flex justify-around text-center text-xs text-gray-500">
                 <div>
-                  <p className="font-bold text-gray-900">Oct 2024</p>
+                  <p className="font-bold text-gray-900">{joinedLabel}</p>
                   <p>Joined</p>
                 </div>
+                {/* ยอดไลก์รวมจากโพสต์จริง (แทนสูตร views ปลอมเดิม) */}
                 <div>
-                  <p className="font-bold text-gray-900">{myPosts.length * 150 + 45}</p>
-                  <p>List Views</p>
+                  <p className="font-bold text-gray-900">{totalLikes}</p>
+                  <p>Total Likes</p>
                 </div>
               </div>
             </div>
@@ -96,29 +179,46 @@ export default function Profile() {
 
           {/* Right Content: Create Template Button & List of User Posts */}
           <div className="lg:col-span-3 space-y-6">
-            
-            {/* Create New Template Banner */}
-            <div 
-              onClick={() => navigate('/create')}
-              className="bg-white border-2 border-dashed border-[#cec6b4] hover:border-[#7c5d22] rounded-2xl p-6 text-center cursor-pointer transition-colors group"
-            >
-              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-[#fdf8f4] border border-[#f3e8df] flex items-center justify-center text-[#7c5d22] group-hover:scale-105 transition-transform">
-                +
+
+            {/* Create New Template Banner (เฉพาะโปรไฟล์ตัวเอง) */}
+            {isOwnProfile && (
+              <div
+                onClick={() => navigate('/create')}
+                className="bg-white border-2 border-dashed border-[#cec6b4] hover:border-[#7c5d22] rounded-2xl p-6 text-center cursor-pointer transition-colors group"
+              >
+                <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-[#fdf8f4] border border-[#f3e8df] flex items-center justify-center text-[#7c5d22] group-hover:scale-105 transition-transform">
+                  +
+                </div>
+                <h3 className="font-bold text-gray-900">Create New Template</h3>
+                <p className="text-xs text-gray-500">Start a new tier list from scratch</p>
               </div>
-              <h3 className="font-bold text-gray-900">Create New Template</h3>
-              <p className="text-xs text-gray-500">Start a new tier list from scratch</p>
-            </div>
+            )}
+
+            {!isOwnProfile && (
+              <div className="bg-white rounded-2xl p-6 border border-[#f3e8df]">
+                <h3 className="text-lg font-bold text-gray-900">Tier Lists by {displayUser?.username}</h3>
+                <p className="text-xs text-gray-500 mt-1">Tier List ทั้งหมดที่ {displayUser?.username} สร้างไว้</p>
+              </div>
+            )}
 
             {/* User's Created Templates */}
-            {myPosts.length === 0 ? (
-              <p className="text-center text-sm text-gray-500 py-8 bg-white rounded-2xl border border-[#f3e8df]">คุณยังไม่ได้สร้าง Tier List ใดๆ ลองกดสร้างด้านบนได้เลย!</p>
+            {posts.length === 0 ? (
+              <p className="text-center text-sm text-gray-500 py-8 bg-white rounded-2xl border border-[#f3e8df]">
+                {isOwnProfile
+                  ? 'คุณยังไม่ได้สร้าง Tier List ใดๆ ลองกดสร้างด้านบนได้เลย!'
+                  : `${displayUser?.username || 'ผู้ใช้นี้'} ยังไม่มี Tier List ที่โพสต์ไว้`}
+              </p>
             ) : (
-              myPosts.map((post) => (
-                <article key={post.id} className="bg-white rounded-2xl p-5 shadow-sm border border-[#f3e8df]">
+              posts.map((post) => (
+                <article
+                  key={post.id}
+                  onClick={() => navigate(`/post/${post.id}`)}
+                  className="bg-white rounded-2xl p-5 shadow-sm border border-[#f3e8df] cursor-pointer hover:border-[#cec6b4] transition-colors"
+                >
                   <div className="text-xs font-bold text-[#7c5d22] uppercase tracking-wider mb-1">Created a Template</div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">{post.title}</h3>
-                  
-                  {/* Mock Preview Tiers */}
+
+                  {/* Preview Tiers */}
                   <div className="bg-[#fdf8f4] rounded-xl p-3 border border-[#f3e8df] space-y-2 mb-4">
                     <div className="flex bg-white rounded-lg border border-[#f3e8df] overflow-hidden min-h-[50px]">
                       <div className="bg-[#ff7f7f] text-white w-12 flex-shrink-0 flex items-center justify-center font-bold">S</div>
@@ -147,11 +247,11 @@ export default function Profile() {
 
       </main>
 
-      {/* Edit Profile Modal */}
-      {isEditOpen && (
+      {/* Edit Profile Modal (เฉพาะโปรไฟล์ตัวเอง) */}
+      {isOwnProfile && isEditOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl border border-[#f3e8df] relative">
-            <button 
+            <button
               onClick={() => setIsEditOpen(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold"
             >
@@ -176,10 +276,10 @@ export default function Profile() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">Display Name</label>
-                <input 
-                  type="text" 
-                  value={displayName} 
-                  onChange={(e) => setDisplayName(e.target.value)} 
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#7c5d22]"
                   required
                 />
@@ -187,23 +287,23 @@ export default function Profile() {
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">Bio</label>
-                <textarea 
-                  value={bio} 
-                  onChange={(e) => setBio(e.target.value)} 
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
                   className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#7c5d22] h-24"
                 ></textarea>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setIsEditOpen(false)} 
+                <button
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
                   className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="px-5 py-2 text-sm font-bold bg-[#7c5d22] hover:bg-[#63491b] text-white rounded-xl shadow-sm"
                 >
                   Save Changes

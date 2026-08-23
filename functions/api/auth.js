@@ -16,7 +16,7 @@ export async function onRequest({ request, env }) {
 
   try {
     const payload = await request.json();
-    const { action, email, password, username, avatar_url, id, user_id } = payload;
+    const { action, email, password, username, bio, avatar_url, id, user_id } = payload;
 
     if (action === 'register') {
       if (!email || !password) return jsonResponse({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' }, 400);
@@ -44,7 +44,7 @@ export async function onRequest({ request, env }) {
       if (users.length === 0) return jsonResponse({ success: false, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }, 401);
 
       const user = users[0];
-      return jsonResponse({ success: true, data: { id: user.id, username: user.username, email: user.email, avatar_url: user.avatar_url } }, 200);
+      return jsonResponse({ success: true, data: { id: user.id, username: user.username, email: user.email, bio: user.bio || null, avatar_url: user.avatar_url } }, 200);
     }
 
     else if (action === 'google_sync') {
@@ -69,6 +69,7 @@ export async function onRequest({ request, env }) {
       const updates = [];
       const params = [];
       if (username !== undefined) { updates.push('username = ?'); params.push(username); }
+      if (bio !== undefined) { updates.push('bio = ?'); params.push(bio); }
       if (avatar_url !== undefined) { updates.push('avatar_url = ?'); params.push(avatar_url); }
       if (password !== undefined) { updates.push('password = ?'); params.push(await hashPassword(password)); }
 
@@ -77,7 +78,7 @@ export async function onRequest({ request, env }) {
       params.push(user_id);
       await db.prepare(`UPDATE profiles SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run();
 
-      const { results: users } = await db.prepare('SELECT id, username, email, avatar_url FROM profiles WHERE id = ?').bind(user_id).all();
+      const { results: users } = await db.prepare('SELECT id, username, email, bio, avatar_url FROM profiles WHERE id = ?').bind(user_id).all();
       return jsonResponse({ success: true, data: users[0] || null }, 200);
     }
 

@@ -36,6 +36,7 @@ function App() {
               <Route path="/template/:templateId" element={<TemplateDetailPage />} />
               <Route path="/post/:postId" element={<PostDetail />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/profile/:userId" element={<Profile />} /> {/* 📍 ดูโปรไฟล์ของคนอื่น */}
               <Route path="/login" element={<Login />} /> {/* 4. เพิ่มเส้นทางไปหน้า Login */}
             </Routes>
           </FeedProvider>
