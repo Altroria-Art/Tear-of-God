@@ -49,6 +49,7 @@ export default function PostDetail() {
         setPost({
           id: data.id,
           templateId: data.template_id ?? null,
+          authorId: data.profile?.id ?? null,
           author: {
             name: data.profile?.username || 'Unknown User',
             avatarUrl: data.profile?.avatar_url
@@ -191,7 +192,7 @@ export default function PostDetail() {
     )
   }
 
-  const { author, postedAt, category, title, description, tiers, stats } = post
+  const { author, authorId, postedAt, category, title, description, tiers, stats } = post
   const itemCount = tiers.reduce((n, { items }) => n + items.length, 0)
   // ใช้เฉพาะ template ที่ตรงกับโพสต์ปัจจุบัน — กัน metadata ของ template เก่าค้างจอตอนสลับโพสต์
   const tpl = template?.id === post.templateId ? template : null
@@ -205,13 +206,17 @@ export default function PostDetail() {
           </Link>
 
           <article className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-3">
+            {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
+            <Link
+              to={authorId ? `/profile/${authorId}` : '#'}
+              className={`flex items-center gap-3 w-fit ${!authorId ? 'pointer-events-none' : ''}`}
+            >
               <Avatar name={author.name} src={author.avatarUrl} />
               <div>
-                <p className="text-sm font-bold text-gray-900">{author.name}</p>
+                <p className="text-sm font-bold text-gray-900 hover:text-[#fbbf24] transition-colors">{author.name}</p>
                 <p className="text-xs text-gray-500">{postedAt}</p>
               </div>
-            </div>
+            </Link>
 
             <p className="mt-4 inline-block rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold tracking-wider text-gray-600 uppercase">
               {category}

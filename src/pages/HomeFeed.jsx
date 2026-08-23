@@ -243,6 +243,7 @@ export default function HomeFeed() {
                 
                 {/* Header Profile & Use Template Button */}
                 <div className="flex items-start justify-between mb-4">
+                  {/* 📍 คลิกที่การ์ด = เข้าโพสต์ก่อน แล้วค่อยกดชื่อผู้สร้างในหน้าโพสต์เพื่อดูโปรไฟล์ */}
                   <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/post/${post.id}`)}>
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
                       {post.profile?.avatar_url ? (
