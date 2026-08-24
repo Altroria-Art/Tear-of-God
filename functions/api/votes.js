@@ -31,9 +31,16 @@ export async function onRequest(context) {
     // 2. ถ้า voteType เป็น null แปลว่าผู้ใช้กดย้ำเพื่อ "ยกเลิกไลก์/ดิสไลก์"
     if (!voteType) {
       if (existing.length > 0) {
-        await db.prepare(
-          `DELETE FROM votes WHERE ranking_id = ? AND user_id = ?`
-        ).bind(rankingId, userId).run();
+        const statements = [
+          db.prepare(`DELETE FROM votes WHERE ranking_id = ? AND user_id = ?`).bind(rankingId, userId)
+        ];
+        const oldVote = existing[0].vote_type;
+        if (oldVote === 'like') {
+          statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count - 1 WHERE id = ?`).bind(rankingId));
+        } else if (oldVote === 'dislike') {
+          statements.push(db.prepare(`UPDATE rankings SET dislikes_count = dislikes_count - 1 WHERE id = ?`).bind(rankingId));
+        }
+        await db.batch(statements);
       }
     } else {
       // 3. ตรวจสอบความถูกต้องของประเภทการโหวต
@@ -42,26 +49,39 @@ export async function onRequest(context) {
       }
 
       if (existing.length > 0) {
-        // ถ้าเคยโหวตแล้ว ให้ Update เปลี่ยนสถานะ (เช่น จาก Like เป็น Dislike)
-        await db.prepare(
-          `UPDATE votes SET vote_type = ? WHERE ranking_id = ? AND user_id = ?`
-        ).bind(voteType, rankingId, userId).run();
+        const oldVote = existing[0].vote_type;
+        if (oldVote !== voteType) {
+          const statements = [
+            db.prepare(`UPDATE votes SET vote_type = ? WHERE ranking_id = ? AND user_id = ?`).bind(voteType, rankingId, userId)
+          ];
+          if (voteType === 'like') {
+            statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1, dislikes_count = dislikes_count - 1 WHERE id = ?`).bind(rankingId));
+          } else {
+            statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count - 1, dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
+          }
+          await db.batch(statements);
+        }
       } else {
         // ถ้ายังไม่เคย ให้ Insert ข้อมูลใหม่
         const voteId = crypto.randomUUID();
-        await db.prepare(
-          `INSERT INTO votes (id, ranking_id, user_id, vote_type) VALUES (?, ?, ?, ?)`
-        ).bind(voteId, rankingId, userId, voteType).run();
+        const statements = [
+          db.prepare(`INSERT INTO votes (id, ranking_id, user_id, vote_type) VALUES (?, ?, ?, ?)`).bind(voteId, rankingId, userId, voteType)
+        ];
+        if (voteType === 'like') {
+          statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1 WHERE id = ?`).bind(rankingId));
+        } else {
+          statements.push(db.prepare(`UPDATE rankings SET dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
+        }
+        await db.batch(statements);
       }
     }
 
     // 4. อ่านค่าจริงหลังเขียนเสร็จแล้วส่งกลับไป — ฝั่ง client จะได้ไม่ต้องเดาด้วยการ +1/-1 เอง
     //    (ดู docs/feature-like-dislike-voting.md §8 เรื่องเลขที่บวกเองแล้วเพี้ยนสะสม)
     const { results: fresh } = await db.prepare(
-      `SELECT
-         (SELECT COUNT(*) FROM votes WHERE ranking_id = ?1 AND vote_type = 'like') AS likes,
-         (SELECT COUNT(*) FROM votes WHERE ranking_id = ?1 AND vote_type = 'dislike') AS dislikes,
-         (SELECT vote_type FROM votes WHERE ranking_id = ?1 AND user_id = ?2) AS user_vote`
+      `SELECT likes_count as likes, dislikes_count as dislikes, 
+         (SELECT vote_type FROM votes WHERE ranking_id = ?1 AND user_id = ?2) AS user_vote
+       FROM rankings WHERE id = ?1`
     ).bind(rankingId, userId).all();
 
     return jsonResponse({
