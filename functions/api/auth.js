@@ -16,7 +16,7 @@ export async function onRequest({ request, env }) {
 
   try {
     const payload = await request.json();
-    const { action, email, password, username, bio, avatar_url, id, user_id } = payload;
+    const { action, email, password, username, bio, avatar_url, id, user_id, university, faculty, major, year } = payload;
 
     if (action === 'register') {
       if (!email || !password) return jsonResponse({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' }, 400);
@@ -44,7 +44,7 @@ export async function onRequest({ request, env }) {
       if (users.length === 0) return jsonResponse({ success: false, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }, 401);
 
       const user = users[0];
-      return jsonResponse({ success: true, data: { id: user.id, username: user.username, email: user.email, bio: user.bio || null, avatar_url: user.avatar_url } }, 200);
+      return jsonResponse({ success: true, data: { id: user.id, username: user.username, email: user.email, bio: user.bio || null, avatar_url: user.avatar_url, university: user.university || null, faculty: user.faculty || null, major: user.major || null, year: user.year || null } }, 200);
     }
 
     else if (action === 'google_sync') {
@@ -71,6 +71,10 @@ export async function onRequest({ request, env }) {
       if (username !== undefined) { updates.push('username = ?'); params.push(username); }
       if (bio !== undefined) { updates.push('bio = ?'); params.push(bio); }
       if (avatar_url !== undefined) { updates.push('avatar_url = ?'); params.push(avatar_url); }
+      if (university !== undefined) { updates.push('university = ?'); params.push(university); }
+      if (faculty !== undefined) { updates.push('faculty = ?'); params.push(faculty); }
+      if (major !== undefined) { updates.push('major = ?'); params.push(major); }
+      if (year !== undefined) { updates.push('year = ?'); params.push(year); }
       if (password !== undefined) { updates.push('password = ?'); params.push(await hashPassword(password)); }
 
       if (updates.length === 0) return jsonResponse({ success: false, error: 'No fields to update' }, 400);
@@ -78,7 +82,7 @@ export async function onRequest({ request, env }) {
       params.push(user_id);
       await db.prepare(`UPDATE profiles SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run();
 
-      const { results: users } = await db.prepare('SELECT id, username, email, bio, avatar_url FROM profiles WHERE id = ?').bind(user_id).all();
+      const { results: users } = await db.prepare('SELECT id, username, email, bio, avatar_url, university, faculty, major, year FROM profiles WHERE id = ?').bind(user_id).all();
       return jsonResponse({ success: true, data: users[0] || null }, 200);
     }
 

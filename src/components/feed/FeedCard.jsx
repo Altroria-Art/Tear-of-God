@@ -15,7 +15,7 @@ export default function FeedCard({ post, vote, stats, onVote }) {
   const { author, postedAt, category, title, templateName, tiers } = post
 
   return (
-    <article className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+    <article className="rounded-2xl border border-line bg-surface p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <Avatar name={author.name} src={author.avatarUrl} />
@@ -27,7 +27,7 @@ export default function FeedCard({ post, vote, stats, onVote }) {
 
         <button
           type="button"
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:bg-search"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-zinc-100 border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
         >
           <TemplateIcon className="h-3.5 w-3.5" />
           Use Template: {templateName}
@@ -82,3 +82,4 @@ export default function FeedCard({ post, vote, stats, onVote }) {
     </article>
   )
 }
+

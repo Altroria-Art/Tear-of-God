@@ -4,17 +4,7 @@ import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
 import { ThumbsUp, ThumbsDown, MessageSquare, Copy } from 'lucide-react';
 
-function timeAgo(dateString) {
-  if (!dateString) return 'Just now';
-  const seconds = Math.round((new Date() - new Date(dateString)) / 1000);
-  if (seconds < 60) return `${seconds} seconds ago`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} minutes ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} hours ago`;
-  const days = Math.round(hours / 24);
-  return `${days} days ago`;
-}
+import { timeAgo } from '../lib/format';
 
 const groupItemsByTier = (rankingItems) => {
   if (!rankingItems || !Array.isArray(rankingItems)) return {};
@@ -243,9 +233,11 @@ export default function HomeFeed() {
                 
                 {/* Header Profile & Use Template Button */}
                 <div className="flex items-start justify-between mb-4">
-                  {/* 📍 คลิกที่การ์ด = เข้าโพสต์ก่อน แล้วค่อยกดชื่อผู้สร้างในหน้าโพสต์เพื่อดูโปรไฟล์ */}
-                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/post/${post.id}`)}>
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
+                    >
                       {post.profile?.avatar_url ? (
                         <img src={post.profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                       ) : (
@@ -255,18 +247,24 @@ export default function HomeFeed() {
                       )}
                     </div>
                     <div>
-                      <h3 className="text-[15px] font-bold text-gray-900 leading-tight">
+                      <h3 
+                        className="text-[15px] font-bold text-gray-900 leading-tight cursor-pointer hover:underline"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
+                      >
                         {post.profile?.username || 'Unknown User'}
                       </h3>
-                      <p className="text-[13px] text-gray-500 font-medium">
+                      <p 
+                        className="text-[13px] text-gray-500 font-medium cursor-pointer"
+                        onClick={() => navigate(`/post/${post.id}`)}
+                      >
                         {timeAgo(post.created_at)}
                       </p>
                     </div>
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => navigate('/create', { state: { templateName: post.title } })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#fdfaf3] hover:bg-[#faeec5] text-[#b48e35] text-xs font-bold rounded-full transition-colors border border-[#faeec5]"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-bold rounded-full transition-all shadow-sm hover:bg-zinc-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
                   >
                     <Copy size={12} strokeWidth={2.5} />
                     <span>Use Template: {post.title}</span>
@@ -275,11 +273,18 @@ export default function HomeFeed() {
 
                 {/* Hashtags */}
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {hashtags.slice(0, 4).map((tag, idx) => (
-                    <span key={idx} className="px-3 py-1 rounded-md bg-[#f4f4f5] text-gray-600 text-[11px] font-bold uppercase tracking-wider">
-                      {tag.startsWith('#') ? tag : `#${tag}`}
-                    </span>
-                  ))}
+                  {hashtags.slice(0, 4).map((tag, idx) => {
+                    const cleanTag = tag.trim().replace('#', '');
+                    return (
+                      <span 
+                        key={idx} 
+                        onClick={(e) => { e.stopPropagation(); navigate(`/discover/hashtag/${encodeURIComponent(cleanTag)}`); }}
+                        className="px-3 py-1 rounded-md bg-[#f4f4f5] text-gray-600 text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                      >
+                        #{cleanTag}
+                      </span>
+                    );
+                  })}
                 </div>
 
                 {/* Title */}

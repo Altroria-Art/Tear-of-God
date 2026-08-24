@@ -1,0 +1,4 @@
+ALTER TABLE profiles ADD COLUMN university TEXT;
+ALTER TABLE profiles ADD COLUMN faculty TEXT;
+ALTER TABLE profiles ADD COLUMN major TEXT;
+ALTER TABLE profiles ADD COLUMN year TEXT;

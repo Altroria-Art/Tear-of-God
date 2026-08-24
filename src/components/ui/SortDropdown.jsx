@@ -25,7 +25,7 @@ export default function SortDropdown({ value, options, onChange, label = 'SORT B
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-[#f4efe8]"
+              className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-zinc-100"
             >
               {opt.label}
             </button>
@@ -35,3 +35,4 @@ export default function SortDropdown({ value, options, onChange, label = 'SORT B
     </div>
   );
 }
+

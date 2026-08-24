@@ -12,3 +12,4 @@ export default function HashtagPill({ tag, count }) {
     </Link>
   );
 }
+

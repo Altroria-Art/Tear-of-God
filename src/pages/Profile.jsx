@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, updateProfile, fetchUserProfile } from '../lib/api'; // 📍 เพิ่ม fetchUserProfile สำหรับดูโปรไฟล์คนอื่น
+import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow } from '../lib/api'; // 📍 เพิ่ม fetchUserProfile สำหรับดูโปรไฟล์คนอื่น
+import { timeAgo } from '../lib/format';
 import { useToast } from '../components/ui/Toast';
 
 // "Oct 2024" จาก created_at ที่ได้จาก API (แทนที่ข้อความ hardcode เดิม)
@@ -29,6 +30,13 @@ export default function Profile() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+  const [university, setUniversity] = useState('');
+  const [faculty, setFaculty] = useState('');
+  const [major, setMajor] = useState('');
+  const [year, setYear] = useState('');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
 
   // ยังไม่ล็อกอินและไม่ระบุ user ใน URL = ไม่รู้จะดูโปรไฟล์ใคร → พาไปหน้าล็อกอิน
   // (ส่วน /profile/:userId เปิดดูแบบไม่ล็อกอินได้ เพราะเป็นข้อมูลสาธารณะ)
@@ -48,7 +56,7 @@ export default function Profile() {
     setIsLoading(true);
 
     async function loadProfile() {
-      const { data, error } = await fetchUserProfile(profileUserId);
+      const { data, error } = await fetchUserProfile(profileUserId, currentUser?.id);
       if (cancelled) return;
       if (error || !data) {
         setNotFound(true);
@@ -56,6 +64,9 @@ export default function Profile() {
         return;
       }
       setProfileUser(data);
+      setIsFollowing(data.is_following || false);
+      setFollowersCount(data.followers_count || 0);
+      setFollowingCount(data.following_count || 0);
 
       const { data: postData } = await fetchRankings({
         authorId: profileUserId,
@@ -76,16 +87,47 @@ export default function Profile() {
     if (isOwnProfile && currentUser) {
       setDisplayName(currentUser.username || '');
       setBio(currentUser.bio || 'Master of tier lists. Categorizing the virtual world one tier at a time.');
+      setUniversity(currentUser.university || '');
+      setFaculty(currentUser.faculty || '');
+      setMajor(currentUser.major || '');
+      setYear(currentUser.year || '');
     }
   }, [isOwnProfile, currentUser]);
 
   // 📍 [แก้ไขแล้ว]: ยิง API บันทึกข้อมูลโปรไฟล์ของจริง (เฉพาะเมื่อดูโปรไฟล์ตัวเอง)
+  const handleToggleFollow = async () => {
+    if (!currentUser) {
+      toast.error('กรุณาเข้าสู่ระบบเพื่อติดตามผู้ใช้นี้');
+      navigate('/login');
+      return;
+    }
+    
+    // Optimistic UI update
+    const previousFollowing = isFollowing;
+    const previousCount = followersCount;
+    
+    setIsFollowing(!previousFollowing);
+    setFollowersCount(previousCount + (previousFollowing ? -1 : 1));
+    
+    const { error } = await toggleFollow(currentUser.id, displayUser.id, previousFollowing);
+    
+    if (error) {
+      toast.error('ไม่สามารถทำรายการได้');
+      setIsFollowing(previousFollowing);
+      setFollowersCount(previousCount);
+    }
+  };
+
   const handleSaveChanges = async (e) => {
     e.preventDefault();
 
     const { error } = await updateProfile(currentUser.id, {
       username: displayName,
-      bio: bio
+      bio: bio,
+      university,
+      faculty,
+      major,
+      year
     });
 
     if (error) {
@@ -93,7 +135,7 @@ export default function Profile() {
       return;
     }
 
-    const updatedUser = { ...currentUser, username: displayName, bio };
+    const updatedUser = { ...currentUser, username: displayName, bio, university, faculty, major, year };
     login(updatedUser); // อัปเดตข้อมูลใน Context / LocalStorage
     setIsEditOpen(false);
     toast.success('อัปเดตโปรไฟล์สำเร็จ!');
@@ -150,11 +192,37 @@ export default function Profile() {
               </div>
 
               <h2 className="text-xl font-bold text-gray-900 mb-1">{displayUser?.username}</h2>
+              <div className="flex justify-center gap-4 text-sm text-gray-500 mb-3">
+                <span><strong>{followersCount}</strong> Followers</span>
+                <span><strong>{followingCount}</strong> Following</span>
+              </div>
+              {!isOwnProfile && (
+                <button
+                  onClick={handleToggleFollow}
+                  className={`w-full py-2 mb-4 font-bold rounded-xl text-sm transition-all shadow-sm active:scale-[0.97] ${
+                    isFollowing 
+                      ? 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 border border-zinc-200'
+                      : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                  }`}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
+              )}
               {/* 📍 bio จาก DB จริงแล้ว (migrations/0003_profile_bio.sql) — โชว์ได้ทั้งโปรไฟล์ตัวเองและคนอื่น */}
               {displayUser?.bio ? (
                 <p className="text-xs text-gray-500 mb-4 leading-relaxed">{displayUser.bio}</p>
               ) : (
                 <p className="text-xs text-gray-400 italic mb-4 leading-relaxed">ยังไม่ได้เขียน Bio</p>
+              )}
+
+              {/* Education Info */}
+              {(displayUser?.university || displayUser?.faculty || displayUser?.major || displayUser?.year) && (
+                <div className="mt-4 mb-4 text-xs text-gray-600 text-left bg-zinc-50 p-3 rounded-xl border border-zinc-100 space-y-1">
+                  {displayUser?.university && <p><strong className="text-zinc-800">มหาวิทยาลัย:</strong> {displayUser.university}</p>}
+                  {displayUser?.faculty && <p><strong className="text-zinc-800">คณะ:</strong> {displayUser.faculty}</p>}
+                  {displayUser?.major && <p><strong className="text-zinc-800">สาขา:</strong> {displayUser.major}</p>}
+                  {displayUser?.year && <p><strong className="text-zinc-800">ชั้นปี:</strong> {displayUser.year}</p>}
+                </div>
               )}
 
               {isOwnProfile && (
@@ -234,7 +302,7 @@ export default function Profile() {
                   </div>
 
                   <div className="flex justify-between items-center text-xs text-gray-400">
-                    <span>Recently added</span>
+                    <span>{timeAgo(post.created_at)}</span>
                     <div className="flex items-center gap-4 text-gray-500">
                       <span className="flex items-center gap-1.5"><ThumbsUp size={14} /> {post.stats?.likes || 0}</span>
                       <span className="flex items-center gap-1.5"><ThumbsDown size={14} /> {post.stats?.dislikes || 0}</span>
@@ -284,7 +352,7 @@ export default function Profile() {
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#7c5d22]"
+                  className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#7c5d22]"
                   required
                 />
               </div>
@@ -294,8 +362,49 @@ export default function Profile() {
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#7c5d22] h-24"
+                  className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900 h-24"
                 ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">มหาวิทยาลัย</label>
+                <input
+                  type="text"
+                  value={university}
+                  onChange={(e) => setUniversity(e.target.value)}
+                  className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">คณะ</label>
+                  <input
+                    type="text"
+                    value={faculty}
+                    onChange={(e) => setFaculty(e.target.value)}
+                    className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">สาขา</label>
+                  <input
+                    type="text"
+                    value={major}
+                    onChange={(e) => setMajor(e.target.value)}
+                    className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">ชั้นปี</label>
+                <input
+                  type="text"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
@@ -321,3 +430,4 @@ export default function Profile() {
     </div>
   );
 }
+

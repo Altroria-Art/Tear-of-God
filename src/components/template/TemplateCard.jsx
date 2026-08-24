@@ -54,7 +54,7 @@ export default function TemplateCard({ template, onUse }) {
         </div>
         <button
           onClick={() => onUse?.(template)}
-          className="w-full py-2.5 bg-[#ffc329] hover:bg-[#f9bd22] text-[#261a00] font-bold rounded-lg flex items-center justify-center gap-2 transition-colors shadow-sm"
+          className="w-full py-2.5 bg-zinc-100 border border-zinc-200 hover:bg-zinc-200 text-zinc-700 font-bold rounded-lg flex items-center justify-center gap-2 transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
         >
           Use Template
         </button>
@@ -62,3 +62,4 @@ export default function TemplateCard({ template, onUse }) {
     </div>
   );
 }
+

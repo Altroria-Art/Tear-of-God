@@ -99,7 +99,7 @@ export default function PopularHashtags() {
                 value={inputValue}
                 onChange={(e) => handleFilterChange(e.target.value)}
                 placeholder="Filter tags..."
-                className="bg-[#f4efe8] border border-[#e8dfd3] rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none focus:ring-2 focus:ring-[#8B6F4E] text-gray-800 transition-shadow placeholder-gray-500"
+                className="bg-zinc-100 border border-zinc-200 rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none focus:ring-2 focus:ring-zinc-900 text-gray-800 transition-shadow placeholder-gray-500"
               />
             </div>
             <SortDropdown value={sort} options={SORT_OPTIONS} onChange={handleSortChange} label="Sort:" />
@@ -123,3 +123,4 @@ export default function PopularHashtags() {
     </div>
   );
 }
+
