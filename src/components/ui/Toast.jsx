@@ -43,7 +43,7 @@ function ToastItem({ toast, onDismiss }) {
       </button>
 
       <div
-        className={`h-1 animate-toast-progress ${variant.bar}`}
+        className={`h-1 animate-toast-progress transition-opacity duration-300 ${variant.bar} ${toast.isSticky ? 'opacity-0' : 'opacity-100'}`}
         style={{
           animationDuration: `${toast.duration}ms`,
           animationPlayState: toast.paused ? 'paused' : 'running',
@@ -96,8 +96,9 @@ function ToastProvider({ children }) {
     const rec = timers.current.get(id);
     if (!rec || rec.timer == null) return;
     clearTimeout(rec.timer);
+    rec.timer = null;
     rec.remaining -= Date.now() - rec.start;
-    setToasts((ts) => ts.map((t) => (t.id === id ? { ...t, paused: true } : t)));
+    setToasts((ts) => ts.map((t) => (t.id === id ? { ...t, paused: true, isSticky: true } : t)));
   };
 
   const resumeTimer = (id) => {
@@ -129,7 +130,6 @@ function ToastProvider({ children }) {
           <div
             key={toast.id}
             onMouseEnter={() => pauseTimer(toast.id)}
-            onMouseLeave={() => resumeTimer(toast.id)}
           >
             <ToastItem toast={toast} onDismiss={dismiss} />
           </div>
@@ -146,3 +146,4 @@ export function useToast() {
 }
 
 export default ToastProvider;
+

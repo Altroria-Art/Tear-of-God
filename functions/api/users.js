@@ -12,15 +12,17 @@ export async function onRequest({ request, env }) {
     const id = new URL(request.url).searchParams.get('id');
     if (!id) return jsonResponse({ success: false, error: 'Missing id' }, 400);
 
-    // SELECT p.* แทนการระบุคอลัมน์ตรงๆ — ถ้า DB ยังไม่รัน migration 0003 (bio)
-    // จะไม่พังทั้ง endpoint แค่ bio เป็น null เฉยๆ (ตอบกลับเฉพาะฟิลด์สาธารณะด้านล่างอยู่แล้ว
-    // email/password ไม่หลุดออกไปแน่นอน)
+    const viewerId = new URL(request.url).searchParams.get('viewer_id');
+
     const { results } = await db.prepare(`
       SELECT p.*,
-        (SELECT COUNT(*) FROM rankings r WHERE r.user_id = p.id) as posts_count
+        (SELECT COUNT(*) FROM rankings r WHERE r.user_id = p.id) as posts_count,
+        (SELECT COUNT(*) FROM follows f WHERE f.following_id = p.id) as followers_count,
+        (SELECT COUNT(*) FROM follows f WHERE f.follower_id = p.id) as following_count,
+        ${viewerId ? `(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = p.id)` : 'NULL'} as is_following
       FROM profiles p
       WHERE p.id = ?
-    `).bind(id).all();
+    `).bind(...(viewerId ? [viewerId, id] : [id])).all();
 
     if (results.length === 0) {
       return jsonResponse({ success: false, error: 'ไม่พบผู้ใช้นี้' }, 404);
@@ -34,8 +36,15 @@ export async function onRequest({ request, env }) {
         username: user.username || 'Unknown',
         avatar_url: user.avatar_url || null,
         bio: user.bio || null,
+        university: user.university || null,
+        faculty: user.faculty || null,
+        major: user.major || null,
+        year: user.year || null,
         created_at: user.created_at || null,
         posts_count: user.posts_count || 0,
+        followers_count: user.followers_count || 0,
+        following_count: user.following_count || 0,
+        is_following: !!user.is_following,
       },
     });
   } catch (err) {

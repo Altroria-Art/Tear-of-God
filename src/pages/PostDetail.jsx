@@ -226,8 +226,25 @@ export default function PostDetail() {
 
             <h1 className="mt-2 text-2xl font-bold text-gray-900">{title}</h1>
             {description && <p className="mt-2 text-sm text-gray-600">{description}</p>}
+            
+            {post.hashtags && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {post.hashtags.split(',').filter(Boolean).map((tag, idx) => {
+                  const cleanTag = tag.trim().replace('#', '');
+                  return (
+                    <Link 
+                      key={idx} 
+                      to={`/discover/hashtag/${encodeURIComponent(cleanTag)}`}
+                      className="px-3 py-1 rounded-md bg-[#f4f4f5] text-gray-600 text-[11px] font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors"
+                    >
+                      #{cleanTag}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
 
-            <div className="mt-4 space-y-2 rounded-xl border border-gray-100 p-2 bg-[#faf8f5]">
+            <div className="mt-4 space-y-2 rounded-xl border border-gray-100 p-2 bg-white">
               {tiers.map(({ tier, items }) => (
                 <TierRow key={tier} tier={tier} items={items} />
               ))}

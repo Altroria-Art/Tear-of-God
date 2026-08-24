@@ -41,6 +41,10 @@ export default function Login() {
         toast.error('สมัครสมาชิกไม่สำเร็จ: ' + error);
       } else {
         toast.success('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setUsername('');
         setIsRegister(false);
       }
     } else {
@@ -103,7 +107,7 @@ export default function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Your display name" 
-                className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#8B6F4E]"
+                className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
               />
             </div>
           )}
@@ -115,7 +119,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com" 
-              className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#8B6F4E]"
+              className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
               required
             />
           </div>
@@ -133,7 +137,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••" 
-                className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-[#8B6F4E]"
+                className="w-full bg-white border border-zinc-200 rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
                 required
               />
               <button
@@ -155,7 +159,7 @@ export default function Login() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••" 
-                  className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-[#8B6F4E]"
+                  className="w-full bg-white border border-zinc-200 rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
                   required
                 />
                 <button
@@ -205,7 +209,7 @@ export default function Login() {
           <button 
             type="button"
             onClick={() => setIsRegister(!isRegister)} 
-            className="font-bold text-[#8B6F4E] hover:underline ml-1"
+            className="font-bold text-zinc-900 hover:underline ml-1"
           >
             {isRegister ? 'Log in' : 'Create an account'}
           </button>

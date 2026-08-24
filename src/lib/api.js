@@ -109,9 +109,10 @@ export async function fetchRanking(postId, userId) {
 }
 
 // 📍 ดึงโปรไฟล์สาธารณะของผู้ใช้ (ใช้ตอนเปิดดูโปรไฟล์คนอื่นจากหน้าฟีด/โพสต์)
-export async function fetchUserProfile(userId) {
+export async function fetchUserProfile(userId, viewerId = null) {
   try {
-    const response = await fetch(`${API_URL}/api/users?id=${encodeURIComponent(userId)}`);
+    const url = `${API_URL}/api/users?id=${encodeURIComponent(userId)}${viewerId ? `&viewer_id=${encodeURIComponent(viewerId)}` : ''}`;
+    const response = await fetch(url);
     return await response.json();
   } catch (error) {
     console.error("fetchUserProfile error:", error);
@@ -119,6 +120,18 @@ export async function fetchUserProfile(userId) {
   }
 }
 
+export async function toggleFollow(followerId, followingId, isFollowing) {
+  try {
+    const response = await fetch(`${API_URL}/api/follows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: isFollowing ? 'unfollow' : 'follow', follower_id: followerId, following_id: followingId })
+    });
+    return await response.json();
+  } catch (error) {
+    return { error: 'ไม่สามารถทำรายการได้' };
+  }
+}
 export async function createRanking(rankingData) {  try {
     const response = await fetch(`${API_URL}/api/rankings`, {
       method: 'POST',

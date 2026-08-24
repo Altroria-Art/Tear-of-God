@@ -277,7 +277,7 @@ export default function TemplateDetailPage() {
             <button
               type="button"
               onClick={handleUseTemplate}
-              className="flex items-center gap-2 rounded-full bg-[#7A612A] px-6 py-2 font-semibold text-white transition-colors hover:bg-[#634f22]"
+              className="flex items-center gap-2 rounded-full bg-zinc-100 border border-zinc-200 px-6 py-2 font-bold text-zinc-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-zinc-200 hover:shadow-md active:scale-[0.97]"
             >
               + Use Template
             </button>
@@ -325,3 +325,4 @@ export default function TemplateDetailPage() {
     </main>
   )
 }
+
