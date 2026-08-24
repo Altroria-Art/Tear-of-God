@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { registerUser, loginUser, syncGoogleUser } from '../lib/api'; 
 import { signInWithGoogle } from '../lib/firebase';
@@ -13,13 +14,20 @@ export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
       toast.warning('กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน');
+      return;
+    }
+    if (isRegister && password !== confirmPassword) {
+      toast.warning('รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน');
       return;
     }
 
@@ -119,15 +127,47 @@ export default function Login() {
                 <a href="#" className="text-xs text-gray-400 hover:underline">Forgot password?</a>
               )}
             </div>
-            <input 
-              type="password" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••" 
-              className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#8B6F4E]"
-              required
-            />
+            <div className="relative">
+              <input 
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••" 
+                className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-[#8B6F4E]"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
+
+          {isRegister && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">Confirm Password</label>
+              <div className="relative">
+                <input 
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••" 
+                  className="w-full bg-[#faf8f5] border border-[#e8dfd3] rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-[#8B6F4E]"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+          )}
 
           <button 
             type="submit"

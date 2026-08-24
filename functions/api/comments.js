@@ -30,9 +30,10 @@ export async function onRequest({ request, env }) {
       }
 
       const commentId = crypto.randomUUID();
-      await db.prepare(
-        'INSERT INTO comments (id, ranking_id, user_id, content) VALUES (?1, ?2, ?3, ?4)'
-      ).bind(commentId, ranking_id, user_id, content.trim()).run();
+      await db.batch([
+        db.prepare('INSERT INTO comments (id, ranking_id, user_id, content) VALUES (?1, ?2, ?3, ?4)').bind(commentId, ranking_id, user_id, content.trim()),
+        db.prepare('UPDATE rankings SET comments_count = comments_count + 1 WHERE id = ?').bind(ranking_id)
+      ]);
 
       // ดึงข้อมูลที่เพิ่งสร้างส่งกลับไปให้หน้าเว็บแสดงผลทันที
       const { results } = await db.prepare(`

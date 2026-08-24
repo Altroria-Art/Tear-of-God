@@ -15,9 +15,6 @@ export async function onRequest({ request, env }) {
         const viewerId = url.searchParams.get('user_id');
         const { results: rankings } = await db.prepare(`
           SELECT r.*, p.username, p.avatar_url,
-            (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'like') as likes_count,
-            (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'dislike') as dislikes_count,
-            (SELECT COUNT(*) FROM comments WHERE ranking_id = r.id) as comments_count,
             ${viewerId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
           FROM rankings r
           LEFT JOIN profiles p ON r.user_id = p.id
@@ -75,7 +72,7 @@ export async function onRequest({ request, env }) {
 
         let orderExpr;
         if (sort === 'liked') {
-          orderExpr = `COALESCE(lc.c, 0) DESC, r.created_at DESC, r.id DESC`;
+          orderExpr = `r.likes_count DESC, r.created_at DESC, r.id DESC`;
         } else if (sort === 'recent') {
           orderExpr = `r.created_at DESC, r.id DESC`;
         } else if (usePersonalized) {
@@ -107,22 +104,15 @@ export async function onRequest({ request, env }) {
             WHERE v.user_id = ? AND v.vote_type = 'like'
             GROUP BY fav_r.category
           ),` : ''}
-          ${sort === 'liked' ? `liked_counts AS (
-            SELECT ranking_id, COUNT(*) as c FROM votes WHERE vote_type = 'like' GROUP BY ranking_id
-          ),` : ''}
           page AS (
             SELECT r.id AS rid, ROW_NUMBER() OVER (ORDER BY ${orderExpr}) AS rn
             FROM rankings r
             ${usePersonalized ? `LEFT JOIN aff ON aff.cat = r.category` : ''}
-            ${sort === 'liked' ? `LEFT JOIN liked_counts lc ON lc.ranking_id = r.id` : ''}
             ${pageWhere}
             ORDER BY ${orderExpr}
             LIMIT ? OFFSET ?
           )
           SELECT r.*, p.username, p.avatar_url,
-            (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'like') as likes_count,
-            (SELECT COUNT(*) FROM votes WHERE ranking_id = r.id AND vote_type = 'dislike') as dislikes_count,
-            (SELECT COUNT(*) FROM comments WHERE ranking_id = r.id) as comments_count,
             ${currentUserId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
           FROM page
           JOIN rankings r ON r.id = page.rid

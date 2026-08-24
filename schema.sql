@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS rankings (
   hashtags TEXT,
   user_id TEXT,
   template_id TEXT,
+  likes_count INTEGER DEFAULT 0,
+  dislikes_count INTEGER DEFAULT 0,
+  comments_count INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
