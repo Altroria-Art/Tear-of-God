@@ -1,7 +1,12 @@
 name = "tear-of-god"
 compatibility_date = "2024-03-20"
+pages_build_output_dir = "dist"
 
 [[d1_databases]]
 binding = "tear_of_god_db"
 database_name = "tear-of-god-db"
 database_id = "69d366f1-55ba-43cf-a492-882e137786f4"
+
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "tear-of-god"
