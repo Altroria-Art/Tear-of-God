@@ -73,6 +73,22 @@ export async function updateProfile(userId, profileData) {
   }
 }
 
+// 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปโหลดไฟล์รูปภาพไป R2
+export async function uploadImage(file) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${API_URL}/api/upload`, {
+      method: 'POST',
+      body: formData // ไม่ต้องตั้ง Content-Type เอง fetch จะจัดการ multipart form boundary ให้
+    });
+    return await response.json();
+  } catch (error) {
+    return { error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่ออัปโหลดรูปภาพได้' };
+  }
+}
+
 // ==========================================
 // ส่วนที่ 2: ระบบโพสต์จัดอันดับ (Rankings)
 // ==========================================
@@ -144,6 +160,17 @@ export async function toggleFollow(followerId, followingId, isFollowing) {
     return { error: 'ไม่สามารถทำรายการได้' };
   }
 }
+
+export async function fetchFollowList(userId, type) {
+  try {
+    const url = `${API_URL}/api/follows?user_id=${encodeURIComponent(userId)}&type=${encodeURIComponent(type)}`;
+    return await getJSON(url);
+  } catch (error) {
+    console.error("fetchFollowList error:", error);
+    return { data: [], error: 'ไม่สามารถดึงข้อมูลได้' };
+  }
+}
+
 export async function createRanking(rankingData) {  try {
     const response = await fetch(`${API_URL}/api/rankings`, {
       method: 'POST',

@@ -1,6 +1,41 @@
 export async function onRequest({ request, env }) {
   const db = env.tear_of_god_db;
+  const url = new URL(request.url);
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+  if (request.method === 'GET') {
+    try {
+      const userId = url.searchParams.get('user_id');
+      const type = url.searchParams.get('type');
+      if (!userId || !type) return jsonResponse({ error: 'Missing params' }, 400);
+
+      let query = '';
+      if (type === 'followers') {
+        query = `
+          SELECT p.id, p.username, p.avatar_url, p.bio
+          FROM follows f
+          JOIN profiles p ON f.follower_id = p.id
+          WHERE f.following_id = ?
+          ORDER BY f.created_at DESC
+        `;
+      } else if (type === 'following') {
+        query = `
+          SELECT p.id, p.username, p.avatar_url, p.bio
+          FROM follows f
+          JOIN profiles p ON f.following_id = p.id
+          WHERE f.follower_id = ?
+          ORDER BY f.created_at DESC
+        `;
+      } else {
+        return jsonResponse({ error: 'Invalid type' }, 400);
+      }
+
+      const { results } = await db.prepare(query).bind(userId).all();
+      return jsonResponse({ data: results });
+    } catch (e) {
+      return jsonResponse({ error: e.message }, 500);
+    }
+  }
 
   if (request.method === 'POST') {
     try {

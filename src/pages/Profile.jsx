@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow } from '../lib/api'; // 📍 เพิ่ม fetchUserProfile สำหรับดูโปรไฟล์คนอื่น
+import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage } from '../lib/api'; // 📍 เพิ่ม fetchUserProfile สำหรับดูโปรไฟล์คนอื่น
 import { timeAgo } from '../lib/format';
 import { useToast } from '../components/ui/Toast';
 
@@ -34,9 +34,30 @@ export default function Profile() {
   const [faculty, setFaculty] = useState('');
   const [major, setMajor] = useState('');
   const [year, setYear] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+
+  const [followListModal, setFollowListModal] = useState(null); // 'followers' | 'following' | null
+  const [followListData, setFollowListData] = useState([]);
+  const [isFollowListLoading, setIsFollowListLoading] = useState(false);
+
+  const handleOpenFollowList = async (type) => {
+    setFollowListModal(type);
+    setIsFollowListLoading(true);
+    setFollowListData([]);
+    const { data, error } = await fetchFollowList(profileUserId, type);
+    if (!error && data) {
+      setFollowListData(data);
+    } else {
+      toast.error('ไม่สามารถดึงข้อมูลได้');
+    }
+    setIsFollowListLoading(false);
+  };
 
   // ยังไม่ล็อกอินและไม่ระบุ user ใน URL = ไม่รู้จะดูโปรไฟล์ใคร → พาไปหน้าล็อกอิน
   // (ส่วน /profile/:userId เปิดดูแบบไม่ล็อกอินได้ เพราะเป็นข้อมูลสาธารณะ)
@@ -91,6 +112,7 @@ export default function Profile() {
       setFaculty(currentUser.faculty || '');
       setMajor(currentUser.major || '');
       setYear(currentUser.year || '');
+      setAvatarUrl(currentUser.avatar_url || '');
     }
   }, [isOwnProfile, currentUser]);
 
@@ -118,6 +140,26 @@ export default function Profile() {
     }
   };
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('กรุณาอัปโหลดเฉพาะไฟล์รูปภาพเท่านั้น');
+      return;
+    }
+
+    setIsUploading(true);
+    const { url, error } = await uploadImage(file);
+    if (error) {
+      toast.error(error);
+    } else if (url) {
+      setAvatarUrl(url);
+      toast.success('อัปโหลดรูปภาพสำเร็จ กรุณากด Save Changes เพื่อบันทึก');
+    }
+    setIsUploading(false);
+  };
+
   const handleSaveChanges = async (e) => {
     e.preventDefault();
 
@@ -127,7 +169,8 @@ export default function Profile() {
       university,
       faculty,
       major,
-      year
+      year,
+      avatar_url: avatarUrl
     });
 
     if (error) {
@@ -135,7 +178,7 @@ export default function Profile() {
       return;
     }
 
-    const updatedUser = { ...currentUser, username: displayName, bio, university, faculty, major, year };
+    const updatedUser = { ...currentUser, username: displayName, bio, university, faculty, major, year, avatar_url: avatarUrl };
     login(updatedUser); // อัปเดตข้อมูลใน Context / LocalStorage
     setIsEditOpen(false);
     toast.success('อัปเดตโปรไฟล์สำเร็จ!');
@@ -193,8 +236,8 @@ export default function Profile() {
 
               <h2 className="text-xl font-bold text-gray-900 mb-1">{displayUser?.username}</h2>
               <div className="flex justify-center gap-4 text-sm text-gray-500 mb-3">
-                <span><strong>{followersCount}</strong> Followers</span>
-                <span><strong>{followingCount}</strong> Following</span>
+                <span className="cursor-pointer hover:underline hover:text-gray-900" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> Followers</span>
+                <span className="cursor-pointer hover:underline hover:text-gray-900" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> Following</span>
               </div>
               {!isOwnProfile && (
                 <button
@@ -334,16 +377,33 @@ export default function Profile() {
 
             <form onSubmit={handleSaveChanges} className="space-y-4">
               <div className="text-center mb-4">
-                <div className="w-20 h-20 mx-auto rounded-full bg-[#f3e8df] overflow-hidden mb-2">
-                  {currentUser.avatar_url ? (
-                    <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                <div className="w-20 h-20 mx-auto rounded-full bg-[#f3e8df] overflow-hidden mb-2 relative">
+                  {isUploading ? (
+                    <div className="w-full h-full flex items-center justify-center font-bold text-xs text-gray-500 bg-white/50 backdrop-blur-sm absolute inset-0">
+                      Uploading...
+                    </div>
+                  ) : null}
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center font-bold text-xl text-[#7c5d22]">
                       {displayName.charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
-                <span className="text-xs text-[#7c5d22] font-bold cursor-pointer hover:underline">Change Photo</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                />
+                <span 
+                  onClick={() => !isUploading && fileInputRef.current?.click()} 
+                  className={`text-xs text-[#7c5d22] font-bold ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:underline'}`}
+                >
+                  {isUploading ? 'Uploading...' : 'Change Photo'}
+                </span>
               </div>
 
               <div>
@@ -423,6 +483,53 @@ export default function Profile() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Follow List Modal */}
+      {followListModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-8 shadow-2xl border border-[#f3e8df] relative max-h-[85vh] flex flex-col">
+            <button
+              onClick={() => setFollowListModal(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 font-bold"
+            >
+              ✕
+            </button>
+            <h3 className="text-xl font-bold text-gray-900 mb-4 capitalize">{followListModal}</h3>
+            
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+              {isFollowListLoading ? (
+                <p className="text-center text-gray-400 py-6">กำลังโหลด...</p>
+              ) : followListData.length === 0 ? (
+                <p className="text-center text-gray-400 py-6">ไม่มีผู้ใช้</p>
+              ) : (
+                followListData.map(user => (
+                  <div key={user.id} 
+                    className="flex items-center gap-4 cursor-pointer hover:bg-gray-50 p-3 rounded-xl transition-colors"
+                    onClick={() => {
+                      setFollowListModal(null);
+                      navigate(`/profile/${user.id}`);
+                    }}
+                  >
+                    <div className="w-12 h-12 rounded-full bg-[#f3e8df] overflow-hidden flex-shrink-0">
+                      {user.avatar_url ? (
+                        <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center font-bold text-lg text-[#7c5d22]">
+                          {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-bold text-base text-gray-900">{user.username}</div>
+                      {user.bio && <div className="text-sm text-gray-500 line-clamp-1">{user.bio}</div>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
