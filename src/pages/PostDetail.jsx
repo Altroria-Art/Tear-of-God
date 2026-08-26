@@ -99,7 +99,7 @@ export default function PostDetail() {
       setTemplate(null)
       return
     }
-    fetchTemplate(tid).then(({ data }) => {
+    fetchTemplate(tid, { light: true }).then(({ data }) => {
       if (!cancelled && data) setTemplate(data)
     })
     return () => { cancelled = true }

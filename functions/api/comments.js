@@ -10,12 +10,14 @@ export async function onRequest({ request, env }) {
     if (request.method === 'GET') {
       if (!rankingId) return jsonResponse({ success: false, error: 'Missing ranking_id' }, 400);
 
+      // กัน unbounded growth (ดู docs/row-read-optimization-plan.md §4 hypothesis H4)
       const { results } = await db.prepare(`
-        SELECT c.*, p.username, p.avatar_url 
+        SELECT c.*, p.username, p.avatar_url
         FROM comments c
         LEFT JOIN profiles p ON c.user_id = p.id
         WHERE c.ranking_id = ?
         ORDER BY c.created_at DESC
+        LIMIT 200
       `).bind(rankingId).all();
 
       return jsonResponse({ success: true, data: results });

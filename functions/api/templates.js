@@ -62,8 +62,23 @@ export async function onRequestGet(context) {
       if (templates.length > 0) {
         const templateIds = templates.map(t => t.id);
         const placeholders = templateIds.map(() => '?').join(',');
+        // 📍 เดิมดึง template_items "ทุกแถว" ของทุก template ในหน้านี้ แต่การ์ด (TemplateCard)
+        // โชว์แค่ 2 tier บนสุด x 2 ไอเทม/tier = อย่างมาก 4 ไอเทมต่อการ์ด — วัดจริงจาก D1 trace:
+        // ~933 rows/request เพื่อโชว์จริงแค่ ~15% ของที่ดึงมา (ดู
+        // docs/row-read-optimization-plan.md §5/§8, C4) จำกัดด้วย ROW_NUMBER() ต่อ template
+        // ไม่เกิน 4 แถวแรก (เรียงตาม position) — พอสำหรับพรีวิว ไม่กระทบโหมด detail (ยังดึงครบ)
+        // 📍 เดิมดึง template_items "ทุกแถว" ของทุก template ในหน้านี้ แต่การ์ด (TemplateCard)
+        // โชว์แค่ 2 tier บนสุด x 2 ไอเทม/tier = อย่างมาก 4 ไอเทมต่อการ์ด — วัดจริงจาก D1 trace:
+        // 933 rows/request (50 templates) เพื่อโชว์จริงแค่ ~15% ของที่ดึงมา (ดู
+        // docs/row-read-optimization-plan.md §5/§8, C4)
+        // ⚠️ ลองใช้ ROW_NUMBER() OVER (PARTITION BY ...) มาก่อน แต่วัดจริงแล้วพบว่า D1 อ่านแพงกว่า
+        // เดิม (2,018 rows, มากกว่า uncapped อีก) — window function ทำให้ D1 ต้องอ่านซ้ำหลายรอบ
+        // เพื่อ sort ภายในแต่ละ partition ก่อนกรอง แก้ด้วย "position < 4" แทน (plain WHERE ธรรมดา
+        // ไม่ต้อง sort) ปลอดภัยเพราะ position ของ template_items มาจาก seed เท่านั้น
+        // (grep แล้ว: ไม่มี INSERT INTO template_items ที่ไหนในแอปตอนรันจริง) และ seed ทุกแถวเรียง
+        // position ต่อเนื่องเริ่มที่ 0 เสมอ (ยืนยันด้วย query ตรวจ MIN/MAX/COUNT ต่อ template แล้ว)
         const { results: allItems } = await db.prepare(
-          `SELECT * FROM template_items WHERE template_id IN (${placeholders}) ORDER BY position ASC`
+          `SELECT * FROM template_items WHERE template_id IN (${placeholders}) AND position < 4 ORDER BY template_id, position ASC`
         ).bind(...templateIds).all();
 
         allItems.forEach(ti => {
@@ -87,7 +102,13 @@ export async function onRequestGet(context) {
         template_items: itemsMap[t.id] || []
       }));
 
-      return Response.json({ success: true, data, page, limit, total });
+      // 📍 ข้อมูล public ล้วน ไม่มี field เฉพาะผู้ชม (ไม่มี user_vote/is_following) — cache ที่ edge
+      // ได้ปลอดภัย (ดู docs/row-read-optimization-plan.md §6/§8) ผลข้างเคียงที่ยอมรับได้: เทมเพลต
+      // ที่เพิ่งถูกสร้าง/ใช้อาจขึ้นช้าไปสูงสุด 1 นาที
+      return Response.json(
+        { success: true, data, page, limit, total },
+        { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } }
+      );
     }
 
     // ==========================================
@@ -112,58 +133,67 @@ export async function onRequestGet(context) {
     const tiersDef = parseTiers(template.tiers) || [];
     const tierCount = tiersDef.length;
 
+    // 📍 ?fields=meta = โหมดย่อ ใช้โดย PostDetail (AboutTemplateCard) และ RankTierList
+    // (pre-fill) ซึ่งอ่านแค่ title/description/tiers/template_items — ไม่เคยอ่าน
+    // community_average เลย แต่โหมดเต็ม (TemplateDetailPage) ต้องคำนวณฮิสโตแกรมทุกครั้ง
+    // วัดจริงจาก D1 trace: histogram query กิน ~292 rows/request เฉลี่ย (ดู
+    // docs/row-read-optimization-plan.md §5/§8, C6) — โหมดย่อข้ามการคำนวณนี้ไปทั้งหมด
+    const light = url.searchParams.get('fields') === 'meta';
+
     const { results: templateItems } = await db.prepare(
       `SELECT * FROM template_items WHERE template_id = ? ORDER BY position ASC`
     ).bind(templateId).all();
 
-    const { results: useCountRows } = await db.prepare(
-      `SELECT COUNT(*) as n FROM rankings WHERE template_id = ?`
+    // รวม COUNT(*) กับ MAX(created_at) เป็น query เดียว (เดิมแยก 2 statement คนละ query)
+    const { results: statsRows } = await db.prepare(
+      `SELECT COUNT(*) as n, MAX(created_at) as latest FROM rankings WHERE template_id = ?`
     ).bind(templateId).all();
+    const useCount = statsRows[0]?.n || 0;
+    const lastRanked = statsRows[0]?.latest || null;
 
-    const { results: lastRankedRows } = await db.prepare(
-      `SELECT MAX(created_at) as latest FROM rankings WHERE template_id = ?`
-    ).bind(templateId).all();
+    let communityAverage = null;
+    if (!light && tierCount > 0) {
+      // Community Average: ฮิสโตแกรมเดียว 1 bound param ไม่ว่า template จะมี ranking กี่อัน
+      const { results: histogram } = await db.prepare(
+        `SELECT ri.item_id, ri.tier, COUNT(*) as n
+         FROM ranking_items ri
+         WHERE ri.ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)
+           AND ri.tier IS NOT NULL
+         GROUP BY ri.item_id, ri.tier`
+      ).bind(templateId).all();
 
-    // Community Average: ฮิสโตแกรมเดียว 1 bound param ไม่ว่า template จะมี ranking กี่อัน
-    const { results: histogram } = await db.prepare(
-      `SELECT ri.item_id, ri.tier, COUNT(*) as n
-       FROM ranking_items ri
-       WHERE ri.ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)
-         AND ri.tier IS NOT NULL
-       GROUP BY ri.item_id, ri.tier`
-    ).bind(templateId).all();
+      const tierLabelToIndex = {};
+      tiersDef.forEach((t, i) => { tierLabelToIndex[t.label] = i; });
 
-    const tierLabelToIndex = {};
-    tiersDef.forEach((t, i) => { tierLabelToIndex[t.label] = i; });
+      const itemAgg = {};
+      histogram.forEach(row => {
+        const idx = tierLabelToIndex[row.tier];
+        if (idx === undefined) return; // tier label ไม่ตรงกับ tiers ปัจจุบันของ template — ข้าม
+        const score = tierCount - idx; // tier บนสุด = คะแนนสูงสุด
+        if (!itemAgg[row.item_id]) itemAgg[row.item_id] = { sum: 0, count: 0 };
+        itemAgg[row.item_id].sum += score * row.n;
+        itemAgg[row.item_id].count += row.n;
+      });
 
-    const itemAgg = {};
-    histogram.forEach(row => {
-      const idx = tierLabelToIndex[row.tier];
-      if (idx === undefined) return; // tier label ไม่ตรงกับ tiers ปัจจุบันของ template — ข้าม
-      const score = tierCount - idx; // tier บนสุด = คะแนนสูงสุด
-      if (!itemAgg[row.item_id]) itemAgg[row.item_id] = { sum: 0, count: 0 };
-      itemAgg[row.item_id].sum += score * row.n;
-      itemAgg[row.item_id].count += row.n;
-    });
+      const itemAverages = Object.entries(itemAgg).map(([itemId, agg]) => {
+        const avg = agg.sum / agg.count;
+        let idx = tierCount - Math.round(avg);
+        idx = Math.max(0, Math.min(tierCount - 1, idx));
+        return { item_id: itemId, avg, tierIndex: idx, votes: agg.count };
+      });
 
-    const itemAverages = Object.entries(itemAgg).map(([itemId, agg]) => {
-      const avg = agg.sum / agg.count;
-      let idx = tierCount - Math.round(avg);
-      idx = Math.max(0, Math.min(tierCount - 1, idx));
-      return { item_id: itemId, avg, tierIndex: idx, votes: agg.count };
-    });
-
-    const communityAverage = tierCount > 0 ? {
-      updated_at: lastRankedRows[0]?.latest || null,
-      tiers: tiersDef.map((t, i) => ({
-        label: t.label,
-        color: t.color,
-        items: itemAverages
-          .filter(x => x.tierIndex === i)
-          .sort((a, b) => b.avg - a.avg)
-          .map(x => ({ name: x.item_id, avg: Math.round(x.avg * 100) / 100 }))
-      }))
-    } : null;
+      communityAverage = {
+        updated_at: lastRanked,
+        tiers: tiersDef.map((t, i) => ({
+          label: t.label,
+          color: t.color,
+          items: itemAverages
+            .filter(x => x.tierIndex === i)
+            .sort((a, b) => b.avg - a.avg)
+            .map(x => ({ name: x.item_id, avg: Math.round(x.avg * 100) / 100 }))
+        }))
+      };
+    }
 
     const responseData = {
       id: template.id,
@@ -177,7 +207,7 @@ export async function onRequestGet(context) {
         avatar_url: template.avatar_url
       },
       stats: {
-        uses: useCountRows[0]?.n || 0,
+        uses: useCount,
         views: template.view_count || 0
       },
       template_items: templateItems.map(ti => ({
@@ -187,7 +217,11 @@ export async function onRequestGet(context) {
       community_average: communityAverage
     };
 
-    return Response.json({ success: true, data: responseData });
+    // 📍 เช่นเดียวกับโหมด list — ไม่มี field เฉพาะผู้ชมเลย cache ที่ edge ได้ปลอดภัย
+    return Response.json(
+      { success: true, data: responseData },
+      { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } }
+    );
 
   } catch (error) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
