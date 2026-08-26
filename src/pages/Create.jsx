@@ -55,7 +55,6 @@ const CreateTierList = () => {
   // 📍 [ใหม่]: อ่าน draft ครั้งเดียวตอน mount แล้วเอามาเป็นค่า initial ของทุก state
   const [draft] = useState(loadDraft);
 
-  const [mode, setMode] = useState(draft?.mode === 'top10' ? 'top10' : 'normal');
   const [quickAddText, setQuickAddText] = useState('');
 
   const [title, setTitle] = useState(draft?.title ?? '');
@@ -82,22 +81,22 @@ const CreateTierList = () => {
   const [selectedHashtags, setSelectedHashtags] = useState(
     Array.isArray(draft?.selectedHashtags) ? draft.selectedHashtags : []
   );
-  const [showNewTagInput, setShowNewTagInput] = useState(false);
-  const [newTagText, setNewTagText] = useState('');
+  const [tagQuery, setTagQuery] = useState('');
+  const [tagResults, setTagResults] = useState([]);
+  const [isSearchingTags, setIsSearchingTags] = useState(false);
 
-  // 📍 [ใหม่]: autosave ทุกครั้งที่ข้อมูลที่ต้องจำเปลี่ยน (title/description/hashtags/items/tiers/mode)
+  // 📍 [ใหม่]: autosave ทุกครั้งที่ข้อมูลที่ต้องจำเปลี่ยน (title/description/hashtags/items/tiers)
   useEffect(() => {
     saveDraft({
       version: DRAFT_VERSION,
       title,
       description,
-      mode,
       tiers,
       items,
       selectedHashtags,
       customHashtags: hashtags.filter(t => !DEFAULT_HASHTAGS.includes(t)),
     });
-  }, [title, description, mode, tiers, items, selectedHashtags, hashtags]);
+  }, [title, description, tiers, items, selectedHashtags, hashtags]);
 
   const availableColors = [
     'bg-red-400', 'bg-orange-300', 'bg-amber-300', 'bg-yellow-300', 
@@ -123,16 +122,44 @@ const CreateTierList = () => {
   // ฟังก์ชัน Hashtag
   const handleToggleHashtag = (tag) => selectedHashtags.includes(tag) ? setSelectedHashtags(selectedHashtags.filter(t => t !== tag)) : setSelectedHashtags([...selectedHashtags, tag]);
   const handleRemoveSelectedTag = (tagToRemove) => setSelectedHashtags(selectedHashtags.filter(t => t !== tagToRemove));
-  
-  const handleAddHashtag = (e) => {
-    if (e.key === 'Enter' && newTagText.trim()) {
-      e.preventDefault();
-      const formattedTag = newTagText.startsWith('#') ? newTagText.trim() : `#${newTagText.trim()}`;
-      if (!hashtags.includes(formattedTag)) setHashtags([...hashtags, formattedTag]);
-      if (!selectedHashtags.includes(formattedTag)) setSelectedHashtags([...selectedHashtags, formattedTag]);
-      setNewTagText('');
-      setShowNewTagInput(false);
-    }
+
+  // 📍 [ใหม่]: debounced search hashtags ที่มีอยู่แล้วจาก API ทุกครั้งที่พิมพ์ query
+  useEffect(() => {
+    if (!tagQuery.trim()) { setTagResults([]); return; }
+    let cancelled = false;
+    setIsSearchingTags(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/hashtags?q=${encodeURIComponent(tagQuery.replace(/^#/, '').trim())}&limit=6`);
+        const json = await res.json();
+        if (!cancelled && json.success) {
+          const hits = (json.data || [])
+            .map(h => `#${h.tag.replace(/^#/, '')}`)
+            .filter(t => !selectedHashtags.includes(t));
+          setTagResults(hits);
+        }
+      } catch {
+        if (!cancelled) setTagResults([]);
+      }
+      if (!cancelled) setIsSearchingTags(false);
+    }, 280);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [tagQuery, selectedHashtags]);
+
+  // เลือก tag จากผลลัพธ์ค้นหา → เพิ่มลง selected แล้วล้าง query
+  const handleSelectSearchResult = (tag) => {
+    const formatted = tag.startsWith('#') ? tag : `#${tag}`;
+    if (!hashtags.includes(formatted)) setHashtags(prev => [...prev, formatted]);
+    if (!selectedHashtags.includes(formatted)) setSelectedHashtags(prev => [...prev, formatted]);
+    setTagQuery('');
+    setTagResults([]);
+  };
+
+  // Enter เพื่อสร้าง tag ใหม่ (ยังไม่มีในระบบ)
+  const handleAddCustomTag = (e) => {
+    if (e.key !== 'Enter' || !tagQuery.trim()) return;
+    e.preventDefault();
+    handleSelectSearchResult(tagQuery);
   };
 
   const handleDragStart = (e, itemId) => {
@@ -265,6 +292,16 @@ const CreateTierList = () => {
         username: currentUser.username,
         avatar_url: currentUser.avatar_url
       },
+      // 📍 [ใหม่]: สร้าง Template ไปพร้อมกันตอน publish — ทำให้ tier list นี้มี template_id,
+      // เข้าหน้า Discover และ hashtag ที่เลือก/สร้างใหม่ถูกนับบน PopularHashtags (API นับจาก templates.hashtags)
+      template: {
+        title: title.trim(),
+        description: description,
+        category: selectedHashtags[0].replace('#', '').toLowerCase(),
+        hashtags: selectedHashtags.join(','),
+        tiers: tiers.map(({ label, color }) => ({ label, color })),
+        items: items.map((item, index) => ({ name: item.content, position: index }))
+      },
       items: rankedItems.map((item, index) => {
         const tierObj = tiers.find(t => t.id === item.tierId);
         return { item_id: item.content, tier: tierObj ? tierObj.label : 'S', position: index };
@@ -320,11 +357,6 @@ const CreateTierList = () => {
         
         {/* LEFT SIDEBAR */}
         <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex gap-2">
-            <button onClick={() => setMode('normal')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${mode === 'normal' ? 'bg-zinc-100 shadow-sm text-gray-800' : 'text-gray-500 hover:bg-gray-50'}`}>Normal Mode</button>
-            <button onClick={() => setMode('top10')} className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${mode === 'top10' ? 'bg-zinc-100 shadow-sm text-gray-800' : 'text-gray-500 hover:bg-gray-50'}`}>Top 10 Mode</button>
-          </div>
-
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-5">
             <div>
               <label className="block text-sm font-semibold mb-1">Template Name</label>
@@ -354,12 +386,41 @@ const CreateTierList = () => {
                 ))}
               </div>
               
-              <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
-                <button type="button" onClick={() => setShowNewTagInput(!showNewTagInput)} className="text-xs font-bold text-[#7c5b36] hover:underline flex items-center gap-1 w-max">
-                  <Upload size={12} className="rotate-45" /> Create Custom Hashtag
-                </button>
-                {showNewTagInput && (
-                  <input type="text" value={newTagText} onChange={(e) => setNewTagText(e.target.value)} onKeyDown={handleAddHashtag} placeholder="Type tag & press enter (e.g. #Horror)" className="w-full bg-zinc-100 border-none rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-zinc-900" autoFocus />
+              {/* 📍 [ใหม่]: unified search/create input — autocomplete hashtags ที่มีอยู่แล้วจาก API */}
+              <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 relative">
+                <input
+                  type="text"
+                  value={tagQuery}
+                  onChange={(e) => setTagQuery(e.target.value)}
+                  onKeyDown={handleAddCustomTag}
+                  placeholder="Search existing hashtags or type new one & press Enter..."
+                  className="w-full bg-zinc-100 border-none rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-zinc-900"
+                  autoComplete="off"
+                />
+
+                {/* dropdown ผลลัพธ์ค้นหา — แสดงเฉพาะตอนมี query */}
+                {tagQuery.trim() && (
+                  <div className="absolute top-full left-0 right-0 z-40 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {isSearchingTags && (
+                      <div className="px-3 py-2 text-xs text-gray-400 italic">Searching...</div>
+                    )}
+                    {!isSearchingTags && tagResults.length === 0 && tagQuery.trim().length >= 2 && (
+                      <div className="px-3 py-2 text-xs text-gray-400">
+                        No existing tags — press <kbd className="px-1 py-0.5 bg-zinc-100 rounded text-gray-600 font-mono text-[10px]">Enter</kbd> to create <span className="font-semibold text-gray-600">#{tagQuery.replace(/^#/, '')}</span>
+                      </div>
+                    )}
+                    {tagResults.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleSelectSearchResult(tag)}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 flex items-center gap-2 transition-colors"
+                      >
+                        <span className="text-gray-400 font-mono">#</span>
+                        <span className="font-medium text-gray-700">{tag.replace(/^#/, '')}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -387,26 +448,17 @@ const CreateTierList = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
 
             <div className="flex flex-col gap-2">
-              {mode === 'normal' ? (
-                tiers.map((tier) => (
-                  <div key={tier.id} className="flex min-h-[80px] bg-[#f9f8f6] rounded-lg overflow-hidden border border-gray-100">
-                    <div className={`${tier.color} w-24 flex items-center justify-center text-white text-2xl font-bold shadow-[inset_-2px_0_4px_rgba(0,0,0,0.1)] p-2 text-center break-words`}>{tier.label}</div>
-                    <div className="flex-1 p-2 flex flex-wrap gap-2 items-center" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
-                      {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
-                    </div>
-                    <div className="w-12 bg-transparent flex items-center justify-center border-l border-gray-200">
-                      <button onClick={() => setActiveSettingsTier(tier)} className="text-gray-400 hover:text-[#7c5b36] hover:bg-zinc-100 transition-all p-2 rounded-full" title="Settings"><Settings size={18} /></button>
-                    </div>
+              {tiers.map((tier) => (
+                <div key={tier.id} className="flex min-h-[80px] bg-[#f9f8f6] rounded-lg overflow-hidden border border-gray-100">
+                  <div className={`${tier.color} w-24 flex items-center justify-center text-white text-2xl font-bold shadow-[inset_-2px_0_4px_rgba(0,0,0,0.1)] p-2 text-center break-words`}>{tier.label}</div>
+                  <div className="flex-1 p-2 flex flex-wrap gap-2 items-center" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
+                    {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
                   </div>
-                ))
-              ) : (
-                Array.from({ length: 10 }).map((_, idx) => (
-                   <div key={idx} className="flex min-h-[60px] bg-white overflow-hidden items-center gap-3 p-2 border border-gray-100 rounded-lg">
-                    <div className="bg-[#6b5542] w-12 h-12 flex items-center justify-center text-white text-lg font-bold rounded-lg shrink-0">{idx + 1}</div>
-                    <div className="flex-1 h-12 border-2 border-dashed border-gray-200 rounded-lg flex items-center px-4 text-gray-400 text-sm bg-[#faf9f8]">Drop item here...</div>
+                  <div className="w-12 bg-transparent flex items-center justify-center border-l border-gray-200">
+                    <button onClick={() => setActiveSettingsTier(tier)} className="text-gray-400 hover:text-[#7c5b36] hover:bg-zinc-100 transition-all p-2 rounded-full" title="Settings"><Settings size={18} /></button>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
 
             <hr className="my-6 border-gray-100" />

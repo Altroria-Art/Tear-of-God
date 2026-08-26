@@ -227,7 +227,7 @@ export async function onRequest({ request, env }) {
 
     // 🟢 [POST] สร้าง Ranking ใหม่
     if (request.method === 'POST') {
-      const { payload, items } = await request.json();
+      const { payload, items, template } = await request.json();
       const rankingId = crypto.randomUUID(); 
       
       if (payload.user_id) {
@@ -237,18 +237,49 @@ export async function onRequest({ request, env }) {
       }
       
       const statements = [];
+      let templateId = null;
+
+      // 📍 [ใหม่]: publish จากหน้า Create จะส่ง `template` มาด้วย → สร้าง Template + template_items
+      // ใน batch เดียวกับ ranking (atomic ตาม SDS §8.2/§9.2) ทำให้ template เข้าหน้า Discover
+      // และ hashtag ที่เลือก/สร้างใหม่ถูกนับบน PopularHashtags (ซึ่งนับ tag จาก templates.hashtags)
+      if (template && typeof template.title === 'string' && template.title.trim()) {
+        templateId = crypto.randomUUID();
+        statements.push(db.prepare(
+          `INSERT INTO templates (id, creator_id, title, description, category, hashtags, tiers) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+        ).bind(
+          templateId,
+          payload.user_id || null,
+          template.title.trim(),
+          template.description || '',
+          template.category || 'general',
+          template.hashtags || '',
+          JSON.stringify(Array.isArray(template.tiers) ? template.tiers : [])
+        ));
+
+        // item pool ของ template = item ทุกชิ้นที่ user เพิ่มมา (tier ว่าง เพราะเป็นของ template ไม่ใช่คำตอบ)
+        // dedupe ด้วยชื่อ กัน item ซ้ำชื่อเดียวกันโผล่สองการ์ดตอน remix
+        const seenNames = new Set();
+        (Array.isArray(template.items) ? template.items : []).forEach((item, index) => {
+          const name = typeof item?.name === 'string' ? item.name.trim() : '';
+          if (!name || seenNames.has(name)) return;
+          seenNames.add(name);
+          statements.push(db.prepare(
+            `INSERT INTO template_items (id, template_id, item_id, tier, position) VALUES (?1, ?2, ?3, NULL, ?4)`
+          ).bind(crypto.randomUUID(), templateId, name, item.position ?? index));
+        });
+      }
 
       statements.push(db.prepare(
         `INSERT INTO rankings (id, template_id, title, description, category, hashtags, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
       ).bind(
-        rankingId, payload.template_id || null, payload.title || 'Untitled', payload.description || '', 
+        rankingId, payload.template_id || templateId, payload.title || 'Untitled', payload.description || '', 
         payload.category || 'general', payload.hashtags || '', payload.user_id
       ));
 
-      if (payload.template_id) {
+      if (payload.template_id || templateId) {
         statements.push(db.prepare(
           `UPDATE templates SET use_count = use_count + 1 WHERE id = ?`
-        ).bind(payload.template_id));
+        ).bind(payload.template_id || templateId));
       }
 
       if (items && items.length > 0) {
@@ -260,7 +291,7 @@ export async function onRequest({ request, env }) {
       }
 
       await db.batch(statements);
-      return jsonResponse({ success: true, data: { id: rankingId, ...payload } }, 201);
+      return jsonResponse({ success: true, data: { id: rankingId, template_id: templateId, ...payload } }, 201);
     }
 
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
