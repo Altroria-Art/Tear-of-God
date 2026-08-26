@@ -1,0 +1,17 @@
+-- Additive only (no DROP) — safe to run against production.
+--
+-- Discovered while verifying the row-read fix in production (docs/row-read-optimization-plan.md
+-- §15): `schema.sql` has defined `idx_votes_user_id ON votes(user_id, vote_type)` since before this
+-- work started, but it was never shipped to production via any migration file — production's
+-- `votes` table only had `idx_votes_ranking_id` and its two implicit PK/UNIQUE indexes. This is
+-- unrelated schema drift, not something introduced by migrations 0001-0006.
+--
+-- Impact: the personalized Home Feed branch's `aff` CTE
+-- (`SELECT ... FROM votes v ... WHERE v.user_id = ? AND v.vote_type = 'like' GROUP BY ...`) — the
+-- default order for every logged-in user — fell back to `SCAN v` (a full scan of all 8,509+ votes
+-- rows) instead of `SEARCH v USING INDEX (user_id=? AND vote_type=?)`, confirmed via
+-- `EXPLAIN QUERY PLAN` run directly against the remote production database. Measured production
+-- impact: 9,013 rows read for one personalized feed page, vs. 749 on local dev (which already had
+-- this index from schema.sql). This migration brings production's index set in line with
+-- schema.sql and with what the row-read optimization work assumed was already present.
+CREATE INDEX IF NOT EXISTS idx_votes_user_id ON votes(user_id, vote_type);

@@ -20,6 +20,7 @@
     "db:seed:templates": "wrangler d1 execute tear-of-god-db --local --file=./templates-seed.sql",
     "db:migrate": "wrangler d1 execute tear-of-god-db --local --file=./migrations/0002_template_views.sql",
     "db:migrate:0003": "wrangler d1 execute tear-of-god-db --local --file=./migrations/0003_profile_bio.sql",
+    "db:migrate:0006": "wrangler d1 execute tear-of-god-db --local --file=./migrations/0006_feed_indexes.sql",
     "db:seed:community": "node scripts/gen-community-seed.mjs && wrangler d1 execute tear-of-god-db --local --file=./community-rankings-seed.sql",
     "db:push:remote": "node scripts/gen-community-seed.mjs && wrangler d1 execute tear-of-god-db --remote --file=./reset-seed-data.sql && wrangler d1 execute tear-of-god-db --remote --file=./templates-seed.sql && wrangler d1 execute tear-of-god-db --remote --file=./community-rankings-seed.sql"
   },

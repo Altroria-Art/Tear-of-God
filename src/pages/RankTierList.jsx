@@ -53,7 +53,7 @@ const RankTierList = () => {
 
     async function loadTemplate() {
       setIsLoadingTemplate(true);
-      const { data, error } = await fetchTemplate(templateId);
+      const { data, error } = await fetchTemplate(templateId, { light: true });
 
       if (data) {
         setTitle(data.title || 'Untitled Ranking');

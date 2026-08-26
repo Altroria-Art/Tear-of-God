@@ -111,10 +111,33 @@ export default function HomeFeed() {
   const loadingRef = useRef(false) // กันยิงซ้ำตอนเลื่อนเร็วๆ หรือ observer ยิงซ้อนตอนกำลังโหลดอยู่
   const observerRef = useRef(null) // instance ของ IntersectionObserver ตัวปัจจุบัน (ผูกกับ sentinel node ล่าสุด)
 
+  // 📍 per-tab cache — ดู docs/row-read-optimization-plan.md §6/§8: สลับ General↔Kindred
+  // เดิมยิง fetchRankings ใหม่ทุกครั้ง ทั้งที่ backend ยังไม่รองรับ feedType จริง (ดูหมายเหตุ
+  // ด้านล่าง) แคชผลของแต่ละแท็บ+ผู้ใช้ไว้ใน ref นี้ — สลับแท็บที่เคยโหลดแล้วไม่ต้องยิงซ้ำอีก
+  // (รวมหน้าที่ scroll ต่อไว้ด้วย ไม่ใช่แค่หน้าแรก)
+  const feedCacheRef = useRef({})
+  const cacheKey = `${activeTab}:${currentUser?.id ?? 'anon'}`
+
+  // ⚠️ known gap (ตั้งใจไม่แก้ในรอบนี้ — ดูแผนใน docs/row-read-optimization-plan.md §5/§8):
+  // fetchRankings() ส่ง feedType ไปจริง แต่ src/lib/api.js ไม่เคยแปลงมันเป็น query param และ
+  // functions/api/rankings.js ก็ไม่เคยอ่านค่านี้เลย — General กับ Kindred เลยยิง query เดียวกัน
+  // เป๊ะ ได้ผลลัพธ์เดียวกัน (TC-08 ต้องการให้ Kindred โชว์เฉพาะ template ที่เคยสร้าง/เคยเล่น/
+  // ใกล้เคียง ซึ่งยังไม่ implement) การแก้ตอนนี้แค่ "หยุดยิงซ้ำโดยไม่จำเป็น" ไม่ใช่ทำให้ผลต่างกัน
+  const feedType = activeTab;
+
   // สลับแท็บ/ล็อกอิน ต้องเริ่มฟีดใหม่ตั้งแต่หน้า 1 เสมอ ไม่งั้นข้อมูลแท็บเก่าจะค้าง
-  // ปนกับแท็บใหม่ตอน infinite scroll ต่อท้าย
+  // ปนกับแท็บใหม่ตอน infinite scroll ต่อท้าย — เว้นแต่มี cache ของ key นี้อยู่แล้ว
   useEffect(() => {
     let cancelled = false
+    const cached = feedCacheRef.current[cacheKey]
+    if (cached) {
+      setPosts(cached.posts)
+      setPage(cached.page)
+      setHasMore(cached.hasMore)
+      setIsLoading(false)
+      return
+    }
+
     async function loadFirstPage() {
       setIsLoading(true)
       setPosts([])
@@ -123,15 +146,17 @@ export default function HomeFeed() {
       loadingRef.current = true
       const { data } = await fetchRankings({
         userId: currentUser?.id,
-        feedType: activeTab,
+        feedType,
         page: 1,
         limit: PAGE_SIZE
       })
       if (cancelled) return
+      const nextHasMore = (data?.length || 0) === PAGE_SIZE
       setPosts(data || [])
-      setHasMore((data?.length || 0) === PAGE_SIZE)
+      setHasMore(nextHasMore)
       setIsLoading(false)
       loadingRef.current = false
+      feedCacheRef.current[cacheKey] = { posts: data || [], page: 1, hasMore: nextHasMore }
     }
     loadFirstPage()
     return () => { cancelled = true }
@@ -146,11 +171,16 @@ export default function HomeFeed() {
     const nextPage = page + 1
     const { data } = await fetchRankings({
       userId: currentUser?.id,
-      feedType: activeTab,
+      feedType,
       page: nextPage,
       limit: PAGE_SIZE
     })
-    setPosts(prev => [...prev, ...(data || [])])
+    setPosts(prev => {
+      const merged = [...prev, ...(data || [])]
+      const nextHasMore = (data?.length || 0) === PAGE_SIZE
+      feedCacheRef.current[cacheKey] = { posts: merged, page: nextPage, hasMore: nextHasMore }
+      return merged
+    })
     setHasMore((data?.length || 0) === PAGE_SIZE)
     setPage(nextPage)
     setIsLoadingMore(false)

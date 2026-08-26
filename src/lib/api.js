@@ -1,5 +1,20 @@
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
-const API_URL = ''; 
+const API_URL = '';
+
+// 📍 In-flight GET dedup — ดู docs/row-read-optimization-plan.md §4/§8: จาก trace จริงพบว่า
+// URL เดียวกันถูกยิงซ้ำติดกันภายใน 2-3 วินาที 92 ครั้งจาก 855 request (เสีย 556,992 rows)
+// ถ้ามี request เดียวกันค้างอยู่ (ยังไม่ resolve) ให้ใช้ promise เดิมแทนการยิง fetch ใหม่ซ้ำ —
+// แก้ปัญหาได้ไม่ว่าสาเหตุต้นตอจะมาจากอะไร (context re-render, effect รีรัน, remount ฯลฯ)
+const inFlightGET = new Map();
+
+async function getJSON(url) {
+  if (inFlightGET.has(url)) return inFlightGET.get(url);
+  const promise = fetch(url)
+    .then((response) => response.json())
+    .finally(() => inFlightGET.delete(url));
+  inFlightGET.set(url, promise);
+  return promise;
+}
 
 // ==========================================
 // ส่วนที่ 1: ระบบสมาชิก (Auth)
@@ -89,8 +104,7 @@ export async function fetchRankings(categoryParam) {
       url += `?category=${encodeURIComponent(categoryParam.toLowerCase())}`;
     }
       
-    const response = await fetch(url);
-    return await response.json();
+    return await getJSON(url);
   } catch (error) {
     console.error("fetchRankings error:", error);
     return { data: [], error: 'ไม่สามารถดึงข้อมูลได้' };
@@ -101,8 +115,7 @@ export async function fetchRanking(postId, userId) {
   try {
     let url = `${API_URL}/api/rankings?id=${postId}`;
     if (userId) url += `&user_id=${userId}`;
-    const response = await fetch(url);
-    return await response.json();
+    return await getJSON(url);
   } catch (error) {
     return { data: null, error: 'ไม่สามารถดึงข้อมูลได้' };
   }
@@ -112,8 +125,7 @@ export async function fetchRanking(postId, userId) {
 export async function fetchUserProfile(userId, viewerId = null) {
   try {
     const url = `${API_URL}/api/users?id=${encodeURIComponent(userId)}${viewerId ? `&viewer_id=${encodeURIComponent(viewerId)}` : ''}`;
-    const response = await fetch(url);
-    return await response.json();
+    return await getJSON(url);
   } catch (error) {
     console.error("fetchUserProfile error:", error);
     return { data: null, error: 'ไม่สามารถดึงข้อมูลโปรไฟล์ได้' };
@@ -175,8 +187,7 @@ export async function voteRanking({ rankingId, userId, voteType }) {
 
 export async function fetchComments(rankingId) {
   try {
-    const response = await fetch(`${API_URL}/api/comments?ranking_id=${rankingId}`);
-    return await response.json();
+    return await getJSON(`${API_URL}/api/comments?ranking_id=${rankingId}`);
   } catch (error) {
     return { data: [], error: 'ไม่สามารถดึงคอมเมนต์ได้' };
   }
@@ -199,10 +210,12 @@ export async function createComment({ ranking_id, user_id, content }) {
 // ส่วนที่ 4: ระบบเทมเพลต (Templates)
 // ==========================================
 
-export async function fetchTemplate(templateId) {
+// 📍 light=true = โหมด ?fields=meta (ข้าม community_average) ใช้เมื่อต้องการแค่
+// title/description/tiers/template_items — ดู docs/row-read-optimization-plan.md §5/§8, C6
+export async function fetchTemplate(templateId, { light = false } = {}) {
   try {
-    const response = await fetch(`${API_URL}/api/templates?id=${templateId}`);
-    return await response.json();
+    const url = `${API_URL}/api/templates?id=${templateId}${light ? '&fields=meta' : ''}`;
+    return await getJSON(url);
   } catch (error) {
     console.error("fetchTemplate error:", error);
     return { data: null, error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
@@ -219,8 +232,7 @@ export async function fetchTemplates({ hashtag, category, limit, page, sort } = 
     if (sort) params.append('sort', sort);
 
     const queryStr = params.toString();
-    const response = await fetch(`${API_URL}/api/templates${queryStr ? `?${queryStr}` : ''}`);
-    return await response.json();
+    return await getJSON(`${API_URL}/api/templates${queryStr ? `?${queryStr}` : ''}`);
   } catch (error) {
     console.error("fetchTemplates error:", error);
     return { data: [], error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
@@ -237,8 +249,7 @@ export async function fetchHashtags({ page, limit, sort, q } = {}) {
     if (q) params.append('q', q);
 
     const queryStr = params.toString();
-    const response = await fetch(`${API_URL}/api/hashtags${queryStr ? `?${queryStr}` : ''}`);
-    return await response.json();
+    return await getJSON(`${API_URL}/api/hashtags${queryStr ? `?${queryStr}` : ''}`);
   } catch (error) {
     console.error("fetchHashtags error:", error);
     return { data: [], error: 'ไม่สามารถดึงข้อมูลแฮชแท็กได้' };

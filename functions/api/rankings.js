@@ -3,8 +3,8 @@ export async function onRequest({ request, env }) {
   const id = url.searchParams.get('id');
   const db = env.tear_of_god_db; 
 
-  const jsonResponse = (data, status = 200) => {
-    return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+  const jsonResponse = (data, status = 200, extraHeaders = {}) => {
+    return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...extraHeaders } });
   };
 
   try {
@@ -32,12 +32,16 @@ export async function onRequest({ request, env }) {
         `).bind(id).all();
 
         // 📍 ดึงข้อมูลคอมเมนต์ของโพสต์นี้พร้อมข้อมูลผู้ใช้
+        // กัน unbounded growth (ดู docs/row-read-optimization-plan.md §4 hypothesis H4) — ตอนนี้
+        // ไม่มีโพสต์ไหนเกิน ~12 คอมเมนต์ แต่ query นี้ไม่มี LIMIT มาก่อนเลย ถ้าโพสต์ไหนคอมเมนต์
+        // เยอะมากในอนาคตจะอ่านทุกแถวไม่จำกัดทุกครั้งที่เปิดโพสต์ ใส่เพดานกว้างๆ ไว้กันไว้ก่อน
         const { results: comments } = await db.prepare(`
-          SELECT c.*, p.username, p.avatar_url 
-          FROM comments c 
-          LEFT JOIN profiles p ON c.user_id = p.id 
+          SELECT c.*, p.username, p.avatar_url
+          FROM comments c
+          LEFT JOIN profiles p ON c.user_id = p.id
           WHERE c.ranking_id = ?
           ORDER BY c.created_at DESC
+          LIMIT 200
         `).bind(id).all();
 
         const result = {
@@ -90,44 +94,85 @@ export async function onRequest({ request, env }) {
         if (authorId) { pageWhere += ` AND r.user_id = ?`; pageWhereParams.push(authorId); }
         if (templateId) { pageWhere += ` AND r.template_id = ?`; pageWhereParams.push(templateId); }
 
-        // 2 ขั้น: (1) "page" เลือกแค่ id ของแถวที่ชนะ ORDER BY + LIMIT/OFFSET ก่อน
-        // (2) ค่อยคำนวณ likes/dislikes/comments/user_vote เฉพาะแถวที่ชนะเท่านั้น — ไม่งั้น
-        // ทั้ง 4 subquery จะถูกคำนวณให้ "ทุกแถวในตาราง" ก่อน LIMIT ตัด ซึ่งแพงมากเมื่อ
-        // ข้อมูลเยอะขึ้น (personalized order เดิมยิ่งแพงกว่านั้นอีก — เป็น correlated
-        // subquery ต่อแถวที่ re-scan รายการ ranking ทั้งหมดในหมวดเดียวกันซ้ำทุกแถว)
-        // "aff" คำนวณ affinity ของผู้ชมครั้งเดียว ไม่ใช่ต่อแถว — ใช้เฉพาะตอน personalized order
-        const query = `
-          WITH
-          ${usePersonalized ? `aff AS (
-            SELECT fav_r.category AS cat, COUNT(*) AS affinity
-            FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id
-            WHERE v.user_id = ? AND v.vote_type = 'like'
-            GROUP BY fav_r.category
-          ),` : ''}
-          page AS (
-            SELECT r.id AS rid, ROW_NUMBER() OVER (ORDER BY ${orderExpr}) AS rn
+        // แก้ปัญหา row-read สูงผิดปกติ (ดู docs/row-read-optimization-plan.md §3, §8):
+        // เดิม query นี้ห่อด้วย "page" CTE + ROW_NUMBER() OVER (ORDER BY ...) เสมอ แม้แต่ตอน
+        // ORDER BY เป็นคอลัมน์ตรงๆ ที่มี index รองรับอยู่แล้ว (created_at/category/user_id/
+        // template_id+likes_count จาก migrations/0004) — ทำให้ SQLite ต้อง SCAN ทั้งตาราง
+        // แล้ว sort ลง temp B-tree 2 รอบ (ครั้งในและครั้งนอก page.rn) ก่อนค่อยตัด LIMIT
+        // วัดจริงจาก D1 trace (.wrangler observability): ~2,718 rows เพื่อคืนแค่ 5 แถว
+        //
+        // ตอนนี้แยกเป็น 2 รูปแบบ:
+        // (A) ไม่ personalized (มี sort ระบุมาชัดเจน หรือไม่ล็อกอิน หรือกรอง author_id) —
+        //     ตัด CTE/ROW_NUMBER ออกหมด เหลือ SELECT เดียว ORDER BY ตรงๆ + LIMIT/OFFSET
+        //     ให้ index ที่เพิ่มใน migrations/0004_feed_indexes.sql ทำงานเป็น index-order
+        //     scan ล้วนๆ ไม่มี temp sort เลย (ยืนยันด้วย EXPLAIN QUERY PLAN แล้ว)
+        // (B) personalized (COALESCE(aff.affinity,0) DESC) — sort บนค่าที่มาจาก LEFT JOIN กับ
+        //     CTE รวมยอด ไม่มีทางมี index รองรับได้ไม่ว่าจะเพิ่ม index อะไรก็ตาม (ยืนยันแล้วว่า
+        //     ยังคง SCAN + TEMP B-TREE แม้เพิ่ม index ครบ) จึงต้อง "bound" ขอบเขตที่จะจัดอันดับ
+        //     ก่อน: ดึงเฉพาะโพสต์ใหม่ล่าสุด CAND_LIMIT แถว (index-order scan, ถูก) มา join กับ
+        //     affinity แล้วค่อย sort แค่ในกลุ่มนั้น — ไม่ scan ทั้งตารางอีกต่อไป
+        //     ⚠️ trade-off ที่ตั้งใจ (บันทึกไว้ตามแผน): โพสต์เก่ามากที่ affinity สูงจะไม่ถูกดันขึ้น
+        //     มาอีก เพราะไม่อยู่ใน CAND_LIMIT แถวล่าสุด — ยอมแลกเพราะ personalized order เป็นแค่
+        //     "จัดลำดับใหม่ในกลุ่มโพสต์ใหม่ล่าสุด" ไม่ใช่ full ranking ทั้งระบบ
+        //     CAND_LIMIT โตตาม offset+limit เสมอ (ไม่ตายตัวที่ 100) เพื่อไม่ให้ infinite scroll
+        //     ตัน — scroll ลึกแค่ไหนก็ยังได้โพสต์ใหม่ๆ ต่อไปเรื่อยๆ ตามลำดับวันที่ปกติ
+        //     (แค่ personalize เฉพาะช่วงที่ยัง "ใหม่" พอจะติด CAND_LIMIT เท่านั้น)
+        const PERSONALIZE_CANDIDATE_MIN = 100;
+
+        let query;
+        let params;
+
+        if (!usePersonalized) {
+          query = `
+            SELECT r.*, p.username, p.avatar_url,
+              ${currentUserId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
             FROM rankings r
-            ${usePersonalized ? `LEFT JOIN aff ON aff.cat = r.category` : ''}
+            LEFT JOIN profiles p ON r.user_id = p.id
             ${pageWhere}
             ORDER BY ${orderExpr}
             LIMIT ? OFFSET ?
-          )
-          SELECT r.*, p.username, p.avatar_url,
-            ${currentUserId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
-          FROM page
-          JOIN rankings r ON r.id = page.rid
-          LEFT JOIN profiles p ON r.user_id = p.id
-          ORDER BY page.rn
-        `;
-
-        // ลำดับ bind ต้องตรงกับลำดับที่ "?" ปรากฏจริงในข้อความ query ด้านบน:
-        // aff.user_id -> pageWhere (category/hashtag/template_id) -> LIMIT/OFFSET -> user_vote
-        const params = [
-          ...(usePersonalized ? [currentUserId] : []),
-          ...pageWhereParams,
-          limit, offset,
-          ...(currentUserId ? [currentUserId] : []),
-        ];
+          `;
+          // ลำดับ "?" ในข้อความ query: user_vote -> pageWhere -> LIMIT/OFFSET
+          params = [
+            ...(currentUserId ? [currentUserId] : []),
+            ...pageWhereParams,
+            limit, offset,
+          ];
+        } else {
+          const candLimit = Math.max(PERSONALIZE_CANDIDATE_MIN, offset + limit);
+          query = `
+            WITH
+            aff AS (
+              SELECT fav_r.category AS cat, COUNT(*) AS affinity
+              FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id
+              WHERE v.user_id = ? AND v.vote_type = 'like'
+              GROUP BY fav_r.category
+            ),
+            cand AS (
+              SELECT r.id, r.category, r.created_at
+              FROM rankings r
+              ${pageWhere}
+              ORDER BY r.created_at DESC, r.id DESC
+              LIMIT ?
+            )
+            SELECT r.*, p.username, p.avatar_url,
+              (SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?) as user_vote
+            FROM cand c
+            JOIN rankings r ON r.id = c.id
+            LEFT JOIN aff ON aff.cat = c.category
+            LEFT JOIN profiles p ON r.user_id = p.id
+            ORDER BY COALESCE(aff.affinity, 0) DESC, c.created_at DESC, c.id DESC
+            LIMIT ? OFFSET ?
+          `;
+          // ลำดับ "?" ในข้อความ query: aff.user_id -> cand(pageWhere, candLimit) ->
+          // user_vote(currentUserId) -> LIMIT/OFFSET
+          params = [
+            currentUserId,
+            ...pageWhereParams, candLimit,
+            currentUserId,
+            limit, offset,
+          ];
+        }
 
         const { results: rankings } = await db.prepare(query).bind(...params).all();
 
@@ -170,7 +215,13 @@ export async function onRequest({ request, env }) {
           }));
         }
 
-        return jsonResponse({ success: true, data: formattedRankings, page, limit, total });
+        // 📍 cache ที่ edge ได้เฉพาะตอนไม่มี currentUserId เท่านั้น — มี user_vote ฝังอยู่ใน response
+        // ทุกแถวถ้ามี currentUserId ซึ่งเป็นข้อมูลเฉพาะผู้ชม ห้าม cache แบบ public เด็ดขาด
+        // (ดู docs/row-read-optimization-plan.md §6/§8 — คำเตือนสำคัญเรื่องการรั่วข้อมูลข้ามผู้ใช้)
+        const cacheHeaders = currentUserId
+          ? { 'Cache-Control': 'private, no-store' }
+          : { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=120' };
+        return jsonResponse({ success: true, data: formattedRankings, page, limit, total }, 200, cacheHeaders);
       }
     }
 
