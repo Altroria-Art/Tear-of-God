@@ -32,7 +32,4 @@ Auth for email/password lives in `functions/api/auth.js` against the `profiles` 
 
 ## Repo state / gotchas
 
-- `index.html` `<title>` is still the stale `vite-tmp` — fix when touching that file.
-- All 9 routes in `App.jsx` (`/`, `/create`, `/discover`, `/rank`, `/category/:id`, `/template/:id`, `/post/:id`, `/profile`, `/login`) exist and render; this is well past the "display-only" stage SDS.md and older docs describe.
-- `functions/api/votes.js` is currently broken (wrong export shape for Pages Functions, imports a nonexistent `./db.js`, queries a `likes` table that `schema.sql` drops) — the Like/Dislike buttons in the feed do not work end to end. Fix before building on top of it.
 - Feature work happens on branches merged via PRs (`Create`, `Feed`, `Main_Page`, `Profile.v2`, `backend`, `create.v2`, `discover`, `docker`, `home.v1/longin.v1`, `intemplate`, `profile/create`, `template`), not directly on `main`.

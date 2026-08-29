@@ -86,49 +86,49 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[85vh] flex flex-col justify-center items-center px-4 py-8 font-sans text-gray-800">
+    <div className="min-h-[85vh] flex flex-col justify-center items-center px-4 py-8 font-sans text-ink">
       
       {/* Main Form Container */}
-      <div className="bg-white w-full max-w-md p-8 rounded-2xl shadow-sm border border-[#eee8df] text-center">
+      <div className="glass w-full max-w-md p-8 rounded-2xl shadow-sm border border-line-soft text-center">
         
-        <h1 className="text-3xl font-extrabold text-[#2d241e] mb-2">
+        <h1 className="text-3xl font-extrabold text-ink mb-2">
           {isRegister ? 'Create an Account' : 'Join the Council'}
         </h1>
-        <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+        <p className="text-sm text-muted mb-8 leading-relaxed">
           Rank everything. Defend your picks.<br />Argue in the comments.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           {isRegister && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">Username</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">Username</label>
               <input 
                 type="text" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Your display name" 
-                className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+                className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">Email</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">Email</label>
             <input 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com" 
-              className="w-full bg-white border border-zinc-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+              className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
               required
             />
           </div>
 
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-gray-600">Password</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-ink-soft">Password</label>
               {!isRegister && (
-                <a href="#" className="text-xs text-gray-400 hover:underline">Forgot password?</a>
+                <a href="#" className="text-xs text-muted hover:underline">Forgot password?</a>
               )}
             </div>
             <div className="relative">
@@ -137,13 +137,13 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••" 
-                className="w-full bg-white border border-zinc-200 rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+                className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-brand"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-ink-soft focus:outline-none"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -152,20 +152,20 @@ export default function Login() {
 
           {isRegister && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1.5">Confirm Password</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">Confirm Password</label>
               <div className="relative">
                 <input 
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••" 
-                  className="w-full bg-white border border-zinc-200 rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-zinc-900"
+                  className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 pr-10 text-sm outline-none focus:ring-2 focus:ring-brand"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-ink-soft focus:outline-none"
                 >
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -176,16 +176,16 @@ export default function Login() {
           <button 
             type="submit"
             disabled={isLoading}
-            className="w-full bg-[#facc15] hover:bg-[#eab308] text-gray-900 font-bold py-3 rounded-xl transition-colors shadow-sm mt-2 disabled:opacity-50"
+            className="w-full bg-brand hover:bg-brand-accent text-canvas font-bold py-3 rounded-xl transition-colors shadow-sm mt-2 disabled:opacity-50"
           >
             {isLoading ? 'Processing...' : (isRegister ? 'Sign Up' : 'Log In')}
           </button>
         </form>
 
         <div className="flex items-center my-6">
-          <div className="flex-1 border-t border-gray-200"></div>
-          <span className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-widest">or</span>
-          <div className="flex-1 border-t border-gray-200"></div>
+          <div className="flex-1 border-t border-line-soft"></div>
+          <span className="px-4 text-xs font-semibold text-muted uppercase tracking-widest">or</span>
+          <div className="flex-1 border-t border-line-soft"></div>
         </div>
 
         {/* Google Sign In Button */}
@@ -193,7 +193,7 @@ export default function Login() {
           type="button"
           onClick={handleGoogleLogin}
           disabled={isLoading}
-          className="w-full bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-3 transition-colors shadow-sm disabled:opacity-50"
+          className="w-full glass hover:bg-surface border border-line-soft text-ink-soft font-semibold py-3 px-4 rounded-xl flex items-center justify-center gap-3 transition-colors shadow-sm disabled:opacity-50"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -204,12 +204,12 @@ export default function Login() {
           Continue with Google
         </button>
 
-        <p className="mt-6 text-sm text-gray-500">
+        <p className="mt-6 text-sm text-muted">
           {isRegister ? 'Already have an account?' : 'New to Tear of God?'}{' '}
           <button 
             type="button"
             onClick={() => setIsRegister(!isRegister)} 
-            className="font-bold text-zinc-900 hover:underline ml-1"
+            className="font-bold text-ink hover:underline ml-1"
           >
             {isRegister ? 'Log in' : 'Create an account'}
           </button>
@@ -219,3 +219,12 @@ export default function Login() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

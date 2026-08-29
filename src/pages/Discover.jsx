@@ -63,24 +63,24 @@ export default function Discover() {
   const popularTemplates = templates.slice(0, 4);
 
   return (
-    <div className="bg-[#fef9f2] text-[#1d1c18] font-sans min-h-screen flex flex-col">
-      <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
+    <div className="font-sans min-h-screen flex flex-col">
+      <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12 relative z-10">
 
         <div className="mb-12">
-          <h1 className="text-4xl font-extrabold tracking-tight text-[#1d1c18] mb-2">Discover</h1>
-          <p className="text-base text-[#4b4639]">Explore top tier lists and templates from the community.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-brand mb-2 drop-shadow-md">Discover</h1>
+          <p className="text-base text-muted font-medium">Explore top tier lists and templates from the community.</p>
         </div>
 
         <section className="mb-16">
           <div className="flex justify-between items-end mb-6">
-            <h2 className="text-2xl font-bold text-[#1d1c18]">Popular Templates</h2>
-            <Link to="/discover/templates" className="text-sm font-bold text-[#4b4639] hover:underline">View All</Link>
+            <h2 className="text-2xl font-bold text-brand drop-shadow-sm">Popular Templates</h2>
+            <Link to="/discover/templates" className="text-sm font-bold text-brand-accent hover:text-tier-d transition-colors">View All</Link>
           </div>
 
           {isLoading ? (
-            <p className="text-gray-500 animate-pulse text-center py-10">กำลังโหลดเทมเพลตยอดนิยม...</p>
+            <p className="text-muted font-medium animate-pulse text-center py-10">กำลังโหลดเทมเพลตยอดนิยม...</p>
           ) : popularTemplates.length === 0 ? (
-            <p className="text-gray-500 text-center py-10">ยังไม่มีเทมเพลตในระบบ</p>
+            <p className="text-muted font-medium text-center py-10 glass rounded-2xl">ยังไม่มีเทมเพลตในระบบ</p>
           ) : (
             <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
               {popularTemplates.map((template) => (
@@ -92,10 +92,10 @@ export default function Discover() {
 
         <section className="mb-16">
           <div className="flex justify-between items-end mb-6">
-            <h2 className="text-2xl font-bold text-[#1d1c18]">Popular Hashtags</h2>
-            <Link to="/discover/hashtags" className="text-sm font-bold text-[#4b4639] hover:underline">View All</Link>
+            <h2 className="text-2xl font-bold text-brand drop-shadow-sm">Popular Hashtags</h2>
+            <Link to="/discover/hashtags" className="text-sm font-bold text-brand-accent hover:text-tier-d transition-colors">View All</Link>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 glass p-6 rounded-3xl border border-line-soft">
             {hashtags.map((h) => (
               <HashtagPill key={h.tag} tag={h.tag} count={h.template_count} />
             ))}
@@ -105,8 +105,8 @@ export default function Discover() {
         {hashtagSections.map(({ tag, items }) => (
           <section key={tag} className="mb-16">
             <div className="flex justify-between items-end mb-6">
-              <h2 className="text-2xl font-bold text-[#1d1c18]">{tag}</h2>
-              <Link to={`/discover/hashtag/${encodeURIComponent(tag.replace('#', ''))}`} className="text-sm font-bold text-[#4b4639] hover:underline">View All</Link>
+              <h2 className="text-2xl font-bold text-brand drop-shadow-sm">{tag}</h2>
+              <Link to={`/discover/hashtag/${encodeURIComponent(tag.replace('#', ''))}`} className="text-sm font-bold text-brand-accent hover:text-tier-d transition-colors">View All</Link>
             </div>
             <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
               {items.map((template) => (
@@ -120,4 +120,7 @@ export default function Discover() {
     </div>
   );
 }
+
+
+
 

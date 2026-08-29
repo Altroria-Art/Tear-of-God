@@ -3,13 +3,14 @@ import { Share2, Plus, Shuffle, ArrowDownAZ } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchTemplate, createRanking } from '../lib/api';
+import { TIER_STYLES } from '../lib/tiers';
 
 const DEFAULT_TIERS = [
-  { id: 't1', label: 'S', color: 'bg-[#ff7f7f]' },
-  { id: 't2', label: 'A', color: 'bg-[#ffbf7f]' },
-  { id: 't3', label: 'B', color: 'bg-[#ffff7f]' },
-  { id: 't4', label: 'C', color: 'bg-[#7fff7f]' },
-  { id: 't5', label: 'D', color: 'bg-[#7fbfff]' },
+  { id: 't1', label: 'S', color: 'bg-tier-s' },
+  { id: 't2', label: 'A', color: 'bg-tier-a' },
+  { id: 't3', label: 'B', color: 'bg-tier-b' },
+  { id: 't4', label: 'C', color: 'bg-tier-c' },
+  { id: 't5', label: 'D', color: 'bg-tier-d' },
 ];
 
 const DEFAULT_ITEMS = [
@@ -181,34 +182,34 @@ const RankTierList = () => {
       key={item.id}
       draggable
       onDragStart={(e) => handleDragStart(e, item.id)}
-      className="bg-white min-w-[110px] h-[52px] px-4 rounded shadow-sm flex items-center justify-center text-center text-sm font-medium text-gray-700 border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+      className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg min-w-[110px] h-[52px] px-4 flex items-center justify-center text-center text-sm cursor-grab active:cursor-grabbing hover:-translate-y-0.5 transition-all"
     >
       <span className="line-clamp-2 leading-tight pointer-events-none">{item.content}</span>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-white font-sans text-gray-800 flex flex-col">
+    <div className="min-h-screen font-sans text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-6 py-8 flex-1 flex flex-col gap-6">
 
         {/* Top Info Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 flex flex-col gap-4">
+        <div className="glass rounded-xl shadow-sm p-6 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Ranking title..."
-              className="flex-1 text-[28px] font-bold text-black bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-[#7c5b36] rounded px-1 -mx-1"
+              className="flex-1 text-[28px] font-bold text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1"
             />
             <div className="flex flex-col md:flex-row items-center gap-3 pt-1 shrink-0">
-              <button className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-black transition-colors px-2">
+              <button className="flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors px-2">
                 <Share2 size={16} /> Share
               </button>
               <button
                 onClick={handleSaveRanking}
                 disabled={isSaving}
-                className="bg-[#7c5b36] hover:bg-[#63482a] disabled:bg-gray-400 text-white text-sm font-bold py-2 px-6 rounded-md transition-colors shadow-sm"
+                className="bg-brand hover:bg-brand-accent disabled:bg-gray-400 text-canvas text-sm font-bold py-2 px-6 rounded-md transition-colors shadow-sm"
               >
                 {isSaving ? 'Saving...' : 'Save Ranking'}
               </button>
@@ -216,25 +217,25 @@ const RankTierList = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Description <span className="font-normal text-gray-400">(Optional)</span></label>
+            <label className="block text-xs font-semibold text-muted mb-1">Description <span className="font-normal text-muted">(Optional)</span></label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add your notes or context for this ranking..."
               rows={2}
-              className="w-full bg-zinc-100 border border-zinc-200 rounded-md p-3 text-sm outline-none focus:ring-1 focus:ring-[#7c5b36] resize-none"
+              className="w-full bg-surface-glass border border-line-soft rounded-md p-3 text-sm outline-none focus:ring-1 focus:ring-brand resize-none"
             />
           </div>
         </div>
 
         {/* Search & Add Hashtags */}
-        <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6 flex flex-col gap-3">
+        <div className="glass rounded-xl shadow-sm p-6 flex flex-col gap-3">
           <label className="block text-sm font-semibold">Search & Add Hashtags</label>
 
           {selectedHashtags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {selectedHashtags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#7c5b36] text-white text-xs font-medium rounded-md shadow-sm">
+                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-brand text-canvas text-xs font-medium rounded-md shadow-sm">
                   {tag}
                   <button type="button" onClick={() => toggleHashtag(tag)} className="hover:text-red-200 font-bold ml-1">×</button>
                 </span>
@@ -248,18 +249,18 @@ const RankTierList = () => {
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={handleTagInputKeyDown}
             placeholder="Add tags (e.g. #rpg, #2024)"
-            className="w-full bg-zinc-100 border border-zinc-200 rounded-md px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-[#7c5b36]"
+            className="w-full bg-surface-glass border border-line-soft rounded-md px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-brand"
           />
 
           <div>
-            <span className="text-xs font-semibold text-gray-500">Suggested Tags:</span>
+            <span className="text-xs font-semibold text-muted">Suggested Tags:</span>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {suggestedTags.filter(t => !selectedHashtags.includes(t)).map((tag) => (
                 <button
                   key={tag}
                   type="button"
                   onClick={() => toggleHashtag(tag)}
-                  className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors border bg-zinc-100 border-gray-200 text-gray-700 hover:bg-zinc-200"
+                  className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors border bg-surface-glass border-line-soft text-ink-soft hover:bg-zinc-200"
                 >
                   + {tag}
                 </button>
@@ -269,17 +270,17 @@ const RankTierList = () => {
         </div>
 
         {/* Tier List Canvas */}
-        <div className="bg-zinc-100 rounded-xl border border-zinc-200 overflow-hidden flex flex-col">
+        <div className="bg-surface-glass rounded-xl overflow-hidden flex flex-col">
           {isLoadingTemplate ? (
-            <p className="text-gray-500 animate-pulse text-center py-10">กำลังโหลดเทมเพลต...</p>
+            <p className="text-muted animate-pulse text-center py-10">กำลังโหลดเทมเพลต...</p>
           ) : (
             tiers.map((tier, index) => (
               <div
                 key={tier.id}
-                className={`flex min-h-[90px] bg-[#fdfbf9] ${index !== tiers.length - 1 ? 'border-b border-zinc-200' : ''}`}
+                className={`flex min-h-[90px] bg-tag ${index !== tiers.length - 1 ? 'border-b border-line-soft' : ''}`}
               >
                 <div
-                  className={`${tier.color} w-24 shrink-0 flex items-center justify-center text-black font-bold border-r border-zinc-200 px-2 text-center leading-tight ${tier.label.length > 2 ? 'text-sm' : 'text-xl'}`}
+                  className={`${TIER_STYLES[tier.label]} w-24 shrink-0 flex items-center justify-center font-bold border-r border-line-soft px-2 text-center leading-tight ${tier.label.length > 2 ? 'text-sm' : 'text-xl'}`}
                 >
                   {tier.label}
                 </div>
@@ -297,7 +298,7 @@ const RankTierList = () => {
         </div>
 
         {/* Action Bar (Add Custom / Shuffle / Sort) */}
-        <div className="bg-zinc-100 rounded-xl border border-zinc-200 p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="bg-surface-glass rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-[300px]">
             <input
               type="text"
@@ -305,11 +306,11 @@ const RankTierList = () => {
               onChange={(e) => setCustomItem(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddCustomItem()}
               placeholder="Add custom item..."
-              className="w-full bg-[#ebe4d8] border border-[#ded5c5] rounded-md py-2.5 pl-4 pr-10 text-sm outline-none focus:ring-1 focus:ring-[#7c5b36]"
+              className="w-full bg-surface rounded-md py-2.5 pl-4 pr-10 text-sm outline-none focus:ring-1 focus:ring-brand"
             />
             <button
               onClick={handleAddCustomItem}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7c5b36] hover:text-[#5c4226]"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-brand hover:text-highlight"
             >
               <Plus size={18} strokeWidth={2.5} />
             </button>
@@ -318,13 +319,13 @@ const RankTierList = () => {
           <div className="flex gap-3 w-full md:w-auto">
             <button
               onClick={handleShuffle}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#ebe4d8] hover:bg-[#ded5c5] border border-[#ded5c5] text-gray-700 text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
             >
               <Shuffle size={16} /> Shuffle Items
             </button>
             <button
               onClick={handleSortAZ}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-[#ebe4d8] hover:bg-[#ded5c5] border border-[#ded5c5] text-gray-700 text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
             >
               <ArrowDownAZ size={16} /> Sort A-Z
             </button>
@@ -332,15 +333,15 @@ const RankTierList = () => {
         </div>
 
         {/* Unranked Pool (กล่องเก็บไอเทมที่ยังไม่ได้จัดอันดับ) */}
-        <div className="bg-[#e4ddd0] rounded-xl p-6 border border-[#d6cebf]">
-          <h2 className="text-[17px] font-bold text-gray-800 mb-4">Unranked Pool</h2>
+        <div className="bg-surface-glass rounded-xl p-6 border border-line">
+          <h2 className="text-[17px] font-bold text-ink mb-4">Unranked Pool</h2>
           <div
             className="min-h-[120px] flex flex-wrap gap-4"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, null)}
           >
             {items.filter(item => item.tierId === null).length === 0 ? (
-              <span className="text-gray-500 text-sm italic py-4 pointer-events-none">
+              <span className="text-muted text-sm italic py-4 pointer-events-none">
                 All items have been ranked!
               </span>
             ) : (
@@ -350,13 +351,13 @@ const RankTierList = () => {
         </div>
 
         {/* Footer */}
-        <footer className="mt-6 pt-6 border-t border-zinc-200 flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-gray-500">
+        <footer className="mt-6 pt-6 border-t border-line-soft flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-muted">
           <p>© 2026 Tear of God. Community Driven Ranking.</p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-gray-700 hover:underline">About</a>
-            <a href="#" className="hover:text-gray-700 hover:underline">Guidelines</a>
-            <a href="#" className="hover:text-gray-700 hover:underline">Privacy</a>
-            <a href="#" className="hover:text-gray-700 hover:underline">Terms</a>
+            <a href="#" className="hover:text-ink-soft hover:underline">About</a>
+            <a href="#" className="hover:text-ink-soft hover:underline">Guidelines</a>
+            <a href="#" className="hover:text-ink-soft hover:underline">Privacy</a>
+            <a href="#" className="hover:text-ink-soft hover:underline">Terms</a>
           </div>
         </footer>
 
@@ -366,4 +367,22 @@ const RankTierList = () => {
 };
 
 export default RankTierList;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

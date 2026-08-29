@@ -2,7 +2,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/layout/Navbar';
 import ToastProvider from './components/ui/Toast';
 import FeedProvider from './context/FeedProvider';
-import { UserProvider } from './context/UserContext'; // 1. นำเข้า UserProvider
+import { UserProvider } from './context/UserContext';
+import { ThemeProvider } from './context/ThemeContext'; // Import ThemeProvider
 import HomeFeed from './pages/HomeFeed';
 import Discover from './pages/Discover';
 import PopularTemplates from './pages/PopularTemplates';
@@ -14,13 +15,14 @@ import PostDetail from './pages/PostDetail';
 import Create from './pages/Create';
 import RankTierList from './pages/RankTierList';
 import Profile from './pages/Profile'; 
-import Login from './pages/Login'; // 2. นำเข้าหน้า Login
+import Login from './pages/Login';
 
 function App() {
   return (
     <Router>
       <ToastProvider>
-        <UserProvider> {/* 3. ครอบด้วย UserProvider เพื่อให้ทุกหน้าเรียกใช้สถานะล็อกอินได้ */}
+        <ThemeProvider> {/* Wrap with ThemeProvider */}
+          <UserProvider>
           <FeedProvider>
             <Navbar />
 
@@ -40,10 +42,13 @@ function App() {
               <Route path="/login" element={<Login />} /> {/* 4. เพิ่มเส้นทางไปหน้า Login */}
             </Routes>
           </FeedProvider>
-        </UserProvider>
+          </UserProvider>
+        </ThemeProvider>
       </ToastProvider>
     </Router>
   );
 }
 
 export default App;
+
+

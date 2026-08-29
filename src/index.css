@@ -1,41 +1,49 @@
 @import "tailwindcss";
 
 @theme {
-  /* Surfaces */
-  --color-canvas: #fafafa;
-  --color-surface: #ffffff;
-  --color-nav: #ffffff;
-  --color-search: #f4f4f5;
-  --color-tag: #f4f4f5;
+  /* Surfaces (Aurora Mesh Theme) */
+  --color-canvas: #0b071a; /* Deep indigo base */
+  --color-surface: rgba(17, 12, 34, 0.6); /* Translucent dark surface */
+  --color-surface-glass: rgba(20, 15, 45, 0.4);
+  --color-nav: rgba(11, 7, 26, 0.65);
+  --color-search: rgba(255, 255, 255, 0.05);
+  --color-tag: rgba(255, 255, 255, 0.1);
+  --color-item-card: rgba(255, 255, 255, 0.15);
+  --color-item-card-text: #ffffff;
 
   /* Lines */
-  --color-line: #e4e4e7;
-  --color-line-soft: #f4f4f5;
+  --color-line: rgba(255, 255, 255, 0.15);
+  --color-line-soft: rgba(255, 255, 255, 0.08);
 
   /* Text */
-  --color-brand: #18181b;
-  --color-brand-accent: #3f3f46;
-  --color-ink: #18181b;
-  --color-ink-soft: #3f3f46;
-  --color-muted: #71717a;
-  --color-item: #27272a;
-  --color-action: #a1a1aa;
+  --color-brand: #ffffff;
+  --color-brand-accent: #e2e8f0;
+  --color-ink: #f8fafc;
+  --color-ink-soft: #cbd5e1;
+  --color-muted: #94a3b8;
+  --color-item: #1e1b4b;
+  --color-action: #94a3b8;
+  --color-highlight: #fbbf24;
+  
+  /* Dynamic Item Backgrounds (Always pastel/light) */
+  --item-bg-s: 85%;
+  --item-bg-l: 85%;
 
   /* Accents */
-  --color-pill-active: #18181b;
-  --color-avatar: #e4e4e7;
-  --color-avatar-ink: #52525b;
+  --color-pill-active: #ffffff;
+  --color-avatar: rgba(255, 255, 255, 0.1);
+  --color-avatar-ink: #cbd5e1;
 
-  /* Tier badges — fixed convention, see SDS.md 7.2 */
-  --color-tier-s: #ef4444;
-  --color-tier-a: #f59e0b;
-  --color-tier-b: #fde047;
-  --color-tier-c: #22c55e;
-  --color-tier-d: #3b82f6;
+  /* Tier badges — Classic Bright */
+  --color-tier-s: #ff7f7f; /* Bright Red */
+  --color-tier-a: #ffbf7f; /* Bright Orange */
+  --color-tier-b: #ffff7f; /* Bright Yellow */
+  --color-tier-c: #7fff7f; /* Bright Green */
+  --color-tier-d: #7fbfff; /* Bright Blue */
 
   /* Vote states */
-  --color-vote-up: #3b82f6;
-  --color-vote-down: #ef4444;
+  --color-vote-up: #00d4ff;
+  --color-vote-down: #ff2e93;
 
   /* Status (toast notifications) */
   --color-status-success: #10b981;
@@ -43,40 +51,86 @@
   --color-status-warning: #f59e0b;
   --color-status-info: #3b82f6;
 
+  /* Light Theme Variables (Clean Glass with Slate Ink) */
+  --color-light-canvas: #fdfdfd;
+  --color-light-surface: rgba(255, 255, 255, 0.7);
+  --color-light-surface-glass: rgba(255, 255, 255, 0.9);
+  --color-light-nav: rgba(255, 255, 255, 0.85);
+  --color-light-search: rgba(0, 0, 0, 0.04);
+  --color-light-tag: rgba(0, 0, 0, 0.04);
+  --color-light-item-card: #ffffff;
+  --color-light-item-card-text: #0f172a;
+  --color-light-line: rgba(0, 0, 0, 0.1);
+  --color-light-line-soft: rgba(0, 0, 0, 0.06);
+  --color-light-brand: #1e293b;
+  --color-light-brand-accent: #334155;
+  --color-light-ink: #0f172a;
+  --color-light-ink-soft: #475569;
+  --color-light-muted: #64748b;
+  --color-light-item: #f8fafc;
+  --color-light-action: #1e293b;
+  --color-highlight: #fbbf24;
+  
+  --item-light-bg-s: 85%;
+  --item-light-bg-l: 85%;
+
+  --color-light-pill-active: #5c4226;
+  --color-light-avatar: rgba(124, 93, 34, 0.1);
+  --color-light-avatar-ink: #7c5d22;
+
+  /* Fonts */
+  --font-sans: 'Prompt', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
   /* Toast motion */
   --animate-toast-in: toast-in 0.28s cubic-bezier(0.21, 1.02, 0.73, 1);
   --animate-toast-progress: toast-progress 4s linear forwards;
 
-  @keyframes toast-in {
-    from {
-      opacity: 0;
-      transform: translateY(14px) scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
+  /* Aurora Animation */
+  --animate-aurora: aurora 15s ease infinite;
 
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(14px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
   @keyframes toast-progress {
-    from {
-      width: 100%;
-    }
-    to {
-      width: 0%;
-    }
+    from { width: 100%; }
+    to { width: 0%; }
+  }
+  @keyframes aurora {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
   }
 }
 
 @layer base {
   body {
-    @apply antialiased text-ink bg-canvas;
+    @apply antialiased text-ink bg-canvas font-sans;
+    
+    /* Aurora Mesh Gradient Background */
+    background: 
+      radial-gradient(circle at 15% 50%, rgba(111, 0, 255, 0.25), transparent 40%),
+      radial-gradient(circle at 85% 30%, rgba(0, 212, 255, 0.2), transparent 40%),
+      radial-gradient(circle at 50% 80%, rgba(255, 46, 147, 0.2), transparent 50%),
+      radial-gradient(circle at 50% 0%, rgba(255, 139, 26, 0.1), transparent 40%);
+    background-color: var(--color-canvas); /* Base color fallback */
+    background-size: 150% 150%;
+    background-attachment: fixed;
+    animation: aurora 15s ease infinite;
+
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   /* Make all interactive elements smooth */
   a, button, input, select, textarea {
-    @apply transition-all duration-200 ease-out outline-none;
+    @apply transition-all duration-300 ease-out outline-none;
+  }
+
+  /* Smooth Theme Transitions for all elements */
+  *, *::before, *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 400ms;
   }
 
   /* Satisfying 'squish' effect on click */
@@ -87,5 +141,67 @@
   /* Remove scale effect for disabled elements or special cases */
   button:disabled {
     @apply scale-100 opacity-50 cursor-not-allowed;
+  }
+
+  body.light-theme {
+    --color-canvas: var(--color-light-canvas);
+    --color-surface: var(--color-light-surface);
+    --color-surface-glass: var(--color-light-surface-glass);
+    --color-nav: var(--color-light-nav);
+    --color-search: var(--color-light-search);
+    --color-tag: var(--color-light-tag);
+    --color-item-card: var(--color-light-item-card);
+    --color-item-card-text: var(--color-light-item-card-text);
+    --color-line: var(--color-light-line);
+    --color-line-soft: var(--color-light-line-soft);
+    --color-brand: var(--color-light-brand);
+    --color-brand-accent: var(--color-light-brand-accent);
+    --color-ink: var(--color-light-ink);
+    --color-ink-soft: var(--color-light-ink-soft);
+    --color-muted: var(--color-light-muted);
+    --color-item: var(--color-light-item);
+    --color-action: var(--color-light-action);
+    --item-bg-s: var(--item-light-bg-s);
+    --item-bg-l: var(--item-light-bg-l);
+    --color-pill-active: var(--color-light-pill-active);
+    --color-avatar: var(--color-light-avatar);
+    --color-avatar-ink: var(--color-light-avatar-ink);
+    
+    color: var(--color-light-ink);
+  }
+}
+
+/* Custom Utilities for Glassmorphism */
+@layer utilities {
+  .glass {
+    @apply bg-surface-glass backdrop-blur-xl border border-line shadow-2xl;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  }
+  .glass-nav {
+    @apply bg-nav backdrop-blur-2xl border-b border-line-soft;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+  }
+  /* Enhanced Glowing Tiers */
+  .tier-glow-s { box-shadow: 0 0 20px rgba(255, 46, 147, 0.6); }
+  .tier-glow-a { box-shadow: 0 0 20px rgba(255, 139, 26, 0.6); }
+  .tier-glow-b { box-shadow: 0 0 20px rgba(255, 213, 0, 0.6); }
+  .tier-glow-c { box-shadow: 0 0 20px rgba(0, 224, 121, 0.6); }
+  .tier-glow-d { box-shadow: 0 0 20px rgba(0, 212, 255, 0.6); }
+}
+
+
+
+
+
+
+
+
+@layer utilities {
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

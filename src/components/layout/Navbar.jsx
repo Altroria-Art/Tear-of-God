@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, LogOut } from 'lucide-react';
-import { useUser } from '../../context/UserContext'; // นำเข้า UserContext เพื่อเช็คสถานะและ logout
+import { Search, User, LogOut, Sun, Moon } from 'lucide-react';
+import { useUser } from '../../context/UserContext';
+import { useTheme } from '../../context/ThemeContext';
 
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentUser, logout } = useUser(); // เพิ่ม logout เข้ามาใน destructure
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false); // สำหรับคุม Dropdown
+  const { currentUser, logout } = useUser();
+  const { isLightMode, toggleTheme } = useTheme();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -25,22 +27,22 @@ const Navbar = () => {
   const isActive = (path) => {
     const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
     return active
-      ? 'border-zinc-900 text-black'
-      : 'border-transparent text-gray-600 hover:text-black';
+      ? 'border-brand text-brand font-semibold'
+      : 'border-transparent text-ink-soft hover:text-highlight';
   };
 
   const handleLogout = () => {
-    logout(); // เรียกฟังก์ชัน logout จาก context
+    logout();
     setIsDropdownOpen(false);
     navigate('/login');
   };
 
   return (
-    <nav className="bg-white/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-50 border-b border-zinc-200">
+    <nav className="glass-nav px-6 py-4 flex items-center justify-between sticky top-0 z-50">
       
       {/* ฝั่งซ้าย: โลโก้ และ ลิงก์เมนู */}
       <div className="flex items-center gap-10">
-        <Link to="/" className="text-[22px] font-black text-zinc-900 tracking-tight hover:text-zinc-700 transition-colors">
+        <Link to="/" className="text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
           Tear of God
         </Link>
 
@@ -62,13 +64,22 @@ const Navbar = () => {
         
         {/* ช่อง Search */}
         <div className="relative hidden sm:block">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input 
             type="text" 
             placeholder="Search Tear of God..." 
-            className="bg-zinc-100 border-none rounded-full py-2.5 pl-10 pr-4 text-sm w-56 lg:w-72 outline-none focus:ring-2 focus:ring-zinc-900 text-gray-800 transition-shadow placeholder-gray-500"
+            className="bg-search border border-line-soft rounded-full py-2.5 pl-10 pr-4 text-sm w-56 lg:w-72 outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
           />
         </div>
+
+        {/* ปุ่มเปลี่ยนธีม */}
+        <button
+          onClick={toggleTheme}
+          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft mr-1"
+          aria-label="Toggle Theme"
+        >
+          {isLightMode ? <Moon size={18} strokeWidth={2.5} /> : <Sun size={18} strokeWidth={2.5} />}
+        </button>
 
         {/* ปุ่มโปรไฟล์ / ล็อกอิน */}
         <div className="relative" ref={dropdownRef}>
@@ -77,7 +88,7 @@ const Navbar = () => {
               {/* ปุ่มรูปโปรไฟล์ */}
               <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center text-gray-700 hover:bg-zinc-200 transition-colors cursor-pointer overflow-hidden shadow-sm border border-zinc-200"
+                className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
               >
                 {currentUser?.avatar_url ? (
                   <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
@@ -88,17 +99,17 @@ const Navbar = () => {
 
               {/* Dropdown เมนู */}
               {isDropdownOpen && (
-                <div className="absolute right-0 top-12 w-40 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
+                <div className="absolute right-0 top-12 w-40 glass rounded-xl py-2 z-50">
                   <Link 
                     to="/profile" 
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-zinc-100"
+                    className="block px-4 py-2 text-sm text-ink hover:bg-surface-glass font-medium transition-colors"
                     onClick={() => setIsDropdownOpen(false)}
                   >
                     Profile
                   </Link>
                   <button 
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    className="w-full text-left px-4 py-2 text-sm text-status-error hover:bg-status-error/10 font-medium flex items-center gap-2 transition-colors"
                   >
                     <LogOut size={14} /> ออกจากระบบ
                   </button>
@@ -108,7 +119,7 @@ const Navbar = () => {
           ) : (
             <Link 
               to="/login" 
-              className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center text-gray-700 hover:bg-zinc-200 hover:text-zinc-900 transition-colors cursor-pointer overflow-hidden shadow-sm border border-zinc-200"
+              className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
             >
               <User size={18} strokeWidth={2.5} />
             </Link>
@@ -121,3 +132,5 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
+

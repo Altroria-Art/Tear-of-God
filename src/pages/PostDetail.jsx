@@ -178,7 +178,7 @@ export default function PostDetail() {
   if (isLoading) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-lg font-bold text-gray-500 animate-pulse">กำลังโหลดข้อมูล...</p>
+        <p className="text-lg font-bold text-muted animate-pulse">กำลังโหลดข้อมูล...</p>
       </main>
     )
   }
@@ -186,7 +186,7 @@ export default function PostDetail() {
   if (!post) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-lg font-bold text-gray-800">ไม่พบโพสต์ที่คุณตามหา</p>
+        <p className="text-lg font-bold text-ink">ไม่พบโพสต์ที่คุณตามหา</p>
         <Link to="/" className="mt-2 inline-block text-sm text-blue-500 hover:underline">
           กลับสู่หน้าหลัก
         </Link>
@@ -203,11 +203,11 @@ export default function PostDetail() {
     <main className="mx-auto max-w-6xl px-6 py-6">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div>
-          <Link to="/" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white p-2 text-gray-600 transition-colors hover:bg-gray-100">
+          <Link to="/" className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
 
-          <article className="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <article className="mt-4 rounded-2xl border border-line-soft glass p-4 shadow-sm">
             {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
             <Link
               to={authorId ? `/profile/${authorId}` : '#'}
@@ -215,17 +215,17 @@ export default function PostDetail() {
             >
               <Avatar name={author.name} src={author.avatarUrl} />
               <div>
-                <p className="text-sm font-bold text-gray-900 hover:text-[#fbbf24] transition-colors">{author.name}</p>
-                <p className="text-xs text-gray-500">{postedAt}</p>
+                <p className="text-sm font-bold text-ink hover:text-highlight transition-colors">{author.name}</p>
+                <p className="text-xs text-muted">{postedAt}</p>
               </div>
             </Link>
 
-            <p className="mt-4 inline-block rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold tracking-wider text-gray-600 uppercase">
+            <p className="mt-4 inline-block rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold tracking-wider text-ink-soft uppercase">
               {category}
             </p>
 
-            <h1 className="mt-2 text-2xl font-bold text-gray-900">{title}</h1>
-            {description && <p className="mt-2 text-sm text-gray-600">{description}</p>}
+            <h1 className="mt-2 text-2xl font-bold text-ink">{title}</h1>
+            {description && <p className="mt-2 text-sm text-ink-soft">{description}</p>}
             
             {post.hashtags && (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -235,7 +235,7 @@ export default function PostDetail() {
                     <Link 
                       key={idx} 
                       to={`/discover/hashtag/${encodeURIComponent(cleanTag)}`}
-                      className="px-3 py-1 rounded-md bg-[#f4f4f5] text-gray-600 text-[11px] font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors"
+                      className="px-3 py-1 rounded-md bg-surface-glass text-ink-soft text-[11px] font-bold uppercase tracking-wider hover:bg-surface transition-colors"
                     >
                       #{cleanTag}
                     </Link>
@@ -244,13 +244,13 @@ export default function PostDetail() {
               </div>
             )}
 
-            <div className="mt-4 space-y-2 rounded-xl border border-gray-100 p-2 bg-white">
+            <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2 glass">
               {tiers.map(({ tier, items }) => (
                 <TierRow key={tier} tier={tier} items={items} />
               ))}
             </div>
 
-            <div className="mt-4 flex items-center border-t border-gray-100 pt-3">
+            <div className="mt-4 flex items-center border-t border-line-soft pt-3">
               <div className="flex items-center gap-5">
                 <ActionButton 
                   icon={ThumbsUpIcon} 
@@ -298,3 +298,9 @@ export default function PostDetail() {
     </main>
   )
 }
+
+
+
+
+
+

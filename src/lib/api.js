@@ -267,6 +267,17 @@ export async function fetchTemplates({ hashtag, category, limit, page, sort } = 
 }
 
 // ดึงรายการ hashtag ทั้งหมด พร้อมจำนวน template ที่ติดแท็กนั้น (แบ่งหน้า)
+export async function fetchCategories({ limit } = {}) {
+  const queryStr = new URLSearchParams();
+  if (limit) queryStr.append('limit', limit);
+  try {
+    return await getJSON(`/api/categories?`);
+  } catch (error) {
+    console.error('fetchCategories error:', error);
+    return [];
+  }
+}
+
 export async function fetchHashtags({ page, limit, sort, q } = {}) {
   try {
     const params = new URLSearchParams();

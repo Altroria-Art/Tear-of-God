@@ -10,13 +10,13 @@ export default function SortDropdown({ value, options, onChange, label = 'SORT B
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+        className="flex items-center gap-1 text-sm text-muted hover:text-ink-soft"
       >
-        {label} <span className="font-semibold text-gray-700">{currentLabel}</span>
+        {label} <span className="font-semibold text-ink-soft">{currentLabel}</span>
         <ChevronDown size={14} />
       </button>
       {open && (
-        <div className="absolute right-0 top-8 w-40 rounded-lg border border-gray-100 bg-white py-2 shadow-xl z-50">
+        <div className="absolute right-0 top-8 w-40 rounded-lg border border-line-soft glass py-2 shadow-xl z-50">
           {options.map((opt) => (
             <button
               key={opt.value}
@@ -25,7 +25,7 @@ export default function SortDropdown({ value, options, onChange, label = 'SORT B
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-zinc-100"
+              className="block w-full px-4 py-2 text-left text-sm text-ink-soft hover:bg-surface-glass"
             >
               {opt.label}
             </button>
@@ -35,4 +35,7 @@ export default function SortDropdown({ value, options, onChange, label = 'SORT B
     </div>
   );
 }
+
+
+
 

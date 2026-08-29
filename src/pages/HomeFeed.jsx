@@ -1,3 +1,4 @@
+import { TIER_STYLES } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -5,6 +6,8 @@ import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้
 import { ThumbsUp, ThumbsDown, MessageSquare, Copy } from 'lucide-react';
 
 import { timeAgo } from '../lib/format';
+import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
+import HomeRightSidebar from '../components/feed/HomeRightSidebar';
 
 const groupItemsByTier = (rankingItems) => {
   if (!rankingItems || !Array.isArray(rankingItems)) return {};
@@ -17,13 +20,7 @@ const groupItemsByTier = (rankingItems) => {
   return map;
 };
 
-const TIER_COLORS = {
-  S: 'bg-[#ff7f7f] text-white',
-  A: 'bg-[#ffbf7f] text-white',
-  B: 'bg-[#e2e8f0] text-gray-700',
-  C: 'bg-[#7fff7f] text-gray-800',
-  D: 'bg-[#7faaff] text-white',
-};
+
 
 // 📍 [ลบ mockKindredData ทิ้งไปเรียบร้อย บอทจะไม่มากวนใจอีก!]
 
@@ -78,19 +75,19 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   };
 
   return (
-    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+    <div className="flex items-center justify-between pt-4 border-t border-line-soft">
       <div className="flex items-center gap-6">
-        <div onClick={() => handleVote('like')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'like' ? 'text-blue-500' : 'text-gray-500 hover:text-gray-900'}`}>
+        <div onClick={() => handleVote('like')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'like' ? 'text-vote-up' : 'text-muted hover:text-ink'}`}>
           <ThumbsUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
           <span className="text-[13px] font-bold">{likes}</span>
         </div>
 
-        <div onClick={() => handleVote('dislike')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'dislike' ? 'text-red-500' : 'text-gray-500 hover:text-gray-900'}`}>
+        <div onClick={() => handleVote('dislike')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'dislike' ? 'text-vote-down' : 'text-muted hover:text-ink'}`}>
           <ThumbsDown size={18} className="group-hover:translate-y-0.5 transition-transform" />
           <span className="text-[13px] font-bold">{dislikes}</span>
         </div>
 
-        <div onClick={() => navigate(`/post/${id}#comments`)} className="flex items-center gap-1.5 text-gray-500 hover:text-[#fbbf24] cursor-pointer transition-colors">
+        <div onClick={() => navigate(`/post/${id}#comments`)} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <MessageSquare size={18} />
           <span className="text-[13px] font-bold">{initialComments}</span>
         </div>
@@ -207,17 +204,17 @@ export default function HomeFeed() {
   const displayData = posts;
 
   return (
-    <div className="min-h-screen bg-[#fdfbf7] font-sans">
+    <div className="min-h-screen font-sans">
       {/* Tab Navigation */}
-      <div className="sticky top-0 z-10 bg-[#fdfbf7]">
-        <div className="mx-auto flex max-w-3xl justify-center gap-8 px-4">
+      <div className="sticky top-[73px] z-10 glass-nav border-b border-line-soft backdrop-blur-xl py-3">
+        <div className="mx-auto flex max-w-fit rounded-full bg-surface border border-line-soft p-1 shadow-inner">
           <button
             type="button"
             onClick={() => setActiveTab('general')}
-            className={`py-3 text-sm font-medium transition-colors ${
+            className={`rounded-full px-8 py-2 text-sm font-bold transition-all duration-300 ${
               activeTab === 'general'
-                ? 'border-b-2 border-gray-900 font-bold text-gray-900'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-brand text-canvas shadow-md scale-100'
+                : 'text-muted hover:text-ink scale-95 hover:bg-surface-glass'
             }`}
           >
             General
@@ -225,10 +222,10 @@ export default function HomeFeed() {
           <button
             type="button"
             onClick={() => setActiveTab('kindred')}
-            className={`py-3 text-sm font-medium transition-colors ${
+            className={`rounded-full px-8 py-2 text-sm font-bold transition-all duration-300 ${
               activeTab === 'kindred'
-                ? 'border-b-2 border-gray-900 font-bold text-gray-900'
-                : 'text-gray-500 hover:text-gray-700'
+                ? 'bg-brand text-canvas shadow-md scale-100'
+                : 'text-muted hover:text-ink scale-95 hover:bg-surface-glass'
             }`}
           >
             Kindred
@@ -236,18 +233,18 @@ export default function HomeFeed() {
         </div>
       </div>
 
-      <main className="max-w-3xl mx-auto px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 flex gap-8 py-8 items-start justify-center"><aside className="hidden lg:block w-[240px] shrink-0 sticky top-[140px] max-h-[calc(100vh-140px)] overflow-y-auto hide-scrollbar pb-6"><HomeLeftSidebar /></aside><main className="w-full max-w-2xl shrink">
         <div className="space-y-6 mt-4">
           {isLoading && (
-            <p className="text-center text-sm font-medium text-gray-400 animate-pulse py-10">
+            <p className="text-center text-sm font-medium text-muted animate-pulse py-10">
               กำลังโหลดฟีดของคุณ...
             </p>
           )}
 
           {!isLoading && displayData.length === 0 && (
-            <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 shadow-sm">
-              <p className="text-gray-500 font-medium">ยังไม่มีโพสต์ในระบบเลย</p>
-              <button onClick={() => navigate('/create')} className="mt-4 text-sm font-bold text-[#fbbf24] hover:underline">
+            <div className="text-center py-16 bg-surface rounded-2xl border border-line-soft shadow-sm">
+              <p className="text-muted font-medium">ยังไม่มีโพสต์ในระบบเลย</p>
+              <button onClick={() => navigate('/create')} className="mt-4 text-sm font-bold text-brand hover:underline">
                 สร้าง Tier List เป็นคนแรกเลย!
               </button>
             </div>
@@ -259,32 +256,32 @@ export default function HomeFeed() {
             const tiers = Object.keys(tierMap).length > 0 ? Object.keys(tierMap) : ['S', 'A'];
 
             return (
-              <article key={post.id} className="bg-white rounded-[20px] p-6 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] border border-gray-100/80">
+              <article key={post.id} className="bg-surface border border-line-soft rounded-[20px] p-6 shadow-sm">
                 
                 {/* Header Profile & Use Template Button */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div 
-                      className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                      className="w-10 h-10 rounded-full overflow-hidden bg-surface-glass border border-line-soft cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
                     >
                       {post.profile?.avatar_url ? (
                         <img src={post.profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-gray-400">
+                        <div className="w-full h-full flex items-center justify-center font-bold text-muted">
                           {post.profile?.username?.charAt(0).toUpperCase() || 'U'}
                         </div>
                       )}
                     </div>
                     <div>
                       <h3 
-                        className="text-[15px] font-bold text-gray-900 leading-tight cursor-pointer hover:underline"
+                        className="text-[15px] font-bold text-ink leading-tight cursor-pointer hover:underline"
                         onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
                       >
                         {post.profile?.username || 'Unknown User'}
                       </h3>
                       <p 
-                        className="text-[13px] text-gray-500 font-medium cursor-pointer"
+                        className="text-[13px] text-muted font-medium cursor-pointer"
                         onClick={() => navigate(`/post/${post.id}`)}
                       >
                         {timeAgo(post.created_at)}
@@ -309,7 +306,7 @@ export default function HomeFeed() {
                       <span 
                         key={idx} 
                         onClick={(e) => { e.stopPropagation(); navigate(`/discover/hashtag/${encodeURIComponent(cleanTag)}`); }}
-                        className="px-3 py-1 rounded-md bg-[#f4f4f5] text-gray-600 text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
+                        className="px-3 py-1 rounded-md bg-surface-glass text-ink-soft text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-surface transition-colors"
                       >
                         #{cleanTag}
                       </span>
@@ -320,7 +317,7 @@ export default function HomeFeed() {
                 {/* Title */}
                 <h2 
                   onClick={() => navigate(`/post/${post.id}`)}
-                  className="text-xl font-extrabold mb-5 text-gray-900 cursor-pointer hover:text-[#fbbf24] transition-colors"
+                  className="text-xl font-extrabold mb-5 text-ink cursor-pointer hover:text-highlight transition-colors"
                 >
                   {post.title}
                 </h2>
@@ -328,15 +325,15 @@ export default function HomeFeed() {
                 {/* Tier List Preview Blocks */}
                 <div className="space-y-2 mb-6">
                   {tiers.map((tier) => (
-                    <div key={tier} className="flex bg-white rounded-xl border border-gray-100 overflow-hidden min-h-[50px] shadow-sm items-center">
-                      <div className={`w-14 self-stretch flex items-center justify-center font-black text-lg ${TIER_COLORS[tier] || 'bg-gray-400 text-white'}`}>
+                    <div key={tier} className="flex bg-tag rounded-xl border border-line-soft overflow-hidden min-h-[50px] shadow-sm items-center">
+                      <div className={`w-14 self-stretch flex items-center justify-center font-black text-lg ${TIER_STYLES[tier] || 'bg-surface text-ink'}`}>
                         {tier}
                       </div>
-                      <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap bg-white">
+                      <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap bg-tag">
                         {tierMap[tier] && tierMap[tier].map((itemName, idx) => (
                           <div 
                             key={idx} 
-                            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-center text-xs font-medium text-gray-700 shadow-sm"
+                            className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs"
                           >
                             <span className="w-full line-clamp-2 text-[11px] leading-normal">{itemName}</span>
                           </div>
@@ -366,18 +363,39 @@ export default function HomeFeed() {
           {hasMore && <div ref={sentinelRef} className="h-1" />}
 
           {isLoadingMore && (
-            <p className="text-center text-xs font-medium text-gray-400 animate-pulse py-4">
+            <p className="text-center text-xs font-medium text-muted animate-pulse py-4">
               กำลังโหลดเพิ่ม...
             </p>
           )}
 
           {!isLoading && !hasMore && displayData.length > 0 && (
-            <p className="text-center text-xs font-medium text-gray-400 py-6">
+            <p className="text-center text-xs font-medium text-muted py-6">
               จบฟีดแล้ว
             </p>
           )}
         </div>
-      </main>
+      </main><aside className="hidden xl:block w-[300px] shrink-0 sticky top-[140px] max-h-[calc(100vh-140px)] overflow-y-auto hide-scrollbar pb-6"><HomeRightSidebar /></aside></div>
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

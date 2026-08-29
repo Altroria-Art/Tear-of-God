@@ -42,7 +42,7 @@ export default function CommentSection({ comments, onSubmit }) {
         <button
           type="submit"
           disabled={!draft.trim()}
-          className="self-end rounded-full bg-brand-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="self-end rounded-full bg-brand-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Post
         </button>
@@ -59,4 +59,7 @@ export default function CommentSection({ comments, onSubmit }) {
     </section>
   )
 }
+
+
+
 
