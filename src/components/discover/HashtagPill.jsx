@@ -6,10 +6,12 @@ export default function HashtagPill({ tag, count }) {
   return (
     <Link
       to={`/discover/hashtag/${encodeURIComponent(cleanTag)}`}
-      className="px-4 py-2 bg-[#f2ede6] border border-[#cec6b4] rounded-full text-[#4b4639] hover:bg-[#ece7e1] transition-colors font-bold text-sm shadow-xs text-center"
+      className="px-5 py-2.5 bg-surface-glass border border-line-soft rounded-full text-brand-accent hover:bg-surface hover:text-brand hover:border-line transition-all font-bold text-sm shadow-sm hover:-translate-y-0.5 text-center"
     >
-      {tag} <span className="text-[#9a927e] font-normal">({formatCount(count)})</span>
+      {tag} <span className="text-muted font-normal ml-1">({formatCount(count)})</span>
     </Link>
   );
 }
+
+
 

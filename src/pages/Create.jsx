@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
+import { TIER_STYLES } from '../lib/tiers';
 
 const DEFAULT_TIERS = [
   { id: 't1', label: 'S', color: 'bg-red-400' },
@@ -236,9 +237,9 @@ const CreateTierList = () => {
         data-item-id={item.id}
         draggable
         onDragStart={(e) => handleDragStart(e, item.id)}
-        className="group relative bg-white w-20 h-20 rounded-md shadow-sm flex items-center justify-center px-2 pt-2 pb-4 text-center text-xs font-medium text-[#334155] border border-gray-100 cursor-grab active:cursor-grabbing hover:shadow-md transition-all z-10"
+        className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center px-2 pt-2 pb-4 text-center text-[10px] md:text-xs cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl hover:border-brand-accent transition-all z-10"
       >
-        <span className="break-words line-clamp-3 leading-tight pointer-events-none">{item.content}</span>
+        <span className="break-words line-clamp-3 leading-tight pointer-events-none drop-shadow-sm">{item.content}</span>
 
         {/* 📍 [ใหม่]: ปุ่มย้ายซ้าย/ขวา — สลับลำดับภายใน tier เดียวกัน */}
         <button
@@ -246,21 +247,21 @@ const CreateTierList = () => {
           onClick={() => shiftItem(item.id, -1)}
           disabled={pos === 0}
           aria-label="Move left"
-          className="absolute bottom-0.5 left-0.5 rounded p-0.5 text-gray-300 hover:text-[#7c5b36] disabled:opacity-30 disabled:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute bottom-1 left-1 rounded p-1 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
         >
-          <ChevronLeft size={11} strokeWidth={2.5} />
+          <ChevronLeft size={14} strokeWidth={3} />
         </button>
         <button
           type="button"
           onClick={() => shiftItem(item.id, 1)}
           disabled={pos === mates.length - 1}
           aria-label="Move right"
-          className="absolute bottom-0.5 right-0.5 rounded p-0.5 text-gray-300 hover:text-[#7c5b36] disabled:opacity-30 disabled:hover:text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute bottom-1 right-1 rounded p-1 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
         >
-          <ChevronRight size={11} strokeWidth={2.5} />
+          <ChevronRight size={14} strokeWidth={3} />
         </button>
 
-        <button onClick={() => handleDeleteItem(item.id)} className="absolute -top-1.5 -right-1.5 bg-white text-gray-400 hover:text-red-500 rounded-full p-0.5 shadow-sm border border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity z-20"><X size={10} /></button>
+        <button onClick={() => handleDeleteItem(item.id)} className="absolute -top-2 -right-2 bg-surface text-muted hover:text-status-error hover:scale-110 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-all z-20"><X size={12} strokeWidth={3} /></button>
       </div>
     );
   };
@@ -321,13 +322,13 @@ const CreateTierList = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white p-8 font-sans text-gray-800 relative">
+    <div className="min-h-screen font-sans p-4 md:p-8 relative">
       
       {/* POPUP SETTINGS MODAL */}
       {activeSettingsTier && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#3b322c] text-white w-full max-w-md rounded-lg shadow-2xl relative border border-[#52463e]">
-            <button onClick={() => setActiveSettingsTier(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><X size={20} /></button>
+          <div className="bg-surface border border-line-soft text-ink w-full max-w-md rounded-lg shadow-2xl relative border border-[#52463e]">
+            <button onClick={() => setActiveSettingsTier(null)} className="absolute top-4 right-4 text-gray-400 hover:text-ink transition-colors"><X size={20} /></button>
             <div className="p-8">
               <h3 className="text-center font-bold text-base mb-6">Choose a Label Background Color:</h3>
               <div className="flex flex-wrap justify-center gap-2.5 mb-8 px-4">
@@ -338,9 +339,9 @@ const CreateTierList = () => {
                 ))}
               </div>
               <h3 className="text-center font-bold text-base mb-4">Edit Label Text Below:</h3>
-              <input type="text" value={tiers.find(t => t.id === activeSettingsTier.id)?.label || ''} onChange={(e) => updateTierData(activeSettingsTier.id, 'label', e.target.value)} className="w-full bg-white text-black p-3.5 rounded-md outline-none focus:ring-2 focus:ring-zinc-900 mb-6 font-medium shadow-inner" />
+              <input type="text" value={tiers.find(t => t.id === activeSettingsTier.id)?.label || ''} onChange={(e) => updateTierData(activeSettingsTier.id, 'label', e.target.value)} className="w-full bg-canvas text-ink p-3.5 rounded-md outline-none focus:ring-2 focus:ring-brand mb-6 font-medium shadow-inner" />
               <div className="flex justify-center">
-                <button onClick={() => setActiveSettingsTier(null)} className="bg-[#5c4e45] hover:bg-[#4a3e37] text-white py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm">Save</button>
+                <button onClick={() => setActiveSettingsTier(null)} className="bg-brand-accent hover:bg-surface text-canvas py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm">Save</button>
               </div>
             </div>
           </div>
@@ -349,30 +350,30 @@ const CreateTierList = () => {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
-        <h1 className="text-3xl font-bold mb-2">Create Tier List</h1>
-        <p className="text-gray-500">Define your categories and rank items seamlessly.</p>
+        <h1 className="text-3xl font-black mb-2 text-brand">Create Tier List</h1>
+        <p className="text-muted font-medium">Define your categories and rank items seamlessly.</p>
       </div>
 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
         
         {/* LEFT SIDEBAR */}
         <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-5">
+          <div className="glass p-6 rounded-3xl shadow-xl flex flex-col gap-5">
             <div>
-              <label className="block text-sm font-semibold mb-1">Template Name</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="E.g. Best 90s Movies..." className="w-full bg-zinc-100 border-none rounded-lg p-3 outline-none focus:ring-2 focus:ring-zinc-900" />
+              <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">Template Name</label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="E.g. Best 90s Movies..." className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
             </div>
             
-            {/* 📍 Hashtags Section (มาแทนที่ Category) */}
+            {/* 📍 Hashtags Section */}
             <div>
-              <label className="block text-sm font-semibold mb-1">Hashtags / Category</label>
-              <p className="text-xs text-gray-500 mb-2">Select or create tags to categorize your list.</p>
+              <label className="block text-sm font-bold mb-1 text-ink-soft uppercase tracking-wider">Hashtags / Category</label>
+              <p className="text-xs text-muted mb-3 font-medium">Select or create tags to categorize your list.</p>
               
               {selectedHashtags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   {selectedHashtags.map((tag, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#7c5b36] text-white text-xs font-medium rounded-md shadow-sm">
-                      {tag} <button type="button" onClick={() => handleRemoveSelectedTag(tag)} className="hover:text-red-200 font-bold ml-1">×</button>
+                    <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-brand text-canvas text-xs font-bold rounded-lg shadow-sm drop-shadow-sm">
+                      {tag} <button type="button" onClick={() => handleRemoveSelectedTag(tag)} className="hover:text-ink/70 ml-1">×</button>
                     </span>
                   ))}
                 </div>
@@ -380,33 +381,33 @@ const CreateTierList = () => {
 
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {hashtags.filter(t => !selectedHashtags.includes(t)).map((tag, idx) => (
-                  <button key={idx} type="button" onClick={() => handleToggleHashtag(tag)} className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors border bg-zinc-100 border-gray-200 text-gray-700 hover:bg-zinc-200">
+                  <button key={idx} type="button" onClick={() => handleToggleHashtag(tag)} className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-surface text-ink-soft hover:bg-surface-glass hover:text-brand">
                     + {tag}
                   </button>
                 ))}
               </div>
               
-              {/* 📍 [ใหม่]: unified search/create input — autocomplete hashtags ที่มีอยู่แล้วจาก API */}
-              <div className="flex flex-col gap-2 border-t border-gray-100 pt-3 relative">
+              {/* 📍 [ใหม่]: unified search/create input */}
+              <div className="flex flex-col gap-2 border-t border-line-soft/50 pt-4 relative">
                 <input
                   type="text"
                   value={tagQuery}
                   onChange={(e) => setTagQuery(e.target.value)}
                   onKeyDown={handleAddCustomTag}
                   placeholder="Search existing hashtags or type new one & press Enter..."
-                  className="w-full bg-zinc-100 border-none rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-zinc-900"
+                  className="w-full bg-surface border border-line-soft text-ink rounded-xl px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all"
                   autoComplete="off"
                 />
 
-                {/* dropdown ผลลัพธ์ค้นหา — แสดงเฉพาะตอนมี query */}
+                {/* dropdown ผลลัพธ์ค้นหา */}
                 {tagQuery.trim() && (
-                  <div className="absolute top-full left-0 right-0 z-40 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 z-40 mt-1 glass rounded-xl shadow-2xl max-h-48 overflow-y-auto">
                     {isSearchingTags && (
-                      <div className="px-3 py-2 text-xs text-gray-400 italic">Searching...</div>
+                      <div className="px-3 py-2 text-xs text-muted italic">Searching...</div>
                     )}
                     {!isSearchingTags && tagResults.length === 0 && tagQuery.trim().length >= 2 && (
-                      <div className="px-3 py-2 text-xs text-gray-400">
-                        No existing tags — press <kbd className="px-1 py-0.5 bg-zinc-100 rounded text-gray-600 font-mono text-[10px]">Enter</kbd> to create <span className="font-semibold text-gray-600">#{tagQuery.replace(/^#/, '')}</span>
+                      <div className="px-3 py-2 text-xs text-muted">
+                        No existing tags — press <kbd className="px-1 py-0.5 bg-surface rounded text-ink-soft font-mono text-[10px]">Enter</kbd> to create <span className="font-bold text-brand">#{tagQuery.replace(/^#/, '')}</span>
                       </div>
                     )}
                     {tagResults.map((tag) => (
@@ -414,10 +415,10 @@ const CreateTierList = () => {
                         key={tag}
                         type="button"
                         onClick={() => handleSelectSearchResult(tag)}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-100 flex items-center gap-2 transition-colors"
+                        className="w-full text-left px-3 py-2.5 text-xs hover:bg-surface-glass flex items-center gap-2 transition-colors border-b border-line-soft/30 last:border-0"
                       >
-                        <span className="text-gray-400 font-mono">#</span>
-                        <span className="font-medium text-gray-700">{tag.replace(/^#/, '')}</span>
+                        <span className="text-muted font-mono">#</span>
+                        <span className="font-bold text-brand">{tag.replace(/^#/, '')}</span>
                       </button>
                     ))}
                   </div>
@@ -426,18 +427,18 @@ const CreateTierList = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">Description <span className="text-gray-400 font-normal">(Optional)</span></label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this tier list about?" rows="3" className="w-full bg-zinc-100 border-none rounded-lg p-3 outline-none focus:ring-2 focus:ring-zinc-900 resize-none"></textarea>
+              <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">Description <span className="text-muted font-medium text-xs normal-case">(Optional)</span></label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this tier list about?" rows="3" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none"></textarea>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><span className="text-xl">✨</span> Quick Add Items</h3>
-            <p className="text-xs text-gray-500 mb-4">Type item names separated by commas.</p>
-            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder="Item 1, Item 2, Item 3..." rows="4" className="w-full bg-zinc-100 border-none rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-zinc-900 resize-none mb-4"></textarea>
+          <div className="glass p-6 rounded-3xl shadow-xl flex flex-col gap-4">
+            <h3 className="font-black text-brand mb-1 flex items-center gap-2"><span className="text-xl">✨</span> Quick Add Items</h3>
+            <p className="text-xs text-muted mb-2 font-medium">Type item names separated by commas.</p>
+            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder="Item 1, Item 2, Item 3..." rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
             <div className="flex justify-end">
-              <button onClick={handleGenerateCards} className="bg-[#7c5b36] hover:bg-[#63482a] text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
-                <span className="text-lg">⊕</span> Generate
+              <button onClick={handleGenerateCards} className="bg-surface hover:bg-brand hover:text-canvas hover:border-transparent text-brand font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
+                <span className="text-lg leading-none">⊕</span> Generate
               </button>
             </div>
           </div>
@@ -445,39 +446,39 @@ const CreateTierList = () => {
 
         {/* RIGHT CANVAS */}
         <div className="w-full lg:w-2/3 flex flex-col gap-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="glass p-6 rounded-3xl shadow-xl ">
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               {tiers.map((tier) => (
-                <div key={tier.id} className="flex min-h-[80px] bg-[#f9f8f6] rounded-lg overflow-hidden border border-gray-100">
-                  <div className={`${tier.color} w-24 flex items-center justify-center text-white text-2xl font-bold shadow-[inset_-2px_0_4px_rgba(0,0,0,0.1)] p-2 text-center break-words`}>{tier.label}</div>
-                  <div className="flex-1 p-2 flex flex-wrap gap-2 items-center" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
+                <div key={tier.id} className="flex min-h-[90px] bg-tag border border-line-soft rounded-2xl overflow-hidden">
+                  <div className={`${TIER_STYLES[tier.label]} w-24 flex items-center justify-center text-2xl font-black shadow-[inset_-2px_0_10px_rgba(0,0,0,0.2)] p-2 text-center break-words drop-shadow-md`}>{tier.label}</div>
+                  <div className="flex-1 p-3 flex flex-wrap gap-3 items-center bg-transparent" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
                     {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
                   </div>
-                  <div className="w-12 bg-transparent flex items-center justify-center border-l border-gray-200">
-                    <button onClick={() => setActiveSettingsTier(tier)} className="text-gray-400 hover:text-[#7c5b36] hover:bg-zinc-100 transition-all p-2 rounded-full" title="Settings"><Settings size={18} /></button>
+                  <div className="w-14 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
+                    <button onClick={() => setActiveSettingsTier(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title="Settings"><Settings size={18} /></button>
                   </div>
                 </div>
               ))}
             </div>
 
-            <hr className="my-6 border-gray-100" />
+            <hr className="my-8 border-line-soft/50" />
 
             {/* UNRANKED ITEMS POOL */}
             <div>
-              <h3 className="text-sm font-bold text-[#64748b] uppercase tracking-wider mb-3">Unranked Items Pool</h3>
-              <div className="bg-[#f5f1ea] min-h-[140px] rounded-lg p-5 flex flex-wrap gap-3 border border-zinc-200" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
+              <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest mb-4">Unranked Items Pool</h3>
+              <div className="bg-surface-glass border border-line-soft min-h-[160px] rounded-2xl p-6 flex flex-wrap gap-4" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
                 {items.filter(item => item.tierId === null).length === 0 ? (
-                  <span className="text-gray-400 text-sm italic w-full text-center mt-8 pointer-events-none">No items yet. Generate them from the left panel.</span>
+                  <span className="text-muted text-sm italic font-medium w-full text-center mt-12 pointer-events-none">No items yet. Generate them from the left panel.</span>
                 ) : (
                   items.filter(item => item.tierId === null).map(renderItemCard)
                 )}
               </div>
             </div>
 
-            <div className="flex justify-end items-center mt-8 pt-4">
-              <button onClick={handlePublish} disabled={isPublishing} className="bg-[#7c5b36] hover:bg-[#63482a] disabled:bg-gray-400 text-white text-sm font-medium py-2.5 px-6 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
-                {isPublishing ? 'Publishing...' : <><Upload size={16} /> Publish List</>}
+            <div className="flex justify-end items-center mt-10">
+              <button onClick={handlePublish} disabled={isPublishing} className="bg-brand hover:bg-brand-accent disabled:bg-surface disabled:text-muted text-canvas text-sm font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)] active:scale-95">
+                {isPublishing ? 'Publishing...' : <><Upload size={18} /> Publish List</>}
               </button>
             </div>
           </div>
@@ -489,3 +490,18 @@ const CreateTierList = () => {
 };
 
 export default CreateTierList;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

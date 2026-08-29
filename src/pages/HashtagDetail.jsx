@@ -69,7 +69,7 @@ export default function HashtagDetail() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="bg-[#fef9f2] text-[#1d1c18] font-sans min-h-screen flex flex-col">
+    <div className="text-ink font-sans min-h-screen flex flex-col">
       <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -80,7 +80,7 @@ export default function HashtagDetail() {
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <span className="bg-[#ffc329] text-[#261a00] font-bold px-4 py-1.5 rounded-full">#{tag}</span>
-            <p className="text-sm text-[#4b4639]">{total.toLocaleString()} templates</p>
+            <p className="text-sm text-muted">{total.toLocaleString()} templates</p>
           </div>
           <SortDropdown value={sort} options={SORT_OPTIONS} onChange={handleSortChange} label="Sort:" />
         </div>
@@ -102,4 +102,8 @@ export default function HashtagDetail() {
     </div>
   );
 }
+
+
+
+
 

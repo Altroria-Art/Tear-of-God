@@ -76,7 +76,7 @@ export default function PopularHashtags() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="bg-[#fef9f2] text-[#1d1c18] font-sans min-h-screen flex flex-col">
+    <div className="text-ink font-sans min-h-screen flex flex-col">
       <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -87,8 +87,8 @@ export default function PopularHashtags() {
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-[#1d1c18]">Popular Hashtags</h1>
-              <p className="text-sm text-[#4b4639]">{total.toLocaleString()} hashtags</p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-ink">Popular Hashtags</h1>
+              <p className="text-sm text-muted">{total.toLocaleString()} hashtags</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -99,7 +99,7 @@ export default function PopularHashtags() {
                 value={inputValue}
                 onChange={(e) => handleFilterChange(e.target.value)}
                 placeholder="Filter tags..."
-                className="bg-zinc-100 border border-zinc-200 rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none focus:ring-2 focus:ring-zinc-900 text-gray-800 transition-shadow placeholder-gray-500"
+                className="bg-surface border border-line-soft rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none focus:ring-2 focus:ring-brand text-ink transition-shadow placeholder-muted"
               />
             </div>
             <SortDropdown value={sort} options={SORT_OPTIONS} onChange={handleSortChange} label="Sort:" />
@@ -123,4 +123,10 @@ export default function PopularHashtags() {
     </div>
   );
 }
+
+
+
+
+
+
 

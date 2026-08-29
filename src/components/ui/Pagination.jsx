@@ -39,7 +39,7 @@ export default function Pagination({ page, totalPages, onChange }) {
             key={p}
             type="button"
             onClick={() => onChange(p)}
-            className={`rounded-md px-3 py-1.5 text-sm ${p === page ? 'bg-[#7A612A] text-white' : 'border border-gray-200 hover:bg-gray-50'}`}
+            className={`rounded-md px-3 py-1.5 text-sm ${p === page ? 'bg-brand text-canvas' : 'border border-line-soft hover:bg-surface'}`}
           >
             {p}
           </button>
@@ -56,4 +56,7 @@ export default function Pagination({ page, totalPages, onChange }) {
     </div>
   );
 }
+
+
+
 

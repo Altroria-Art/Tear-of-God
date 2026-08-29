@@ -68,7 +68,7 @@ export default function PopularTemplates() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="bg-[#fef9f2] text-[#1d1c18] font-sans min-h-screen flex flex-col">
+    <div className="text-ink font-sans min-h-screen flex flex-col">
       <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -79,8 +79,8 @@ export default function PopularTemplates() {
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-[#1d1c18]">Popular Templates</h1>
-              <p className="text-sm text-[#4b4639]">{total.toLocaleString()} templates</p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-ink">Popular Templates</h1>
+              <p className="text-sm text-muted">{total.toLocaleString()} templates</p>
             </div>
           </div>
           <SortDropdown value={sort} options={SORT_OPTIONS} onChange={handleSortChange} label="Sort:" />
@@ -103,4 +103,8 @@ export default function PopularTemplates() {
     </div>
   );
 }
+
+
+
+
 

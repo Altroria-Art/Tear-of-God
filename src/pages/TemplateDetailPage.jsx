@@ -8,6 +8,7 @@ import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import { fetchTemplate, fetchRankings, recordTemplateView, voteRanking } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
+import { TIER_STYLES } from '../lib/tiers'
 
 const PAGE_SIZE = 5
 const SORT_OPTIONS = [
@@ -29,9 +30,9 @@ function groupItemsByTierOrder(rankingItems, tiersDef) {
 function TierListRow({ tier, items }) {
   const isLong = tier.label.length > 2
   return (
-    <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-2.5 last:border-b-0">
+    <div className="flex items-center gap-3 border-b border-line-soft px-4 py-2.5 last:border-b-0">
       <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-sm text-white font-bold text-center leading-tight px-1 ${tier.color} ${isLong ? 'text-[10px]' : 'text-base'}`}
+        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-sm font-bold text-center leading-tight px-1 ${TIER_STYLES[tier.label]} ${isLong ? 'text-[10px]' : 'text-base'}`}
       >
         {tier.label}
       </span>
@@ -39,7 +40,7 @@ function TierListRow({ tier, items }) {
         {items.map((item, idx) => (
           <span
             key={idx}
-            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-medium text-gray-700"
+            className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-sm"
           >
             {item}
           </span>
@@ -51,9 +52,9 @@ function TierListRow({ tier, items }) {
 
 function AverageTopBar({ timeLabel }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3">
-      <span className="text-sm text-gray-500">{timeLabel}</span>
-      <span className="flex items-center gap-1 rounded bg-[#9A7B38] px-2 py-1 text-xs text-white">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-line-soft/50">
+      <span className="text-sm text-muted">{timeLabel}</span>
+      <span className="flex items-center gap-1 rounded bg-brand px-2 py-1 text-xs text-canvas">
         <Star size={14} />
         Community Average
       </span>
@@ -63,11 +64,11 @@ function AverageTopBar({ timeLabel }) {
 
 function UserTopBar({ username, avatarUrl, timeLabel }) {
   return (
-    <div className="flex items-center gap-2 px-4 py-3">
+    <div className="flex items-center gap-2 px-4 py-3 border-b border-line-soft/50">
       <Avatar size="sm" name={username} src={avatarUrl} />
-      <span className="text-sm font-semibold text-gray-800">{username}</span>
-      <span className="text-sm text-gray-400">·</span>
-      <span className="text-sm text-gray-500">{timeLabel}</span>
+      <span className="text-sm font-semibold text-ink">{username}</span>
+      <span className="text-sm text-muted">·</span>
+      <span className="text-sm text-muted">{timeLabel}</span>
     </div>
   )
 }
@@ -127,7 +128,7 @@ function RankingCard({ ranking, tiersDef }) {
   }
 
   return (
-    <div className="mb-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="mb-6 rounded-lg glass shadow-sm overflow-hidden">
       <UserTopBar
         username={ranking.profile?.username || 'User'}
         avatarUrl={ranking.profile?.avatar_url}
@@ -136,29 +137,29 @@ function RankingCard({ ranking, tiersDef }) {
       {tierRows.map(({ tier, items }) => (
         <TierListRow key={tier.label} tier={tier} items={items} />
       ))}
-      <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3 text-sm text-gray-500">
+      <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-sm text-muted">
         <div className="flex items-center gap-5">
           <span
             onClick={() => handleVote('like')}
-            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'like' ? 'text-blue-500' : 'hover:text-gray-700'}`}
+            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'like' ? 'text-blue-500' : 'hover:text-ink'}`}
           >
             <ThumbsUp size={16} /> {formatCount(likes)}
           </span>
           <span
             onClick={() => handleVote('dislike')}
-            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'dislike' ? 'text-red-500' : 'hover:text-gray-700'}`}
+            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'dislike' ? 'text-red-500' : 'hover:text-ink'}`}
           >
             <ThumbsDown size={16} /> {formatCount(dislikes)}
           </span>
-          <Link to={`/post/${ranking.id}`} className="flex items-center gap-1.5 hover:text-gray-700 transition-colors">
+          <Link to={`/post/${ranking.id}`} className="flex items-center gap-1.5 hover:text-ink transition-colors">
             <MessageSquare size={16} /> {formatCount(ranking.stats?.comments || 0)}
           </Link>
         </div>
         <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 text-gray-400">
+          <span className="flex items-center gap-1.5 text-muted">
             <Download size={16} /> Export
           </span>
-          <span onClick={handleShare} className="flex cursor-pointer items-center gap-1.5 hover:text-gray-700 transition-colors">
+          <span onClick={handleShare} className="flex cursor-pointer items-center gap-1.5 hover:text-ink transition-colors">
             <Share2 size={16} /> Share
           </span>
         </div>
@@ -231,17 +232,17 @@ export default function TemplateDetailPage() {
 
   if (isLoadingTemplate) {
     return (
-      <main className="min-h-screen bg-[#FDF9F1] flex items-center justify-center">
-        <p className="text-lg font-bold text-gray-500 animate-pulse">กำลังโหลดเทมเพลต...</p>
+      <main className="min-h-screen flex items-center justify-center">
+        <p className="text-lg font-bold text-muted animate-pulse">กำลังโหลดเทมเพลต...</p>
       </main>
     )
   }
 
   if (!template) {
     return (
-      <main className="min-h-screen bg-[#FDF9F1] flex flex-col items-center justify-center gap-2">
-        <p className="text-lg font-bold text-gray-800">ไม่พบเทมเพลตที่คุณตามหา</p>
-        <Link to="/" className="text-blue-500 hover:underline">กลับสู่หน้าหลัก</Link>
+      <main className="min-h-screen flex flex-col items-center justify-center gap-2">
+        <p className="text-lg font-bold text-ink">ไม่พบเทมเพลตที่คุณตามหา</p>
+        <Link to="/" className="text-brand-accent hover:underline">กลับสู่หน้าหลัก</Link>
       </main>
     )
   }
@@ -256,20 +257,20 @@ export default function TemplateDetailPage() {
   })
 
   return (
-    <main className="min-h-screen bg-[#FDF9F1]">
+    <main className="min-h-screen text-ink">
       <div className="mx-auto max-w-5xl px-4 py-8">
-        <section className="mb-8 rounded-xl bg-white p-6 shadow-sm">
-          <h1 className="mb-4 text-3xl font-bold text-gray-900 md:text-4xl">{template.title}</h1>
+        <section className="mb-8 rounded-xl glass p-6 shadow-sm">
+          <h1 className="mb-4 text-3xl font-bold md:text-4xl">{template.title}</h1>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
-              <span className="font-medium text-gray-800">@{template.profile?.username || 'User'}</span>
-              <span className="text-gray-300">|</span>
-              <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+              <span className="font-medium text-ink">@{template.profile?.username || 'User'}</span>
+              <span className="text-muted">|</span>
+              <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
                 <Users size={14} /> {formatCount(template.stats?.uses)} Uses
               </span>
-              <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+              <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
                 <Eye size={14} /> {formatCount(template.stats?.views)} Views
               </span>
             </div>
@@ -277,18 +278,18 @@ export default function TemplateDetailPage() {
             <button
               type="button"
               onClick={handleUseTemplate}
-              className="flex items-center gap-2 rounded-full bg-zinc-100 border border-zinc-200 px-6 py-2 font-bold text-zinc-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-zinc-200 hover:shadow-md active:scale-[0.97]"
+              className="flex items-center gap-2 rounded-full glass px-6 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass hover: active:scale-[0.97]"
             >
               + Use Template
             </button>
           </div>
 
-          <p className="mt-4 max-w-3xl text-gray-600">{template.description}</p>
+          <p className="mt-4 max-w-3xl text-muted">{template.description}</p>
         </section>
 
         <section>
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Community Rankings</h2>
+            <h2 className="text-2xl font-bold text-ink">Community Rankings</h2>
             <SortDropdown
               value={sort}
               options={SORT_OPTIONS}
@@ -297,7 +298,7 @@ export default function TemplateDetailPage() {
           </div>
 
           {hasCommunityAverage && (
-            <div className="mb-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="mb-6 rounded-lg glass shadow-sm overflow-hidden">
               <AverageTopBar timeLabel={`Updated ${timeAgo(template.community_average.updated_at)}`} />
               {communityAvgRows.map(({ tier, items }) => (
                 <TierListRow key={tier.label} tier={tier} items={items} />
@@ -308,7 +309,7 @@ export default function TemplateDetailPage() {
           {isLoadingRankings ? (
             <p className="text-gray-500 text-center py-10 animate-pulse">กำลังโหลด...</p>
           ) : rankings.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-500">
+            <div className="rounded-xl glass p-8 text-center text-muted">
               ยังไม่มีใครสร้าง Tier List จากเทมเพลตนี้ เป็นคนแรกเลยสิ!
             </div>
           ) : (
@@ -325,4 +326,15 @@ export default function TemplateDetailPage() {
     </main>
   )
 }
+
+
+
+
+
+
+
+
+
+
+
 
