@@ -17,7 +17,6 @@ const CATEGORY_META = {
 const TIER_ROW_COLORS = { S: 'bg-red-400', A: 'bg-orange-400', B: 'bg-yellow-400', C: 'bg-green-400', D: 'bg-blue-400' };
 
 function ArrowLeftIcon({ className }) { /*... (โค้ด SVG เดิม) ...*/ return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}><path d="M19 12H5M12 19l-7-7 7-7" /></svg> }
-function PlusIcon({ className }) { /*... (โค้ด SVG เดิม) ...*/ return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true" className={className}><path d="M12 5v14M5 12h14" /></svg> }
 
 function TierPreviewRow({ tier, items }) {
   if (!items || items.length === 0) return null;

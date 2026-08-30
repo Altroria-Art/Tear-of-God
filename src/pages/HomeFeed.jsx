@@ -157,7 +157,7 @@ export default function HomeFeed() {
     }
     loadFirstPage()
     return () => { cancelled = true }
-  }, [currentUser, activeTab]);
+  }, [currentUser, activeTab, cacheKey, feedType]);
 
   // ไม่มี total จาก API สำหรับฟีดทั่วไป (เฉพาะ template_id เท่านั้นที่ API คำนวณ total ให้ —
   // ดู functions/api/rankings.js) เลยเช็คจบฟีดจากจำนวนที่ได้กลับมาน้อยกว่า PAGE_SIZE แทน
@@ -182,7 +182,7 @@ export default function HomeFeed() {
     setPage(nextPage)
     setIsLoadingMore(false)
     loadingRef.current = false
-  }, [page, hasMore, currentUser, activeTab]);
+  }, [page, hasMore, currentUser, activeTab, cacheKey, feedType]);
 
   // callback ref แทน useRef+useEffect — React เรียก callback นี้เองทันทีที่ DOM node
   // ของ sentinel ถูกสร้าง/ถอดออกจริงๆ (ตอน commit) ไม่ต้องเดาว่า effect จะ rerun

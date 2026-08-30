@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { useTheme } from '../context/ThemeContext';
 import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage } from '../lib/api';
 import { timeAgo } from '../lib/format';
 import { useToast } from '../components/ui/Toast';
@@ -102,7 +101,7 @@ export default function Profile() {
     }
     loadProfile();
     return () => { cancelled = true };
-  }, [profileUserId]);
+  }, [profileUserId, currentUser?.id]);
 
   // ฟอร์มแก้ไข (เฉพาะโปรไฟล์ตัวเอง) sync กับ user ล่าสุดใน context
   useEffect(() => {
