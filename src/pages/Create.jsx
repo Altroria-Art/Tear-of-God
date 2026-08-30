@@ -309,7 +309,7 @@ const CreateTierList = () => {
       })
     };
 
-    const { data, error } = await createRanking(rankingData);
+    const { error } = await createRanking(rankingData);
     setIsPublishing(false);
 
     if (error) {

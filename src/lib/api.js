@@ -271,7 +271,8 @@ export async function fetchCategories({ limit } = {}) {
   const queryStr = new URLSearchParams();
   if (limit) queryStr.append('limit', limit);
   try {
-    return await getJSON(`/api/categories?`);
+    const qs = queryStr.toString();
+    return await getJSON(`${API_URL}/api/categories${qs ? `?${qs}` : ''}`);
   } catch (error) {
     console.error('fetchCategories error:', error);
     return [];

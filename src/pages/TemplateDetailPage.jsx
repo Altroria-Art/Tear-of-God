@@ -172,7 +172,6 @@ export default function TemplateDetailPage() {
   const { templateId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useUser()
-  const toast = useToast()
 
   const [template, setTemplate] = useState(null)
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(true)
