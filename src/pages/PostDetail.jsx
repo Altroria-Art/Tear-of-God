@@ -14,6 +14,7 @@ import ExportCard from '../components/ui/ExportCard'
 
 // 📍 นำเข้า createComment มาใช้งาน
 import { fetchRanking, createComment, voteRanking, fetchTemplate } from '../lib/api'
+import { buildTierRows } from '../lib/tiers'
 
 export default function PostDetail() {
   const { postId } = useParams()
@@ -34,23 +35,19 @@ export default function PostDetail() {
       const { data, error } = await fetchRanking(postId, currentUser?.id)
 
       if (data) {
-        const tiersMap = {}
-        data.ranking_items?.forEach(ri => {
-          if (!tiersMap[ri.tier]) tiersMap[ri.tier] = []
-          
-          const realName = ri.item?.name || ri.item_name || ri.item_id;
-          const realImage = ri.item?.image_url || ri.item_image;
-
-          tiersMap[ri.tier].push({
+        // 📍 [ใหม่]: ใช้ buildTierRows() ตัวเดียวกับ Home Feed — เรียงตาม/ให้สีตาม data.tiers
+        // (template tier definition ที่ functions/api/rankings.js ส่งมาให้แล้ว) แทนการเดาลำดับ
+        // จาก ranking_items เฉยๆ และไม่ยัดไอเทมที่ยังไม่ได้จัด (tier=NULL) เข้า key สตริง "null"
+        // แบบโค้ดเดิม (ดู docs/tier-list-feed-debug-plan.md)
+        const tiers = buildTierRows(data.ranking_items, data.tiers).map(row => ({
+          tier: row.tier,
+          color: row.color,
+          index: row.index,
+          items: row.items.map(ri => ({
             id: ri.item_id,
-            name: realName,
-            image_url: realImage
-          })
-        })
-
-        const tiers = Object.keys(tiersMap).map(tier => ({
-          tier: tier, 
-          items: tiersMap[tier]
+            name: ri.item?.name || ri.item_name || ri.item_id,
+            image_url: ri.item?.image_url || ri.item_image
+          }))
         }))
 
         setPost({
@@ -65,7 +62,7 @@ export default function PostDetail() {
           category: data.category,
           title: data.title,
           description: data.description,
-          tiers: tiers.length > 0 ? tiers : [{ tier: 'S', items: [] }],
+          tiers: tiers.length > 0 ? tiers : [{ tier: 'S', color: undefined, index: 0, items: [] }],
           stats: {
             likes: data.stats?.likes || 0,
             dislikes: data.stats?.dislikes || 0,
@@ -254,8 +251,8 @@ export default function PostDetail() {
             )}
 
             <div ref={tableRef} className="mt-4 space-y-2 rounded-xl border border-line-soft p-2 glass">
-              {tiers.map(({ tier, items }) => (
-                <TierRow key={tier} tier={tier} items={items} />
+              {tiers.map(({ tier, color, index, items }) => (
+                <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}
             </div>
 
@@ -304,6 +301,7 @@ export default function PostDetail() {
                 category={category}
                 tiers={tiers.map((t) => ({
                   tier: t.tier,
+                  color: t.color,
                   items: (t.items || []).map((i) => (typeof i === 'object' ? i.name : i)),
                 }))}
               />

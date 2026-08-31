@@ -4,14 +4,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
 import { fetchTemplate, createRanking } from '../lib/api';
-import { TIER_STYLES } from '../lib/tiers';
+import TierLabel from '../components/tier/TierLabel';
 
 const DEFAULT_TIERS = [
-  { id: 't1', label: 'S', color: 'bg-tier-s' },
-  { id: 't2', label: 'A', color: 'bg-tier-a' },
-  { id: 't3', label: 'B', color: 'bg-tier-b' },
-  { id: 't4', label: 'C', color: 'bg-tier-c' },
-  { id: 't5', label: 'D', color: 'bg-tier-d' },
+  { id: 't1', label: 'S', color: '#ff7f7f' },
+  { id: 't2', label: 'A', color: '#ffbf7f' },
+  { id: 't3', label: 'B', color: '#ffff7f' },
+  { id: 't4', label: 'C', color: '#7fff7f' },
+  { id: 't5', label: 'D', color: '#7fbfff' },
 ];
 
 const DEFAULT_ITEMS = [
@@ -285,11 +285,11 @@ const RankTierList = () => {
                 key={tier.id}
                 className={`flex min-h-[90px] bg-tag ${index !== tiers.length - 1 ? 'border-b border-line-soft' : ''}`}
               >
-                <div
-                  className={`${TIER_STYLES[tier.label]} w-24 shrink-0 flex items-center justify-center font-bold border-r border-line-soft px-2 text-center leading-tight ${tier.label.length > 2 ? 'text-sm' : 'text-xl'}`}
-                >
-                  {tier.label}
-                </div>
+                <TierLabel
+                  label={tier.label}
+                  color={tier.color}
+                  className={`w-24 font-bold border-r border-line-soft px-2 ${tier.label.length > 2 ? 'text-sm' : 'text-xl'}`}
+                />
 
                 <div
                   className="flex-1 p-3 flex flex-wrap gap-3 items-center"

@@ -5,7 +5,7 @@ import { shareUrl } from '../../lib/share';
 import ShareExportModal from '../ui/ShareExportModal';
 import Avatar from '../ui/Avatar';
 import { formatCount } from '../../lib/format';
-import { TIER_STYLES } from '../../lib/tiers';
+import TierLabel from '../tier/TierLabel';
 
 export default function TemplateCard({ template, onUse }) {
   const [shareOpen, setShareOpen] = useState(false);
@@ -36,13 +36,13 @@ export default function TemplateCard({ template, onUse }) {
           const items = tiersMap[tier.label];
           if (!items) return null;
           return (
-            <div key={tier.label} className="flex gap-2 h-1/2">
-              <div
-                className={`${TIER_STYLES[tier.label]} w-12 shrink-0 flex items-center justify-center rounded-l font-bold px-1 text-center leading-tight ${tier.label.length > 2 ? 'text-[9px]' : 'text-sm'}`}
-              >
-                {tier.label}
-              </div>
-              <div className="bg-surface flex-grow rounded-r opacity-80 flex items-center gap-2 px-2 overflow-hidden border-y border-r border-line-soft">
+            <div key={tier.id ?? tier.label} className="flex min-h-0 flex-1 gap-2">
+              <TierLabel
+                label={tier.label}
+                color={tier.color}
+                className={`w-12 rounded-l font-bold px-1 ${tier.label.length > 2 ? 'text-[9px]' : 'text-sm'}`}
+              />
+              <div className="bg-surface min-w-0 flex-grow rounded-r opacity-80 flex items-center gap-2 px-2 overflow-hidden border-y border-r border-line-soft">
                 {items.slice(0, 2).map((item, idx) => (
                   <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-2 py-1 text-[10px] whitespace-nowrap">
                     {item}

@@ -1,5 +1,5 @@
 import Avatar from './Avatar';
-import { TIER_STYLES } from '../../lib/tiers';
+import TierLabel from '../tier/TierLabel';
 
 export default function ExportCard({ title, authorName, authorAvatar, postedAt, category, tiers = [] }) {
   return (
@@ -27,42 +27,28 @@ export default function ExportCard({ title, authorName, authorAvatar, postedAt, 
 
       {/* ตาราง tier */}
       <div className="mt-4 space-y-2">
-        {tiers.map(({ tier, items }) => {
-          const style = TIER_STYLES[tier];
-          const labelColor = style ? '#1a1a1a' : '#333';
-          return (
-            <div key={tier} className="flex rounded-xl overflow-hidden min-h-[50px] items-center border border-gray-200 bg-gray-50">
-              <div
-                className="w-14 self-stretch flex items-center justify-center font-black text-lg"
-                style={{ backgroundColor: tierColor(tier), color: labelColor }}
-              >
-                {tier}
-              </div>
-              <div className="p-2.5 flex flex-wrap gap-2 items-center flex-grow bg-gray-50">
-                {(items || []).map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex h-16 w-16 md:h-20 md:w-20 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-center text-[10px] font-medium text-gray-800 shadow-sm"
-                  >
-                    <span className="line-clamp-2 leading-normal">{item}</span>
-                  </div>
-                ))}
-              </div>
+        {tiers.map(({ tier, color, items }, index) => (
+          <div key={tier} className="flex items-stretch rounded-xl overflow-hidden min-h-[50px] border border-gray-200 bg-gray-50">
+            <TierLabel
+              label={tier}
+              color={color}
+              index={index}
+              className="w-14 font-black text-lg"
+              fallbackClassName="bg-gray-200 text-gray-700"
+            />
+            <div className="p-2.5 flex flex-wrap gap-2 items-center flex-grow bg-gray-50 min-w-0">
+              {(items || []).map((item, idx) => (
+                <div
+                  key={idx}
+                  className="flex h-16 w-16 md:h-20 md:w-20 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white p-2 text-center text-[10px] font-medium text-gray-800 shadow-sm break-words"
+                >
+                  <span className="line-clamp-2 leading-normal">{item}</span>
+                </div>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );
-}
-
-function tierColor(tier) {
-  const map = {
-    S: '#ef4444', // red
-    A: '#f97316', // orange
-    B: '#eab308', // yellow
-    C: '#22c55e', // green
-    D: '#3b82f6', // blue
-  };
-  return map[tier] || '#9ca3af';
 }
