@@ -1,4 +1,5 @@
-import { TIER_STYLES } from '../lib/tiers';
+import TierLabel from '../components/tier/TierLabel';
+import { buildTierRows } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -12,16 +13,10 @@ import { timeAgo } from '../lib/format';
 import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
 import HomeRightSidebar from '../components/feed/HomeRightSidebar';
 
-const groupItemsByTier = (rankingItems) => {
-  if (!rankingItems || !Array.isArray(rankingItems)) return {};
-  const map = {};
-  rankingItems.forEach((ri) => {
-    const tier = ri.tier || 'S';
-    if (!map[tier]) map[tier] = [];
-    map[tier].push(ri.item?.name || ri.item_id || 'Unknown Item');
-  });
-  return map;
-};
+// buildTierRows() now lives in src/lib/tiers.js — shared with PostDetail.jsx
+// so Feed/Feed Detailed order and color tiers the same way Discover Detailed
+// does, and no longer coerce unranked (tier=NULL) items into a fake "S" row.
+// See docs/tier-list-feed-debug-plan.md.
 
 
 
@@ -114,10 +109,13 @@ function HomeTierCard({ post }) {
   const [modal, setModal] = useState(null); // 'share' | 'export' | null
 
   const hashtags = post.hashtags ? post.hashtags.split(',').filter((t) => t.trim() !== '') : [];
-  const tierMap = groupItemsByTier(post.ranking_items);
-  const tiers = Object.keys(tierMap).length > 0 ? Object.keys(tierMap) : ['S', 'A'];
-
-  const tiersData = tiers.map((tier) => ({ tier, items: tierMap[tier] || [] }));
+  const builtRows = buildTierRows(post.ranking_items, post.tiers);
+  // ranking ที่ไม่มีไอเทมถูกจัดเลย (เคสหายาก) — โชว์การ์ดเปล่า 2 แถวเหมือนพฤติกรรมเดิม
+  // แทนไม่มีอะไรให้ดูเลย
+  const tierRows = builtRows.length > 0 ? builtRows : [
+    { tier: 'S', color: undefined, index: 0, items: [] },
+    { tier: 'A', color: undefined, index: 1, items: [] },
+  ];
 
   return (
     <article className="bg-surface border border-line-soft rounded-[20px] p-6 shadow-sm">
@@ -187,18 +185,16 @@ function HomeTierCard({ post }) {
 
       {/* Tier List Preview Blocks */}
       <div className="space-y-2 mb-6">
-        {tiers.map((tier) => (
-          <div key={tier} className="flex bg-tag rounded-xl border border-line-soft overflow-hidden min-h-[50px] shadow-sm items-center">
-            <div className={`w-14 self-stretch flex items-center justify-center font-black text-lg ${TIER_STYLES[tier] || 'bg-surface text-ink'}`}>
-              {tier}
-            </div>
-            <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap bg-tag">
-              {tierMap[tier] && tierMap[tier].map((itemName, idx) => (
+        {tierRows.map((row) => (
+          <div key={row.tier} className="flex bg-tag rounded-xl border border-line-soft overflow-hidden min-h-[50px] shadow-sm items-stretch">
+            <TierLabel label={row.tier} color={row.color} index={row.index} className="w-14 font-black text-lg" />
+            <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap bg-tag min-w-0">
+              {row.items.map((ri, idx) => (
                 <div
-                  key={idx}
-                  className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs"
+                  key={ri.id ?? idx}
+                  className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs break-words"
                 >
-                  <span className="w-full line-clamp-2 text-[11px] leading-normal">{itemName}</span>
+                  <span className="w-full line-clamp-2 text-[11px] leading-normal">{ri.item?.name || ri.item_id || 'Unknown Item'}</span>
                 </div>
               ))}
             </div>
@@ -229,7 +225,11 @@ function HomeTierCard({ post }) {
             authorAvatar={post.profile?.avatar_url}
             postedAt={timeAgo(post.created_at)}
             category={post.category}
-            tiers={tiersData}
+            tiers={tierRows.map((row) => ({
+              tier: row.tier,
+              color: row.color,
+              items: row.items.map((ri) => ri.item?.name || ri.item_id || 'Unknown Item'),
+            }))}
           />
         }
         filename={`feed-${post.id}.png`}

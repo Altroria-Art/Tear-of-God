@@ -11,7 +11,7 @@ import ExportCard from '../components/ui/ExportCard'
 import { fetchTemplate, fetchRankings, recordTemplateView, voteRanking } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
-import { TIER_STYLES } from '../lib/tiers'
+import TierLabel from '../components/tier/TierLabel'
 
 const PAGE_SIZE = 5
 const SORT_OPTIONS = [
@@ -33,17 +33,17 @@ function groupItemsByTierOrder(rankingItems, tiersDef) {
 function TierListRow({ tier, items }) {
   const isLong = tier.label.length > 2
   return (
-    <div className="flex items-center gap-3 border-b border-line-soft px-4 py-2.5 last:border-b-0">
-      <span
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-sm font-bold text-center leading-tight px-1 ${TIER_STYLES[tier.label]} ${isLong ? 'text-[10px]' : 'text-base'}`}
-      >
-        {tier.label}
-      </span>
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-stretch gap-3 border-b border-line-soft px-4 py-2.5 last:border-b-0">
+      <TierLabel
+        label={tier.label}
+        color={tier.color}
+        className={`w-12 min-h-12 rounded-sm font-bold px-1 ${isLong ? 'text-[10px]' : 'text-base'}`}
+      />
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         {items.map((item, idx) => (
           <span
             key={idx}
-            className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-sm"
+            className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-sm break-words"
           >
             {item}
           </span>
@@ -141,7 +141,7 @@ function RankingCard({ ranking, tiersDef }) {
       />
       <div>
         {tierRows.map(({ tier, items }) => (
-          <TierListRow key={tier.label} tier={tier} items={items} />
+          <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
         ))}
       </div>
       <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-sm text-muted">
@@ -195,6 +195,7 @@ function RankingCard({ ranking, tiersDef }) {
             category={ranking.category}
             tiers={tierRows.map(({ tier, items }) => ({
               tier: tier.label,
+              color: tier.color,
               items: (items || []).map((i) => (typeof i === 'object' ? i.name : i)),
             }))}
           />
@@ -362,7 +363,7 @@ export default function TemplateDetailPage() {
               </div>
               <div ref={avgTableRef}>
                 {communityAvgRows.map(({ tier, items }) => (
-                  <TierListRow key={tier.label} tier={tier} items={items} />
+                  <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
                 ))}
               </div>
             </div>
@@ -396,7 +397,7 @@ export default function TemplateDetailPage() {
             <p className="mb-3 text-sm font-bold text-gray-900">Community Average</p>
             <div className="space-y-2">
               {communityAvgRows.map(({ tier, items }) => (
-                <TierListRow key={tier.label} tier={tier} items={items} />
+                <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
               ))}
             </div>
           </div>

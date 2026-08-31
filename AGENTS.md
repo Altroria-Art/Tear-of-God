@@ -26,7 +26,7 @@ Auth for email/password lives in `functions/api/auth.js` against the `profiles` 
 - Components are default-exported with `.jsx` extension; import paths are extension-less (`./TierRow`).
 - Pages in `src/pages/`, components grouped by area in `src/components/{feed,layout,ui}/`.
 - Design tokens are custom Tailwind 4 theme colors defined in `src/index.css` (`@theme`): `bg-canvas`, `text-ink`, `bg-tier-s`, etc. These are not stock Tailwind colors — add new ones to `@theme`, don't inline hex.
-- Tier labels are fixed at 5 (S/A/B/C/D) with fixed colors (S=red, A=orange, B=yellow, C=green, D=blue). Map them via `TIER_STYLES` in `src/lib/tiers.js` only — never hardcode tier colors/classes.
+- Tier names are data, not a fixed 5-value set — templates can define custom tier labels (including Thai). Tier color must always come from the tier's own `color` field via `resolveTierColor()` in `src/lib/tiers.js`, applied as an inline `style`, never looked up by indexing a map with the display label (colors are stored as `bg-[#hex]` and are not Tailwind classes the build can see). Render every tier badge through the shared `<TierLabel>` component (`src/components/tier/TierLabel.jsx`) — don't re-derive tier color/markup per screen. See `docs/tier-list-ui-fix-plan.md` for the full investigation.
 - Icons are hand-rolled inline SVGs in `src/components/ui/Icons.jsx` (inherit `currentColor`). No icon library; add new icons there.
 - Mock data still lives in `src/data/mockFeed.js` and is used by `FeedProvider.jsx`; `HomeFeed.jsx` and `useRankings.js`, however, already call the real `functions/api/rankings` endpoint via `src/lib/api.js`. Don't assume the whole feed is mocked — check which component you're touching before adding more mock arrays.
 

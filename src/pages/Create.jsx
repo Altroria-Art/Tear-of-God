@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
-import { TIER_STYLES } from '../lib/tiers';
+import TierLabel from '../components/tier/TierLabel';
 
 const DEFAULT_TIERS = [
-  { id: 't1', label: 'S', color: 'bg-red-400' },
-  { id: 't2', label: 'A', color: 'bg-orange-300' },
-  { id: 't3', label: 'B', color: 'bg-yellow-300' },
-  { id: 't4', label: 'C', color: 'bg-green-400' },
-  { id: 't5', label: 'D', color: 'bg-blue-400' },
+  { id: 't1', label: 'S', color: '#ff7f7f' },
+  { id: 't2', label: 'A', color: '#ffbf7f' },
+  { id: 't3', label: 'B', color: '#ffff7f' },
+  { id: 't4', label: 'C', color: '#7fff7f' },
+  { id: 't5', label: 'D', color: '#7fbfff' },
 ];
 
 const DEFAULT_HASHTAGS = ['#Gaming', '#Anime', '#Movie', '#Food', '#Sports', '#Music'];
@@ -100,10 +100,10 @@ const CreateTierList = () => {
   }, [title, description, tiers, items, selectedHashtags, hashtags]);
 
   const availableColors = [
-    'bg-red-400', 'bg-orange-300', 'bg-amber-300', 'bg-yellow-300', 
-    'bg-lime-400', 'bg-green-400', 'bg-emerald-400', 'bg-teal-400', 
-    'bg-cyan-400', 'bg-blue-400', 'bg-indigo-400', 'bg-purple-400', 
-    'bg-fuchsia-400', 'bg-pink-400', 'bg-gray-400', 'bg-gray-200'
+    '#f87171', '#fdba74', '#fcd34d', '#fde047',
+    '#a3e635', '#4ade80', '#34d399', '#2dd4bf',
+    '#22d3ee', '#60a5fa', '#818cf8', '#c084fc',
+    '#e879f9', '#f472b6', '#9ca3af', '#e5e7eb'
   ];
 
   const handleGenerateCards = () => {
@@ -314,7 +314,7 @@ const CreateTierList = () => {
         description: description,
         category: selectedHashtags[0].replace('#', '').toLowerCase(),
         hashtags: selectedHashtags.join(','),
-        tiers: tiers.map(({ label, color }) => ({ label, color })),
+        tiers: tiers.map(({ id, label, color }) => ({ id, label, color })),
         items: items.map((item, index) => ({ name: item.content, position: index }))
       },
       items: rankedItems.map((item, index) => {
@@ -348,7 +348,8 @@ const CreateTierList = () => {
               <div className="flex flex-wrap justify-center gap-2.5 mb-8 px-4">
                 {availableColors.map(color => (
                   <button key={color} onClick={() => updateTierData(activeSettingsTier.id, 'color', color)}
-                    className={`w-8 h-8 rounded-full ${color} cursor-pointer border-2 transition-transform hover:scale-110 ${tiers.find(t => t.id === activeSettingsTier.id)?.color === color ? 'border-white scale-110' : 'border-transparent'}`}
+                    style={{ backgroundColor: color }}
+                    className={`w-8 h-8 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${tiers.find(t => t.id === activeSettingsTier.id)?.color === color ? 'border-white scale-110' : 'border-transparent'}`}
                   />
                 ))}
               </div>
@@ -465,7 +466,11 @@ const CreateTierList = () => {
             <div className="flex flex-col gap-3">
               {tiers.map((tier) => (
                 <div key={tier.id} className="flex min-h-[90px] bg-tag border border-line-soft rounded-2xl overflow-hidden">
-                  <div className={`${TIER_STYLES[tier.label]} w-24 flex items-center justify-center text-2xl font-black shadow-[inset_-2px_0_10px_rgba(0,0,0,0.2)] p-2 text-center break-words drop-shadow-md`}>{tier.label}</div>
+                  <TierLabel
+                    label={tier.label}
+                    color={tier.color}
+                    className={`w-24 shadow-[inset_-2px_0_10px_rgba(0,0,0,0.2)] p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
+                  />
                   <div className="flex-1 p-3 flex flex-wrap gap-3 items-center bg-transparent" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
                     {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
                   </div>

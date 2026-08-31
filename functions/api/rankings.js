@@ -1,7 +1,21 @@
+// 📍 [ใหม่]: ranking_items.tier เก็บแค่ "ชื่อ tier" เป็นสตริง — สี/id ของ tier อยู่ที่
+// templates.tiers เท่านั้น (ดู functions/api/templates.js). ก่อนหน้านี้ endpoint นี้ไม่เคย
+// ส่ง tiers กลับมาเลย ทำให้ Home Feed / Feed Detailed โชว์ tier ไม่มีสี ต่างจาก Discover
+// Detailed ที่อ่านจาก /api/templates โดยตรง — parseTiers() คัดลอกมาจาก templates.js เพราะ
+// ยังไม่มี shared-helper module ในโปรเจกต์นี้ (ดู docs/tier-list-feed-debug-plan.md §7/§8)
+function parseTiers(raw) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export async function onRequest({ request, env }) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
-  const db = env.tear_of_god_db; 
+  const db = env.tear_of_god_db;
 
   const jsonResponse = (data, status = 200, extraHeaders = {}) => {
     return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...extraHeaders } });
@@ -25,11 +39,22 @@ export async function onRequest({ request, env }) {
         const ranking = rankings[0];
         
         const { results: items } = await db.prepare(`
-          SELECT ri.*, i.name as item_name, i.image_url as item_image 
-          FROM ranking_items ri 
-          LEFT JOIN items i ON ri.item_id = i.id 
+          SELECT ri.*, i.name as item_name, i.image_url as item_image
+          FROM ranking_items ri
+          LEFT JOIN items i ON ri.item_id = i.id
           WHERE ri.ranking_id = ?
+          ORDER BY ri.position ASC
         `).bind(id).all();
+
+        // 📍 [ใหม่]: เอา tier definition (label+color+id) ของ template ที่ผูกกับ ranking นี้มาด้วย
+        // — ไม่งั้นฝั่งหน้าบ้านมีแต่ ranking_items.tier ที่เป็นสตริงเฉยๆ ไม่รู้สี
+        let tiersDef = null;
+        if (ranking.template_id) {
+          const { results: tplRows } = await db.prepare(
+            `SELECT tiers FROM templates WHERE id = ?`
+          ).bind(ranking.template_id).all();
+          tiersDef = tplRows[0] ? parseTiers(tplRows[0].tiers) : null;
+        }
 
         // 📍 ดึงข้อมูลคอมเมนต์ของโพสต์นี้พร้อมข้อมูลผู้ใช้
         // กัน unbounded growth (ดู docs/row-read-optimization-plan.md §4 hypothesis H4) — ตอนนี้
@@ -49,6 +74,7 @@ export async function onRequest({ request, env }) {
           profile: { id: ranking.user_id, username: ranking.username || 'Unknown', avatar_url: ranking.avatar_url },
           stats: { likes: ranking.likes_count, dislikes: ranking.dislikes_count, comments: ranking.comments_count },
           user_vote: ranking.user_vote ?? null,
+          tiers: tiersDef, // 📍 [ใหม่]: null เมื่อ ranking ไม่มี template (ดูหมายเหตุด้านบน)
           ranking_items: items.map(ri => ({
             ...ri, item: { id: ri.item_id, name: ri.item_name || ri.item_id, image_url: ri.item_image }
           })),
@@ -142,6 +168,18 @@ export async function onRequest({ request, env }) {
           const candLimit = Math.max(PERSONALIZE_CANDIDATE_MIN, offset + limit);
           query = `
             WITH
+            mine AS (
+              -- 📍 [ใหม่]: โพสต์ล่าสุดของ "คนที่กำลังดู" เอง ถ้าสร้างมาไม่เกิน 24 ชม. — pin ให้
+              -- ขึ้นบนสุดเสมอในฟีดของตัวเอง กันปัญหา "สร้าง Tier List ใหม่แล้วไม่เห็นในฟีด"
+              -- (affinity ตาม category คำนวณจาก like เก่า ไม่รู้จัก category ใหม่ที่เพิ่งสร้าง
+              -- เลยเรียงโพสต์ใหม่ไปอยู่ลึกได้) ตั้งเพดาน 24 ชม. กันไม่ให้โพสต์เก่าค้างบนสุดถาวร
+              -- ถ้า pin ไม่ตรงกับ cand ด้านล่าง (เช่นโดน pageWhere กรองออก) จะไม่มีผลอะไรเลย
+              -- เพราะใช้แค่เทียบเท่ากันใน ORDER BY ไม่ได้ยัดแถวเพิ่ม
+              SELECT id FROM rankings
+              WHERE user_id = ? AND created_at > datetime('now', '-1 day')
+              ORDER BY created_at DESC, id DESC
+              LIMIT 1
+            ),
             aff AS (
               SELECT fav_r.category AS cat, COUNT(*) AS affinity
               FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id
@@ -161,12 +199,13 @@ export async function onRequest({ request, env }) {
             JOIN rankings r ON r.id = c.id
             LEFT JOIN aff ON aff.cat = c.category
             LEFT JOIN profiles p ON r.user_id = p.id
-            ORDER BY COALESCE(aff.affinity, 0) DESC, c.created_at DESC, c.id DESC
+            ORDER BY (c.id = (SELECT id FROM mine)) DESC, COALESCE(aff.affinity, 0) DESC, c.created_at DESC, c.id DESC
             LIMIT ? OFFSET ?
           `;
-          // ลำดับ "?" ในข้อความ query: aff.user_id -> cand(pageWhere, candLimit) ->
+          // ลำดับ "?" ในข้อความ query: mine.user_id -> aff.user_id -> cand(pageWhere, candLimit) ->
           // user_vote(currentUserId) -> LIMIT/OFFSET
           params = [
+            currentUserId,
             currentUserId,
             ...pageWhereParams, candLimit,
             currentUserId,
@@ -188,29 +227,46 @@ export async function onRequest({ request, env }) {
         if (rankings.length > 0) {
           const rankingIds = rankings.map(r => r.id);
           const placeholders = rankingIds.map(() => '?').join(',');
-          
-          const { results: allItems } = await db.prepare(`
-            SELECT ri.*, i.name as item_name, i.image_url as item_image 
-            FROM ranking_items ri 
-            LEFT JOIN items i ON ri.item_id = i.id 
-            WHERE ri.ranking_id IN (${placeholders})
-            ORDER BY ri.position ASC
-          `).bind(...rankingIds).all();
+
+          // 📍 [ใหม่]: ดึง tier definition (label+color+id) ของ template ที่แต่ละ ranking ในหน้านี้
+          // ผูกอยู่ — เดิม endpoint นี้ไม่เคยส่ง tiers กลับมาเลย ทำให้ Home Feed/Feed Detailed ต้อง
+          // เดาสี tier จากแค่ label เฉยๆ (ดู docs/tier-list-feed-debug-plan.md) แตะแค่ template ของ
+          // หน้านี้เท่านั้น (≤ limit แถว ไม่ใช่ทุก template ในระบบ) ยิงคู่กับ ranking_items ด้วย
+          // Promise.all ลด round-trip แทนที่จะรอทีละ query
+          const templateIds = [...new Set(rankings.map(r => r.template_id).filter(Boolean))];
+          const [{ results: allItems }, tplRows] = await Promise.all([
+            db.prepare(`
+              SELECT ri.*, i.name as item_name, i.image_url as item_image
+              FROM ranking_items ri
+              LEFT JOIN items i ON ri.item_id = i.id
+              WHERE ri.ranking_id IN (${placeholders})
+              ORDER BY ri.position ASC
+            `).bind(...rankingIds).all(),
+            templateIds.length > 0
+              ? db.prepare(
+                  `SELECT id, tiers FROM templates WHERE id IN (${templateIds.map(() => '?').join(',')})`
+                ).bind(...templateIds).all().then(res => res.results)
+              : Promise.resolve([]),
+          ]);
 
           const itemsMap = {};
           allItems.forEach(ri => {
             if (!itemsMap[ri.ranking_id]) itemsMap[ri.ranking_id] = [];
             itemsMap[ri.ranking_id].push({
-              ...ri, 
+              ...ri,
               item: { id: ri.item_id, name: ri.item_name || ri.item_id, image_url: ri.item_image }
             });
           });
 
+          const tiersByTemplateId = {};
+          tplRows.forEach(t => { tiersByTemplateId[t.id] = parseTiers(t.tiers); });
+
           formattedRankings = rankings.map(r => ({
-             ...r, 
+             ...r,
              profile: { id: r.user_id, username: r.username || 'Unknown', avatar_url: r.avatar_url },
              stats: { likes: r.likes_count, dislikes: r.dislikes_count, comments: r.comments_count },
              user_vote: r.user_vote ?? null,
+             tiers: r.template_id ? (tiersByTemplateId[r.template_id] ?? null) : null,
              ranking_items: itemsMap[r.id] || []
           }));
         }
