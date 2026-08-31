@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye } from 'lucide-react'
 import Avatar from '../components/ui/Avatar'
@@ -6,8 +6,11 @@ import Pagination from '../components/ui/Pagination'
 import SortDropdown from '../components/ui/SortDropdown'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
+import ShareExportModal from '../components/ui/ShareExportModal'
+import ExportCard from '../components/ui/ExportCard'
 import { fetchTemplate, fetchRankings, recordTemplateView, voteRanking } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
+import { shareUrl } from '../lib/share'
 import { TIER_STYLES } from '../lib/tiers'
 
 const PAGE_SIZE = 5
@@ -122,21 +125,25 @@ function RankingCard({ ranking, tiersDef }) {
     }
   }
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/post/${ranking.id}`)
-    toast.success('คัดลอกลิงก์เรียบร้อยแล้ว!')
-  }
+  const [modal, setModal] = useState(null) // 'share' | 'export' | null
+
+  const handleShare = () => setModal('share')
+
+  const handleExport = () => setModal('export')
 
   return (
-    <div className="mb-6 rounded-lg glass shadow-sm overflow-hidden">
+    <div className="mb-6">
+      <div className="rounded-lg glass shadow-sm overflow-hidden">
       <UserTopBar
         username={ranking.profile?.username || 'User'}
         avatarUrl={ranking.profile?.avatar_url}
         timeLabel={timeAgo(ranking.created_at)}
       />
-      {tierRows.map(({ tier, items }) => (
-        <TierListRow key={tier.label} tier={tier} items={items} />
-      ))}
+      <div>
+        {tierRows.map(({ tier, items }) => (
+          <TierListRow key={tier.label} tier={tier} items={items} />
+        ))}
+      </div>
       <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-sm text-muted">
         <div className="flex items-center gap-5">
           <span
@@ -155,15 +162,45 @@ function RankingCard({ ranking, tiersDef }) {
             <MessageSquare size={16} /> {formatCount(ranking.stats?.comments || 0)}
           </Link>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5 text-muted">
-            <Download size={16} /> Export
-          </span>
-          <span onClick={handleShare} className="flex cursor-pointer items-center gap-1.5 hover:text-ink transition-colors">
-            <Share2 size={16} /> Share
-          </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-muted transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:text-ink hover:shadow-md active:scale-[0.95]"
+          >
+            <Download size={14} /> Export
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.95]"
+          >
+            <Share2 size={14} /> Share
+          </button>
         </div>
       </div>
+      </div>
+
+      <ShareExportModal
+        open={modal !== null}
+        mode={modal}
+        onClose={() => setModal(null)}
+        link={`${window.location.origin}/post/${ranking.id}`}
+        preview={
+          <ExportCard
+            title={ranking.title}
+            authorName={ranking.profile?.username}
+            authorAvatar={ranking.profile?.avatar_url}
+            postedAt={timeAgo(ranking.created_at)}
+            category={ranking.category}
+            tiers={tierRows.map(({ tier, items }) => ({
+              tier: tier.label,
+              items: (items || []).map((i) => (typeof i === 'object' ? i.name : i)),
+            }))}
+          />
+        }
+        filename={`ranking-${ranking.id}.png`}
+      />
     </div>
   )
 }
@@ -172,6 +209,8 @@ export default function TemplateDetailPage() {
   const { templateId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useUser()
+  const avgTableRef = useRef(null)
+  const [modal, setModal] = useState(null) // 'share' | 'export' | null
 
   const [template, setTemplate] = useState(null)
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(true)
@@ -229,6 +268,10 @@ export default function TemplateDetailPage() {
     navigate(`/rank?template=${templateId}`)
   }
 
+  const handleShare = () => setModal('share')
+
+  const handleExportAverage = () => setModal('export')
+
   if (isLoadingTemplate) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -274,13 +317,22 @@ export default function TemplateDetailPage() {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleUseTemplate}
-              className="flex items-center gap-2 rounded-full glass px-6 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass hover: active:scale-[0.97]"
-            >
-              + Use Template
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleShare}
+                className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97]"
+              >
+                <Share2 size={16} /> Share
+              </button>
+              <button
+                type="button"
+                onClick={handleUseTemplate}
+                className="flex items-center gap-2 rounded-full glass px-6 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass hover: active:scale-[0.97]"
+              >
+                + Use Template
+              </button>
+            </div>
           </div>
 
           <p className="mt-4 max-w-3xl text-muted">{template.description}</p>
@@ -298,10 +350,21 @@ export default function TemplateDetailPage() {
 
           {hasCommunityAverage && (
             <div className="mb-6 rounded-lg glass shadow-sm overflow-hidden">
-              <AverageTopBar timeLabel={`Updated ${timeAgo(template.community_average.updated_at)}`} />
-              {communityAvgRows.map(({ tier, items }) => (
-                <TierListRow key={tier.label} tier={tier} items={items} />
-              ))}
+              <div className="flex items-center justify-between">
+                <AverageTopBar timeLabel={`Updated ${timeAgo(template.community_average.updated_at)}`} />
+                <button
+                  type="button"
+                  onClick={handleExportAverage}
+                  className="flex items-center gap-1.5 pr-4 text-xs text-muted hover:text-ink transition-colors"
+                >
+                  <Download size={14} /> Export
+                </button>
+              </div>
+              <div ref={avgTableRef}>
+                {communityAvgRows.map(({ tier, items }) => (
+                  <TierListRow key={tier.label} tier={tier} items={items} />
+                ))}
+              </div>
             </div>
           )}
 
@@ -322,6 +385,24 @@ export default function TemplateDetailPage() {
           )}
         </section>
       </div>
+
+      <ShareExportModal
+        open={modal !== null}
+        mode={modal}
+        onClose={() => setModal(null)}
+        link={shareUrl(`/template/${templateId}`)}
+        preview={
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" style={{ background: '#ffffff' }}>
+            <p className="mb-3 text-sm font-bold text-gray-900">Community Average</p>
+            <div className="space-y-2">
+              {communityAvgRows.map(({ tier, items }) => (
+                <TierListRow key={tier.label} tier={tier} items={items} />
+              ))}
+            </div>
+          </div>
+        }
+        filename={`template-${templateId}-average.png`}
+      />
     </main>
   )
 }

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { Download } from 'lucide-react'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import AboutTemplateCard from '../components/post/AboutTemplateCard'
@@ -8,6 +9,8 @@ import Avatar from '../components/ui/Avatar'
 import { ArrowLeftIcon, CommentIcon, ShareIcon, ThumbsDownIcon, ThumbsUpIcon } from '../components/ui/Icons'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
+import ShareExportModal from '../components/ui/ShareExportModal'
+import ExportCard from '../components/ui/ExportCard'
 
 // 📍 นำเข้า createComment มาใช้งาน
 import { fetchRanking, createComment, voteRanking, fetchTemplate } from '../lib/api'
@@ -16,6 +19,8 @@ export default function PostDetail() {
   const { postId } = useParams()
   const { currentUser } = useUser()
   const toast = useToast()
+  const [modal, setModal] = useState(null) // 'share' | 'export' | null
+  const tableRef = useRef(null)
 
   const [post, setPost] = useState(null)
   const [template, setTemplate] = useState(null)
@@ -175,6 +180,10 @@ export default function PostDetail() {
     }
   }
 
+  const handleExport = async () => {
+    setModal('export');
+  }
+
   if (isLoading) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
@@ -244,7 +253,7 @@ export default function PostDetail() {
               </div>
             )}
 
-            <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2 glass">
+            <div ref={tableRef} className="mt-4 space-y-2 rounded-xl border border-line-soft p-2 glass">
               {tiers.map(({ tier, items }) => (
                 <TierRow key={tier} tier={tier} items={items} />
               ))}
@@ -269,19 +278,38 @@ export default function PostDetail() {
                   onClick={() => handleVote('dislike')}
                 />
                 <ActionButton icon={CommentIcon} count={stats.comments} label="Comments" />
+                <ActionButton icon={Download} label="Export" onClick={handleExport} activeClass="hover:text-highlight" />
               </div>
               <div className="ml-auto">
-                <ActionButton 
-                  icon={ShareIcon} 
-                  label="Share" 
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    toast.success('คัดลอกลิงก์โพสต์เรียบร้อยแล้ว!');
-                  }}
+                <ActionButton
+                  icon={ShareIcon}
+                  label="Share"
+                  onClick={() => setModal('share')}
                 />
               </div>
             </div>
           </article>
+
+          <ShareExportModal
+            open={modal !== null}
+            mode={modal}
+            onClose={() => setModal(null)}
+            link={window.location.href}
+            preview={
+              <ExportCard
+                title={title}
+                authorName={author?.name}
+                authorAvatar={author?.avatarUrl}
+                postedAt={postedAt}
+                category={category}
+                tiers={tiers.map((t) => ({
+                  tier: t.tier,
+                  items: (t.items || []).map((i) => (typeof i === 'object' ? i.name : i)),
+                }))}
+              />
+            }
+            filename={`post-${postId}.png`}
+          />
 
           <CommentSection comments={comments} onSubmit={handleAddComment} />
         </div>

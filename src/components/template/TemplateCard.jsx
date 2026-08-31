@@ -1,10 +1,14 @@
-import { Users } from 'lucide-react';
+import { useState } from 'react';
+import { Users, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { shareUrl } from '../../lib/share';
+import ShareExportModal from '../ui/ShareExportModal';
 import Avatar from '../ui/Avatar';
 import { formatCount } from '../../lib/format';
 import { TIER_STYLES } from '../../lib/tiers';
 
 export default function TemplateCard({ template, onUse }) {
+  const [shareOpen, setShareOpen] = useState(false);
   const tiersMap = {};
   template.template_items?.forEach((ti) => {
     if (!ti.tier) return;
@@ -14,6 +18,12 @@ export default function TemplateCard({ template, onUse }) {
 
   const previewTiers = (template.tiers || []).slice(0, 2);
   const detailHref = `/template/${template.id}`;
+
+  const handleShare = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShareOpen(true);
+  };
 
   return (
     <div className="glass rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
@@ -53,13 +63,31 @@ export default function TemplateCard({ template, onUse }) {
             <span className="text-sm text-muted">@{template.profile?.username || 'User'}</span>
           </div>
         </div>
-        <button
-          onClick={() => onUse?.(template)}
-          className="w-full py-2.5 bg-brand-accent hover:bg-surface text-canvas font-bold rounded-lg flex items-center justify-center gap-2 transition-all shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
-        >
-          Use Template
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => onUse?.(template)}
+            className="flex-1 py-2.5 bg-brand-accent hover:bg-surface text-canvas font-bold rounded-lg flex items-center justify-center gap-2 transition-all shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+          >
+            Use Template
+          </button>
+          <button
+            type="button"
+            onClick={handleShare}
+            aria-label="Share template"
+            title="แชร์เทมเพลต"
+            className="shrink-0 px-3 py-2.5 text-muted hover:text-ink transition-colors rounded-lg border border-line-soft hover:bg-surface"
+          >
+            <Share2 size={16} />
+          </button>
+        </div>
       </div>
+
+      <ShareExportModal
+        open={shareOpen}
+        mode="share"
+        onClose={() => setShareOpen(false)}
+        link={shareUrl(detailHref)}
+      />
     </div>
   );
 }
