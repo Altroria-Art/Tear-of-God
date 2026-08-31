@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Share2, Plus, Shuffle, ArrowDownAZ } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { useToast } from '../components/ui/Toast';
 import { fetchTemplate, createRanking } from '../lib/api';
 import { TIER_STYLES } from '../lib/tiers';
 
@@ -30,6 +31,7 @@ const STANDARD_HASHTAGS = ['#Gaming', '#Anime', '#Movie', '#Food', '#Sports', '#
 
 const RankTierList = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const { currentUser } = useUser();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
@@ -140,6 +142,10 @@ const RankTierList = () => {
     }
   };
 
+  const handleShare = () => {
+    toast.info('บันทึก Ranking ก่อนถึงจะแชร์ลิงก์ได้ครับ');
+  };
+
   const handleSaveRanking = async () => {
     if (!currentUser) {
       alert('กรุณาเข้าสู่ระบบก่อน Save Ranking');
@@ -203,7 +209,7 @@ const RankTierList = () => {
               className="flex-1 text-[28px] font-bold text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1"
             />
             <div className="flex flex-col md:flex-row items-center gap-3 pt-1 shrink-0">
-              <button className="flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors px-2">
+              <button onClick={handleShare} className="flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors px-2">
                 <Share2 size={16} /> Share
               </button>
               <button

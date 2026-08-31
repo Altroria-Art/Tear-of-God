@@ -3,7 +3,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
-import { ThumbsUp, ThumbsDown, MessageSquare, Copy } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download } from 'lucide-react';
+import { shareUrl } from '../lib/share';
+import ShareExportModal from '../components/ui/ShareExportModal';
+import ExportCard from '../components/ui/ExportCard';
 
 import { timeAgo } from '../lib/format';
 import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
@@ -26,7 +29,7 @@ const groupItemsByTier = (rankingItems) => {
 
 const PAGE_SIZE = 5
 
-function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null }) {
+function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null, onShare, onExport }) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
 
@@ -92,7 +95,146 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
           <span className="text-[13px] font-bold">{initialComments}</span>
         </div>
       </div>
+      <div className="flex items-center gap-4">
+        <div onClick={onExport} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
+          <Download size={18} />
+          <span className="text-[13px] font-bold">Export</span>
+        </div>
+        <div onClick={onShare} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
+          <Share2 size={18} />
+          <span className="text-[13px] font-bold">Share</span>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function HomeTierCard({ post }) {
+  const navigate = useNavigate();
+  const [modal, setModal] = useState(null); // 'share' | 'export' | null
+
+  const hashtags = post.hashtags ? post.hashtags.split(',').filter((t) => t.trim() !== '') : [];
+  const tierMap = groupItemsByTier(post.ranking_items);
+  const tiers = Object.keys(tierMap).length > 0 ? Object.keys(tierMap) : ['S', 'A'];
+
+  const tiersData = tiers.map((tier) => ({ tier, items: tierMap[tier] || [] }));
+
+  return (
+    <article className="bg-surface border border-line-soft rounded-[20px] p-6 shadow-sm">
+      {/* Header Profile & Use Template Button */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full overflow-hidden bg-surface-glass border border-line-soft cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
+          >
+            {post.profile?.avatar_url ? (
+              <img src={post.profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center font-bold text-muted">
+                {post.profile?.username?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
+          </div>
+          <div>
+            <h3
+              className="text-[15px] font-bold text-ink leading-tight cursor-pointer hover:underline"
+              onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
+            >
+              {post.profile?.username || 'Unknown User'}
+            </h3>
+            <p
+              className="text-[13px] text-muted font-medium cursor-pointer"
+              onClick={() => navigate(`/post/${post.id}`)}
+            >
+              {timeAgo(post.created_at)}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => navigate('/create', { state: { templateName: post.title } })}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-bold rounded-full transition-all shadow-sm hover:bg-zinc-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+        >
+          <Copy size={12} strokeWidth={2.5} />
+          <span>Use Template: {post.title}</span>
+        </button>
+      </div>
+
+      {/* Hashtags */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {hashtags.slice(0, 4).map((tag, idx) => {
+          const cleanTag = tag.trim().replace('#', '');
+          return (
+            <span
+              key={idx}
+              onClick={(e) => { e.stopPropagation(); navigate(`/discover/hashtag/${encodeURIComponent(cleanTag)}`); }}
+              className="px-3 py-1 rounded-md bg-surface-glass text-ink-soft text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-surface transition-colors"
+            >
+              #{cleanTag}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* Title */}
+      <h2
+        onClick={() => navigate(`/post/${post.id}`)}
+        className="text-xl font-extrabold mb-5 text-ink cursor-pointer hover:text-highlight transition-colors"
+      >
+        {post.title}
+      </h2>
+
+      {/* Tier List Preview Blocks */}
+      <div className="space-y-2 mb-6">
+        {tiers.map((tier) => (
+          <div key={tier} className="flex bg-tag rounded-xl border border-line-soft overflow-hidden min-h-[50px] shadow-sm items-center">
+            <div className={`w-14 self-stretch flex items-center justify-center font-black text-lg ${TIER_STYLES[tier] || 'bg-surface text-ink'}`}>
+              {tier}
+            </div>
+            <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap bg-tag">
+              {tierMap[tier] && tierMap[tier].map((itemName, idx) => (
+                <div
+                  key={idx}
+                  className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs"
+                >
+                  <span className="w-full line-clamp-2 text-[11px] leading-normal">{itemName}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Action Bar */}
+      <FeedCardActionBar
+        id={post.id}
+        initialLikes={post.stats?.likes || 0}
+        initialDislikes={post.stats?.dislikes || 0}
+        initialComments={post.stats?.comments || 0}
+        initialUserVote={post.user_vote ?? null}
+        onShare={() => setModal('share')}
+        onExport={() => setModal('export')}
+      />
+
+      <ShareExportModal
+        open={modal !== null}
+        mode={modal}
+        onClose={() => setModal(null)}
+        link={shareUrl(`/post/${post.id}`)}
+        preview={
+          <ExportCard
+            title={post.title}
+            authorName={post.profile?.username}
+            authorAvatar={post.profile?.avatar_url}
+            postedAt={timeAgo(post.created_at)}
+            category={post.category}
+            tiers={tiersData}
+          />
+        }
+        filename={`feed-${post.id}.png`}
+      />
+    </article>
   );
 }
 
@@ -250,111 +392,9 @@ export default function HomeFeed() {
             </div>
           )}
 
-          {!isLoading && displayData.map((post) => {
-            const hashtags = post.hashtags ? post.hashtags.split(',').filter(t => t.trim() !== '') : [];
-            const tierMap = groupItemsByTier(post.ranking_items);
-            const tiers = Object.keys(tierMap).length > 0 ? Object.keys(tierMap) : ['S', 'A'];
-
-            return (
-              <article key={post.id} className="bg-surface border border-line-soft rounded-[20px] p-6 shadow-sm">
-                
-                {/* Header Profile & Use Template Button */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className="w-10 h-10 rounded-full overflow-hidden bg-surface-glass border border-line-soft cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
-                    >
-                      {post.profile?.avatar_url ? (
-                        <img src={post.profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-muted">
-                          {post.profile?.username?.charAt(0).toUpperCase() || 'U'}
-                        </div>
-                      )}
-                    </div>
-                    <div>
-                      <h3 
-                        className="text-[15px] font-bold text-ink leading-tight cursor-pointer hover:underline"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
-                      >
-                        {post.profile?.username || 'Unknown User'}
-                      </h3>
-                      <p 
-                        className="text-[13px] text-muted font-medium cursor-pointer"
-                        onClick={() => navigate(`/post/${post.id}`)}
-                      >
-                        {timeAgo(post.created_at)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => navigate('/create', { state: { templateName: post.title } })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-bold rounded-full transition-all shadow-sm hover:bg-zinc-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
-                  >
-                    <Copy size={12} strokeWidth={2.5} />
-                    <span>Use Template: {post.title}</span>
-                  </button>
-                </div>
-
-                {/* Hashtags */}
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {hashtags.slice(0, 4).map((tag, idx) => {
-                    const cleanTag = tag.trim().replace('#', '');
-                    return (
-                      <span 
-                        key={idx} 
-                        onClick={(e) => { e.stopPropagation(); navigate(`/discover/hashtag/${encodeURIComponent(cleanTag)}`); }}
-                        className="px-3 py-1 rounded-md bg-surface-glass text-ink-soft text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-surface transition-colors"
-                      >
-                        #{cleanTag}
-                      </span>
-                    );
-                  })}
-                </div>
-
-                {/* Title */}
-                <h2 
-                  onClick={() => navigate(`/post/${post.id}`)}
-                  className="text-xl font-extrabold mb-5 text-ink cursor-pointer hover:text-highlight transition-colors"
-                >
-                  {post.title}
-                </h2>
-
-                {/* Tier List Preview Blocks */}
-                <div className="space-y-2 mb-6">
-                  {tiers.map((tier) => (
-                    <div key={tier} className="flex bg-tag rounded-xl border border-line-soft overflow-hidden min-h-[50px] shadow-sm items-center">
-                      <div className={`w-14 self-stretch flex items-center justify-center font-black text-lg ${TIER_STYLES[tier] || 'bg-surface text-ink'}`}>
-                        {tier}
-                      </div>
-                      <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap bg-tag">
-                        {tierMap[tier] && tierMap[tier].map((itemName, idx) => (
-                          <div 
-                            key={idx} 
-                            className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs"
-                          >
-                            <span className="w-full line-clamp-2 text-[11px] leading-normal">{itemName}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Action Bar */}
-                <FeedCardActionBar
-                  id={post.id}
-                  initialLikes={post.stats?.likes || 0}
-                  initialDislikes={post.stats?.dislikes || 0}
-                  initialComments={post.stats?.comments || 0}
-                  initialUserVote={post.user_vote ?? null}
-                />
-
-              </article>
-            );
-          })}
+          {!isLoading && displayData.map((post) => (
+            <HomeTierCard key={post.id} post={post} />
+          ))}
 
           {/* เงื่อนไขต้องไม่มี isLoading — ถ้ามี sentinel จะยังไม่ mount ตอนโหลดหน้าแรก
               เสร็จพอดี (page/hasMore/currentUser/activeTab ไม่เปลี่ยนค่าในจังหวะนั้น)

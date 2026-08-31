@@ -1,5 +1,10 @@
+import { useState } from 'react'
+import { Download } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { formatCount } from '../../lib/format'
+import { shareUrl } from '../../lib/share'
+import ShareExportModal from '../ui/ShareExportModal'
+import ExportCard from '../ui/ExportCard'
 import Avatar from '../ui/Avatar'
 import {
   CommentIcon,
@@ -13,6 +18,11 @@ import TierRow from './TierRow'
 
 export default function FeedCard({ post, vote, stats, onVote }) {
   const { author, postedAt, category, title, templateName, tiers } = post
+  const [modal, setModal] = useState(null) // 'share' | 'export' | null
+
+  const handleShare = () => setModal('share')
+
+  const handleExport = () => setModal('export')
 
   return (
     <article className="rounded-3xl glass p-5 md:p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
@@ -77,11 +87,33 @@ export default function FeedCard({ post, vote, stats, onVote }) {
             to={`/post/${post.id}`}
             activeClass="hover:text-highlight"
           />
+          <ActionButton icon={Download} label="Export" onClick={handleExport} activeClass="hover:text-highlight" />
         </div>
         <div className="ml-auto">
-          <ActionButton icon={ShareIcon} label="Share" activeClass="hover:text-highlight" />
+          <ActionButton icon={ShareIcon} label="Share" onClick={handleShare} activeClass="hover:text-highlight" />
         </div>
       </div>
+
+      <ShareExportModal
+        open={modal !== null}
+        mode={modal}
+        onClose={() => setModal(null)}
+        link={shareUrl(`/post/${post.id}`)}
+        preview={
+          <ExportCard
+            title={title}
+            authorName={author.name}
+            authorAvatar={author.avatarUrl}
+            postedAt={postedAt}
+            category={category}
+            tiers={(tiers || []).map(({ tier, items }) => ({
+              tier,
+              items: (items || []).map((i) => (typeof i === 'object' ? i.name : i)),
+            }))}
+          />
+        }
+        filename={`feed-${post.id}.png`}
+      />
     </article>
   )
 }
