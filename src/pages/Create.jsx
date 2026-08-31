@@ -120,6 +120,20 @@ const CreateTierList = () => {
   const handleDeleteItem = (idToRemove) => setItems(items.filter(item => item.id !== idToRemove));
   const updateTierData = (id, field, value) => setTiers(tiers.map(tier => tier.id === id ? { ...tier, [field]: value } : tier));
 
+  // 📍 ล้างทั้งกระดาน: items, ชื่อ, คำอธิบาย, แฮชแท็กที่เลือก, ข้อความ Quick Add
+  const handleResetAll = () => {
+    setItems([]);
+    setTitle('');
+    setDescription('');
+    setSelectedHashtags([]);
+    setQuickAddText('');
+  };
+
+  // 📍 เด้ง item ที่จัดไว้ในตารางกลับลง Unranked Pool (ทุก tierId → null)
+  const handleReturnToPool = () => {
+    setItems(items.map(item => ({ ...item, tierId: null })));
+  };
+
   // ฟังก์ชัน Hashtag
   const handleToggleHashtag = (tag) => selectedHashtags.includes(tag) ? setSelectedHashtags(selectedHashtags.filter(t => t !== tag)) : setSelectedHashtags([...selectedHashtags, tag]);
   const handleRemoveSelectedTag = (tagToRemove) => setSelectedHashtags(selectedHashtags.filter(t => t !== tagToRemove));
@@ -466,7 +480,27 @@ const CreateTierList = () => {
 
             {/* UNRANKED ITEMS POOL */}
             <div>
-              <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest mb-4">Unranked Items Pool</h3>
+              <div className="flex items-center justify-between mb-4 gap-3">
+                <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">Unranked Items Pool</h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleReturnToPool}
+                    title="ย้าย item ที่จัดไว้ในตารางกลับลงมาในกล่องนี้"
+                    className="flex items-center gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink-soft transition-all hover:bg-surface hover:text-ink hover:shadow-md active:scale-95"
+                  >
+                    <ChevronLeft size={14} /> Back to Pool
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetAll}
+                    title="รีเซ็ตทั้งกระดาน: ล้าง item, ชื่อ, แฮชแท็ก และคำอธิบายทั้งหมด"
+                    className="flex items-center gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300 hover:shadow-md active:scale-95"
+                  >
+                    <X size={14} /> Reset All
+                  </button>
+                </div>
+              </div>
               <div className="bg-surface-glass border border-line-soft min-h-[160px] rounded-2xl p-6 flex flex-wrap gap-4" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
                 {items.filter(item => item.tierId === null).length === 0 ? (
                   <span className="text-muted text-sm italic font-medium w-full text-center mt-12 pointer-events-none">No items yet. Generate them from the left panel.</span>
