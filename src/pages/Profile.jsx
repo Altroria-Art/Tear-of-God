@@ -3,16 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage } from '../lib/api';
-import { timeAgo } from '../lib/format';
+import { timeAgo, formatDbDate } from '../lib/format';
 import { useToast } from '../components/ui/Toast';
-
-// "Oct 2024" จาก created_at ที่ได้จาก API (แทนที่ข้อความ hardcode เดิม)
-function formatJoined(dateString) {
-  if (!dateString) return null;
-  const d = new Date(dateString);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -212,7 +204,8 @@ export default function Profile() {
   const displayUser = isOwnProfile
     ? { ...(profileUser || {}), ...(currentUser || {}) }
     : profileUser;
-  const joinedLabel = formatJoined(displayUser?.created_at) ?? '—';
+  // "Oct 2024" จาก created_at ที่ได้จาก API — parse ผ่าน formatDbDate() เสมอ (ดู src/lib/format.js)
+  const joinedLabel = formatDbDate(displayUser?.created_at, 'en-US', { month: 'short', year: 'numeric' }) ?? '—';
   const totalLikes = posts.reduce((n, p) => n + (p.stats?.likes || 0), 0);
 
   return (

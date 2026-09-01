@@ -15,6 +15,7 @@ import ExportCard from '../components/ui/ExportCard'
 // 📍 นำเข้า createComment มาใช้งาน
 import { fetchRanking, createComment, voteRanking, fetchTemplate } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
+import { formatDbDate } from '../lib/format'
 
 export default function PostDetail() {
   const { postId } = useParams()
@@ -58,7 +59,7 @@ export default function PostDetail() {
             name: data.profile?.username || 'Unknown User',
             avatarUrl: data.profile?.avatar_url
           },
-          postedAt: new Date(data.created_at).toLocaleDateString(),
+          postedAt: formatDbDate(data.created_at) ?? '',
           category: data.category,
           title: data.title,
           description: data.description,
@@ -78,7 +79,7 @@ export default function PostDetail() {
               name: c.username || 'Unknown',
               avatarUrl: c.avatar_url
             },
-            postedAt: new Date(c.created_at).toLocaleDateString(),
+            postedAt: formatDbDate(c.created_at) ?? '',
             body: c.content
           }))
           setComments(formattedComments)
