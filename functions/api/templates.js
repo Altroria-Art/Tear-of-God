@@ -16,7 +16,10 @@ export async function onRequestGet(context) {
   try {
     // ==========================================
     // โหมด list: GET /api/templates?hashtag=..&category=..&limit=..
-    // "uses" นับสดจากจำนวน rankings ที่ผูก template นี้ (ไม่ใช้ use_count ที่ seed ไว้)
+    // "uses" และ "views" นับสดจาก rankings/template_views ที่ผูก template นี้เสมอ —
+    // ไม่อ่าน templates.use_count/view_count ตรงๆ เพราะสองคอลัมน์นี้ไม่ตรงกับข้อมูลจริง
+    // (use_count คือเลข seed เก่า, view_count เป็นแค่ mirror ที่ drift ได้ ดู
+    // docs/discover-template-uses-views-fix-plan.md)
     // ==========================================
     if (!templateId) {
       const hashtag = url.searchParams.get('hashtag');
@@ -36,13 +39,16 @@ export async function onRequestGet(context) {
         whereParams.push(`,#${hashtag.replace(/^#/, '')},`);
       }
 
-      let orderSql = ` ORDER BY t.use_count DESC, t.created_at DESC, t.id DESC`;
+      // เรียงตามเลขจริง (live_uses/live_views) ไม่ใช่คอลัมน์ที่ seed ไว้ — ไม่งั้นลำดับการ์ด
+      // จะไม่ตรงกับตัวเลขที่โชว์ (ดู docs/discover-template-uses-views-fix-plan.md)
+      let orderSql = ` ORDER BY live_uses DESC, t.created_at DESC, t.id DESC`;
       if (sort === 'recent') orderSql = ` ORDER BY t.created_at DESC, t.id DESC`;
-      else if (sort === 'views') orderSql = ` ORDER BY t.view_count DESC, t.use_count DESC, t.id DESC`;
+      else if (sort === 'views') orderSql = ` ORDER BY live_views DESC, live_uses DESC, t.id DESC`;
 
       const query = `
         SELECT t.*, p.username, p.avatar_url,
-          t.use_count as live_uses
+          (SELECT COUNT(*) FROM rankings r       WHERE r.template_id = t.id) AS live_uses,
+          (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views
         FROM templates t
         LEFT JOIN profiles p ON t.creator_id = p.id
         ${whereSql}
@@ -98,16 +104,21 @@ export async function onRequestGet(context) {
         hashtags: t.hashtags,
         tiers: parseTiers(t.tiers),
         use_count: t.live_uses || 0,
+        view_count: t.live_views || 0,
         profile: { username: t.username, avatar_url: t.avatar_url },
         template_items: itemsMap[t.id] || []
       }));
 
       // 📍 ข้อมูล public ล้วน ไม่มี field เฉพาะผู้ชม (ไม่มี user_vote/is_following) — cache ที่ edge
-      // ได้ปลอดภัย (ดู docs/row-read-optimization-plan.md §6/§8) ผลข้างเคียงที่ยอมรับได้: เทมเพลต
-      // ที่เพิ่งถูกสร้าง/ใช้อาจขึ้นช้าไปสูงสุด 1 นาที
+      // ได้ปลอดภัย (ดู docs/row-read-optimization-plan.md §6/§8) แต่ max-age เดิม 60s บวก
+      // stale-while-revalidate=300s ทำให้ browser ค้าง response เก่าได้นานสุด ~360s — เคยเป็นบั๊กจริง:
+      // Discover ยังโชว์ Views เก่าหลังกลับมาจากหน้า Template Detail ที่เพิ่งนับ view ไปแล้ว
+      // (ดู docs/discover-template-view-refresh-and-tracking-plan.md) ตัด stale-while-revalidate
+      // ทิ้งไปเลยเพราะมันคือตัวยืดหน้าต่างค้าง ไม่ใช่แค่ลด max-age เฉยๆ — เหลือ cache สั้นๆ 10s
+      // พอดูดซับ burst ตอนสลับ Discover↔Detail เร็วๆ แต่ไม่ค้างนานเกินไป
       return Response.json(
         { success: true, data, page, limit, total },
-        { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } }
+        { headers: { 'Cache-Control': 'public, max-age=10' } }
       );
     }
 
@@ -150,6 +161,13 @@ export async function onRequestGet(context) {
     ).bind(templateId).all();
     const useCount = statsRows[0]?.n || 0;
     const lastRanked = statsRows[0]?.latest || null;
+
+    // views นับสดจาก template_views เสมอ — ไม่อ่าน templates.view_count ตรงๆ เพราะเป็นแค่
+    // mirror counter ที่ drift ได้ (ดู docs/discover-template-uses-views-fix-plan.md)
+    const { results: viewRows } = await db.prepare(
+      `SELECT COUNT(*) as n FROM template_views WHERE template_id = ?`
+    ).bind(templateId).all();
+    const viewCount = viewRows[0]?.n || 0;
 
     let communityAverage = null;
     if (!light && tierCount > 0) {
@@ -208,7 +226,7 @@ export async function onRequestGet(context) {
       },
       stats: {
         uses: useCount,
-        views: template.view_count || 0
+        views: viewCount
       },
       template_items: templateItems.map(ti => ({
         ...ti,
@@ -217,10 +235,12 @@ export async function onRequestGet(context) {
       community_average: communityAverage
     };
 
-    // 📍 เช่นเดียวกับโหมด list — ไม่มี field เฉพาะผู้ชมเลย cache ที่ edge ได้ปลอดภัย
+    // 📍 เช่นเดียวกับโหมด list — ไม่มี field เฉพาะผู้ชมเลย cache ที่ edge ได้ปลอดภัย แต่ใช้ max-age
+    // สั้นเท่ากัน (10s, ไม่มี stale-while-revalidate) ด้วยเหตุผลเดียวกัน — ให้ผู้ที่ไม่ได้ล็อกอิน
+    // (ไม่มี overlay จาก POST) เห็นเลข views ที่ใกล้เคียงปัจจุบันด้วย
     return Response.json(
       { success: true, data: responseData },
-      { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } }
+      { headers: { 'Cache-Control': 'public, max-age=10' } }
     );
 
   } catch (error) {
@@ -242,15 +262,20 @@ export async function onRequestPost(context) {
       return Response.json({ success: false, error: 'Missing template_id or user_id' }, { status: 400 });
     }
 
-    const { meta } = await db.prepare(
-      `INSERT OR IGNORE INTO template_views (template_id, user_id) VALUES (?, ?)`
-    ).bind(template_id, user_id).run();
-
-    if (meta.changes > 0) {
-      await db.prepare(
-        `UPDATE templates SET view_count = view_count + 1 WHERE id = ?`
-      ).bind(template_id).run();
-    }
+    // 📍 INSERT + UPDATE รวมเป็น db.batch() เดียว (atomic) — เดิมเป็น 2 .run() แยกกัน ถ้า worker
+    // ถูกตัดตอนระหว่างสองคำสั่งนี้ (network drop/CPU-time limit) แถว template_views จะถูกเขียน
+    // สำเร็จแต่ counter ไม่ถูกบวก ทำให้ view_count ค่อยๆ drift ออกจากข้อมูลจริงแบบไม่มีทาง
+    // self-heal (ดู docs/discover-template-uses-views-fix-plan.md — พบ drift จริงใน production)
+    // แก้โดย "คำนวณ view_count ใหม่จาก COUNT(*) ของ template_views" แทนการ +1 — ทำให้ทุกครั้งที่
+    // POST เข้ามา counter จะซิงค์กับข้อมูลจริงเสมอ ไม่ว่าจะเคย drift มาก่อนหรือไม่ (self-healing
+    // ไม่ต้องมี migration/backfill แยกต่างหาก)
+    const [insertResult] = await db.batch([
+      db.prepare(`INSERT OR IGNORE INTO template_views (template_id, user_id) VALUES (?, ?)`)
+        .bind(template_id, user_id),
+      db.prepare(
+        `UPDATE templates SET view_count = (SELECT COUNT(*) FROM template_views WHERE template_id = ?) WHERE id = ?`
+      ).bind(template_id, template_id)
+    ]);
 
     // ส่งเลข view_count ล่าสุดกลับไปด้วย — ฝั่ง client ต้องใช้ค่านี้แทนค่าที่ได้จาก GET
     // เพราะ GET (fetchTemplate) กับ POST (recordTemplateView) ยิงพร้อมกันตอน mount
@@ -259,7 +284,10 @@ export async function onRequestPost(context) {
       `SELECT view_count FROM templates WHERE id = ?`
     ).bind(template_id).all();
 
-    return Response.json({ success: true, counted: meta.changes > 0, views: results[0]?.view_count ?? 0 });
+    // counted อ้างอิงผลของ INSERT (statement แรกใน batch) — ต้องเป็นแถวใหม่จริงเท่านั้นถึงนับ
+    // ว่า "view" นี้ถูกนับ ไม่ใช่ผลของ UPDATE ซึ่ง match แถว templates เสมอไม่ว่า INSERT จะถูก
+    // IGNORE หรือไม่ก็ตาม
+    return Response.json({ success: true, counted: insertResult.meta.changes > 0, views: results[0]?.view_count ?? 0 });
   } catch (error) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }

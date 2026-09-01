@@ -16,6 +16,40 @@ async function getJSON(url) {
   return promise;
 }
 
+// 📍 View counts we know first-hand from our own POST /api/templates (recordTemplateView).
+// GET /api/templates is cacheable (docs/discover-template-view-refresh-and-tracking-plan.md) —
+// right after this tab records a view, a browser-cached list response can still report the
+// pre-view number, which is exactly the "Discover shows stale Views" bug. We remember the
+// authoritative count the server just handed back and merge it over any list response that is
+// behind. Views only ever grow, so the larger of the two numbers is always the fresher one, and
+// the entry deletes itself the moment the server response catches up — it can never pin a
+// permanently wrong number, and the map cannot grow unbounded. In-memory only, per tab, never
+// persisted.
+const freshViewCounts = new Map(); // template_id -> view_count observed from our own POST
+
+function rememberViewCount(templateId, viewCount) {
+  if (templateId == null || viewCount == null) return;
+  freshViewCounts.set(templateId, viewCount);
+}
+
+function applyFreshViewCounts(result) {
+  if (!result?.data || freshViewCounts.size === 0) return result;
+  // Build new objects — getJSON hands the SAME parsed object to every concurrent caller of the
+  // same URL, so mutating it in place here would leak across every other consumer of that
+  // response (e.g. Discover's two sections both reading the one fetchTemplates() result).
+  const data = result.data.map((t) => {
+    const fresh = freshViewCounts.get(t.id);
+    if (fresh == null) return t;
+    if (fresh <= (t.view_count ?? 0)) {
+      // Server has caught up (or moved past, e.g. someone else also viewed it since) — stop overriding.
+      freshViewCounts.delete(t.id);
+      return t;
+    }
+    return { ...t, view_count: fresh };
+  });
+  return { ...result, data };
+}
+
 // ==========================================
 // ส่วนที่ 1: ระบบสมาชิก (Auth)
 // ==========================================
@@ -259,7 +293,8 @@ export async function fetchTemplates({ hashtag, category, limit, page, sort } = 
     if (sort) params.append('sort', sort);
 
     const queryStr = params.toString();
-    return await getJSON(`${API_URL}/api/templates${queryStr ? `?${queryStr}` : ''}`);
+    const result = await getJSON(`${API_URL}/api/templates${queryStr ? `?${queryStr}` : ''}`);
+    return applyFreshViewCounts(result);
   } catch (error) {
     console.error("fetchTemplates error:", error);
     return { data: [], error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
@@ -303,7 +338,12 @@ export async function recordTemplateView(templateId, userId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: templateId, user_id: userId })
     });
-    return await response.json();
+    const json = await response.json();
+    // จำเลข views ล่าสุดที่เพิ่งได้จาก server ไว้ ให้ fetchTemplates() หน้า Discover เอาไป
+    // merge ทับ response ที่อาจโดน browser cache ค้าง (ดู
+    // docs/discover-template-view-refresh-and-tracking-plan.md)
+    rememberViewCount(templateId, json?.views);
+    return json;
   } catch (error) {
     console.error("recordTemplateView error:", error);
     return { success: false, error: 'บันทึกการเข้าชมไม่สำเร็จ' };

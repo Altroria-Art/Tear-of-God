@@ -46,10 +46,11 @@ function TemplateCard({ template }) {
 
   return (
     <Link to={`/post/${template.id}`} className="block rounded-xl border border-line-soft glass shadow-sm hover:shadow-md transition-shadow">
+      {/* 📍 การ์ดนี้เรนเดอร์ rankings (tier list โพสต์) ไม่ใช่ templates — โพสต์ไม่มีระบบนับ view
+          ในแอปเลย (view tracking มีแค่ที่ templates ผ่าน template_views) เดิม badge นี้อ่าน
+          template.stats?.views ซึ่งไม่มีอยู่จริงใน response ของ fetchRankings() เลยโชว์ 0 ค้าง
+          ตลอด — เอาออกแทนที่จะโชว์เลขปลอม ดู docs/discover-template-uses-views-fix-plan.md */}
       <div className="relative m-3 rounded-lg bg-surface p-3">
-        <span className="absolute top-2 right-2 rounded-md glass px-1.5 py-0.5 text-[10px] font-semibold text-muted shadow-sm">
-          👁️ {template.stats?.views || 0}
-        </span>
         <div className="space-y-2">
           <TierPreviewRow tier="S" items={tiersMap['S']} />
           <TierPreviewRow tier="A" items={tiersMap['A']} />
