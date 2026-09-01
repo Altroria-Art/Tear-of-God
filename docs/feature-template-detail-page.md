@@ -29,9 +29,9 @@
 | ตัวเลข | สูตร | ที่มา |
 |---|---|---|
 | **Uses** | `COUNT(*) FROM rankings WHERE template_id = ?` — นับสดทุกครั้งที่เรียก API **ไม่ใช่ค่าที่ seed ไว้** | คนเดิมใช้ template ซ้ำ → นับเพิ่มทุกครั้ง (นับจำนวน ranking ไม่ใช่จำนวนคน) |
-| **Views** | `templates.view_count`, บวกผ่าน `POST /api/templates` | นับแค่ **ครั้งแรก** ที่แต่ละ `user_id` เปิดหน้านี้ กลไก: ตาราง `template_views` มี `PRIMARY KEY (template_id, user_id)` → `INSERT OR IGNORE` ครั้งแรกจะ insert สำเร็จ ครั้งต่อไปโดน ignore เงียบๆ |
+| **Views** | `COUNT(*) FROM template_views WHERE template_id = ?` — นับสดทุกครั้งที่เรียก API **ไม่ใช่ `templates.view_count`** | นับแค่ **ครั้งแรก** ที่แต่ละ `user_id` เปิดหน้านี้ กลไก: ตาราง `template_views` มี `PRIMARY KEY (template_id, user_id)` → `INSERT OR IGNORE` ครั้งแรกจะ insert สำเร็จ ครั้งต่อไปโดน ignore เงียบๆ |
 
-⚠️ ไม่ได้ใช้คอลัมน์ `templates.use_count` ที่ seed ไว้ตอนแรก (15.2k, 8.8k, …) แล้ว — คอลัมน์นั้นยังอยู่ใน schema เฉยๆ ไม่ถูกอ่าน/เขียนอีกต่อไป ตัวเลขที่โชว์ทุกที่ (Discover, Template Detail) เป็นเลขสดทั้งหมด
+⚠️ ไม่ได้ใช้คอลัมน์ `templates.use_count`/`templates.view_count` ที่ seed/mirror ไว้ตรงๆ อีกต่อไป — สองคอลัมน์นี้ยังอยู่ใน schema (เก็บไว้เป็น denormalized cache ที่ `view_count` ยังถูกเขียนแบบ self-healing ทุกครั้งที่มี view ใหม่ ส่วน `use_count` ไม่ถูกเขียน/อ่านแล้ว) แต่ตัวเลขที่โชว์ทุกที่ (Discover, Template Detail) มาจาก `COUNT(*)` สดจากตารางต้นทาง (`rankings`/`template_views`) เสมอ ไม่อ่านสองคอลัมน์นี้ตรงๆ เพราะเคยพบว่า `use_count` เป็นเลข seed เก่าที่ไม่ตรงกับข้อมูลจริงเลย (ดู `docs/discover-template-uses-views-fix-plan.md` — เดิม Discover list query อ่าน `t.use_count` ตรงๆ ทั้งที่ comment อ้างว่านับสด เป็นบั๊กที่แก้ไปแล้ว)
 
 **คนที่ไม่ได้ login**: เข้าหน้านี้ได้ปกติ อ่านได้ทุกอย่าง แต่ **ไม่นับ view** (เช็ค `!currentUser` ก่อนยิง `recordTemplateView`) และกด vote/Use Template ไม่ได้ — ขึ้น `alert()` บอกให้ไป login ก่อน (ยังไม่ทำ popup สวยๆ)
 

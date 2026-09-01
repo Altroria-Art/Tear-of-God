@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Share2 } from 'lucide-react';
+import { Users, Eye, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { shareUrl } from '../../lib/share';
 import ShareExportModal from '../ui/ShareExportModal';
@@ -28,8 +28,13 @@ export default function TemplateCard({ template, onUse }) {
   return (
     <div className="glass rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
       <Link to={detailHref} className="bg-surface-glass p-4 h-40 flex flex-col gap-2 relative">
-        <div className="absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-1 z-10 shadow-xs">
-          <Users size={14} /> {formatCount(template.use_count)}
+        <div className="absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
+          <span className="flex items-center gap-1" title="Uses">
+            <Users size={14} /> {formatCount(template.use_count)}
+          </span>
+          <span className="flex items-center gap-1" title="Views">
+            <Eye size={14} /> {formatCount(template.view_count)}
+          </span>
         </div>
 
         {previewTiers.map((tier) => {
