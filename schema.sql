@@ -104,6 +104,19 @@ CREATE TABLE IF NOT EXISTS template_items (
   FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE
 );
 
+-- สถิติความนิยมราย item ต่อ ranking: บันทึกคะแนนตอนสร้าง ranking (freeze ณ เวลานั้น)
+-- เพื่อให้ย้อนหลังตามช่วงเวลาได้ถูกต้อง แม้ template จะเปลี่ยนจำนวน tier ในภายหลัง
+CREATE TABLE IF NOT EXISTS ranking_item_scores (
+  id TEXT PRIMARY KEY,
+  ranking_id TEXT NOT NULL,
+  template_id TEXT NOT NULL,
+  item_id TEXT NOT NULL,
+  tier_index INTEGER NOT NULL,
+  score INTEGER NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_rankings_user_id ON rankings(user_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_category ON rankings(category);
 CREATE INDEX IF NOT EXISTS idx_rankings_template_id ON rankings(template_id);
@@ -115,3 +128,31 @@ CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
 CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category);
 CREATE INDEX IF NOT EXISTS idx_template_items_template_id ON template_items(template_id);
 CREATE INDEX IF NOT EXISTS idx_template_views_template ON template_views(template_id);
+-- like/dislike/comment เป็นของ "Community Average" ของ template — ไม่ใช่ ranking เดียว
+-- เพราะตาราง Community Average เป็นข้อมูลรวมของเทมเพลต จึงผูกกับ template_id โดยตรง
+CREATE TABLE IF NOT EXISTS template_reactions (
+  id TEXT PRIMARY KEY,
+  template_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  vote_type TEXT CHECK(vote_type IN ('like', 'dislike')),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(template_id, user_id),
+  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS template_comments (
+  id TEXT PRIMARY KEY,
+  template_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  content TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ris_ranking ON ranking_item_scores(ranking_id);
+CREATE INDEX IF NOT EXISTS idx_ris_template_time ON ranking_item_scores(template_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_template_reactions_template ON template_reactions(template_id);
+CREATE INDEX IF NOT EXISTS idx_template_reactions_user ON template_reactions(template_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_template_comments_template ON template_comments(template_id, created_at);

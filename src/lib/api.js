@@ -273,9 +273,13 @@ export async function createComment({ ranking_id, user_id, content }) {
 
 // 📍 light=true = โหมด ?fields=meta (ข้าม community_average) ใช้เมื่อต้องการแค่
 // title/description/tiers/template_items — ดู docs/row-read-optimization-plan.md §5/§8, C6
-export async function fetchTemplate(templateId, { light = false } = {}) {
+// period: { days } หรือ { from, to } — กรอง Community Average ตามช่วงเวลา popularity
+export async function fetchTemplate(templateId, { light = false, period = null } = {}) {
   try {
-    const url = `${API_URL}/api/templates?id=${templateId}${light ? '&fields=meta' : ''}`;
+    let url = `${API_URL}/api/templates?id=${templateId}${light ? '&fields=meta' : ''}`;
+    if (period?.days != null) url += `&days=${period.days}`;
+    if (period?.from) url += `&from=${encodeURIComponent(period.from)}`;
+    if (period?.to) url += `&to=${encodeURIComponent(period.to)}`;
     return await getJSON(url);
   } catch (error) {
     console.error("fetchTemplate error:", error);
@@ -347,5 +351,60 @@ export async function recordTemplateView(templateId, userId) {
   } catch (error) {
     console.error("recordTemplateView error:", error);
     return { success: false, error: 'บันทึกการเข้าชมไม่สำเร็จ' };
+  }
+}
+
+// ==========================================
+// like/dislike/comment ของ Community Average (ผูกกับ template_id)
+// ==========================================
+
+// อ่านสถานะโหวตของผู้ใช้ + จำนวนรวมของ Community Average นี้ (ใช้ตอนเปิดหน้าเพื่อตั้งค่าเริ่มต้นการ์ด)
+export async function fetchTemplateReaction({ templateId, userId } = {}) {
+  try {
+    if (!templateId) return { success: true, userVote: null, likes: 0, dislikes: 0 };
+    const params = new URLSearchParams();
+    params.append('template_id', templateId);
+    if (userId) params.append('user_id', userId);
+    return await getJSON(`${API_URL}/api/template-votes?${params.toString()}`);
+  } catch (error) {
+    console.error("fetchTemplateReaction error:", error);
+    return { success: false, userVote: null, likes: 0, dislikes: 0 };
+  }
+}
+
+// โหวต/สลับ/ยกเลิก like | dislike ให้ Community Average (voteType = 'like' | 'dislike' | null)
+export async function voteTemplate({ templateId, userId, voteType }) {
+  try {
+    const response = await fetch(`${API_URL}/api/template-votes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: templateId, user_id: userId, voteType })
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้' };
+  }
+}
+
+// ดึงรายการคอมเมนต์ของ Community Average
+export async function fetchTemplateComments(templateId) {
+  try {
+    return await getJSON(`${API_URL}/api/template-comments?template_id=${templateId}`);
+  } catch (error) {
+    return { data: [], error: 'ไม่สามารถดึงคอมเมนต์ได้' };
+  }
+}
+
+// สร้างคอมเมนต์ใหม่ให้ Community Average — คืน object ใหม่พร้อม username/avatar_url
+export async function createTemplateComment({ template_id, user_id, content }) {
+  try {
+    const response = await fetch(`${API_URL}/api/template-comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id, user_id, content })
+    });
+    return await response.json();
+  } catch (error) {
+    return { data: null, error: 'ไม่สามารถสร้างคอมเมนต์ได้' };
   }
 }

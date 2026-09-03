@@ -11,6 +11,8 @@ export default function ShareExportModal({
   link, // สำหรับ share
   preview, // สำหรับ export: React element ของการ์ดที่จะ capture
   filename, // สำหรับ export
+  stats, // สำหรับ export: [{ item, avg, tier, votes }] — ข้อมูลสถิติความนิยม
+  statsFilename, // ชื่อไฟล์ข้อมูลสถิติ (ไม่มี ext)
 }) {
   const toast = useToast();
   const previewRef = useRef(null);
@@ -39,6 +41,35 @@ export default function ShareExportModal({
     } else {
       toast.error('ส่งออกรูปไม่สำเร็จ');
     }
+  };
+
+  const downloadTextFile = (content, mime, name) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = () => {
+    if (!Array.isArray(stats) || stats.length === 0) { toast.error('ไม่มีข้อมูลสถิติให้ส่งออก'); return; }
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = 'item,avg,tier,votes';
+    const rows = stats.map((s) => [esc(s.item), s.avg, esc(s.tier), s.votes].join(','));
+    downloadTextFile([header, ...rows].join('\n'), 'text/csv;charset=utf-8', `${statsFilename || 'stats'}.csv`);
+    toast.success('ดาวน์โหลดสถิติ CSV เรียบร้อย!');
+    onClose();
+  };
+
+  const handleExportJson = () => {
+    if (!Array.isArray(stats) || stats.length === 0) { toast.error('ไม่มีข้อมูลสถิติให้ส่งออก'); return; }
+    downloadTextFile(JSON.stringify(stats, null, 2), 'application/json', `${statsFilename || 'stats'}.json`);
+    toast.success('ดาวน์โหลดสถิติ JSON เรียบร้อย!');
+    onClose();
   };
 
   if (mode === 'share') {
@@ -77,7 +108,25 @@ export default function ShareExportModal({
             {preview}
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-end gap-3">
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
+          {Array.isArray(stats) && stats.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="rounded-lg border border-line-soft px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-tag"
+              >
+                ดาวน์โหลด CSV
+              </button>
+              <button
+                type="button"
+                onClick={handleExportJson}
+                className="rounded-lg border border-line-soft px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-tag"
+              >
+                ดาวน์โหลด JSON
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={onClose}

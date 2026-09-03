@@ -11,6 +11,7 @@ import PopularHashtags from './pages/PopularHashtags';
 import HashtagDetail from './pages/HashtagDetail';
 import CategoryPage from './pages/CategoryPage';
 import TemplateDetailPage from './pages/TemplateDetailPage';
+import CommunityAveragePage from './pages/CommunityAveragePage';
 import PostDetail from './pages/PostDetail';
 import Create from './pages/Create';
 import RankTierList from './pages/RankTierList';
@@ -36,6 +37,7 @@ function App() {
               <Route path="/rank" element={<RankTierList />} />
               <Route path="/category/:categoryId" element={<CategoryPage />} />
               <Route path="/template/:templateId" element={<TemplateDetailPage />} />
+              <Route path="/template/:templateId/community" element={<CommunityAveragePage />} />
               <Route path="/post/:postId" element={<PostDetail />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/:userId" element={<Profile />} /> {/* 📍 ดูโปรไฟล์ของคนอื่น */}

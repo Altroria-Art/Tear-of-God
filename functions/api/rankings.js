@@ -295,6 +295,19 @@ export async function onRequest({ request, env }) {
       const statements = [];
       let templateId = null;
 
+      // tiers ปัจจุบันของ template (ตัวที่ใช้จัดอันดับ) — ใช้ map ชื่อ tier → index แล้วให้คะแนน
+      // แถวบนสุดสูงสุด (score = tierCount - index) บันทึกลง ranking_item_scores ตอน publish
+      let tiersDef = null;
+      if (template && Array.isArray(template.tiers) && template.tiers.length > 0) {
+        tiersDef = template.tiers;
+      } else if (payload.template_id) {
+        const tr = await db.prepare(`SELECT tiers FROM templates WHERE id = ?`).bind(payload.template_id).first();
+        tiersDef = parseTiers(tr?.tiers) || [];
+      }
+      const tierIndexByLabel = {};
+      (tiersDef || []).forEach((t, i) => { tierIndexByLabel[String(t.label)] = i; });
+      const tierCount = tiersDef?.length || 0;
+
       // 📍 [ใหม่]: publish จากหน้า Create จะส่ง `template` มาด้วย → สร้าง Template + template_items
       // ใน batch เดียวกับ ranking (atomic ตาม SDS §8.2/§9.2) ทำให้ template เข้าหน้า Discover
       // และ hashtag ที่เลือก/สร้างใหม่ถูกนับบน PopularHashtags (ซึ่งนับ tag จาก templates.hashtags)
@@ -339,10 +352,20 @@ export async function onRequest({ request, env }) {
       }
 
       if (items && items.length > 0) {
+        const effTemplateId = payload.template_id || templateId;
         items.forEach(item => {
           statements.push(db.prepare(
             `INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?1, ?2, ?3, ?4, ?5)`
           ).bind(crypto.randomUUID(), rankingId, item.item_id, item.tier, item.position));
+
+          // 📍 บันทึกสถิติความนิยม: เฉพาะ item ที่จัดลง tier ที่ตรงกับ template เท่านั้น
+          // (item ใน pool ที่ยังไม่จัด = tier null → ไม่นับ) — freeze คะแนน ณ เวลาสร้าง
+          const tierIdx = tierIndexByLabel[String(item.tier)];
+          if (tierIdx !== undefined) {
+            statements.push(db.prepare(
+              `INSERT INTO ranking_item_scores (id, ranking_id, template_id, item_id, tier_index, score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+            ).bind(crypto.randomUUID(), rankingId, effTemplateId, item.item_id, tierIdx, tierCount - tierIdx));
+          }
         });
       }
 
