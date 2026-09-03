@@ -144,6 +144,21 @@ export async function onRequestGet(context) {
     const tiersDef = parseTiers(template.tiers) || [];
     const tierCount = tiersDef.length;
 
+    // 📍 ช่วงเวลา (popularity ตามช่วงเวลานั้นๆ) — กรองจาก created_at ของ ranking_item_scores
+    // รับได้: days=N (N วันที่ผ่านมา) หรือ from/to (วันที่แบบ YYYY-MM-DD) / from may be omitted
+    const daysParam = parseInt(url.searchParams.get('days') || '', 10);
+    let period = null;
+    if (!Number.isNaN(daysParam) && daysParam > 0) {
+      const from = new Date(Date.now() - daysParam * 86400000);
+      period = { from: from.toISOString(), to: null };
+    } else {
+      const fromRaw = url.searchParams.get('from');
+      const toRaw = url.searchParams.get('to');
+      if (fromRaw || toRaw) {
+        period = { from: fromRaw || null, to: toRaw || null };
+      }
+    }
+
     // 📍 ?fields=meta = โหมดย่อ ใช้โดย PostDetail (AboutTemplateCard) และ RankTierList
     // (pre-fill) ซึ่งอ่านแค่ title/description/tiers/template_items — ไม่เคยอ่าน
     // community_average เลย แต่โหมดเต็ม (TemplateDetailPage) ต้องคำนวณฮิสโตแกรมทุกครั้ง
@@ -169,27 +184,35 @@ export async function onRequestGet(context) {
     ).bind(templateId).all();
     const viewCount = viewRows[0]?.n || 0;
 
+    // like/dislike/comment ของ Community Average — นับสดจากตาราง template_reactions/template_comments
+    const { results: reactionRows } = await db.prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM template_reactions WHERE template_id = ?1 AND vote_type = 'like') AS likes,
+         (SELECT COUNT(*) FROM template_reactions WHERE template_id = ?1 AND vote_type = 'dislike') AS dislikes,
+         (SELECT COUNT(*) FROM template_comments WHERE template_id = ?1) AS comments`
+    ).bind(templateId).all();
+    const reaction = reactionRows[0] || {};
+
     let communityAverage = null;
     if (!light && tierCount > 0) {
-      // Community Average: ฮิสโตแกรมเดียว 1 bound param ไม่ว่า template จะมี ranking กี่อัน
-      const { results: histogram } = await db.prepare(
-        `SELECT ri.item_id, ri.tier, COUNT(*) as n
-         FROM ranking_items ri
-         WHERE ri.ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)
-           AND ri.tier IS NOT NULL
-         GROUP BY ri.item_id, ri.tier`
-      ).bind(templateId).all();
+      // Community Average: อ่านจาก ranking_item_scores (บันทึกคะแนน freeze ตอนสร้าง) แล้ว
+      // aggregate ตามช่วงเวลาที่ขอ — score เก็บค่า "แถวบนสุด = สูงสุด" อยู่แล้ว ไม่ต้อง map label ซ้ำ
+      let whereSql = ` WHERE ris.template_id = ?`;
+      const whereParams = [templateId];
+      if (period?.from) { whereSql += ` AND ris.created_at >= ?`; whereParams.push(period.from); }
+      if (period?.to) { whereSql += ` AND ris.created_at <= ?`; whereParams.push(period.to); }
 
-      const tierLabelToIndex = {};
-      tiersDef.forEach((t, i) => { tierLabelToIndex[t.label] = i; });
+      const { results: histogram } = await db.prepare(
+        `SELECT ris.item_id, ris.score, COUNT(*) as n
+         FROM ranking_item_scores ris
+         ${whereSql}
+         GROUP BY ris.item_id, ris.score`
+      ).bind(...whereParams).all();
 
       const itemAgg = {};
       histogram.forEach(row => {
-        const idx = tierLabelToIndex[row.tier];
-        if (idx === undefined) return; // tier label ไม่ตรงกับ tiers ปัจจุบันของ template — ข้าม
-        const score = tierCount - idx; // tier บนสุด = คะแนนสูงสุด
         if (!itemAgg[row.item_id]) itemAgg[row.item_id] = { sum: 0, count: 0 };
-        itemAgg[row.item_id].sum += score * row.n;
+        itemAgg[row.item_id].sum += row.score * row.n;
         itemAgg[row.item_id].count += row.n;
       });
 
@@ -202,13 +225,14 @@ export async function onRequestGet(context) {
 
       communityAverage = {
         updated_at: lastRanked,
+        period,
         tiers: tiersDef.map((t, i) => ({
           label: t.label,
           color: t.color,
           items: itemAverages
             .filter(x => x.tierIndex === i)
             .sort((a, b) => b.avg - a.avg)
-            .map(x => ({ name: x.item_id, avg: Math.round(x.avg * 100) / 100 }))
+            .map(x => ({ name: x.item_id, avg: Math.round(x.avg * 100) / 100, votes: x.votes }))
         }))
       };
     }
@@ -226,7 +250,10 @@ export async function onRequestGet(context) {
       },
       stats: {
         uses: useCount,
-        views: viewCount
+        views: viewCount,
+        likes: reaction.likes || 0,
+        dislikes: reaction.dislikes || 0,
+        comments: reaction.comments || 0
       },
       template_items: templateItems.map(ti => ({
         ...ti,

@@ -8,7 +8,7 @@ import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
-import { fetchTemplate, fetchRankings, recordTemplateView, voteRanking } from '../lib/api'
+import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
 import TierLabel from '../components/tier/TierLabel'
@@ -49,18 +49,6 @@ function TierListRow({ tier, items }) {
           </span>
         ))}
       </div>
-    </div>
-  )
-}
-
-function AverageTopBar({ timeLabel }) {
-  return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-line-soft/50">
-      <span className="text-sm text-muted">{timeLabel}</span>
-      <span className="flex items-center gap-1 rounded bg-brand px-2 py-1 text-xs text-canvas">
-        <Star size={14} />
-        Community Average
-      </span>
     </div>
   )
 }
@@ -214,13 +202,41 @@ export default function TemplateDetailPage() {
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
 
   const [template, setTemplate] = useState(null)
+  const [communityAllTime, setCommunityAllTime] = useState(null)
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(true)
+  const [periodDays, setPeriodDays] = useState(0) // 0 = ทั้งหมด, 7/30/90 = ช่วงกี่วันล่าสุด
 
   const [rankings, setRankings] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState('liked')
   const [isLoadingRankings, setIsLoadingRankings] = useState(true)
+
+  // like/dislike/comment ของ Community Average (ผูกกับ template_id — ดู schema.sql)
+  // seed from template.stats เริ่มต้น ส่วน GET จะ override เลขจริง + user_vote
+  const [templateReaction, setTemplateReaction] = useState({ userVote: null, likes: 0, dislikes: 0 })
+  const [commentCount, setCommentCount] = useState(0)
+
+  useEffect(() => {
+    if (!template) return
+    setCommentCount(template.stats?.comments || 0)
+    setTemplateReaction((r) => ({ ...r, likes: template.stats?.likes || 0, dislikes: template.stats?.dislikes || 0 }))
+  }, [template])
+
+  // ดึงสถานะโหวตของผู้ใช้ + จำนวนล่าสุดของ Community Average นี้
+  useEffect(() => {
+    if (!templateId || !template) return
+    let cancelled = false
+    fetchTemplateReaction({ templateId, userId: currentUser?.id }).then((r) => {
+      if (cancelled) return
+      setTemplateReaction((prev) => ({
+        userVote: r.userVote ?? null,
+        likes: r.likes ?? prev.likes,
+        dislikes: r.dislikes ?? prev.dislikes
+      }))
+    })
+    return () => { cancelled = true }
+  }, [templateId, template, currentUser])
 
   useEffect(() => {
     let cancelled = false
@@ -229,8 +245,12 @@ export default function TemplateDetailPage() {
       // ยิง GET (อ่าน template) กับ POST (นับ view) พร้อมกันเพื่อไม่ให้ช้าลง แต่รอครบทั้งคู่
       // ก่อนค่อย setState ครั้งเดียว — ค่า views ต้องเอาจาก POST เสมอ เพราะถ้าแยก effect กัน
       // GET จะอ่าน view_count ไปก่อนที่ UPDATE ของ POST จะ commit ได้เลขเก่ามาโชว์ (ค้างจนกว่าจะรีเฟรช)
-      const [tplRes, viewRes] = await Promise.all([
-        fetchTemplate(templateId),
+      // community_all_time: fetch ข้อมูล all-time แยกไว้เสมอ เพื่อใช้ตัดสินใจว่ามี Community Average
+      // (ข้อมูลรวมของทุกช่วง) หรือไม่ — ของช่วงที่เลือก (display) อาจว่างเพราะยังไม่มี ranking ในช่วงนั้น
+      const wantsPeriod = periodDays > 0
+      const [tplRes, allTimeRes, viewRes] = await Promise.all([
+        fetchTemplate(templateId, { period: wantsPeriod ? { days: periodDays } : null }),
+        wantsPeriod ? fetchTemplate(templateId, { period: null }) : Promise.resolve(null),
         currentUser ? recordTemplateView(templateId, currentUser.id) : Promise.resolve(null)
       ])
       if (cancelled) return
@@ -240,12 +260,17 @@ export default function TemplateDetailPage() {
             ? { ...tplRes.data, stats: { ...tplRes.data.stats, views: viewRes.views } }
             : tplRes.data
         )
+        setCommunityAllTime(
+          wantsPeriod
+            ? (allTimeRes?.data?.community_average ?? null)
+            : (tplRes.data.community_average ?? null)
+        )
       }
       setIsLoadingTemplate(false)
     }
     if (templateId) loadTemplate()
     return () => { cancelled = true }
-  }, [templateId, currentUser])
+  }, [templateId, currentUser, periodDays])
 
   useEffect(() => {
     async function loadRankings() {
@@ -273,6 +298,41 @@ export default function TemplateDetailPage() {
 
   const handleExportAverage = () => setModal('export')
 
+  // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action (เหมือน RankingCard)
+  const handleTemplateVote = async (type) => {
+    if (!currentUser) {
+      toast.warning('กรุณาเข้าสู่ระบบก่อนโหวตครับ!')
+      navigate('/login')
+      return
+    }
+
+    const prev = templateReaction
+    const nextVote = prev.userVote === type ? null : type
+
+    // optimistic UI (กดทันทีแล้วค่อย overwrite ด้วยเลขจริงจาก server)
+    let likes = prev.likes
+    let dislikes = prev.dislikes
+    if (prev.userVote === 'like') likes = Math.max(0, likes - 1)
+    if (prev.userVote === 'dislike') dislikes = Math.max(0, dislikes - 1)
+    if (nextVote === 'like') likes += 1
+    if (nextVote === 'dislike') dislikes += 1
+
+    setTemplateReaction({ userVote: nextVote, likes, dislikes })
+
+    const result = await voteTemplate({ templateId, userId: currentUser.id, voteType: nextVote })
+
+    if (result.success !== false) {
+      setTemplateReaction({
+        userVote: result.userVote ?? null,
+        likes: result.likes ?? likes,
+        dislikes: result.dislikes ?? dislikes
+      })
+    } else {
+      setTemplateReaction(prev)
+      console.error('template vote failed:', result.error)
+    }
+  }
+
   if (isLoadingTemplate) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -293,7 +353,9 @@ export default function TemplateDetailPage() {
   const tiersDef = template.tiers || []
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  const hasCommunityAverage = (template.community_average?.tiers || []).some((t) => t.items.length > 0)
+  // ตรวจจากข้อมูล all-time (ทุกช่วง) ว่าเทมเพลตนี้มี Community Average หรือไม่
+  // ไม่ใช่ข้อมูลช่วงที่เลือก — เพราะถ้าเลือกช่วงที่ยังไม่มี ranking การ์ดจะได้ไม่หายไป
+  const hasCommunityAverage = (communityAllTime?.tiers || []).some((t) => t.items.length > 0)
   const communityAvgRows = tiersDef.map((t) => {
     const found = template.community_average?.tiers.find((x) => x.label === t.label)
     return { tier: t, items: (found?.items || []).map((i) => i.name) }
@@ -351,20 +413,75 @@ export default function TemplateDetailPage() {
 
           {hasCommunityAverage && (
             <div className="mb-6 rounded-lg glass shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between">
-                <AverageTopBar timeLabel={`Updated ${timeAgo(template.community_average.updated_at)}`} />
-                <button
-                  type="button"
-                  onClick={handleExportAverage}
-                  className="flex items-center gap-1.5 pr-4 text-xs text-muted hover:text-ink transition-colors"
-                >
-                  <Download size={14} /> Export
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-line-soft/50">
+                <span className="flex items-center gap-1 rounded bg-brand px-2 py-1 text-xs text-canvas">
+                  <Star size={14} />
+                  Community Average
+                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted">
+                    {periodDays ? `Last ${periodDays} days · ` : ''}Updated {timeAgo(template.community_average.updated_at)}
+                  </span>
+                  <select
+                    value={periodDays}
+                    onChange={(e) => setPeriodDays(Number(e.target.value))}
+                    className="rounded-lg border border-line-soft bg-surface-glass px-2 py-1.5 text-xs font-bold text-ink-soft outline-none transition-colors hover:bg-surface focus:ring-1 focus:ring-brand"
+                  >
+                    <option value={0}>All time</option>
+                    <option value={7}>Last 7 days</option>
+                    <option value={30}>Last 30 days</option>
+                    <option value={90}>Last 90 days</option>
+                  </select>
+                </div>
               </div>
-              <div ref={avgTableRef}>
+              <div
+                ref={avgTableRef}
+                onClick={() => navigate(`/template/${templateId}/community`)}
+                className="cursor-pointer transition-colors hover:bg-surface-glass/50"
+                role="button"
+                aria-label="เปิด Community Average"
+              >
                 {communityAvgRows.map(({ tier, items }) => (
                   <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
                 ))}
+              </div>
+              <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-sm text-muted">
+                <div className="flex items-center gap-5">
+                  <span
+                    onClick={() => handleTemplateVote('like')}
+                    className={`flex cursor-pointer items-center gap-1.5 transition-colors ${templateReaction.userVote === 'like' ? 'text-blue-500' : 'hover:text-ink'}`}
+                  >
+                    <ThumbsUp size={16} /> {formatCount(templateReaction.likes)}
+                  </span>
+                  <span
+                    onClick={() => handleTemplateVote('dislike')}
+                    className={`flex cursor-pointer items-center gap-1.5 transition-colors ${templateReaction.userVote === 'dislike' ? 'text-red-500' : 'hover:text-ink'}`}
+                  >
+                    <ThumbsDown size={16} /> {formatCount(templateReaction.dislikes)}
+                  </span>
+                  <span
+                    onClick={() => navigate(`/template/${templateId}/community`)}
+                    className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-ink"
+                  >
+                    <MessageSquare size={16} /> {formatCount(commentCount)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleExportAverage}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-muted transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:text-ink hover:shadow-md active:scale-[0.95]"
+                  >
+                    <Download size={14} /> Export
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.95]"
+                  >
+                    <Share2 size={14} /> Share
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -402,7 +519,11 @@ export default function TemplateDetailPage() {
             </div>
           </div>
         }
-        filename={`template-${templateId}-average.png`}
+        filename={`template-${templateId}-average${periodDays ? `-${periodDays}d` : ''}.png`}
+        stats={(template.community_average?.tiers || []).flatMap((t) =>
+          (t.items || []).map((it) => ({ item: it.name, avg: it.avg, tier: t.label, votes: it.votes ?? 0 }))
+        ).sort((a, b) => b.avg - a.avg)}
+        statsFilename={`template-${templateId}-stats${periodDays ? `-${periodDays}d` : ''}`}
       />
     </main>
   )
