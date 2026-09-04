@@ -1,6 +1,7 @@
 // Shared display formatters — was previously copy-pasted into
 // TemplateCard.jsx / Discover.jsx (formatCount) and stuck unexported inside
 // HomeFeed.jsx (timeAgo, capped at "days ago").
+import i18n from '../i18n';
 
 export function formatCount(n) {
   const num = n || 0;
@@ -51,21 +52,22 @@ export function formatDbDate(value, locale, options) {
 }
 
 function ago(n, unit) {
-  return `${n} ${unit}${n === 1 ? '' : 's'} ago`;
+  const label = i18n.t(`format.${unit}`) || unit;
+  return `${n} ${label}${n === 1 ? '' : (i18n.language === 'en' ? 's' : '')} ${i18n.t('format.ago', 'ago')}`;
 }
 
 export function timeAgo(dateString) {
   const date = parseDbDate(dateString);
-  if (!date) return 'Just now';
+  if (!date) return i18n.t('common.justNow');
 
-  const dateFormatted = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const dateFormatted = date.toLocaleDateString(i18n.language === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   // Clamp negatives: a client clock a few minutes fast (or a stray future-dated
   // row) previously rendered literal "-300 seconds ago" because `seconds < 60`
   // was also true for negative numbers.
   const seconds = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000));
 
   let relative = '';
-  if (seconds < 45) relative = 'just now';
+  if (seconds < 45) relative = i18n.t('format.justNow');
   else if (seconds < 60) relative = ago(seconds, 'second');
   else {
     const minutes = Math.round(seconds / 60);

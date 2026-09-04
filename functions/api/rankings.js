@@ -116,7 +116,7 @@ export async function onRequest({ request, env }) {
         let pageWhere = `WHERE 1=1`;
         const pageWhereParams = [];
         if (category && category !== 'null') { pageWhere += ` AND r.category = ?`; pageWhereParams.push(category); }
-        if (hashtag) { pageWhere += ` AND r.hashtags LIKE ?`; pageWhereParams.push(`%${hashtag}%`); }
+        if (hashtag) { pageWhere += ` AND instr(',' || lower(r.hashtags) || ',', lower(?)) > 0`; pageWhereParams.push(`,#${hashtag.replace(/^#/, '')},`); }
         if (authorId) { pageWhere += ` AND r.user_id = ?`; pageWhereParams.push(authorId); }
         if (templateId) { pageWhere += ` AND r.template_id = ?`; pageWhereParams.push(templateId); }
 

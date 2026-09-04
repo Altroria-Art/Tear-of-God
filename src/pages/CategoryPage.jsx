@@ -1,30 +1,33 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Avatar from '../components/ui/Avatar'
+import TierLabel from '../components/tier/TierLabel'
 import { fetchRankings } from '../lib/api' // 📍 นำเข้า API
+import { useTranslation } from 'react-i18next'
 
-// เก็บไว้แค่ข้อมูลตกแต่ง UI ไม่มี Mock Data โพสต์แล้ว
+// เก็บไว้แค่ข้อมูลตกแต่ง UI ไม่มี Mock Data โพสต์แล้ว — title/subtitle ใช้ i18n key (category.<id>)
 const CATEGORY_META = {
-  general: { title: 'General Templates', subtitle: 'Browse the broadest range of community tier lists.', icon: '📌', bg: 'bg-gray-400' },
-  movie: { title: 'Movie Templates', subtitle: 'Rank the best films. Discover cinematic favorites.', icon: '🎬', bg: 'bg-red-400' },
-  food: { title: 'Food Templates', subtitle: 'Rank the best eats. Discover community favorites.', icon: '🍔', bg: 'bg-yellow-400' },
-  sport: { title: 'Sport Templates', subtitle: 'Rank the greatest athletes and teams.', icon: '⚽', bg: 'bg-blue-400' },
-  music: { title: 'Music Templates', subtitle: 'Rank your favorite songs, artists, and albums.', icon: '🎵', bg: 'bg-rose-400' },
-  game: { title: 'Gaming Templates', subtitle: 'Rank the best video games and characters.', icon: '🎮', bg: 'bg-indigo-400' },
-  anime: { title: 'Anime Templates', subtitle: 'Rank the best anime series and characters.', icon: '📺', bg: 'bg-purple-400' },
+  general: { icon: '📌', bg: 'bg-gray-400' },
+  movie: { icon: '🎬', bg: 'bg-red-400' },
+  food: { icon: '🍔', bg: 'bg-yellow-400' },
+  sport: { icon: '⚽', bg: 'bg-blue-400' },
+  music: { icon: '🎵', bg: 'bg-rose-400' },
+  game: { icon: '🎮', bg: 'bg-indigo-400' },
+  anime: { icon: '📺', bg: 'bg-purple-400' },
 } 
-
-const TIER_ROW_COLORS = { S: 'bg-red-400', A: 'bg-orange-400', B: 'bg-yellow-400', C: 'bg-green-400', D: 'bg-blue-400' };
 
 function ArrowLeftIcon({ className }) { /*... (โค้ด SVG เดิม) ...*/ return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}><path d="M19 12H5M12 19l-7-7 7-7" /></svg> }
 
-function TierPreviewRow({ tier, items }) {
+function TierPreviewRow({ tier, color, items }) {
   if (!items || items.length === 0) return null;
   return (
     <div className="flex items-center gap-2">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-base font-bold text-white ${TIER_ROW_COLORS[tier] || 'bg-gray-400'}`}>
-        {tier}
-      </span>
+      <TierLabel
+        label={tier}
+        color={color}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-base font-bold`}
+        fallbackClassName="bg-surface text-ink"
+      />
       <div className="flex flex-wrap items-center gap-2 overflow-hidden h-8">
         {items.slice(0, 3).map((item, idx) => (
           <span key={idx} className="rounded-md border border-line-soft glass px-2.5 py-1 text-xs font-medium text-ink-soft whitespace-nowrap">
@@ -37,12 +40,16 @@ function TierPreviewRow({ tier, items }) {
 }
 
 function TemplateCard({ template }) {
+  const { t } = useTranslation()
   // จัดกลุ่ม Tier สำหรับทำ Preview
   const tiersMap = {};
   template.ranking_items?.forEach(ri => {
     if (!tiersMap[ri.tier]) tiersMap[ri.tier] = [];
     tiersMap[ri.tier].push(ri.item_id || ri.item?.name);
   });
+  // สีของ tier มาจาก definition ใน template.tiers (label -> color) — ไม่ใช่ hardcode
+  const tierColors = {};
+  (template.tiers || []).forEach((td) => { if (td?.label) tierColors[td.label] = td.color; });
 
   return (
     <Link to={`/post/${template.id}`} className="block rounded-xl border border-line-soft glass shadow-sm hover:shadow-md transition-shadow">
@@ -52,15 +59,15 @@ function TemplateCard({ template }) {
           ตลอด — เอาออกแทนที่จะโชว์เลขปลอม ดู docs/discover-template-uses-views-fix-plan.md */}
       <div className="relative m-3 rounded-lg bg-surface p-3">
         <div className="space-y-2">
-          <TierPreviewRow tier="S" items={tiersMap['S']} />
-          <TierPreviewRow tier="A" items={tiersMap['A']} />
+          <TierPreviewRow tier="S" color={tierColors['S']} items={tiersMap['S']} />
+          <TierPreviewRow tier="A" color={tierColors['A']} items={tiersMap['A']} />
         </div>
       </div>
       <div className="px-4 pb-4">
         <h3 className="text-lg font-bold text-ink line-clamp-1">{template.title}</h3>
         <div className="mt-2 flex items-center gap-2">
-          <Avatar size="sm" name={template.profile?.username || 'Unknown'} src={template.profile?.avatar_url} />
-          <span className="text-sm text-muted">@{template.profile?.username || 'User'}</span>
+          <Avatar size="sm" name={template.profile?.username || t('common.unknownUser')} src={template.profile?.avatar_url} />
+          <span className="text-sm text-muted">@{template.profile?.username || t('common.unknownUser')}</span>
         </div>
       </div>
     </Link>
@@ -69,7 +76,10 @@ function TemplateCard({ template }) {
 
 export default function CategoryPage() {
   const { categoryId } = useParams()
+  const { t } = useTranslation()
   const meta = CATEGORY_META[categoryId] ?? CATEGORY_META.general
+  const metaTitle = t(`category.${categoryId}.title`, { defaultValue: t('category.general.title') })
+  const metaSubtitle = t(`category.${categoryId}.subtitle`, { defaultValue: t('category.general.subtitle') })
 
   const [templates, setTemplates] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -91,15 +101,15 @@ export default function CategoryPage() {
         <Link to="/discover" className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"><ArrowLeftIcon className="h-5 w-5" /></Link>
         <div className={`flex h-16 w-16 items-center justify-center rounded-xl text-4xl ${meta.bg}`}><span aria-hidden="true">{meta.icon}</span></div>
         <div>
-          <h1 className="text-3xl font-bold text-ink">{meta.title}</h1>
-          <p className="mt-1 text-ink-soft">{meta.subtitle}</p>
+          <h1 className="text-3xl font-bold text-ink">{metaTitle}</h1>
+          <p className="mt-1 text-ink-soft">{metaSubtitle}</p>
         </div>
       </header>
 
       {isLoading ? (
-        <p className="text-center text-muted py-10">กำลังโหลดข้อมูล...</p>
+        <p className="text-center text-muted py-10">{t('common.loading')}</p>
       ) : templates.length === 0 ? (
-        <p className="text-center text-muted py-10">ยังไม่มีโพสต์ในหมวดหมู่นี้</p>
+        <p className="text-center text-muted py-10">{t('category.empty')}</p>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (

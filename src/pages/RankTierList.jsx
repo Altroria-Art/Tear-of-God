@@ -5,6 +5,7 @@ import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
 import { fetchTemplate, createRanking } from '../lib/api';
 import TierLabel from '../components/tier/TierLabel';
+import { useTranslation } from 'react-i18next';
 
 const DEFAULT_TIERS = [
   { id: 't1', label: 'S', color: '#ff7f7f' },
@@ -33,6 +34,7 @@ const RankTierList = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { currentUser } = useUser();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
 
@@ -143,17 +145,17 @@ const RankTierList = () => {
   };
 
   const handleShare = () => {
-    toast.info('บันทึก Ranking ก่อนถึงจะแชร์ลิงก์ได้ครับ');
+    toast.info(t('rank.shareInfo'));
   };
 
   const handleSaveRanking = async () => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อน Save Ranking');
+      alert(t('rank.warnLoginSave'));
       navigate('/login');
       return;
     }
-    if (!title.trim()) return alert('กรุณาตั้งชื่อ Ranking ก่อนครับ');
-    if (selectedHashtags.length === 0) return alert('กรุณาเลือก Hashtag อย่างน้อย 1 อันครับ');
+    if (!title.trim()) return alert(t('rank.warnTitle'));
+    if (selectedHashtags.length === 0) return alert(t('rank.warnHashtag'));
 
     setIsSaving(true);
     const rankingData = {
@@ -177,7 +179,7 @@ const RankTierList = () => {
     setIsSaving(false);
 
     if (error) {
-      alert('เกิดข้อผิดพลาด: ' + error);
+      alert(t('rank.error', { msg: error }));
     } else {
       navigate('/');
     }
@@ -205,29 +207,29 @@ const RankTierList = () => {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Ranking title..."
+              placeholder={t('rank.titlePh')}
               className="flex-1 text-[28px] font-bold text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1"
             />
             <div className="flex flex-col md:flex-row items-center gap-3 pt-1 shrink-0">
               <button onClick={handleShare} className="flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors px-2">
-                <Share2 size={16} /> Share
+                <Share2 size={16} /> {t('common.share')}
               </button>
               <button
                 onClick={handleSaveRanking}
                 disabled={isSaving}
                 className="bg-brand hover:bg-brand-accent disabled:opacity-50 text-canvas text-sm font-bold py-2 px-6 rounded-md transition-colors shadow-sm"
               >
-                {isSaving ? 'Saving...' : 'Save Ranking'}
+                {isSaving ? t('rank.saving') : t('rank.saveRanking')}
               </button>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-muted mb-1">Description <span className="font-normal text-muted">(Optional)</span></label>
+            <label className="block text-xs font-semibold text-muted mb-1">{t('rank.description')} <span className="font-normal text-muted">({t('rank.optional')})</span></label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add your notes or context for this ranking..."
+              placeholder={t('rank.descriptionPh')}
               rows={2}
               className="w-full bg-surface-glass border border-line-soft rounded-md p-3 text-sm outline-none focus:ring-1 focus:ring-brand resize-none"
             />
@@ -236,7 +238,7 @@ const RankTierList = () => {
 
         {/* Search & Add Hashtags */}
         <div className="glass rounded-xl shadow-sm p-6 flex flex-col gap-3">
-          <label className="block text-sm font-semibold">Search & Add Hashtags</label>
+          <label className="block text-sm font-semibold">{t('rank.searchAddHashtags')}</label>
 
           {selectedHashtags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -254,12 +256,12 @@ const RankTierList = () => {
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={handleTagInputKeyDown}
-            placeholder="Add tags (e.g. #rpg, #2024)"
+            placeholder={t('rank.addTagsPh')}
             className="w-full bg-surface-glass border border-line-soft rounded-md px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-brand"
           />
 
           <div>
-            <span className="text-xs font-semibold text-muted">Suggested Tags:</span>
+            <span className="text-xs font-semibold text-muted">{t('rank.suggestedTags')}</span>
             <div className="flex flex-wrap gap-1.5 mt-2">
               {suggestedTags.filter(t => !selectedHashtags.includes(t)).map((tag) => (
                 <button
@@ -278,7 +280,7 @@ const RankTierList = () => {
         {/* Tier List Canvas */}
         <div className="bg-surface-glass rounded-xl overflow-hidden flex flex-col">
           {isLoadingTemplate ? (
-            <p className="text-muted animate-pulse text-center py-10">กำลังโหลดเทมเพลต...</p>
+            <p className="text-muted animate-pulse text-center py-10">{t('rank.loadingTemplate')}</p>
           ) : (
             tiers.map((tier, index) => (
               <div
@@ -311,7 +313,7 @@ const RankTierList = () => {
               value={customItem}
               onChange={(e) => setCustomItem(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddCustomItem()}
-              placeholder="Add custom item..."
+              placeholder={t('rank.customItemPh')}
               className="w-full bg-surface rounded-md py-2.5 pl-4 pr-10 text-sm outline-none focus:ring-1 focus:ring-brand"
             />
             <button
@@ -327,20 +329,20 @@ const RankTierList = () => {
               onClick={handleShuffle}
               className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
             >
-              <Shuffle size={16} /> Shuffle Items
+              <Shuffle size={16} /> {t('rank.shuffleItems')}
             </button>
             <button
               onClick={handleSortAZ}
               className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
             >
-              <ArrowDownAZ size={16} /> Sort A-Z
+              <ArrowDownAZ size={16} /> {t('rank.sortAZ')}
             </button>
           </div>
         </div>
 
         {/* Unranked Pool (กล่องเก็บไอเทมที่ยังไม่ได้จัดอันดับ) */}
         <div className="bg-surface-glass rounded-xl p-6 border border-line">
-          <h2 className="text-[17px] font-bold text-ink mb-4">Unranked Pool</h2>
+          <h2 className="text-[17px] font-bold text-ink mb-4">{t('rank.unrankedPool')}</h2>
           <div
             className="min-h-[120px] flex flex-wrap gap-4"
             onDragOver={handleDragOver}
@@ -348,7 +350,7 @@ const RankTierList = () => {
           >
             {items.filter(item => item.tierId === null).length === 0 ? (
               <span className="text-muted text-sm italic py-4 pointer-events-none">
-                All items have been ranked!
+                {t('rank.allRanked')}
               </span>
             ) : (
               items.filter(item => item.tierId === null).map(renderCard)
@@ -358,12 +360,12 @@ const RankTierList = () => {
 
         {/* Footer */}
         <footer className="mt-6 pt-6 border-t border-line-soft flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-muted">
-          <p>© 2026 Tear of God. Community Driven Ranking.</p>
+          <p>{t('rank.footerTagline')}</p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-ink-soft hover:underline">About</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">Guidelines</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">Privacy</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">Terms</a>
+            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.about')}</a>
+            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.guidelines')}</a>
+            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.privacy')}</a>
+            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.terms')}</a>
           </div>
         </footer>
 

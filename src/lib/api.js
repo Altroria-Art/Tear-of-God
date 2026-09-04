@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
 const API_URL = '';
 
@@ -62,8 +64,8 @@ export async function registerUser({ email, password, username }) {
       body: JSON.stringify({ action: 'register', email, password, username })
     });
     return await response.json();
-  } catch (error) {
-    return { data: null, error: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้' };
+  } catch {
+    return { data: null, error: i18n.t('errors.serverUnreachable') };
   }
 }
 
@@ -75,8 +77,8 @@ export async function loginUser({ email, password }) {
       body: JSON.stringify({ action: 'login', email, password })
     });
     return await response.json();
-  } catch (error) {
-    return { data: null, error: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้' };
+  } catch {
+    return { data: null, error: i18n.t('errors.serverUnreachable') };
   }
 }
 
@@ -88,8 +90,8 @@ export async function syncGoogleUser(userData) {
       body: JSON.stringify({ action: 'google_sync', ...userData })
     });
     return await response.json();
-  } catch (error) {
-    return { data: null, error: 'ซิงค์ข้อมูลไม่สำเร็จ' };
+  } catch {
+    return { data: null, error: i18n.t('errors.syncFailed') };
   }
 }
 
@@ -102,8 +104,8 @@ export async function updateProfile(userId, profileData) {
       body: JSON.stringify({ action: 'update_profile', user_id: userId, ...profileData })
     });
     return await response.json();
-  } catch (error) {
-    return { data: null, error: 'อัปเดตโปรไฟล์ไม่สำเร็จ' };
+  } catch {
+    return { data: null, error: i18n.t('errors.profileUpdateFailed') };
   }
 }
 
@@ -118,8 +120,8 @@ export async function uploadImage(file) {
       body: formData // ไม่ต้องตั้ง Content-Type เอง fetch จะจัดการ multipart form boundary ให้
     });
     return await response.json();
-  } catch (error) {
-    return { error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์เพื่ออัปโหลดรูปภาพได้' };
+  } catch {
+    return { error: i18n.t('errors.uploadFailed') };
   }
 }
 
@@ -158,7 +160,7 @@ export async function fetchRankings(categoryParam) {
     return await getJSON(url);
   } catch (error) {
     console.error("fetchRankings error:", error);
-    return { data: [], error: 'ไม่สามารถดึงข้อมูลได้' };
+    return { data: [], error: i18n.t('errors.fetchFailed') };
   }
 }
 
@@ -167,8 +169,8 @@ export async function fetchRanking(postId, userId) {
     let url = `${API_URL}/api/rankings?id=${postId}`;
     if (userId) url += `&user_id=${userId}`;
     return await getJSON(url);
-  } catch (error) {
-    return { data: null, error: 'ไม่สามารถดึงข้อมูลได้' };
+  } catch {
+    return { data: null, error: i18n.t('errors.fetchFailed') };
   }
 }
 
@@ -179,7 +181,7 @@ export async function fetchUserProfile(userId, viewerId = null) {
     return await getJSON(url);
   } catch (error) {
     console.error("fetchUserProfile error:", error);
-    return { data: null, error: 'ไม่สามารถดึงข้อมูลโปรไฟล์ได้' };
+    return { data: null, error: i18n.t('errors.profileFetchFailed') };
   }
 }
 
@@ -191,8 +193,8 @@ export async function toggleFollow(followerId, followingId, isFollowing) {
       body: JSON.stringify({ action: isFollowing ? 'unfollow' : 'follow', follower_id: followerId, following_id: followingId })
     });
     return await response.json();
-  } catch (error) {
-    return { error: 'ไม่สามารถทำรายการได้' };
+  } catch {
+    return { error: i18n.t('errors.actionFailed') };
   }
 }
 
@@ -202,7 +204,7 @@ export async function fetchFollowList(userId, type) {
     return await getJSON(url);
   } catch (error) {
     console.error("fetchFollowList error:", error);
-    return { data: [], error: 'ไม่สามารถดึงข้อมูลได้' };
+    return { data: [], error: i18n.t('errors.fetchFailed') };
   }
 }
 
@@ -215,7 +217,7 @@ export async function createRanking(rankingData) {  try {
     
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
-       return { data: null, error: 'หา API ไม่เจอ กรุณารันด้วยคำสั่ง npx wrangler pages dev dist --local' };
+       return { data: null, error: i18n.t('errors.apiNotFound') };
     }
 
     const result = await response.json();
@@ -226,7 +228,7 @@ export async function createRanking(rankingData) {  try {
     return { data: result.data, error: null };
   } catch (error) {
     console.error("createRanking error:", error);
-    return { data: null, error: 'ไม่สามารถบันทึกข้อมูลได้' };
+    return { data: null, error: i18n.t('errors.saveFailed') };
   }
 }
 
@@ -242,16 +244,16 @@ export async function voteRanking({ rankingId, userId, voteType }) {
       body: JSON.stringify({ rankingId, userId, voteType })
     });
     return await response.json();
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
   }
 }
 
 export async function fetchComments(rankingId) {
   try {
     return await getJSON(`${API_URL}/api/comments?ranking_id=${rankingId}`);
-  } catch (error) {
-    return { data: [], error: 'ไม่สามารถดึงคอมเมนต์ได้' };
+  } catch {
+    return { data: [], error: i18n.t('errors.commentFetchFailed') };
   }
 }
 
@@ -263,8 +265,8 @@ export async function createComment({ ranking_id, user_id, content }) {
       body: JSON.stringify({ ranking_id, user_id, content })
     });
     return await response.json();
-  } catch (error) {
-    return { data: null, error: 'ไม่สามารถสร้างคอมเมนต์ได้' };
+  } catch {
+    return { data: null, error: i18n.t('errors.commentCreateFailed') };
   }
 }
 
@@ -284,7 +286,7 @@ export async function fetchTemplate(templateId, { light = false, period = null }
     return await getJSON(url);
   } catch (error) {
     console.error("fetchTemplate error:", error);
-    return { data: null, error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
+    return { data: null, error: i18n.t('errors.templateFetchFailed') };
   }
 }
 
@@ -302,7 +304,7 @@ export async function fetchTemplates({ hashtag, category, limit, page, sort } = 
     return applyFreshViewCounts(result);
   } catch (error) {
     console.error("fetchTemplates error:", error);
-    return { data: [], error: 'ไม่สามารถดึงข้อมูลเทมเพลตได้' };
+    return { data: [], error: i18n.t('errors.templateFetchFailed') };
   }
 }
 
@@ -312,7 +314,8 @@ export async function fetchCategories({ limit } = {}) {
   if (limit) queryStr.append('limit', limit);
   try {
     const qs = queryStr.toString();
-    return await getJSON(`${API_URL}/api/categories${qs ? `?${qs}` : ''}`);
+    const res = await getJSON(`${API_URL}/api/categories${qs ? `?${qs}` : ''}`);
+    return Array.isArray(res?.data) ? res.data : [];
   } catch (error) {
     console.error('fetchCategories error:', error);
     return [];
@@ -331,7 +334,7 @@ export async function fetchHashtags({ page, limit, sort, q } = {}) {
     return await getJSON(`${API_URL}/api/hashtags${queryStr ? `?${queryStr}` : ''}`);
   } catch (error) {
     console.error("fetchHashtags error:", error);
-    return { data: [], error: 'ไม่สามารถดึงข้อมูลแฮชแท็กได้' };
+    return { data: [], error: i18n.t('errors.hashtagFetchFailed') };
   }
 }
 
@@ -351,7 +354,7 @@ export async function recordTemplateView(templateId, userId) {
     return json;
   } catch (error) {
     console.error("recordTemplateView error:", error);
-    return { success: false, error: 'บันทึกการเข้าชมไม่สำเร็จ' };
+    return { success: false, error: i18n.t('errors.viewRecordFailed') };
   }
 }
 
@@ -382,8 +385,8 @@ export async function voteTemplate({ templateId, userId, voteType }) {
       body: JSON.stringify({ template_id: templateId, user_id: userId, voteType })
     });
     return await response.json();
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
   }
 }
 
@@ -391,8 +394,8 @@ export async function voteTemplate({ templateId, userId, voteType }) {
 export async function fetchTemplateComments(templateId) {
   try {
     return await getJSON(`${API_URL}/api/template-comments?template_id=${templateId}`);
-  } catch (error) {
-    return { data: [], error: 'ไม่สามารถดึงคอมเมนต์ได้' };
+  } catch {
+    return { data: [], error: i18n.t('errors.commentFetchFailed') };
   }
 }
 
@@ -405,8 +408,8 @@ export async function createTemplateComment({ template_id, user_id, content }) {
       body: JSON.stringify({ template_id, user_id, content })
     });
     return await response.json();
-  } catch (error) {
-    return { data: null, error: 'ไม่สามารถสร้างคอมเมนต์ได้' };
+  } catch {
+    return { data: null, error: i18n.t('errors.commentCreateFailed') };
   }
 }
 
@@ -422,7 +425,7 @@ export async function fetchAdminStats(userId) {
     return await getJSON(url);
   } catch (error) {
     console.error("fetchAdminStats error:", error);
-    return { data: null, error: 'ไม่สามารถดึงสถิติได้' };
+    return { data: null, error: i18n.t('errors.statsFetchFailed') };
   }
 }
 
@@ -437,7 +440,7 @@ export async function fetchAdminUsers({ userId, q, page, limit } = {}) {
     return await getJSON(`${API_URL}/api/admin/users?${params.toString()}`);
   } catch (error) {
     console.error("fetchAdminUsers error:", error);
-    return { data: [], error: 'ไม่สามารถดึงรายชื่อผู้ใช้ได้' };
+    return { data: [], error: i18n.t('errors.userListFetchFailed') };
   }
 }
 
@@ -450,8 +453,8 @@ export async function setUserRole({ userId, targetId, role }) {
       body: JSON.stringify({ action: 'set_role', user_id: userId, target_id: targetId, role })
     });
     return await response.json();
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถตั้งบทบาทได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.roleSetFailed') };
   }
 }
 
@@ -464,8 +467,8 @@ export async function deleteAdminUser({ userId, targetId }) {
       body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
     });
     return await response.json();
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถลบผู้ใช้ได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.userDeleteFailed') };
   }
 }
 
@@ -480,7 +483,7 @@ export async function fetchAdminRankings({ userId, q, page, limit } = {}) {
     return await getJSON(`${API_URL}/api/admin/rankings?${params.toString()}`);
   } catch (error) {
     console.error("fetchAdminRankings error:", error);
-    return { data: [], error: 'ไม่สามารถดึงรายการโพสต์ได้' };
+    return { data: [], error: i18n.t('errors.rankingListFetchFailed') };
   }
 }
 
@@ -493,8 +496,8 @@ export async function deleteAdminRanking({ userId, targetId }) {
       body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
     });
     return await response.json();
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถลบโพสต์ได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.postDeleteFailed') };
   }
 }
 
@@ -509,7 +512,7 @@ export async function fetchAdminTemplates({ userId, q, page, limit } = {}) {
     return await getJSON(`${API_URL}/api/admin/templates?${params.toString()}`);
   } catch (error) {
     console.error("fetchAdminTemplates error:", error);
-    return { data: [], error: 'ไม่สามารถดึงรายการเทมเพลตได้' };
+    return { data: [], error: i18n.t('errors.templateListFetchFailed') };
   }
 }
 
@@ -522,8 +525,8 @@ export async function deleteAdminTemplate({ userId, targetId }) {
       body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
     });
     return await response.json();
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถลบเทมเพลตได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.templateDeleteFailed') };
   }
 }
 
@@ -540,8 +543,8 @@ export async function reportTemplate({ templateId, reporterId, reason }) {
       body: JSON.stringify({ template_id: templateId, reporter_id: reporterId, reason })
     });
     return { status: response.status, ...(await response.json()) };
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถรายงานได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.reportFailed') };
   }
 }
 
@@ -554,8 +557,8 @@ export async function reportPost({ postId, reporterId, reason }) {
       body: JSON.stringify({ ranking_id: postId, reporter_id: reporterId, reason })
     });
     return { status: response.status, ...(await response.json()) };
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถรายงานได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.reportFailed') };
   }
 }
 
@@ -570,7 +573,7 @@ export async function fetchAdminReports({ userId, status, page, limit } = {}) {
     return await getJSON(`${API_URL}/api/admin/reports?${params.toString()}`);
   } catch (error) {
     console.error("fetchAdminReports error:", error);
-    return { data: [], error: 'ไม่สามารถดึงรายการรายงานได้' };
+    return { data: [], error: i18n.t('errors.reportListFetchFailed') };
   }
 }
 
@@ -583,8 +586,8 @@ export async function setReportStatus({ userId, targetId, status }) {
       body: JSON.stringify({ action: 'set_status', user_id: userId, target_id: targetId, status })
     });
     return await response.json();
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถอัปเดตสถานะได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.reportStatusFailed') };
   }
 }
 
@@ -597,7 +600,7 @@ export async function deleteAdminReport({ userId, targetId }) {
       body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
     });
     return await response.json();
-  } catch (error) {
-    return { success: false, error: 'ไม่สามารถลบรายงานได้' };
+  } catch {
+    return { success: false, error: i18n.t('errors.reportDeleteFailed') };
   }
 }

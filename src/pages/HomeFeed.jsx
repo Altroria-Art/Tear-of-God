@@ -12,6 +12,7 @@ import ExportCard from '../components/ui/ExportCard';
 import { timeAgo } from '../lib/format';
 import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
 import HomeRightSidebar from '../components/feed/HomeRightSidebar';
+import { useTranslation } from 'react-i18next';
 
 // buildTierRows() now lives in src/lib/tiers.js — shared with PostDetail.jsx
 // so Feed/Feed Detailed order and color tiers the same way Discover Detailed
@@ -27,6 +28,7 @@ const PAGE_SIZE = 5
 function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null, onShare, onExport }) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const { t } = useTranslation();
 
   // seed จาก post.user_vote ที่ API ส่งมาเท่านั้น — ห้าม useState(null) เฉยๆ
   // (ดู docs/feature-like-dislike-voting.md §8)
@@ -37,7 +39,7 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   // state machine เดียวรับทั้ง like/dislike: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
   const handleVote = async (type) => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนกดไลก์ครับ!');
+      alert(t('feed.voteLogin'));
       navigate('/login');
       return;
     }
@@ -68,7 +70,7 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
       setUserVote(prevVote);
       setLikes(prevLikes);
       setDislikes(prevDislikes);
-      alert('บันทึกการโหวตไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'));
+      alert(t('feed.voteFailed', { msg: result.error || t('common.error') }));
     }
   };
 
@@ -93,11 +95,11 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
       <div className="flex items-center gap-4">
         <div onClick={onExport} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <Download size={18} />
-          <span className="text-[13px] font-bold">Export</span>
+          <span className="text-[13px] font-bold">{t('common.export')}</span>
         </div>
         <div onClick={onShare} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <Share2 size={18} />
-          <span className="text-[13px] font-bold">Share</span>
+          <span className="text-[13px] font-bold">{t('common.share')}</span>
         </div>
       </div>
     </div>
@@ -106,9 +108,10 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
 
 function HomeTierCard({ post }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [modal, setModal] = useState(null); // 'share' | 'export' | null
 
-  const hashtags = post.hashtags ? post.hashtags.split(',').map((t) => t.trim()).filter(Boolean) : [];
+  const hashtags = post.hashtags ? post.hashtags.split(',').map((tag) => tag.trim()).filter(Boolean) : [];
   const builtRows = buildTierRows(post.ranking_items, post.tiers);
   // ranking ที่ไม่มีไอเทมถูกจัดเลย (เคสหายาก) — โชว์การ์ดเปล่า 2 แถวเหมือนพฤติกรรมเดิม
   // แทนไม่มีอะไรให้ดูเลย
@@ -127,7 +130,7 @@ function HomeTierCard({ post }) {
             onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
           >
             {post.profile?.avatar_url ? (
-              <img src={post.profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+              <img src={post.profile.avatar_url} alt={t('feed.avatarAlt')} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center font-bold text-muted">
                 {post.profile?.username?.charAt(0).toUpperCase() || 'U'}
@@ -139,7 +142,7 @@ function HomeTierCard({ post }) {
               className="text-[15px] font-bold text-ink leading-tight cursor-pointer hover:underline"
               onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
             >
-              {post.profile?.username || 'Unknown User'}
+              {post.profile?.username || t('common.unknownUser')}
             </h3>
             <p
               className="text-[13px] text-muted font-medium cursor-pointer"
@@ -155,7 +158,7 @@ function HomeTierCard({ post }) {
           className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-sm hover:bg-surface hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
         >
           <Copy size={12} strokeWidth={2.5} />
-          <span>Use Template: {post.title}</span>
+          <span>{t('feed.useTemplate', { title: post.title })}</span>
         </button>
       </div>
 
@@ -194,7 +197,7 @@ function HomeTierCard({ post }) {
                   key={ri.id ?? idx}
                   className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs break-words"
                 >
-                  <span className="w-full line-clamp-2 text-[11px] leading-normal">{ri.item?.name || ri.item_id || 'Unknown Item'}</span>
+                  <span className="w-full line-clamp-2 text-[11px] leading-normal">{ri.item?.name || ri.item_id || t('common.unknownItem')}</span>
                 </div>
               ))}
             </div>
@@ -228,7 +231,7 @@ function HomeTierCard({ post }) {
             tiers={tierRows.map((row) => ({
               tier: row.tier,
               color: row.color,
-              items: row.items.map((ri) => ri.item?.name || ri.item_id || 'Unknown Item'),
+              items: row.items.map((ri) => ri.item?.name || ri.item_id || t('common.unknownItem')),
             }))}
           />
         }
@@ -241,14 +244,15 @@ function HomeTierCard({ post }) {
 export default function HomeFeed() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const { t } = useTranslation();
   const [posts, setPosts] = useState([]);
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true) // หน้าแรกเท่านั้น — กันจอกระพริบตอน append หน้าถัดไป
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [activeTab, setActiveTab] = useState('general');
   const loadingRef = useRef(false) // กันยิงซ้ำตอนเลื่อนเร็วๆ หรือ observer ยิงซ้อนตอนกำลังโหลดอยู่
   const observerRef = useRef(null) // instance ของ IntersectionObserver ตัวปัจจุบัน (ผูกกับ sentinel node ล่าสุด)
+  const pageRef = useRef(1) // หน้าล่าสุดที่ fetch ไป — loadMore อ่านที่นี่ ไม่ใช่ closure `page` ที่ค้าง
 
   // 📍 per-tab cache — ดู docs/row-read-optimization-plan.md §6/§8: สลับ General↔Kindred
   // เดิมยิง fetchRankings ใหม่ทุกครั้ง ทั้งที่ backend ยังไม่รองรับ feedType จริง (ดูหมายเหตุ
@@ -271,7 +275,7 @@ export default function HomeFeed() {
     const cached = feedCacheRef.current[cacheKey]
     if (cached) {
       setPosts(cached.posts)
-      setPage(cached.page)
+      pageRef.current = cached.page
       setHasMore(cached.hasMore)
       setIsLoading(false)
       return
@@ -280,7 +284,7 @@ export default function HomeFeed() {
     async function loadFirstPage() {
       setIsLoading(true)
       setPosts([])
-      setPage(1)
+      pageRef.current = 1
       setHasMore(true)
       loadingRef.current = true
       const { data } = await fetchRankings({
@@ -306,8 +310,11 @@ export default function HomeFeed() {
   const loadMore = useCallback(async () => {
     if (loadingRef.current || !hasMore) return
     loadingRef.current = true
+    // 📍 ใช้ pageRef ไม่ใช่ closure `page` — ถ้า observer เก่ายิงค้างมาก่อน React commit
+    // re-render (ที่จะ re-attach observer ใหม่) จะได้ร่างหน้าถัดไปที่ถูกต้อง ไม่ fetch ซ้ำหน้าเดิม
+    const nextPage = pageRef.current + 1
+    pageRef.current = nextPage
     setIsLoadingMore(true)
-    const nextPage = page + 1
     const { data } = await fetchRankings({
       userId: currentUser?.id,
       feedType,
@@ -321,10 +328,9 @@ export default function HomeFeed() {
       return merged
     })
     setHasMore((data?.length || 0) === PAGE_SIZE)
-    setPage(nextPage)
     setIsLoadingMore(false)
     loadingRef.current = false
-  }, [page, hasMore, currentUser, activeTab, cacheKey, feedType]);
+  }, [hasMore, currentUser, activeTab, cacheKey, feedType]);
 
   // callback ref แทน useRef+useEffect — React เรียก callback นี้เองทันทีที่ DOM node
   // ของ sentinel ถูกสร้าง/ถอดออกจริงๆ (ตอน commit) ไม่ต้องเดาว่า effect จะ rerun
@@ -359,7 +365,7 @@ export default function HomeFeed() {
                 : 'text-muted hover:text-ink scale-95 hover:bg-surface-glass'
             }`}
           >
-            General
+            {t('feed.general')}
           </button>
           <button
             type="button"
@@ -370,7 +376,7 @@ export default function HomeFeed() {
                 : 'text-muted hover:text-ink scale-95 hover:bg-surface-glass'
             }`}
           >
-            Kindred
+            {t('feed.kindred')}
           </button>
         </div>
       </div>
@@ -379,15 +385,15 @@ export default function HomeFeed() {
         <div className="space-y-6 mt-4">
           {isLoading && (
             <p className="text-center text-sm font-medium text-muted animate-pulse py-10">
-              กำลังโหลดฟีดของคุณ...
+              {t('feed.loadingYourFeed')}
             </p>
           )}
 
           {!isLoading && displayData.length === 0 && (
             <div className="text-center py-16 bg-surface rounded-2xl border border-line-soft shadow-sm">
-              <p className="text-muted font-medium">ยังไม่มีโพสต์ในระบบเลย</p>
+              <p className="text-muted font-medium">{t('feed.empty')}</p>
               <button onClick={() => navigate('/create')} className="mt-4 text-sm font-bold text-brand hover:underline">
-                สร้าง Tier List เป็นคนแรกเลย!
+                {t('feed.emptyCta')}
               </button>
             </div>
           )}
@@ -404,13 +410,13 @@ export default function HomeFeed() {
 
           {isLoadingMore && (
             <p className="text-center text-xs font-medium text-muted animate-pulse py-4">
-              กำลังโหลดเพิ่ม...
+              {t('common.loadMore')}
             </p>
           )}
 
           {!isLoading && !hasMore && displayData.length > 0 && (
             <p className="text-center text-xs font-medium text-muted py-6">
-              จบฟีดแล้ว
+              {t('common.endOfFeed')}
             </p>
           )}
         </div>

@@ -8,10 +8,11 @@ import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
-import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, reportTemplate } from '../lib/api'
+import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
 import TierLabel from '../components/tier/TierLabel'
+import { useTranslation } from 'react-i18next'
 
 const PAGE_SIZE = 5
 const SORT_OPTIONS = [
@@ -68,6 +69,7 @@ function RankingCard({ ranking, tiersDef }) {
   const { currentUser } = useUser()
   const navigate = useNavigate()
   const toast = useToast()
+  const { t } = useTranslation()
   // seed จาก ranking.user_vote เท่านั้น — ห้าม useState(null) เฉยๆ (ดู docs/feature-like-dislike-voting.md §8)
   const [userVote, setUserVote] = useState(ranking.user_vote ?? null)
   const [likes, setLikes] = useState(ranking.stats?.likes || 0)
@@ -78,7 +80,7 @@ function RankingCard({ ranking, tiersDef }) {
   // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
   const handleVote = async (type) => {
     if (!currentUser) {
-      toast.warning('กรุณาเข้าสู่ระบบก่อนโหวตครับ!')
+      toast.warning(t('template.warnLoginVote'))
       navigate('/login')
       return
     }
@@ -156,14 +158,14 @@ function RankingCard({ ranking, tiersDef }) {
             onClick={handleExport}
             className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-muted transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:text-ink hover:shadow-md active:scale-[0.95]"
           >
-            <Download size={14} /> Export
+            <Download size={14} /> {t('common.export')}
           </button>
           <button
             type="button"
             onClick={handleShare}
             className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.95]"
           >
-            <Share2 size={14} /> Share
+            <Share2 size={14} /> {t('common.share')}
           </button>
         </div>
       </div>
@@ -199,6 +201,7 @@ export default function TemplateDetailPage() {
   const navigate = useNavigate()
   const { currentUser } = useUser()
   const toast = useToast()
+  const { t } = useTranslation()
   const avgTableRef = useRef(null)
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
   const [reportOpen, setReportOpen] = useState(false)
@@ -246,24 +249,14 @@ export default function TemplateDetailPage() {
     let cancelled = false
     async function loadTemplate() {
       setIsLoadingTemplate(true)
-      // ยิง GET (อ่าน template) กับ POST (นับ view) พร้อมกันเพื่อไม่ให้ช้าลง แต่รอครบทั้งคู่
-      // ก่อนค่อย setState ครั้งเดียว — ค่า views ต้องเอาจาก POST เสมอ เพราะถ้าแยก effect กัน
-      // GET จะอ่าน view_count ไปก่อนที่ UPDATE ของ POST จะ commit ได้เลขเก่ามาโชว์ (ค้างจนกว่าจะรีเฟรช)
-      // community_all_time: fetch ข้อมูล all-time แยกไว้เสมอ เพื่อใช้ตัดสินใจว่ามี Community Average
-      // (ข้อมูลรวมของทุกช่วง) หรือไม่ — ของช่วงที่เลือก (display) อาจว่างเพราะยังไม่มี ranking ในช่วงนั้น
       const wantsPeriod = periodDays > 0
-      const [tplRes, allTimeRes, viewRes] = await Promise.all([
+      const [tplRes, allTimeRes] = await Promise.all([
         fetchTemplate(templateId, { period: wantsPeriod ? { days: periodDays } : null }),
         wantsPeriod ? fetchTemplate(templateId, { period: null }) : Promise.resolve(null),
-        currentUser ? recordTemplateView(templateId, currentUser.id) : Promise.resolve(null)
       ])
       if (cancelled) return
       if (tplRes.data) {
-        setTemplate(
-          viewRes?.views != null
-            ? { ...tplRes.data, stats: { ...tplRes.data.stats, views: viewRes.views } }
-            : tplRes.data
-        )
+        setTemplate(tplRes.data)
         setCommunityAllTime(
           wantsPeriod
             ? (allTimeRes?.data?.community_average ?? null)
@@ -274,7 +267,15 @@ export default function TemplateDetailPage() {
     }
     if (templateId) loadTemplate()
     return () => { cancelled = true }
-  }, [templateId, currentUser, periodDays])
+  }, [templateId, currentUser?.id, periodDays])
+
+  // 📍 Record view แยก effect — ยิงเฉพาะครั้งแรกที่เข้ามาดู template (หรือ login/logout)
+  // ไม่ต้อง re-fire เมื่อผู้ใช้เปลี่ยน periodDays
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!templateId || !currentUser) return
+    recordTemplateView(templateId, currentUser.id)
+  }, [templateId, currentUser?.id])
 
   useEffect(() => {
     async function loadRankings() {
@@ -291,7 +292,7 @@ export default function TemplateDetailPage() {
 
   const handleUseTemplate = () => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้ครับ!')
+      alert(t('template.warnLoginUse'))
       navigate('/login')
       return
     }
@@ -305,32 +306,32 @@ export default function TemplateDetailPage() {
   // 📍 รายงานเทมเพลต — เปิด modal ให้เลือกเหตุผล แล้วยิง POST ไปหา admin
   const handleReport = async () => {
     if (!currentUser) {
-      toast.warning('กรุณาเข้าสู่ระบบก่อนรายงานครับ!')
+      toast.warning(t('template.warnLoginReport'))
       navigate('/login')
       return
     }
     if (!reportReason.trim()) {
-      toast.warning('กรุณาระบุเหตุผลการรายงาน')
+      toast.warning(t('template.warnReason'))
       return
     }
     setReporting(true)
     const res = await reportTemplate({ templateId, reporterId: currentUser.id, reason: reportReason.trim() })
     setReporting(false)
     if (res.success) {
-      toast.success('ส่งรายงานให้แอดมินแล้ว ขอบคุณครับ')
+      toast.success(t('template.reportSuccess'))
       setReportOpen(false)
       setReportReason('')
     } else if (res.status === 409) {
-      toast.warning('คุณได้รายงานเทมเพลตนี้แล้ว รอแอดมินตรวจสอบ')
+      toast.warning(t('template.reportDuplicate'))
     } else {
-      toast.error(res.error || 'รายงานไม่สำเร็จ')
+      toast.error(t('template.reportFailed', { msg: res.error || t('common.error') }))
     }
   }
 
   // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action (เหมือน RankingCard)
   const handleTemplateVote = async (type) => {
     if (!currentUser) {
-      toast.warning('กรุณาเข้าสู่ระบบก่อนโหวตครับ!')
+      toast.warning(t('template.warnLoginVote'))
       navigate('/login')
       return
     }
@@ -365,7 +366,7 @@ export default function TemplateDetailPage() {
   if (isLoadingTemplate) {
     return (
       <main className="min-h-screen flex items-center justify-center">
-        <p className="text-lg font-bold text-muted animate-pulse">กำลังโหลดเทมเพลต...</p>
+        <p className="text-lg font-bold text-muted animate-pulse">{t('template.loading')}</p>
       </main>
     )
   }
@@ -373,8 +374,8 @@ export default function TemplateDetailPage() {
   if (!template) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-2">
-        <p className="text-lg font-bold text-ink">ไม่พบเทมเพลตที่คุณตามหา</p>
-        <Link to="/" className="text-brand-accent hover:underline">กลับสู่หน้าหลัก</Link>
+        <p className="text-lg font-bold text-ink">{t('template.notFound')}</p>
+        <Link to="/" className="text-brand-accent hover:underline">{t('common.backHome')}</Link>
       </main>
     )
   }
@@ -399,13 +400,13 @@ export default function TemplateDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
-              <span className="font-medium text-ink">@{template.profile?.username || 'User'}</span>
+              <span className="font-medium text-ink">@{template.profile?.username || t('common.unknownUser')}</span>
               <span className="text-muted">|</span>
               <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
-                <Users size={14} /> {formatCount(template.stats?.uses)} Uses
+                <Users size={14} /> {formatCount(template.stats?.uses)} {t('template.uses')}
               </span>
               <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
-                <Eye size={14} /> {formatCount(template.stats?.views)} Views
+                <Eye size={14} /> {formatCount(template.stats?.views)} {t('template.views')}
               </span>
             </div>
 
@@ -414,25 +415,25 @@ export default function TemplateDetailPage() {
                 type="button"
                 onClick={() => setReportOpen(true)}
                 className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-status-error shadow-md transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
-                aria-label="รายงานเทมเพลต"
-                title="รายงานเทมเพลต"
+                aria-label={t('template.report')}
+                title={t('template.report')}
               >
                 <Flag size={16} />
-                <span>รายงาน</span>
+                <span>{t('template.report')}</span>
               </button>
               <button
                 type="button"
                 onClick={handleShare}
                 className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97]"
               >
-                <Share2 size={16} /> Share
+                <Share2 size={16} /> {t('common.share')}
               </button>
               <button
                 type="button"
                 onClick={handleUseTemplate}
                 className="flex items-center gap-2 rounded-full glass px-6 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass hover: active:scale-[0.97]"
               >
-                + Use Template
+                {t('template.use')}
               </button>
             </div>
           </div>
@@ -442,7 +443,7 @@ export default function TemplateDetailPage() {
 
         <section>
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-ink">Community Rankings</h2>
+            <h2 className="text-2xl font-bold text-ink">{t('template.communityRankings')}</h2>
             <SortDropdown
               value={sort}
               options={SORT_OPTIONS}
@@ -455,21 +456,24 @@ export default function TemplateDetailPage() {
               <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-line-soft/50">
                 <span className="flex items-center gap-1 rounded bg-brand px-2 py-1 text-xs text-canvas">
                   <Star size={14} />
-                  Community Average
+                  {t('template.communityAverage')}
                 </span>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted">
-                    {periodDays ? `Last ${periodDays} days · ` : ''}Updated {timeAgo(template.community_average.updated_at)}
+                    {periodDays
+                      ? t('template.lastPeriodDays', { days: periodDays }) + ' · '
+                      : ''}
+                    {t('template.updated', { time: timeAgo(template.community_average.updated_at) })}
                   </span>
                   <select
                     value={periodDays}
                     onChange={(e) => setPeriodDays(Number(e.target.value))}
                     className="rounded-lg border border-line-soft bg-surface-glass px-2 py-1.5 text-xs font-bold text-ink-soft outline-none transition-colors hover:bg-surface focus:ring-1 focus:ring-brand"
                   >
-                    <option value={0}>All time</option>
-                    <option value={7}>Last 7 days</option>
-                    <option value={30}>Last 30 days</option>
-                    <option value={90}>Last 90 days</option>
+                    <option value={0}>{t('template.periodAllTime')}</option>
+                    <option value={7}>{t('template.periodDays', { days: 7 })}</option>
+                    <option value={30}>{t('template.periodDays', { days: 30 })}</option>
+                    <option value={90}>{t('template.periodDays', { days: 90 })}</option>
                   </select>
                 </div>
               </div>
@@ -478,7 +482,7 @@ export default function TemplateDetailPage() {
                 onClick={() => navigate(`/template/${templateId}/community`)}
                 className="cursor-pointer transition-colors hover:bg-surface-glass/50"
                 role="button"
-                aria-label="เปิด Community Average"
+                aria-label={t('template.openCommunityAverage')}
               >
                 {communityAvgRows.map(({ tier, items }) => (
                   <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
@@ -511,14 +515,14 @@ export default function TemplateDetailPage() {
                     onClick={handleExportAverage}
                     className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-muted transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:text-ink hover:shadow-md active:scale-[0.95]"
                   >
-                    <Download size={14} /> Export
+                    <Download size={14} /> {t('common.export')}
                   </button>
                   <button
                     type="button"
                     onClick={handleShare}
                     className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.95]"
                   >
-                    <Share2 size={14} /> Share
+                    <Share2 size={14} /> {t('common.share')}
                   </button>
                 </div>
               </div>
@@ -526,10 +530,10 @@ export default function TemplateDetailPage() {
           )}
 
           {isLoadingRankings ? (
-            <p className="text-muted text-center py-10 animate-pulse">กำลังโหลด...</p>
+            <p className="text-muted text-center py-10 animate-pulse">{t('template.loadingRankings')}</p>
           ) : rankings.length === 0 ? (
             <div className="rounded-xl glass p-8 text-center text-muted">
-              ยังไม่มีใครสร้าง Tier List จากเทมเพลตนี้ เป็นคนแรกเลยสิ!
+              {t('template.noRankingsYet')}
             </div>
           ) : (
             <>
@@ -550,7 +554,7 @@ export default function TemplateDetailPage() {
         link={shareUrl(`/template/${templateId}`)}
         preview={
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" style={{ background: '#ffffff' }}>
-            <p className="mb-3 text-sm font-bold text-gray-900">Community Average</p>
+            <p className="mb-3 text-sm font-bold text-gray-900">{t('template.communityAverage')}</p>
             <div className="space-y-2">
               {communityAvgRows.map(({ tier, items }) => (
                 <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
@@ -572,16 +576,16 @@ export default function TemplateDetailPage() {
             className="glass w-full max-w-md rounded-2xl p-6 shadow-xl relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold text-ink mb-1">รายงานเทมเพลต</h3>
-            <p className="text-sm text-muted mb-4">แจ้งแอดมินให้ตรวจสอบเทมเพลตนี้</p>
+            <h3 className="text-lg font-bold text-ink mb-1">{t('template.reportTemplate')}</h3>
+            <p className="text-sm text-muted mb-4">{t('template.reportTemplateHelp')}</p>
 
             <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
-              เหตุผล
+              {t('template.reason')}
             </label>
             <textarea
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
-              placeholder="อธิบายปัญหา เช่น เนื้อหาไม่เหมาะสม, ลิขสิทธิ์, โฆษณา เป็นต้น"
+              placeholder={t('template.reportReasonPh')}
               rows={3}
               className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand placeholder-muted resize-none"
             />
@@ -593,7 +597,7 @@ export default function TemplateDetailPage() {
                 disabled={reporting}
                 className="text-ink-soft hover:bg-surface-glass rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50"
               >
-                ยกเลิก
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -601,7 +605,7 @@ export default function TemplateDetailPage() {
                 disabled={reporting || !reportReason.trim()}
                 className="bg-brand hover:bg-brand-accent text-canvas rounded-xl px-5 py-2 text-sm font-bold disabled:opacity-50"
               >
-                {reporting ? 'กำลังส่ง...' : 'ส่งรายงาน'}
+                {reporting ? t('common.sending') : t('common.submit')}
               </button>
             </div>
           </div>

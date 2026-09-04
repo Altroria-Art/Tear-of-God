@@ -3,6 +3,7 @@ import Modal from './Modal';
 import { copyToClipboard } from '../../lib/share';
 import { downloadTablePng } from '../../lib/exportImage';
 import { useToast } from './Toast';
+import { useTranslation } from 'react-i18next';
 
 export default function ShareExportModal({
   open,
@@ -15,6 +16,7 @@ export default function ShareExportModal({
   statsFilename, // ชื่อไฟล์ข้อมูลสถิติ (ไม่มี ext)
 }) {
   const toast = useToast();
+  const { t } = useTranslation();
   const previewRef = useRef(null);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -33,23 +35,23 @@ export default function ShareExportModal({
     const ok = await copyToClipboard(link);
     if (ok) {
       setCopied(true);
-      toast.success('คัดลอกลิงก์เรียบร้อยแล้ว!');
+      toast.success(t('shareExport.copySuccess'));
       closeTimerRef.current = setTimeout(onClose, 400);
     } else {
-      toast.error('คัดลอกลิงก์ไม่สำเร็จ');
+      toast.error(t('shareExport.copyFailed'));
     }
   };
 
   const handleDownload = async () => {
     setExporting(true);
-    toast.info('กำลังสร้างรูปตาราง...');
+    toast.info(t('shareExport.creatingImage'));
     const ok = await downloadTablePng(previewRef.current, filename);
     setExporting(false);
     if (ok) {
-      toast.success('ดาวน์โหลดรูปตารางเรียบร้อย!');
+      toast.success(t('shareExport.downloadTableSuccess'));
       onClose();
     } else {
-      toast.error('ส่งออกรูปไม่สำเร็จ');
+      toast.error(t('shareExport.exportImageFailed'));
     }
   };
 
@@ -66,26 +68,26 @@ export default function ShareExportModal({
   };
 
   const handleExportCsv = () => {
-    if (!Array.isArray(stats) || stats.length === 0) { toast.error('ไม่มีข้อมูลสถิติให้ส่งออก'); return; }
+    if (!Array.isArray(stats) || stats.length === 0) { toast.error(t('shareExport.noStats')); return; }
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const header = 'item,avg,tier,votes';
     const rows = stats.map((s) => [esc(s.item), s.avg, esc(s.tier), s.votes].join(','));
     downloadTextFile([header, ...rows].join('\n'), 'text/csv;charset=utf-8', `${statsFilename || 'stats'}.csv`);
-    toast.success('ดาวน์โหลดสถิติ CSV เรียบร้อย!');
+    toast.success(t('shareExport.downloadCsvSuccess'));
     onClose();
   };
 
   const handleExportJson = () => {
-    if (!Array.isArray(stats) || stats.length === 0) { toast.error('ไม่มีข้อมูลสถิติให้ส่งออก'); return; }
+    if (!Array.isArray(stats) || stats.length === 0) { toast.error(t('shareExport.noStats')); return; }
     downloadTextFile(JSON.stringify(stats, null, 2), 'application/json', `${statsFilename || 'stats'}.json`);
-    toast.success('ดาวน์โหลดสถิติ JSON เรียบร้อย!');
+    toast.success(t('shareExport.downloadJsonSuccess'));
     onClose();
   };
 
   if (mode === 'share') {
     return (
-      <Modal open={open} onClose={onClose} title="แชร์ลิงก์">
-        <p className="mb-3 text-sm text-muted">คัดลอกลิงก์เพื่อส่งต่อให้ผู้อื่น</p>
+      <Modal open={open} onClose={onClose} title={t('shareExport.shareLinkTitle')}>
+        <p className="mb-3 text-sm text-muted">{t('shareExport.shareHint')}</p>
         <div className="flex items-center gap-2 rounded-lg border border-line-soft bg-tag p-2">
           <input
             type="text"
@@ -99,7 +101,7 @@ export default function ShareExportModal({
             onClick={handleCopy}
             className="shrink-0 rounded-lg bg-brand-accent px-4 py-2 text-sm font-bold text-canvas transition-all hover:brightness-110 active:scale-95"
           >
-            {copied ? 'คัดลอกแล้ว ✓' : 'Copy Link'}
+            {copied ? t('shareExport.copied') : t('shareExport.copyLink')}
           </button>
         </div>
       </Modal>
@@ -108,9 +110,9 @@ export default function ShareExportModal({
 
   if (mode === 'export') {
     return (
-      <Modal open={open} onClose={onClose} title="ส่งออกรูปตาราง" maxWidth="max-w-lg">
+      <Modal open={open} onClose={onClose} title={t('shareExport.exportTableTitle')} maxWidth="max-w-lg">
         <p className="mb-3 text-sm text-muted">
-          ตรวจสอบตัวอย่างแล้วกดดาวน์โหลด
+          {t('shareExport.exportHint')}
           {filename ? <span className="text-ink-soft"> · {filename}</span> : null}
         </p>
         <div className="max-h-[55vh] overflow-auto rounded-lg border border-line-soft bg-white p-2">
@@ -126,14 +128,14 @@ export default function ShareExportModal({
                 onClick={handleExportCsv}
                 className="rounded-lg border border-line-soft px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-tag"
               >
-                ดาวน์โหลด CSV
+                {t('shareExport.downloadCsv')}
               </button>
               <button
                 type="button"
                 onClick={handleExportJson}
                 className="rounded-lg border border-line-soft px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-tag"
               >
-                ดาวน์โหลด JSON
+                {t('shareExport.downloadJson')}
               </button>
             </>
           )}
@@ -142,7 +144,7 @@ export default function ShareExportModal({
             onClick={onClose}
             className="rounded-lg border border-line-soft px-4 py-2 text-sm font-bold text-muted transition-colors hover:bg-tag hover:text-ink"
           >
-            ยกเลิก
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -150,7 +152,7 @@ export default function ShareExportModal({
             disabled={exporting}
             className="rounded-lg bg-brand-accent px-4 py-2 text-sm font-bold text-canvas transition-all hover:brightness-110 active:scale-95 disabled:opacity-60"
           >
-            {exporting ? 'กำลังสร้าง...' : 'ดาวน์โหลด'}
+            {exporting ? t('shareExport.generating') : t('shareExport.download')}
           </button>
         </div>
       </Modal>

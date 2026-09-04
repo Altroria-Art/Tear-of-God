@@ -16,11 +16,13 @@ import ExportCard from '../components/ui/ExportCard'
 import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
 import { formatDbDate } from '../lib/format'
+import { useTranslation } from 'react-i18next'
 
 export default function PostDetail() {
   const { postId } = useParams()
   const { currentUser } = useUser()
   const toast = useToast()
+  const { t } = useTranslation()
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
   const tableRef = useRef(null)
 
@@ -34,15 +36,13 @@ export default function PostDetail() {
   const [reporting, setReporting] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     async function loadPost() {
       setIsLoading(true)
       const { data, error } = await fetchRanking(postId, currentUser?.id)
+      if (cancelled) return
 
       if (data) {
-        // 📍 [ใหม่]: ใช้ buildTierRows() ตัวเดียวกับ Home Feed — เรียงตาม/ให้สีตาม data.tiers
-        // (template tier definition ที่ functions/api/rankings.js ส่งมาให้แล้ว) แทนการเดาลำดับ
-        // จาก ranking_items เฉยๆ และไม่ยัดไอเทมที่ยังไม่ได้จัด (tier=NULL) เข้า key สตริง "null"
-        // แบบโค้ดเดิม (ดู docs/tier-list-feed-debug-plan.md)
         const tiers = buildTierRows(data.ranking_items, data.tiers).map(row => ({
           tier: row.tier,
           color: row.color,
@@ -59,7 +59,7 @@ export default function PostDetail() {
           templateId: data.template_id ?? null,
           authorId: data.profile?.id ?? null,
           author: {
-            name: data.profile?.username || 'Unknown User',
+            name: data.profile?.username || t('common.unknownUser'),
             avatarUrl: data.profile?.avatar_url
           },
           postedAt: formatDbDate(data.created_at) ?? '',
@@ -80,10 +80,10 @@ export default function PostDetail() {
           const formattedComments = data.comments.map(c => ({
             id: c.id,
             author: {
-              name: c.username || 'Unknown',
+              name: c.username || t('common.unknownItem'),
               avatarUrl: c.avatar_url
             },
-            postedAt: formatDbDate(c.created_at) ?? '',
+            createdAt: c.created_at,
             body: c.content
           }))
           setComments(formattedComments)
@@ -95,7 +95,8 @@ export default function PostDetail() {
     }
 
     if (postId) loadPost()
-  }, [postId, currentUser])
+    return () => { cancelled = true }
+  }, [postId, currentUser?.id, t])
 
   // แยก effect ต่างหากจาก loadPost — loadPost มี currentUser เป็น dep แล้ว
   // ถ้ารวมกันจะยิง fetchTemplate ซ้ำทุกครั้งที่สถานะล็อกอินเปลี่ยน
@@ -116,7 +117,7 @@ export default function PostDetail() {
   // กด like ซ้ำตอน like อยู่แล้ว = ยกเลิกโหวต (null) ดู docs/feature-like-dislike-voting.md §4
   const handleVote = async (type) => {
     if (!currentUser) {
-      toast.warning('กรุณาเข้าสู่ระบบก่อนโหวตครับ!');
+      toast.warning(t('post.warnLoginVote'));
       return;
     }
 
@@ -144,14 +145,14 @@ export default function PostDetail() {
       // rollback
       setUserVote(prevVote)
       setPost(prev => ({ ...prev, stats: prevStats }))
-      toast.error('บันทึกการโหวตไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'))
+      toast.error(t('post.voteFailed', { msg: result.error || t('common.error') }))
     }
   }
 
   // 📍 [แก้ไขแล้ว]: ใช้ createComment จาก api.js แทนการ fetch ดิบๆ
   const handleAddComment = async (body) => {
     if (!currentUser) {
-      toast.warning('กรุณาเข้าสู่ระบบก่อนคอมเมนต์ครับ!');
+      toast.warning(t('post.warnLoginComment'));
       return;
     }
     if (!body || !body.trim()) return;
@@ -169,7 +170,7 @@ export default function PostDetail() {
           name: currentUser.username || 'User',
           avatarUrl: currentUser.avatar_url
         },
-        postedAt: 'Just now',
+        createdAt: data?.created_at ?? new Date().toISOString(),
         body: body.trim()
       }
       setComments(prev => [newComment, ...prev]);
@@ -178,7 +179,7 @@ export default function PostDetail() {
         stats: { ...prev.stats, comments: prev.stats.comments + 1 }
       }))
     } else {
-      toast.error('คอมเมนต์ไม่สำเร็จ: ' + error);
+      toast.error(t('post.commentFailed', { msg: error }));
     }
   }
 
@@ -189,31 +190,31 @@ export default function PostDetail() {
   // 📍 รายงานโพสต์ (ranking) — ส่งไปหาแอดมินว่าอันนี้ไม่เหมาะสม
   const handleReportPost = async () => {
     if (!currentUser) {
-      toast.warning('กรุณาเข้าสู่ระบบก่อนรายงานครับ!');
+      toast.warning(t('post.warnLoginReport'));
       return;
     }
     if (!reportReason.trim()) {
-      toast.warning('กรุณาระบุเหตุผลการรายงาน');
+      toast.warning(t('post.warnReason'));
       return;
     }
     setReporting(true);
     const res = await reportPost({ postId, reporterId: currentUser.id, reason: reportReason.trim() });
     setReporting(false);
     if (res.success) {
-      toast.success('ส่งรายงานให้แอดมินแล้ว ขอบคุณครับ');
+      toast.success(t('post.reportSuccess'));
       setReportOpen(false);
       setReportReason('');
     } else if (res.status === 409) {
-      toast.warning('คุณได้รายงานโพสต์นี้แล้ว รอแอดมินตรวจสอบ');
+      toast.warning(t('post.reportDuplicate'));
     } else {
-      toast.error(res.error || 'รายงานไม่สำเร็จ');
+      toast.error(t('post.reportFailed', { msg: res.error || t('common.error') }));
     }
   }
 
   if (isLoading) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-lg font-bold text-muted animate-pulse">กำลังโหลดข้อมูล...</p>
+        <p className="text-lg font-bold text-muted animate-pulse">{t('post.loading')}</p>
       </main>
     )
   }
@@ -221,9 +222,9 @@ export default function PostDetail() {
   if (!post) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-lg font-bold text-ink">ไม่พบโพสต์ที่คุณตามหา</p>
+        <p className="text-lg font-bold text-ink">{t('post.notFound')}</p>
         <Link to="/" className="mt-2 inline-block text-sm text-status-info hover:underline">
-          กลับสู่หน้าหลัก
+          {t('common.backHome')}
         </Link>
       </main>
     )
@@ -261,11 +262,11 @@ export default function PostDetail() {
                 type="button"
                 onClick={() => { setReportReason(''); setReportOpen(true) }}
                 className="flex shrink-0 items-center gap-2 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
-                aria-label="รายงานโพสต์"
-                title="รายงานโพสต์"
+                aria-label={t('post.report')}
+                title={t('post.report')}
               >
                 <Flag size={14} />
-                <span>รายงาน</span>
+                <span>{t('post.report')}</span>
               </button>
             </div>
 
@@ -304,7 +305,7 @@ export default function PostDetail() {
                 <ActionButton 
                   icon={ThumbsUpIcon} 
                   count={stats.likes} 
-                  label="Like" 
+                  label={t('post.like')} 
                   pressed={userVote === 'like'}
                   activeClass="text-blue-600 font-bold"
                   onClick={() => handleVote('like')}
@@ -312,18 +313,18 @@ export default function PostDetail() {
                 <ActionButton
                   icon={ThumbsDownIcon}
                   count={stats.dislikes}
-                  label="Dislike"
+                  label={t('post.dislike')}
                   pressed={userVote === 'dislike'}
                   activeClass="text-red-600 font-bold"
                   onClick={() => handleVote('dislike')}
                 />
-                <ActionButton icon={CommentIcon} count={stats.comments} label="Comments" />
-                <ActionButton icon={Download} label="Export" onClick={handleExport} activeClass="hover:text-highlight" />
+                <ActionButton icon={CommentIcon} count={stats.comments} label={t('post.comments')} />
+                <ActionButton icon={Download} label={t('common.export')} onClick={handleExport} activeClass="hover:text-highlight" />
               </div>
               <div className="ml-auto">
                 <ActionButton
                   icon={ShareIcon}
-                  label="Share"
+                  label={t('common.share')}
                   onClick={() => setModal('share')}
                 />
               </div>
@@ -376,14 +377,14 @@ export default function PostDetail() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-bold text-ink">รายงานโพสต์</h3>
-                <p className="mt-0.5 text-sm text-muted">แจ้งแอดมินว่าโพสต์นี้ไม่เหมาะสม — ตรวจสอบกับหน้าแอดมิน</p>
+                <h3 className="text-lg font-bold text-ink">{t('post.reportPost')}</h3>
+                <p className="mt-0.5 text-sm text-muted">{t('post.reportPostHelp')}</p>
               </div>
               <button
                 type="button"
                 onClick={() => { if (!reporting) setReportOpen(false) }}
                 className="rounded-full p-1 text-muted transition-colors hover:bg-surface-glass hover:text-ink"
-                aria-label="ปิด"
+                aria-label={t('post.close')}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -392,7 +393,7 @@ export default function PostDetail() {
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
               rows={4}
-              placeholder="อธิบายเหตุผลที่รายงานโพสต์นี้..."
+              placeholder={t('post.reportReasonPh')}
               className="mt-4 w-full resize-none rounded-xl border border-line-soft bg-canvas p-3 text-sm text-ink focus:border-highlight focus:outline-none"
             />
             <div className="mt-4 flex items-center justify-end gap-2">
@@ -402,7 +403,7 @@ export default function PostDetail() {
                 disabled={reporting}
                 className="rounded-full px-4 py-2 text-sm font-bold text-muted transition-colors hover:bg-surface-glass"
               >
-                ยกเลิก
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -411,7 +412,7 @@ export default function PostDetail() {
                 className="flex items-center gap-2 rounded-full bg-status-error px-5 py-2 text-sm font-bold text-white shadow-md transition-all hover:bg-red-700 disabled:opacity-60"
               >
                 <Flag size={16} />
-                {reporting ? 'กำลังส่ง...' : 'ส่งรายงาน'}
+                {reporting ? t('common.sending') : t('common.submit')}
               </button>
             </div>
           </div>

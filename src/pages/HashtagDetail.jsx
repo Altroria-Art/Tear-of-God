@@ -6,19 +6,23 @@ import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
 import { ArrowLeftIcon } from '../components/ui/Icons';
+import { useTranslation } from 'react-i18next';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS = [
-  { value: 'popular', label: 'Popular' },
-  { value: 'recent', label: 'Recent' },
-  { value: 'views', label: 'Most Viewed' },
+  { value: 'popular', labelKey: 'sort.popular' },
+  { value: 'recent', labelKey: 'sort.recent' },
+  { value: 'views', labelKey: 'sort.mostViewed' },
 ];
 
 export default function HashtagDetail() {
   const { tag } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
 
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const sort = searchParams.get('sort') || 'popular';
@@ -28,19 +32,22 @@ export default function HashtagDetail() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false
     async function load() {
       setIsLoading(true);
-      const { data, total: t } = await fetchTemplates({ hashtag: tag, page, limit: PAGE_SIZE, sort });
+      const { data, total } = await fetchTemplates({ hashtag: tag, page, limit: PAGE_SIZE, sort });
+      if (cancelled) return;
       setTemplates(data || []);
-      setTotal(t || 0);
+      setTotal(total || 0);
       setIsLoading(false);
     }
     if (tag) load();
+    return () => { cancelled = true }
   }, [tag, page, sort]);
 
   const handleProtectedAction = (callback) => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้ครับ!');
+      alert(t('discover.protectedLogin'));
       navigate('/login');
       return;
     }
@@ -80,15 +87,15 @@ export default function HashtagDetail() {
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <span className="bg-[#ffc329] text-[#261a00] font-bold px-4 py-1.5 rounded-full">#{tag}</span>
-            <p className="text-sm text-muted">{total.toLocaleString()} templates</p>
+            <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
           </div>
-          <SortDropdown value={sort} options={SORT_OPTIONS} onChange={handleSortChange} label="Sort:" />
+          <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />
         </div>
 
         {isLoading ? (
-          <p className="text-muted animate-pulse text-center py-10">กำลังโหลดเทมเพลต...</p>
+          <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingTemplates')}</p>
         ) : templates.length === 0 ? (
-          <p className="text-muted text-center py-10">ยังไม่มีเทมเพลตที่ติดแท็กนี้</p>
+          <p className="text-muted text-center py-10">{t('discover.emptyTag')}</p>
         ) : (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             {templates.map((template) => (

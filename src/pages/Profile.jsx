@@ -4,13 +4,17 @@ import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
+import { buildTierRows } from '../lib/tiers';
+import TierLabel from '../components/tier/TierLabel';
 import { useToast } from '../components/ui/Toast';
+import { useTranslation } from 'react-i18next';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { userId: routeUserId } = useParams(); // 📍 /profile/:userId = ดูโปรไฟล์คนอื่น, /profile = ของตัวเอง
   const { currentUser, login } = useUser();
   const toast = useToast();
+  const { t, i18n } = useTranslation();
   
   const profileUserId = routeUserId || currentUser?.id || null;
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.id;
@@ -46,7 +50,7 @@ export default function Profile() {
     if (!error && data) {
       setFollowListData(data);
     } else {
-      toast.error('ไม่สามารถดึงข้อมูลได้');
+      toast.error(t('profile.errFetch'));
     }
     setIsFollowListLoading(false);
   };
@@ -117,7 +121,7 @@ export default function Profile() {
   // 📍 [แก้ไขแล้ว]: ยิง API บันทึกข้อมูลโปรไฟล์ของจริง (เฉพาะเมื่อดูโปรไฟล์ตัวเอง)
   const handleToggleFollow = async () => {
     if (!currentUser) {
-      toast.error('กรุณาเข้าสู่ระบบเพื่อติดตามผู้ใช้นี้');
+      toast.error(t('profile.errLoginFollow'));
       navigate('/login');
       return;
     }
@@ -132,7 +136,7 @@ export default function Profile() {
     const { error } = await toggleFollow(currentUser.id, displayUser.id, previousFollowing);
     
     if (error) {
-      toast.error('ไม่สามารถทำรายการได้');
+      toast.error(t('profile.errAction'));
       setIsFollowing(previousFollowing);
       setFollowersCount(previousCount);
     }
@@ -143,7 +147,7 @@ export default function Profile() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.error('กรุณาอัปโหลดเฉพาะไฟล์รูปภาพเท่านั้น');
+      toast.error(t('profile.errImageOnly'));
       return;
     }
 
@@ -153,7 +157,7 @@ export default function Profile() {
       toast.error(error);
     } else if (url) {
       setAvatarUrl(url);
-      toast.success('อัปโหลดรูปภาพสำเร็จ กรุณากด Save Changes เพื่อบันทึก');
+      toast.success(t('profile.successUpload'));
     }
     setIsUploading(false);
   };
@@ -172,14 +176,14 @@ export default function Profile() {
     });
 
     if (error) {
-      toast.error('อัปเดตโปรไฟล์ไม่สำเร็จ: ' + error);
+      toast.error(t('profile.errUpdate', { msg: error }));
       return;
     }
 
     const updatedUser = { ...currentUser, username: displayName, bio, university, faculty, major, year, avatar_url: avatarUrl };
     login(updatedUser); // อัปเดตข้อมูลใน Context / LocalStorage
     setIsEditOpen(false);
-    toast.success('อัปเดตโปรไฟล์สำเร็จ!');
+    toast.success(t('profile.successUpdate'));
   };
 
   if (!currentUser && !routeUserId) return null;
@@ -188,9 +192,9 @@ export default function Profile() {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center">
-          <p className="text-lg font-bold text-ink">ไม่พบผู้ใช้นี้ในระบบ</p>
+          <p className="text-lg font-bold text-ink">{t('profile.notFound')}</p>
           <button onClick={() => navigate('/')} className="mt-2 text-sm font-bold text-brand hover:underline">
-            กลับสู่หน้าหลัก
+            {t('common.backHome')}
           </button>
         </div>
       </main>
@@ -200,7 +204,7 @@ export default function Profile() {
   if (isLoading) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
-        <p className="text-sm font-medium text-muted animate-pulse">กำลังโหลดโปรไฟล์...</p>
+        <p className="text-sm font-medium text-muted animate-pulse">{t('profile.loading')}</p>
       </main>
     );
   }
@@ -211,7 +215,7 @@ export default function Profile() {
     ? { ...(profileUser || {}), ...(currentUser || {}) }
     : profileUser;
   // "Oct 2024" จาก created_at ที่ได้จาก API — parse ผ่าน formatDbDate() เสมอ (ดู src/lib/format.js)
-  const joinedLabel = formatDbDate(displayUser?.created_at, 'en-US', { month: 'short', year: 'numeric' }) ?? '—';
+  const joinedLabel = formatDbDate(displayUser?.created_at, i18n.language === 'th' ? 'th-TH' : 'en-US', { month: 'short', year: 'numeric' }) ?? '—';
   const totalLikes = posts.reduce((n, p) => n + (p.stats?.likes || 0), 0);
 
   return (
@@ -235,8 +239,8 @@ export default function Profile() {
 
               <h2 className="text-xl font-bold text-ink mb-1">{displayUser?.username}</h2>
               <div className="flex justify-center gap-4 text-sm text-muted mb-3">
-                <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> Followers</span>
-                <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> Following</span>
+                <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> {t('profile.followers')}</span>
+                <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> {t('profile.following')}</span>
               </div>
               {!isOwnProfile && (
                 <button
@@ -247,23 +251,23 @@ export default function Profile() {
                       : 'bg-ink text-canvas hover:bg-brand-accent'
                   }`}
                 >
-                  {isFollowing ? 'Following' : 'Follow'}
+                  {isFollowing ? t('profile.unfollow') : t('profile.follow')}
                 </button>
               )}
               {/* 📍 bio จาก DB จริงแล้ว (migrations/0003_profile_bio.sql) — โชว์ได้ทั้งโปรไฟล์ตัวเองและคนอื่น */}
               {displayUser?.bio ? (
                 <p className="text-xs text-muted mb-4 leading-relaxed">{displayUser.bio}</p>
               ) : (
-                <p className="text-xs text-muted italic mb-4 leading-relaxed">ยังไม่ได้เขียน Bio</p>
+                <p className="text-xs text-muted italic mb-4 leading-relaxed">{t('profile.noBio')}</p>
               )}
 
               {/* Education Info */}
               {(displayUser?.university || displayUser?.faculty || displayUser?.major || displayUser?.year) && (
                 <div className="mt-4 mb-4 text-xs text-ink-soft text-left bg-surface p-3 rounded-xl space-y-1">
-                  {displayUser?.university && <p><strong className="text-ink">มหาวิทยาลัย:</strong> {displayUser.university}</p>}
-                  {displayUser?.faculty && <p><strong className="text-ink">คณะ:</strong> {displayUser.faculty}</p>}
-                  {displayUser?.major && <p><strong className="text-ink">สาขา:</strong> {displayUser.major}</p>}
-                  {displayUser?.year && <p><strong className="text-ink">ชั้นปี:</strong> {displayUser.year}</p>}
+                  {displayUser?.university && <p><strong className="text-ink">{t('profile.university')}</strong> {displayUser.university}</p>}
+                  {displayUser?.faculty && <p><strong className="text-ink">{t('profile.faculty')}</strong> {displayUser.faculty}</p>}
+                  {displayUser?.major && <p><strong className="text-ink">{t('profile.major')}</strong> {displayUser.major}</p>}
+                  {displayUser?.year && <p><strong className="text-ink">{t('profile.year')}</strong> {displayUser.year}</p>}
                 </div>
               )}
 
@@ -272,19 +276,19 @@ export default function Profile() {
                   onClick={() => setIsEditOpen(true)}
                   className="w-full py-2 bg-brand-accent hover:bg-surface border border-line text-ink font-bold rounded-xl text-sm transition-colors shadow-xs"
                 >
-                  Edit Profile
+                  {t('profile.editProfile')}
                 </button>
               )}
 
               <div className="mt-6 pt-6 border-t border-line-soft flex justify-around text-center text-xs text-muted">
                 <div>
                   <p className="font-bold text-ink">{joinedLabel}</p>
-                  <p>Joined</p>
+                  <p>{t('profile.joined')}</p>
                 </div>
                 {/* ยอดไลก์รวมจากโพสต์จริง (แทนสูตร views ปลอมเดิม) */}
                 <div>
                   <p className="font-bold text-ink">{totalLikes}</p>
-                  <p>Total Likes</p>
+                  <p>{t('profile.totalLikes')}</p>
                 </div>
               </div>
             </div>
@@ -302,15 +306,15 @@ export default function Profile() {
                 <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-canvas flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
                   +
                 </div>
-                <h3 className="font-bold text-ink">Create New Template</h3>
-                <p className="text-xs text-muted">Start a new tier list from scratch</p>
+                <h3 className="font-bold text-ink">{t('profile.createNewTemplate')}</h3>
+                <p className="text-xs text-muted">{t('profile.createNewTemplateHelp')}</p>
               </div>
             )}
 
             {!isOwnProfile && (
               <div className="glass rounded-2xl p-6 ">
-                <h3 className="text-lg font-bold text-ink">Tier Lists by {displayUser?.username}</h3>
-                <p className="text-xs text-muted mt-1">Tier List ทั้งหมดที่ {displayUser?.username} สร้างไว้</p>
+                <h3 className="text-lg font-bold text-ink">{t('profile.tierListsBy', { name: displayUser?.username })}</h3>
+                <p className="text-xs text-muted mt-1">{t('profile.tierListsByHelp', { name: displayUser?.username })}</p>
               </div>
             )}
 
@@ -318,8 +322,8 @@ export default function Profile() {
             {posts.length === 0 ? (
               <p className="text-center text-sm text-muted py-8 glass rounded-2xl ">
                 {isOwnProfile
-                  ? 'คุณยังไม่ได้สร้าง Tier List ใดๆ ลองกดสร้างด้านบนได้เลย!'
-                  : `${displayUser?.username || 'ผู้ใช้นี้'} ยังไม่มี Tier List ที่โพสต์ไว้`}
+                  ? t('profile.emptyOwn')
+                  : t('profile.emptyOther', { name: displayUser?.username || t('common.unknownUser') })}
               </p>
             ) : (
               posts.map((post) => (
@@ -328,21 +332,32 @@ export default function Profile() {
                   onClick={() => navigate(`/post/${post.id}`)}
                   className="glass rounded-2xl p-5 shadow-sm cursor-pointer hover:border-line transition-colors"
                 >
-                  <div className="text-xs font-bold text-brand uppercase tracking-wider mb-1">Created a Template</div>
+                  <div className="text-xs font-bold text-brand uppercase tracking-wider mb-1">{t('profile.createdTemplate')}</div>
                   <h3 className="text-lg font-bold text-ink mb-2">{post.title}</h3>
 
                   {/* Preview Tiers */}
                   <div className="bg-canvas rounded-xl p-3 space-y-2 mb-4">
-                    <div className="flex glass rounded-lg overflow-hidden min-h-[50px]">
-                      <div className="bg-tier-s text-[#1a1a1a] w-12 flex-shrink-0 flex items-center justify-center font-bold">S</div>
-                      <div className="p-2 flex gap-2 overflow-x-auto items-center flex-grow">
-                        {post.ranking_items && post.ranking_items.slice(0, 2).map((ri, idx) => (
-                          <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-xs">
-                            {ri.item?.name || ri.name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    {(() => {
+                      const rows = buildTierRows(post.ranking_items, post.tiers);
+                      const shown = rows.slice(0, 2);
+                      return shown.map((row, rowIdx) => (
+                        <div key={row.tier + String(rowIdx)} className="flex glass rounded-lg overflow-hidden min-h-[38px]">
+                          <TierLabel
+                            label={row.tier}
+                            color={row.color}
+                            index={row.index}
+                            className={`w-12 text-xs font-bold ${row.tier.length > 2 ? 'text-[9px]' : 'text-sm'}`}
+                          />
+                          <div className="p-2 flex gap-2 overflow-x-auto items-center flex-grow">
+                            {(row.items || []).slice(0, 2).map((ri, idx) => (
+                              <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-xs whitespace-nowrap">
+                                {ri.item?.name || ri.item_name || ri.item_id}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ));
+                    })()}
                   </div>
 
                   <div className="flex justify-between items-center text-xs text-muted">
@@ -374,14 +389,14 @@ export default function Profile() {
               ✕
             </button>
 
-            <h3 className="text-xl font-bold text-ink mb-4">Edit Profile</h3>
+            <h3 className="text-xl font-bold text-ink mb-4">{t('profile.editProfile')}</h3>
 
             <form onSubmit={handleSaveChanges} className="space-y-4">
               <div className="text-center mb-4">
                 <div className="w-20 h-20 mx-auto rounded-full bg-surface overflow-hidden mb-2 relative">
                   {isUploading ? (
                     <div className="w-full h-full flex items-center justify-center font-bold text-xs text-muted glass/50 absolute inset-0">
-                      Uploading...
+                      {t('profile.uploading')}
                     </div>
                   ) : null}
                   {avatarUrl ? (
@@ -403,12 +418,12 @@ export default function Profile() {
                   onClick={() => !isUploading && fileInputRef.current?.click()} 
                   className={`text-xs text-brand font-bold ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:underline'}`}
                 >
-                  {isUploading ? 'Uploading...' : 'Change Photo'}
+                  {isUploading ? t('profile.uploading') : t('profile.changePhoto')}
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">Display Name</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.displayName')}</label>
                 <input
                   type="text"
                   value={displayName}
@@ -419,7 +434,7 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">Bio</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.bio')}</label>
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
@@ -428,7 +443,7 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">มหาวิทยาลัย</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.university')}</label>
                 <input
                   type="text"
                   value={university}
@@ -439,7 +454,7 @@ export default function Profile() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">คณะ</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.faculty')}</label>
                   <input
                     type="text"
                     value={faculty}
@@ -448,7 +463,7 @@ export default function Profile() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">สาขา</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.major')}</label>
                   <input
                     type="text"
                     value={major}
@@ -459,7 +474,7 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">ชั้นปี</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.year')}</label>
                 <input
                   type="text"
                   value={year}
@@ -474,13 +489,13 @@ export default function Profile() {
                   onClick={() => setIsEditOpen(false)}
                   className="px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-surface-glass rounded-xl"
                 >
-                  Cancel
+                  {t('profile.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 text-sm font-bold bg-brand hover:bg-brand-accent text-canvas rounded-xl shadow-sm"
                 >
-                  Save Changes
+                  {t('profile.saveChanges')}
                 </button>
               </div>
             </form>
@@ -502,9 +517,9 @@ export default function Profile() {
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
               {isFollowListLoading ? (
-                <p className="text-center text-muted py-6">กำลังโหลด...</p>
+                <p className="text-center text-muted py-6">{t('profile.loading')}</p>
               ) : followListData.length === 0 ? (
-                <p className="text-center text-muted py-6">ไม่มีผู้ใช้</p>
+                <p className="text-center text-muted py-6">{t('profile.noUsers')}</p>
               ) : (
                 followListData.map(user => (
                   <div key={user.id} 

@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { CloseIcon } from './Icons';
+import { useTranslation } from 'react-i18next';
 
 export default function Modal({ open, onClose, title, children, footer, maxWidth = 'max-w-md' }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -32,7 +34,7 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('common.close')}
             className="rounded-md p-1.5 text-muted transition-colors hover:bg-tag hover:text-ink"
           >
             <CloseIcon className="h-5 w-5" />

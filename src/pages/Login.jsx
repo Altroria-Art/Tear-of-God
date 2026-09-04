@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { registerUser, loginUser, syncGoogleUser } from '../lib/api'; 
 import { signInWithGoogle } from '../lib/firebase';
 import { useToast } from '../components/ui/Toast';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useUser();
   const toast = useToast();
+  const { t } = useTranslation();
   
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
@@ -23,24 +25,28 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.warning('กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน');
+      toast.warning(t('auth.warnFillAll'));
       return;
     }
     if (isRegister && password !== confirmPassword) {
-      toast.warning('รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน');
+      toast.warning(t('auth.warnPasswordMismatch'));
+      return;
+    }
+    if (isRegister && !username.trim()) {
+      toast.warning(t('auth.warnFillAll'));
       return;
     }
 
     setIsLoading(true);
 
     if (isRegister) {
-      const { data, error } = await registerUser({ email, password, username });
+      const { error } = await registerUser({ email, password, username });
       setIsLoading(false);
 
       if (error) {
-        toast.error('สมัครสมาชิกไม่สำเร็จ: ' + error);
+        toast.error(t('auth.errRegisterFailed', { msg: error }));
       } else {
-        toast.success('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ');
+        toast.success(t('auth.successRegister'));
         setEmail('');
         setPassword('');
         setConfirmPassword('');
@@ -52,10 +58,10 @@ export default function Login() {
       setIsLoading(false);
 
       if (error) {
-        toast.error('เข้าสู่ระบบไม่สำเร็จ: ' + error);
+        toast.error(t('auth.errLoginFailed', { msg: error }));
       } else {
         login(data);
-        toast.success('เข้าสู่ระบบสำเร็จ!');
+        toast.success(t('auth.successLogin'));
         navigate('/');
       }
     }
@@ -63,25 +69,24 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
-    // 1. ล็อกอินผ่าน Firebase
-    const { data: firebaseUser, error } = await signInWithGoogle();
-
-    if (error) {
-      setIsLoading(false);
-      toast.error('เข้าสู่ระบบด้วย Google ไม่สำเร็จ: ' + error);
-    } else {
-      // 2. ส่งข้อมูล Firebase ไปบันทึกลง Cloudflare D1
-      const { data: dbUser, error: syncError } = await syncGoogleUser(firebaseUser);
-      setIsLoading(false);
-
-      if (syncError) {
-        toast.error('เกิดข้อผิดพลาดในการซิงค์ฐานข้อมูล: ' + syncError);
-      } else {
-        // 3. บันทึกเข้าระบบหน้าเว็บ (Context)
-        login(dbUser || firebaseUser);
-        toast.success(`ยินดีต้อนรับคุณ ${dbUser?.username || firebaseUser.username} เข้าสู่ระบบ!`);
-        navigate('/');
+    try {
+      const { data: firebaseUser, error } = await signInWithGoogle();
+      if (error) {
+        toast.error(t('auth.errGoogleFailed', { msg: error }));
+        return;
       }
+      const { data: dbUser, error: syncError } = await syncGoogleUser(firebaseUser);
+      if (syncError) {
+        toast.error(t('auth.errSyncFailed', { msg: syncError }));
+        return;
+      }
+      login(dbUser || firebaseUser);
+      toast.success(t('auth.successWelcome', { name: dbUser?.username || firebaseUser.username }));
+      navigate('/');
+    } catch (err) {
+      toast.error(t('auth.errGoogleFailed', { msg: err.message }));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -92,33 +97,33 @@ export default function Login() {
       <div className="glass w-full max-w-md p-8 rounded-2xl shadow-sm border border-line-soft text-center">
         
         <h1 className="text-3xl font-extrabold text-ink mb-2">
-          {isRegister ? 'Create an Account' : 'Join the Council'}
+          {isRegister ? t('auth.createAccountTitle') : t('auth.loginTitle')}
         </h1>
         <p className="text-sm text-muted mb-8 leading-relaxed">
-          Rank everything. Defend your picks.<br />Argue in the comments.
+          {t('auth.tagline1')}<br />{t('auth.tagline2')}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           {isRegister && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">Username</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">{t('auth.username')}</label>
               <input 
                 type="text" 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Your display name" 
+                placeholder={t('auth.usernamePlaceholder')} 
                 className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">Email</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">{t('auth.email')}</label>
             <input 
               type="email" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com" 
+              placeholder={t('auth.emailPlaceholder')} 
               className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
               required
             />
@@ -126,9 +131,9 @@ export default function Login() {
 
           <div>
             <div className="flex justify-between items-center mb-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-ink-soft">Password</label>
+              <label className="text-xs font-bold uppercase tracking-wider text-ink-soft">{t('auth.password')}</label>
               {!isRegister && (
-                <a href="#" className="text-xs text-muted hover:underline">Forgot password?</a>
+                <a href="#" className="text-xs text-muted hover:underline">{t('auth.forgotPassword')}</a>
               )}
             </div>
             <div className="relative">
@@ -152,7 +157,7 @@ export default function Login() {
 
           {isRegister && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">Confirm Password</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1.5">{t('auth.confirmPassword')}</label>
               <div className="relative">
                 <input 
                   type={showConfirmPassword ? "text" : "password"}
@@ -178,13 +183,13 @@ export default function Login() {
             disabled={isLoading}
             className="w-full bg-brand hover:bg-brand-accent text-canvas font-bold py-3 rounded-xl transition-colors shadow-sm mt-2 disabled:opacity-50"
           >
-            {isLoading ? 'Processing...' : (isRegister ? 'Sign Up' : 'Log In')}
+            {isLoading ? t('auth.processing') : (isRegister ? t('auth.signUp') : t('auth.logIn'))}
           </button>
         </form>
 
         <div className="flex items-center my-6">
           <div className="flex-1 border-t border-line-soft"></div>
-          <span className="px-4 text-xs font-semibold text-muted uppercase tracking-widest">or</span>
+          <span className="px-4 text-xs font-semibold text-muted uppercase tracking-widest">{t('auth.or')}</span>
           <div className="flex-1 border-t border-line-soft"></div>
         </div>
 
@@ -201,17 +206,17 @@ export default function Login() {
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
           </svg>
-          Continue with Google
+          {t('auth.continueGoogle')}
         </button>
 
         <p className="mt-6 text-sm text-muted">
-          {isRegister ? 'Already have an account?' : 'New to Tear of God?'}{' '}
+          {isRegister ? t('auth.haveAccount') : t('auth.newHere')}{' '}
           <button 
             type="button"
             onClick={() => setIsRegister(!isRegister)} 
             className="font-bold text-ink hover:underline ml-1"
           >
-            {isRegister ? 'Log in' : 'Create an account'}
+            {isRegister ? t('auth.switchToLogin') : t('auth.switchToSignup')}
           </button>
         </p>
 

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 // สร้างรายการหน้าแบบมี "…" คั่น เพื่อไม่ให้ปุ่มพ่นเยอะเกินไปเมื่อจำนวนหน้ามาก
 // เช่น totalPages=10, page=1 -> [1,2,3,'...',10]
 function buildPageList(page, totalPages) {
@@ -15,6 +17,7 @@ function buildPageList(page, totalPages) {
 }
 
 export default function Pagination({ page, totalPages, onChange }) {
+  const { t } = useTranslation();
   if (totalPages <= 1) return null;
 
   const pageList = buildPageList(page, totalPages);
@@ -27,7 +30,7 @@ export default function Pagination({ page, totalPages, onChange }) {
         onClick={() => onChange(page - 1)}
         className="rounded-md border border-line-soft px-3 py-1.5 text-sm hover:bg-surface-glass disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Prev
+        {t('common.prev')}
       </button>
       {pageList.map((p, idx) =>
         p === '...' ? (
@@ -51,7 +54,7 @@ export default function Pagination({ page, totalPages, onChange }) {
         onClick={() => onChange(page + 1)}
         className="rounded-md border border-line-soft px-3 py-1.5 text-sm hover:bg-surface-glass disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Next
+        {t('common.next')}
       </button>
     </div>
   );

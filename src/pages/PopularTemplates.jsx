@@ -6,18 +6,22 @@ import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
 import { ArrowLeftIcon } from '../components/ui/Icons';
+import { useTranslation } from 'react-i18next';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS = [
-  { value: 'popular', label: 'Popular' },
-  { value: 'recent', label: 'Recent' },
-  { value: 'views', label: 'Most Viewed' },
+  { value: 'popular', labelKey: 'sort.popular' },
+  { value: 'recent', labelKey: 'sort.recent' },
+  { value: 'views', labelKey: 'sort.mostViewed' },
 ];
 
 export default function PopularTemplates() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
 
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const sort = searchParams.get('sort') || 'popular';
@@ -27,19 +31,22 @@ export default function PopularTemplates() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false
     async function load() {
       setIsLoading(true);
-      const { data, total: t } = await fetchTemplates({ page, limit: PAGE_SIZE, sort });
+      const { data, total } = await fetchTemplates({ page, limit: PAGE_SIZE, sort });
+      if (cancelled) return;
       setTemplates(data || []);
-      setTotal(t || 0);
+      setTotal(total || 0);
       setIsLoading(false);
     }
     load();
+    return () => { cancelled = true }
   }, [page, sort]);
 
   const handleProtectedAction = (callback) => {
     if (!currentUser) {
-      alert('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้ครับ!');
+      alert(t('discover.protectedLogin'));
       navigate('/login');
       return;
     }
@@ -79,17 +86,17 @@ export default function PopularTemplates() {
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-ink">Popular Templates</h1>
-              <p className="text-sm text-muted">{total.toLocaleString()} templates</p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-ink">{t('discover.popularTemplates')}</h1>
+              <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
             </div>
           </div>
-          <SortDropdown value={sort} options={SORT_OPTIONS} onChange={handleSortChange} label="Sort:" />
+          <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />
         </div>
 
         {isLoading ? (
-          <p className="text-muted animate-pulse text-center py-10">กำลังโหลดเทมเพลต...</p>
+          <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingTemplates')}</p>
         ) : templates.length === 0 ? (
-          <p className="text-muted text-center py-10">ยังไม่มีเทมเพลตในระบบ</p>
+          <p className="text-muted text-center py-10">{t('discover.emptyTemplates')}</p>
         ) : (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             {templates.map((template) => (

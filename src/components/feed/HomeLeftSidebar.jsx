@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { LayoutDashboard, Compass, Sparkles, Music, Film, Utensils, Gamepad2, Tv, MonitorPlay, Hash, Folder, BookOpen, Dumbbell, Palette, Laptop, Plane } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { fetchCategories } from '../../lib/api';
+import { useTranslation } from 'react-i18next';
 
 const NAV_LINKS = [
-  { icon: LayoutDashboard, label: 'Home', path: '/' },
-  { icon: Compass, label: 'Discover', path: '/discover' },
-  { icon: Sparkles, label: 'Create Tier List', path: '/create' },
+  { icon: LayoutDashboard, labelKey: 'sidebar.home', path: '/' },
+  { icon: Compass, labelKey: 'sidebar.discover', path: '/discover' },
+  { icon: Sparkles, labelKey: 'sidebar.createTierList', path: '/create' },
 ];
 
 const getIconForCategory = (catStr) => {
@@ -38,6 +39,7 @@ const DEFAULT_CATEGORIES = [
 
 export default function HomeLeftSidebar() {
   const { currentUser } = useUser();
+  const { t } = useTranslation();
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function HomeLeftSidebar() {
             <li key={idx}>
               <Link to={item.path} className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-glass hover:text-highlight transition-colors font-semibold text-[15px]">
                 <item.icon size={20} className="text-brand" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             </li>
           ))}
@@ -71,7 +73,7 @@ export default function HomeLeftSidebar() {
 
       {/* Categories */}
       <div className="bg-surface border border-line-soft rounded-2xl p-5 shadow-sm">
-        <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-4 px-1">Popular Categories</h3>
+        <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-4 px-1">{t('sidebar.popularCategories')}</h3>
         
         <ul className="space-y-1">
           {categories.map((cat, idx) => {
@@ -91,7 +93,7 @@ export default function HomeLeftSidebar() {
         </ul>
         
         <Link to="/discover" className="block mt-4 text-center text-[13px] font-bold text-brand hover:text-highlight transition-colors">
-          Show all categories
+          {t('sidebar.showAllCategories')}
         </Link>
       </div>
     </div>

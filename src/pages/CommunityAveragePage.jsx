@@ -18,6 +18,7 @@ import {
 } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
+import { useTranslation } from 'react-i18next'
 
 // หน้าแสดง Community Average ของเทมเพลต — เลียนแบบหน้า post ของ ranking ปกติ (PostDetail)
 // มีตาราง tier list + like/dislike/comment + คอมเมนต์เต็มหน้า (ผูกกับ template_id — ดู schema.sql)
@@ -25,6 +26,7 @@ export default function CommunityAveragePage() {
   const { templateId } = useParams()
   const { currentUser } = useUser()
   const toast = useToast()
+  const { t, i18n } = useTranslation()
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
 
   const [template, setTemplate] = useState(null)
@@ -60,21 +62,22 @@ export default function CommunityAveragePage() {
   useEffect(() => {
     if (!templateId) return
     let cancelled = false
+    const unknownUser = t('common.unknownUser')
     fetchTemplateComments(templateId).then((res) => {
       if (cancelled) return
       setComments((res.data || []).map((c) => ({
         id: c.id,
-        author: { name: c.username || 'Unknown', avatarUrl: c.avatar_url },
-        postedAt: timeAgo(c.created_at),
+        author: { name: c.username || unknownUser, avatarUrl: c.avatar_url },
+        createdAt: c.created_at,
         body: c.content
       })))
     })
     return () => { cancelled = true }
-  }, [templateId])
+  }, [templateId, i18n.language])
 
   const handleVote = async (type) => {
     if (!currentUser) {
-      toast.warning('กรุณาเข้าสู่ระบบก่อนโหวตครับ!')
+      toast.warning(t('template.warnLoginVote'))
       return
     }
     const prev = reaction
@@ -94,13 +97,13 @@ export default function CommunityAveragePage() {
       setReaction({ userVote: result.userVote ?? null, likes: result.likes ?? likes, dislikes: result.dislikes ?? dislikes })
     } else {
       setReaction(prev)
-      toast.error('บันทึกการโหวตไม่สำเร็จ: ' + (result.error || 'เกิดข้อผิดพลาด'))
+      toast.error(t('post.voteFailed', { msg: result.error || t('common.error') }))
     }
   }
 
   const handleAddComment = async (body) => {
     if (!currentUser) {
-      toast.warning('กรุณาเข้าสู่ระบบก่อนคอมเมนต์ครับ!')
+      toast.warning(t('post.warnLoginComment'))
       return
     }
     if (!body || !body.trim()) return
@@ -109,21 +112,21 @@ export default function CommunityAveragePage() {
     if (res.data) {
       const newComment = {
         id: res.data.id,
-        author: { name: res.data.username || currentUser.username || 'User', avatarUrl: res.data.avatar_url || currentUser.avatar_url },
-        postedAt: 'Just now',
+        author: { name: res.data.username || t('common.unknownUser'), avatarUrl: res.data.avatar_url || currentUser.avatar_url },
+        createdAt: res.data.created_at ?? new Date().toISOString(),
         body: body.trim()
       }
       setComments((c) => [newComment, ...c])
       setCommentCount((n) => n + 1)
     } else {
-      toast.error('คอมเมนต์ไม่สำเร็จ: ' + (res.error || 'เกิดข้อผิดพลาด'))
+      toast.error(t('post.commentFailed', { msg: res.error || t('common.error') }))
     }
   }
 
   if (isLoading) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-lg font-bold text-muted animate-pulse">กำลังโหลดข้อมูล...</p>
+        <p className="text-lg font-bold text-muted animate-pulse">{t('post.loading')}</p>
       </main>
     )
   }
@@ -131,22 +134,22 @@ export default function CommunityAveragePage() {
   if (!template) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-lg font-bold text-ink">ไม่พบข้อมูล Community Average</p>
+        <p className="text-lg font-bold text-ink">{t('template.communityNotFound')}</p>
         <Link to={`/template/${templateId}`} className="mt-2 inline-block text-sm text-blue-500 hover:underline">
-          กลับสู่หน้าเทมเพลต
+          {t('template.backToTemplate')}
         </Link>
       </main>
     )
   }
 
   const tiersDef = template.tiers || []
-  const avgTiers = (template.community_average?.tiers || []).map((t) => {
-    const tierDef = tiersDef.find((x) => x.label === t.label)
+  const avgTiers = (template.community_average?.tiers || []).map((tier) => {
+    const tierDef = tiersDef.find((x) => x.label === tier.label)
     return {
-      tier: t.label,
+      tier: tier.label,
       color: tierDef?.color,
-      index: tiersDef.findIndex((x) => x.label === t.label),
-      items: (t.items || []).map((it) => ({ id: it.name, name: it.name, avg: it.avg, votes: it.votes ?? 0 }))
+      index: tiersDef.findIndex((x) => x.label === tier.label),
+      items: (tier.items || []).map((it) => ({ id: it.name, name: it.name, avg: it.avg, votes: it.votes ?? 0 }))
     }
   })
   const itemCount = avgTiers.reduce((n, { items }) => n + items.length, 0)
@@ -162,12 +165,12 @@ export default function CommunityAveragePage() {
 
           <article className="mt-4 rounded-2xl border border-line-soft glass p-4 shadow-sm">
             <p className="inline-flex items-center gap-1 rounded bg-brand px-2 py-1 text-[10px] font-bold tracking-wider text-canvas uppercase">
-              <Star size={12} /> Community Average
+              <Star size={12} /> {t('template.communityAverage')}
             </p>
 
             <h1 className="mt-3 text-2xl font-bold text-ink">{template.title}</h1>
             <p className="mt-1 text-xs text-muted">
-              {itemCount} items · Updated {updatedAt ? timeAgo(updatedAt) : '—'}
+              {t('template.itemsText', { n: itemCount, time: updatedAt ? timeAgo(updatedAt) : '—' })}
             </p>
 
             <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2 glass">
@@ -181,7 +184,7 @@ export default function CommunityAveragePage() {
                 <ActionButton
                   icon={ThumbsUpIcon}
                   count={formatCount(reaction.likes)}
-                  label="Like"
+                  label={t('post.like')}
                   pressed={reaction.userVote === 'like'}
                   activeClass="text-blue-600 font-bold"
                   onClick={() => handleVote('like')}
@@ -189,18 +192,18 @@ export default function CommunityAveragePage() {
                 <ActionButton
                   icon={ThumbsDownIcon}
                   count={formatCount(reaction.dislikes)}
-                  label="Dislike"
+                  label={t('post.dislike')}
                   pressed={reaction.userVote === 'dislike'}
                   activeClass="text-red-600 font-bold"
                   onClick={() => handleVote('dislike')}
                 />
-                <ActionButton icon={CommentIcon} count={formatCount(commentCount)} label="Comments" />
-                <ActionButton icon={Download} label="Export" onClick={() => setModal('export')} activeClass="hover:text-highlight" />
+                <ActionButton icon={CommentIcon} count={formatCount(commentCount)} label={t('post.comments')} />
+                <ActionButton icon={Download} label={t('common.export')} onClick={() => setModal('export')} activeClass="hover:text-highlight" />
               </div>
               <div className="ml-auto">
                 <ActionButton
                   icon={ShareIcon}
-                  label="Share"
+                  label={t('common.share')}
                   onClick={() => setModal('share')}
                 />
               </div>
@@ -214,21 +217,21 @@ export default function CommunityAveragePage() {
             link={shareUrl(`/template/${templateId}/community`)}
             preview={
               <ExportCard
-                title={`${template.title} · Community Average`}
+                title={`${template.title} · ${t('template.communityAverage')}`}
                 authorName={template.profile?.username}
                 authorAvatar={template.profile?.avatar_url}
-                postedAt="Community Average"
+                postedAt={t('template.communityAverage')}
                 category={template.category}
-                tiers={avgTiers.map((t) => ({
-                  tier: t.tier,
-                  color: t.color,
-                  items: (t.items || []).map((i) => (typeof i === 'object' ? i.name : i)),
+                tiers={avgTiers.map((row) => ({
+                  tier: row.tier,
+                  color: row.color,
+                  items: (row.items || []).map((i) => (typeof i === 'object' ? i.name : i)),
                 }))}
               />
             }
             filename={`template-${templateId}-community.png`}
-            stats={avgTiers.flatMap((t) =>
-              (t.items || []).map((it) => ({ item: it.name, avg: it.avg ?? 0, tier: t.tier, votes: it.votes ?? 0 }))
+            stats={avgTiers.flatMap((row) =>
+              (row.items || []).map((it) => ({ item: it.name, avg: it.avg ?? 0, tier: row.tier, votes: it.votes ?? 0 }))
             )}
             statsFilename={`template-${templateId}-community-stats`}
           />
@@ -238,12 +241,12 @@ export default function CommunityAveragePage() {
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-xl border border-line-soft glass p-4 shadow-sm">
-            <h2 className="text-sm font-bold text-ink">About this template</h2>
+            <h2 className="text-sm font-bold text-ink">{t('template.about')}</h2>
             <p className="mt-1 text-sm font-semibold text-ink">{template.title}</p>
             {template.description && <p className="mt-1 text-sm text-muted">{template.description}</p>}
-            <p className="mt-2 text-xs text-muted">Uses: {formatCount(template.stats?.uses)} · Views: {formatCount(template.stats?.views)}</p>
+            <p className="mt-2 text-xs text-muted">{t('template.usesLabel', { n: formatCount(template.stats?.uses), v: formatCount(template.stats?.views) })}</p>
             <Link to={`/template/${templateId}`} className="mt-3 inline-block rounded-full bg-brand-accent px-4 py-2 text-sm font-bold text-canvas transition-all hover:brightness-110 active:scale-95">
-              ดูเทมเพลต
+              {t('template.viewTemplate')}
             </Link>
           </div>
         </aside>
