@@ -1,17 +1,19 @@
 import { NavLink, Navigate, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Users, ListOrdered, LayoutTemplate, Flag } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
+import { useTranslation } from 'react-i18next';
 
 const NAV_ITEMS = [
-  { to: '/admin', label: 'แดชบอร์ด', icon: LayoutDashboard, end: true },
-  { to: '/admin/users', label: 'ผู้ใช้', icon: Users },
-  { to: '/admin/rankings', label: 'โพสต์', icon: ListOrdered },
-  { to: '/admin/templates', label: 'เทมเพลต', icon: LayoutTemplate },
-  { to: '/admin/reports', label: 'รายงาน', icon: Flag },
+  { to: '/admin', labelKey: 'admin.dashboard', icon: LayoutDashboard, end: true },
+  { to: '/admin/users', labelKey: 'admin.users', icon: Users },
+  { to: '/admin/rankings', labelKey: 'admin.rankings', icon: ListOrdered },
+  { to: '/admin/templates', labelKey: 'admin.templates', icon: LayoutTemplate },
+  { to: '/admin/reports', labelKey: 'admin.reports', icon: Flag },
 ];
 
 export default function AdminLayout() {
   const { currentUser } = useUser();
+  const { t } = useTranslation();
 
   // กันไม่ให้คนที่ไม่ใช่ admin เข้าใช้หน้า /admin (UI-level; backend ยังตรวจ requireAdmin เสมอ)
   if (currentUser?.role !== 'admin') {
@@ -24,10 +26,10 @@ export default function AdminLayout() {
       <aside className="hidden md:block w-56 shrink-0">
         <div className="glass rounded-2xl p-4 sticky top-24">
           <div className="px-2 pb-3 text-xs font-bold uppercase tracking-wider text-muted">
-            เมนูแอดมิน
+            {t('admin.menu')}
           </div>
           <nav className="flex flex-col gap-1">
-            {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+            {NAV_ITEMS.map(({ to, labelKey, icon: Icon, end }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -41,7 +43,7 @@ export default function AdminLayout() {
                 }
               >
                 <Icon size={17} strokeWidth={2.2} />
-                {label}
+                {t(labelKey)}
               </NavLink>
             ))}
           </nav>

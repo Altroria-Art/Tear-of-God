@@ -5,6 +5,7 @@ import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import TierLabel from '../components/tier/TierLabel';
+import { useTranslation, Trans } from 'react-i18next';
 
 const DEFAULT_TIERS = [
   { id: 't1', label: 'S', color: '#ff7f7f' },
@@ -52,6 +53,7 @@ const CreateTierList = () => {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const toast = useToast();
+  const { t } = useTranslation();
 
   // 📍 [ใหม่]: อ่าน draft ครั้งเดียวตอน mount แล้วเอามาเป็นค่า initial ของทุก state
   const [draft] = useState(loadDraft);
@@ -95,7 +97,7 @@ const CreateTierList = () => {
       tiers,
       items,
       selectedHashtags,
-      customHashtags: hashtags.filter(t => !DEFAULT_HASHTAGS.includes(t)),
+      customHashtags: hashtags.filter((tag) => !DEFAULT_HASHTAGS.includes(tag)),
     });
   }, [title, description, tiers, items, selectedHashtags, hashtags]);
 
@@ -127,6 +129,7 @@ const CreateTierList = () => {
     setDescription('');
     setSelectedHashtags([]);
     setQuickAddText('');
+    setTiers(DEFAULT_TIERS);
   };
 
   // 📍 เด้ง item ที่จัดไว้ในตารางกลับลง Unranked Pool (ทุก tierId → null)
@@ -135,8 +138,8 @@ const CreateTierList = () => {
   };
 
   // ฟังก์ชัน Hashtag
-  const handleToggleHashtag = (tag) => selectedHashtags.includes(tag) ? setSelectedHashtags(selectedHashtags.filter(t => t !== tag)) : setSelectedHashtags([...selectedHashtags, tag]);
-  const handleRemoveSelectedTag = (tagToRemove) => setSelectedHashtags(selectedHashtags.filter(t => t !== tagToRemove));
+  const handleToggleHashtag = (tag) => selectedHashtags.includes(tag) ? setSelectedHashtags(selectedHashtags.filter((x) => x !== tag)) : setSelectedHashtags([...selectedHashtags, tag]);
+  const handleRemoveSelectedTag = (tagToRemove) => setSelectedHashtags(selectedHashtags.filter((x) => x !== tagToRemove));
 
   // 📍 [ใหม่]: debounced search hashtags ที่มีอยู่แล้วจาก API ทุกครั้งที่พิมพ์ query
   useEffect(() => {
@@ -150,7 +153,7 @@ const CreateTierList = () => {
         if (!cancelled && json.success) {
           const hits = (json.data || [])
             .map(h => `#${h.tag.replace(/^#/, '')}`)
-            .filter(t => !selectedHashtags.includes(t));
+            .filter((h) => !selectedHashtags.includes(h));
           setTagResults(hits);
         }
       } catch {
@@ -260,7 +263,7 @@ const CreateTierList = () => {
           type="button"
           onClick={() => shiftItem(item.id, -1)}
           disabled={pos === 0}
-          aria-label="Move left"
+          aria-label={t('create.moveLeft')}
           className="absolute bottom-1 left-1 rounded p-1 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
         >
           <ChevronLeft size={14} strokeWidth={3} />
@@ -269,7 +272,7 @@ const CreateTierList = () => {
           type="button"
           onClick={() => shiftItem(item.id, 1)}
           disabled={pos === mates.length - 1}
-          aria-label="Move right"
+          aria-label={t('create.moveRight')}
           className="absolute bottom-1 right-1 rounded p-1 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
         >
           <ChevronRight size={14} strokeWidth={3} />
@@ -281,17 +284,17 @@ const CreateTierList = () => {
   };
 
   const handlePublish = async () => {
-    if (!currentUser) return toast.warning('กรุณาเข้าสู่ระบบก่อน Publish Tier List');
-    if (!title.trim()) return toast.warning('กรุณาตั้งชื่อ Template Name ก่อนครับ');
-    if (selectedHashtags.length === 0) return toast.warning('กรุณาเลือก Hashtag อย่างน้อย 1 อันครับ');
+    if (!currentUser) return toast.warning(t('create.warnLoginPublish'));
+    if (!title.trim()) return toast.warning(t('create.warnName'));
+    if (selectedHashtags.length === 0) return toast.warning(t('create.warnHashtag'));
 
     // 📍 [เพิ่มใหม่]: ต้องมี item และจัด tier แล้วเท่านั้น — ไม่งั้นจะได้โพสต์เปล่า
     const rankedItems = items.filter(item => item.tierId !== null);
     if (items.length === 0) {
-      return toast.error('Please add an item and make your tier list.');
+      return toast.error(t('create.errAddItem'));
     }
     if (rankedItems.length === 0) {
-      return toast.error('Please make your tier list.');
+      return toast.error(t('create.errMakeTier'));
     }
 
     setIsPublishing(true);
@@ -318,7 +321,7 @@ const CreateTierList = () => {
         items: items.map((item, index) => ({ name: item.content, position: index }))
       },
       items: rankedItems.map((item, index) => {
-        const tierObj = tiers.find(t => t.id === item.tierId);
+        const tierObj = tiers.find((tier) => tier.id === item.tierId);
         return { item_id: item.content, tier: tierObj ? tierObj.label : 'S', position: index };
       })
     };
@@ -327,10 +330,10 @@ const CreateTierList = () => {
     setIsPublishing(false);
 
     if (error) {
-      toast.error('เกิดข้อผิดพลาด: ' + error);
+      toast.error(t('create.errGeneric', { msg: error }));
     } else {
       clearDraft(); // 📍 [ใหม่]: publish สำเร็จ → ล้าง draft ใน localStorage
-      toast.success('Publish เรียบร้อย!');
+      toast.success(t('create.successPublish'));
       navigate('/');
     }
   };
@@ -344,19 +347,19 @@ const CreateTierList = () => {
           <div className="bg-surface border border-line-soft text-ink w-full max-w-md rounded-lg shadow-2xl relative border border-[#52463e]">
             <button onClick={() => setActiveSettingsTier(null)} className="absolute top-4 right-4 text-gray-400 hover:text-ink transition-colors"><X size={20} /></button>
             <div className="p-8">
-              <h3 className="text-center font-bold text-base mb-6">Choose a Label Background Color:</h3>
+              <h3 className="text-center font-bold text-base mb-6">{t('create.chooseLabelBg')}</h3>
               <div className="flex flex-wrap justify-center gap-2.5 mb-8 px-4">
                 {availableColors.map(color => (
                   <button key={color} onClick={() => updateTierData(activeSettingsTier.id, 'color', color)}
                     style={{ backgroundColor: color }}
-                    className={`w-8 h-8 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${tiers.find(t => t.id === activeSettingsTier.id)?.color === color ? 'border-white scale-110' : 'border-transparent'}`}
+                    className={`w-8 h-8 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${tiers.find((tier) => tier.id === activeSettingsTier.id)?.color === color ? 'border-white scale-110' : 'border-transparent'}`}
                   />
                 ))}
               </div>
-              <h3 className="text-center font-bold text-base mb-4">Edit Label Text Below:</h3>
-              <input type="text" value={tiers.find(t => t.id === activeSettingsTier.id)?.label || ''} onChange={(e) => updateTierData(activeSettingsTier.id, 'label', e.target.value)} className="w-full bg-canvas text-ink p-3.5 rounded-md outline-none focus:ring-2 focus:ring-brand mb-6 font-medium shadow-inner" />
+              <h3 className="text-center font-bold text-base mb-4">{t('create.editLabelText')}</h3>
+              <input type="text" value={tiers.find((tier) => tier.id === activeSettingsTier.id)?.label || ''} onChange={(e) => updateTierData(activeSettingsTier.id, 'label', e.target.value)} className="w-full bg-canvas text-ink p-3.5 rounded-md outline-none focus:ring-2 focus:ring-brand mb-6 font-medium shadow-inner" />
               <div className="flex justify-center">
-                <button onClick={() => setActiveSettingsTier(null)} className="bg-brand-accent hover:bg-surface text-canvas py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm">Save</button>
+                <button onClick={() => setActiveSettingsTier(null)} className="bg-brand-accent hover:bg-surface text-canvas py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm">{t('common.save')}</button>
               </div>
             </div>
           </div>
@@ -365,8 +368,8 @@ const CreateTierList = () => {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
-        <h1 className="text-3xl font-black mb-2 text-brand">Create Tier List</h1>
-        <p className="text-muted font-medium">Define your categories and rank items seamlessly.</p>
+        <h1 className="text-3xl font-black mb-2 text-brand">{t('create.title')}</h1>
+        <p className="text-muted font-medium">{t('create.subtitle')}</p>
       </div>
 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
@@ -375,14 +378,14 @@ const CreateTierList = () => {
         <div className="w-full lg:w-1/3 flex flex-col gap-6">
           <div className="glass p-6 rounded-3xl shadow-xl flex flex-col gap-5">
             <div>
-              <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">Template Name</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="E.g. Best 90s Movies..." className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
+              <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.templateName')}</label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('create.templateNamePh')} className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
             </div>
             
             {/* 📍 Hashtags Section */}
             <div>
-              <label className="block text-sm font-bold mb-1 text-ink-soft uppercase tracking-wider">Hashtags / Category</label>
-              <p className="text-xs text-muted mb-3 font-medium">Select or create tags to categorize your list.</p>
+              <label className="block text-sm font-bold mb-1 text-ink-soft uppercase tracking-wider">{t('create.hashtags')}</label>
+              <p className="text-xs text-muted mb-3 font-medium">{t('create.hashtagHelp')}</p>
               
               {selectedHashtags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-3">
@@ -395,7 +398,7 @@ const CreateTierList = () => {
               )}
 
               <div className="flex flex-wrap gap-1.5 mb-3">
-                {hashtags.filter(t => !selectedHashtags.includes(t)).map((tag, idx) => (
+                {hashtags.filter((tag) => !selectedHashtags.includes(tag)).map((tag, idx) => (
                   <button key={idx} type="button" onClick={() => handleToggleHashtag(tag)} className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-surface text-ink-soft hover:bg-surface-glass hover:text-brand">
                     + {tag}
                   </button>
@@ -409,7 +412,7 @@ const CreateTierList = () => {
                   value={tagQuery}
                   onChange={(e) => setTagQuery(e.target.value)}
                   onKeyDown={handleAddCustomTag}
-                  placeholder="Search existing hashtags or type new one & press Enter..."
+                  placeholder={t('create.tagSearchPh')}
                   className="w-full bg-surface border border-line-soft text-ink rounded-xl px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all"
                   autoComplete="off"
                 />
@@ -418,11 +421,18 @@ const CreateTierList = () => {
                 {tagQuery.trim() && (
                   <div className="absolute top-full left-0 right-0 z-40 mt-1 glass rounded-xl shadow-2xl max-h-48 overflow-y-auto">
                     {isSearchingTags && (
-                      <div className="px-3 py-2 text-xs text-muted italic">Searching...</div>
+                      <div className="px-3 py-2 text-xs text-muted italic">{t('create.searching')}</div>
                     )}
                     {!isSearchingTags && tagResults.length === 0 && tagQuery.trim().length >= 2 && (
                       <div className="px-3 py-2 text-xs text-muted">
-                        No existing tags — press <kbd className="px-1 py-0.5 bg-surface rounded text-ink-soft font-mono text-[10px]">Enter</kbd> to create <span className="font-bold text-brand">#{tagQuery.replace(/^#/, '')}</span>
+                        <Trans
+                          i18nKey="create.noExistingTags"
+                          values={{ tag: tagQuery.replace(/^#/, '') }}
+                          components={{
+                            kbd: <kbd className="px-1 py-0.5 bg-surface rounded text-ink-soft font-mono text-[10px]" />,
+                            b: <span className="font-bold text-brand" />,
+                          }}
+                        />
                       </div>
                     )}
                     {tagResults.map((tag) => (
@@ -442,18 +452,18 @@ const CreateTierList = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">Description <span className="text-muted font-medium text-xs normal-case">(Optional)</span></label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What is this tier list about?" rows="3" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none"></textarea>
+              <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.description')} <span className="text-muted font-medium text-xs normal-case">{t('create.optional')}</span></label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('create.descriptionPh')} rows="3" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none"></textarea>
             </div>
           </div>
 
           <div className="glass p-6 rounded-3xl shadow-xl flex flex-col gap-4">
-            <h3 className="font-black text-brand mb-1 flex items-center gap-2"><span className="text-xl">✨</span> Quick Add Items</h3>
-            <p className="text-xs text-muted mb-2 font-medium">Type item names separated by commas.</p>
-            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder="Item 1, Item 2, Item 3..." rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
+            <h3 className="font-black text-brand mb-1 flex items-center gap-2"><span className="text-xl">✨</span> {t('create.quickAdd')}</h3>
+            <p className="text-xs text-muted mb-2 font-medium">{t('create.quickAddHelp')}</p>
+            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
             <div className="flex justify-end">
               <button onClick={handleGenerateCards} className="bg-surface hover:bg-brand hover:text-canvas hover:border-transparent text-brand font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
-                <span className="text-lg leading-none">⊕</span> Generate
+                <span className="text-lg leading-none">⊕</span> {t('create.generate')}
               </button>
             </div>
           </div>
@@ -475,7 +485,7 @@ const CreateTierList = () => {
                     {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
                   </div>
                   <div className="w-14 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
-                    <button onClick={() => setActiveSettingsTier(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title="Settings"><Settings size={18} /></button>
+                    <button onClick={() => setActiveSettingsTier(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
                   </div>
                 </div>
               ))}
@@ -486,29 +496,29 @@ const CreateTierList = () => {
             {/* UNRANKED ITEMS POOL */}
             <div>
               <div className="flex items-center justify-between mb-4 gap-3">
-                <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">Unranked Items Pool</h3>
+                <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">{t('create.unrankedPool')}</h3>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleReturnToPool}
-                    title="ย้าย item ที่จัดไว้ในตารางกลับลงมาในกล่องนี้"
+                    title={t('create.backToPoolTip')}
                     className="flex items-center gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink-soft transition-all hover:bg-surface hover:text-ink hover:shadow-md active:scale-95"
                   >
-                    <ChevronLeft size={14} /> Back to Pool
+                    <ChevronLeft size={14} /> {t('create.backToPool')}
                   </button>
                   <button
                     type="button"
                     onClick={handleResetAll}
-                    title="รีเซ็ตทั้งกระดาน: ล้าง item, ชื่อ, แฮชแท็ก และคำอธิบายทั้งหมด"
+                    title={t('create.resetAllTip')}
                     className="flex items-center gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300 hover:shadow-md active:scale-95"
                   >
-                    <X size={14} /> Reset All
+                    <X size={14} /> {t('create.resetAll')}
                   </button>
                 </div>
               </div>
               <div className="bg-surface-glass border border-line-soft min-h-[160px] rounded-2xl p-6 flex flex-wrap gap-4" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
                 {items.filter(item => item.tierId === null).length === 0 ? (
-                  <span className="text-muted text-sm italic font-medium w-full text-center mt-12 pointer-events-none">No items yet. Generate them from the left panel.</span>
+                  <span className="text-muted text-sm italic font-medium w-full text-center mt-12 pointer-events-none">{t('create.noItems')}</span>
                 ) : (
                   items.filter(item => item.tierId === null).map(renderItemCard)
                 )}
@@ -517,7 +527,7 @@ const CreateTierList = () => {
 
             <div className="flex justify-end items-center mt-10">
               <button onClick={handlePublish} disabled={isPublishing} className="bg-brand hover:bg-brand-accent disabled:bg-surface disabled:text-muted text-canvas text-sm font-bold py-3 px-8 rounded-xl flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(255,255,255,0.1)] active:scale-95">
-                {isPublishing ? 'Publishing...' : <><Upload size={18} /> Publish List</>}
+                {isPublishing ? t('create.publishing') : <><Upload size={18} /> {t('create.publishList')}</>}
               </button>
             </div>
           </div>

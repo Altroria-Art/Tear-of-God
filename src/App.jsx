@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { lazy } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from './components/layout/Navbar';
 import ToastProvider from './components/ui/Toast';
 import { UserProvider } from './context/UserContext';
@@ -31,9 +32,10 @@ const AdminTemplates = lazy(() => import('./pages/admin/Templates'));
 const AdminReports = lazy(() => import('./pages/admin/Reports'));
 
 function PageLoader() {
+  const { t } = useTranslation();
   return (
     <main className="min-h-screen flex items-center justify-center">
-      <p className="text-sm font-medium text-muted animate-pulse">กำลังโหลด...</p>
+      <p className="text-sm font-medium text-muted animate-pulse">{t('common.loading')}</p>
     </main>
   );
 }

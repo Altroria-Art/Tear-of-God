@@ -4,12 +4,14 @@ import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminRankings, deleteAdminRanking } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import { useTranslation } from 'react-i18next';
 
 const PAGE_LIMIT = 20;
 
 export default function Rankings() {
   const { currentUser } = useUser();
   const toast = useToast();
+  const { t } = useTranslation();
   const [rankings, setRankings] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -19,8 +21,8 @@ export default function Rankings() {
   const [debouncedQ, setDebouncedQ] = useState('');
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedQ(q), 400);
+    return () => clearTimeout(timer);
   }, [q]);
 
   const load = useCallback(async (query, pageNum) => {
@@ -30,27 +32,40 @@ export default function Rankings() {
       setRankings(res.data || []);
       setTotal(res.total || 0);
     } else {
-      toast.error(res.error || 'โหลดรายการไม่สำเร็จ');
+      toast.error(res.error || t('admin.errLoadRankings'));
     }
     setLoading(false);
-  }, [currentUser?.id, toast]);
+  }, [currentUser?.id, toast, t]);
 
   useEffect(() => {
     setPage(1);
-    load(debouncedQ, 1);
-  }, [debouncedQ, load]);
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const res = await fetchAdminRankings({ userId: currentUser?.id, q: debouncedQ, page: 1, limit: PAGE_LIMIT });
+      if (cancelled) return;
+      if (res.success) {
+        setRankings(res.data || []);
+        setTotal(res.total || 0);
+      } else {
+        toast.error(res.error || t('admin.errLoadRankings'));
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [debouncedQ, currentUser?.id, toast, t]);
 
   const handleDelete = async (r) => {
-    if (!window.confirm(`ยืนยันลบโพสต์ "${r.title}"?`)) return;
+    if (!window.confirm(t('admin.confirmDeletePost', { title: r.title }))) return;
     setBusy(r.id);
     const res = await deleteAdminRanking({ userId: currentUser?.id, targetId: r.id });
     setBusy(null);
     if (res.success) {
-      toast.success('ลบโพสต์แล้ว');
+      toast.success(t('admin.deletePostSuccess'));
       setRankings((prev) => prev.filter((x) => x.id !== r.id));
-      setTotal((t) => Math.max(0, t - 1));
+      setTotal((prev) => Math.max(0, prev - 1));
     } else {
-      toast.error(res.error || 'ลบโพสต์ไม่สำเร็จ');
+      toast.error(res.error || t('admin.deletePostFailed', { msg: '' }));
     }
   };
 
@@ -58,8 +73,8 @@ export default function Rankings() {
 
   return (
     <div>
-      <h1 className="text-2xl font-black text-ink mb-1">จัดการโพสต์</h1>
-      <p className="text-sm text-muted mb-6">ค้นหาและลบโพสต์/แงนคิงที่ไม่เหมาะสม</p>
+      <h1 className="text-2xl font-black text-ink mb-1">{t('admin.managePosts')}</h1>
+      <p className="text-sm text-muted mb-6">{t('admin.managePostsHelp')}</p>
 
       <div className="relative mb-4 max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -67,28 +82,28 @@ export default function Rankings() {
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="ค้นหาชื่อโพสต์..."
+          placeholder={t('admin.searchPostPh')}
           className="w-full bg-surface border border-line-soft text-ink rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand placeholder-muted"
         />
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted animate-pulse">กำลังโหลด...</p>
+        <p className="text-sm text-muted animate-pulse">{t('admin.loading')}</p>
       ) : rankings.length === 0 ? (
-        <div className="glass rounded-2xl py-8 text-center text-sm text-muted">ไม่พบโพสต์</div>
+        <div className="glass rounded-2xl py-8 text-center text-sm text-muted">{t('admin.noPosts')}</div>
       ) : (
         <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
-                  <th className="px-4 py-3 font-bold">ชื่อโพสต์</th>
-                  <th className="px-4 py-3 font-bold">ผู้เขียน</th>
-                  <th className="px-4 py-3 font-bold">หมวดหมู่</th>
-                  <th className="px-4 py-3 font-bold text-right">ไลก์</th>
-                  <th className="px-4 py-3 font-bold text-right">ดิสไลก์</th>
-                  <th className="px-4 py-3 font-bold text-right">คอมเมนต์</th>
-                  <th className="px-4 py-3 font-bold text-right">จัดการ</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.postTitle')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.author')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.category')}</th>
+                  <th className="px-4 py-3 font-bold text-right">{t('admin.likes')}</th>
+                  <th className="px-4 py-3 font-bold text-right">{t('admin.dislikes')}</th>
+                  <th className="px-4 py-3 font-bold text-right">{t('admin.comments')}</th>
+                  <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,7 +128,7 @@ export default function Rankings() {
                         className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
                       >
                         <Trash2 size={14} className="inline-block mr-1" />
-                        ลบ
+                        {t('common.delete')}
                       </button>
                     </td>
                   </tr>

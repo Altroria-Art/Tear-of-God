@@ -4,12 +4,14 @@ import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminUsers, setUserRole, deleteAdminUser } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import { useTranslation } from 'react-i18next';
 
 const PAGE_LIMIT = 20;
 
 export default function Users() {
   const { currentUser } = useUser();
   const toast = useToast();
+  const { t } = useTranslation();
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -19,8 +21,8 @@ export default function Users() {
   const [debouncedQ, setDebouncedQ] = useState('');
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedQ(q), 400);
+    return () => clearTimeout(timer);
   }, [q]);
 
   const load = useCallback(async (query, pageNum) => {
@@ -30,39 +32,52 @@ export default function Users() {
       setUsers(res.data || []);
       setTotal(res.total || 0);
     } else {
-      toast.error(res.error || 'โหลดรายชื่อไม่สำเร็จ');
+      toast.error(res.error || t('admin.errLoadUsers'));
     }
     setLoading(false);
-  }, [currentUser?.id, toast]);
+  }, [currentUser?.id, toast, t]);
 
   useEffect(() => {
     setPage(1);
-    load(debouncedQ, 1);
-  }, [debouncedQ, load]);
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const res = await fetchAdminUsers({ userId: currentUser?.id, q: debouncedQ, page: 1, limit: PAGE_LIMIT });
+      if (cancelled) return;
+      if (res.success) {
+        setUsers(res.data || []);
+        setTotal(res.total || 0);
+      } else {
+        toast.error(res.error || t('admin.errLoadUsers'));
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [debouncedQ, currentUser?.id, toast, t]);
 
   const handleRole = async (user, role) => {
     setBusy(user.id);
     const res = await setUserRole({ userId: currentUser?.id, targetId: user.id, role });
     setBusy(null);
     if (res.success) {
-      toast.success(`ตั้งบทบาท ${user.username} เป็น${role === 'admin' ? 'แอดมิน' : 'ผู้ใช้'}แล้ว`);
+      toast.success(t('admin.roleSet', { name: user.username, role: role === 'admin' ? t('admin.adminRole') : t('admin.userRole') }));
       setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, role } : u)));
     } else {
-      toast.error(res.error || 'ตั้งบทบาทไม่สำเร็จ');
+      toast.error(res.error || t('admin.setRoleFailed', { msg: '' }));
     }
   };
 
   const handleDelete = async (user) => {
-    if (!window.confirm(`ยืนยันลบผู้ใช้ "${user.username}"? การกระทำนี้ไม่สามารถย้อนกลับได้`)) return;
+    if (!window.confirm(t('admin.confirmDeleteUser', { username: user.username }))) return;
     setBusy(user.id);
     const res = await deleteAdminUser({ userId: currentUser?.id, targetId: user.id });
     setBusy(null);
     if (res.success) {
-      toast.success(`ลบผู้ใช้ ${user.username} แล้ว`);
+      toast.success(t('admin.userDeleted', { username: user.username }));
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
-      setTotal((t) => Math.max(0, t - 1));
+      setTotal((prev) => Math.max(0, prev - 1));
     } else {
-      toast.error(res.error || 'ลบผู้ใช้ไม่สำเร็จ');
+      toast.error(res.error || t('admin.deleteUserFailed', { msg: '' }));
     }
   };
 
@@ -70,8 +85,8 @@ export default function Users() {
 
   return (
     <div>
-      <h1 className="text-2xl font-black text-ink mb-1">จัดการผู้ใช้</h1>
-      <p className="text-sm text-muted mb-6">ค้นหา, ตั้งบทบาทแอดมิน และลบผู้ใช้</p>
+      <h1 className="text-2xl font-black text-ink mb-1">{t('admin.manageUsers')}</h1>
+      <p className="text-sm text-muted mb-6">{t('admin.manageUsersHelp')}</p>
 
       <div className="relative mb-4 max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -79,27 +94,27 @@ export default function Users() {
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="ค้นหา username หรือ email..."
+          placeholder={t('admin.searchUsersPh')}
           className="w-full bg-surface border border-line-soft text-ink rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-brand placeholder-muted"
         />
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted animate-pulse">กำลังโหลด...</p>
+        <p className="text-sm text-muted animate-pulse">{t('admin.loading')}</p>
       ) : users.length === 0 ? (
-        <div className="glass rounded-2xl py-8 text-center text-sm text-muted">ไม่พบผู้ใช้</div>
+        <div className="glass rounded-2xl py-8 text-center text-sm text-muted">{t('admin.noUsers')}</div>
       ) : (
         <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
-                  <th className="px-4 py-3 font-bold">ผู้ใช้</th>
-                  <th className="px-4 py-3 font-bold">อีเมล</th>
-                  <th className="px-4 py-3 font-bold">บทบาท</th>
-                  <th className="px-4 py-3 font-bold text-right">โพสต์</th>
-                  <th className="px-4 py-3 font-bold text-right">ผู้ติดตาม</th>
-                  <th className="px-4 py-3 font-bold text-right">จัดการ</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.user')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.email')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.role')}</th>
+                  <th className="px-4 py-3 font-bold text-right">{t('admin.posts')}</th>
+                  <th className="px-4 py-3 font-bold text-right">{t('admin.followers')}</th>
+                  <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -118,11 +133,11 @@ export default function Users() {
                     <td className="px-4 py-3">
                       {u.role === 'admin' ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-status-success bg-status-success/10 rounded-full px-2.5 py-1">
-                          <ShieldCheck size={12} /> แอดมิน
+                          <ShieldCheck size={12} /> {t('admin.adminRole')}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-muted bg-tag rounded-full px-2.5 py-1">
-                          <Shield size={12} /> ผู้ใช้
+                          <Shield size={12} /> {t('admin.userRole')}
                         </span>
                       )}
                     </td>
@@ -134,7 +149,7 @@ export default function Users() {
                         disabled={busy === u.id}
                         className="text-xs font-bold text-brand-accent hover:text-highlight px-2 py-1 disabled:opacity-50"
                       >
-                        {u.role === 'admin' ? 'ลดเป็นผู้ใช้' : 'เป็นแอดมิน'}
+                        {u.role === 'admin' ? t('admin.demote') : t('admin.promote')}
                       </button>
                       <button
                         onClick={() => handleDelete(u)}
@@ -142,7 +157,7 @@ export default function Users() {
                         className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
                       >
                         <Trash2 size={14} className="inline-block mr-1" />
-                        ลบ
+                        {t('common.delete')}
                       </button>
                     </td>
                   </tr>

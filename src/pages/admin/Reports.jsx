@@ -5,23 +5,25 @@ import { useToast } from '../../components/ui/Toast';
 import { fetchAdminReports, setReportStatus, deleteAdminReport } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
 import { timeAgo } from '../../lib/format';
+import { useTranslation } from 'react-i18next';
 
 const PAGE_LIMIT = 20;
 const STATUS_FILTERS = [
-  { value: 'pending', label: 'รอตรวจสอบ' },
-  { value: 'resolved', label: 'จัดการแล้ว' },
-  { value: 'dismissed', label: 'ปัดตก' },
+  { value: 'pending', labelKey: 'admin.statusPending' },
+  { value: 'resolved', labelKey: 'admin.statusResolved' },
+  { value: 'dismissed', labelKey: 'admin.statusDismissed' },
 ];
 
 const STATUS_META = {
-  pending: { label: 'รอตรวจสอบ', cls: 'text-status-warning bg-status-warning/10' },
-  resolved: { label: 'จัดการแล้ว', cls: 'text-status-success bg-status-success/10' },
-  dismissed: { label: 'ปัดตก', cls: 'text-muted bg-tag' },
+  pending: { labelKey: 'admin.statusPending', cls: 'text-status-warning bg-status-warning/10' },
+  resolved: { labelKey: 'admin.statusResolved', cls: 'text-status-success bg-status-success/10' },
+  dismissed: { labelKey: 'admin.statusDismissed', cls: 'text-muted bg-tag' },
 };
 
 export default function Reports() {
   const { currentUser } = useUser();
   const toast = useToast();
+  const { t } = useTranslation();
   const [reports, setReports] = useState([]);
   const [total, setTotal] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -38,10 +40,10 @@ export default function Reports() {
       setTotal(res.total || 0);
       setPendingCount(res.pending_count || 0);
     } else {
-      toast.error(res.error || 'โหลดรายการไม่สำเร็จ');
+      toast.error(res.error || t('admin.errLoadReports'));
     }
     setLoading(false);
-  }, [currentUser?.id, toast]);
+  }, [currentUser?.id, toast, t]);
 
   useEffect(() => {
     setPage(1);
@@ -53,25 +55,26 @@ export default function Reports() {
     const res = await setReportStatus({ userId: currentUser?.id, targetId: r.id, status: nextStatus });
     setBusy(null);
     if (res.success) {
-      toast.success('อัปเดตสถานะแล้ว');
+      toast.success(t('admin.statusUpdated'));
       setReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: nextStatus } : x)));
       if (nextStatus !== 'pending' && r.status === 'pending') setPendingCount((c) => Math.max(0, c - 1));
+      if (nextStatus === 'pending' && r.status !== 'pending') setPendingCount((c) => c + 1);
     } else {
-      toast.error(res.error || 'อัปเดตสถานะไม่สำเร็จ');
+      toast.error(res.error || t('admin.statusUpdateFailed', { msg: '' }));
     }
   };
 
   const handleDelete = async (r) => {
-    if (!window.confirm('ยืนยันลบรายงานนี้?')) return;
+    if (!window.confirm(t('admin.confirmDeleteReport'))) return;
     setBusy(r.id);
     const res = await deleteAdminReport({ userId: currentUser?.id, targetId: r.id });
     setBusy(null);
     if (res.success) {
-      toast.success('ลบรายงานแล้ว');
+      toast.success(t('admin.reportDeleted'));
       setReports((prev) => prev.filter((x) => x.id !== r.id));
-      setTotal((t) => Math.max(0, t - 1));
+      setTotal((prev) => Math.max(0, prev - 1));
     } else {
-      toast.error(res.error || 'ลบรายงานไม่สำเร็จ');
+      toast.error(res.error || t('admin.deleteReportFailed', { msg: '' }));
     }
   };
 
@@ -80,17 +83,17 @@ export default function Reports() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-1">
-        <h1 className="text-2xl font-black text-ink">จัดการรายงาน</h1>
+        <h1 className="text-2xl font-black text-ink">{t('admin.manageReports')}</h1>
         {pendingCount > 0 && (
           <span className="inline-flex items-center gap-1 text-xs font-bold text-status-warning bg-status-warning/10 rounded-full px-2.5 py-1">
-            <Flag size={12} /> {pendingCount} รอตรวจสอบ
+            <Flag size={12} /> {t('admin.pendingCount', { count: pendingCount })}
           </span>
         )}
       </div>
-      <p className="text-sm text-muted mb-6">รายงานจากผู้ใช้ที่แจ้งหาแอดมิน</p>
+      <p className="text-sm text-muted mb-6">{t('admin.reportsHelp')}</p>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        {STATUS_FILTERS.map(({ value, label }) => (
+        {STATUS_FILTERS.map(({ value, labelKey }) => (
           <button
             key={value}
             onClick={() => setStatus(value)}
@@ -98,27 +101,27 @@ export default function Reports() {
               status === value ? 'bg-brand text-canvas shadow-md' : 'text-muted hover:text-ink hover:bg-surface-glass'
             }`}
           >
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted animate-pulse">กำลังโหลด...</p>
+        <p className="text-sm text-muted animate-pulse">{t('admin.loading')}</p>
       ) : reports.length === 0 ? (
-        <div className="glass rounded-2xl py-8 text-center text-sm text-muted">ไม่มีรายงานในหมวดนี้</div>
+        <div className="glass rounded-2xl py-8 text-center text-sm text-muted">{t('admin.noReports')}</div>
       ) : (
         <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
-                  <th className="px-4 py-3 font-bold">เนื้อหา</th>
-                  <th className="px-4 py-3 font-bold">เหตุผล</th>
-                  <th className="px-4 py-3 font-bold">ผู้รายงาน</th>
-                  <th className="px-4 py-3 font-bold">เวลา</th>
-                  <th className="px-4 py-3 font-bold">สถานะ</th>
-                  <th className="px-4 py-3 font-bold text-right">จัดการ</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.content')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.reason')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.reporter')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.time')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.status')}</th>
+                  <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,7 +133,7 @@ export default function Reports() {
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${
                           r.kind === 'post' ? 'bg-brand/10 text-brand-accent' : 'bg-surface-glass text-muted'
                         }`}>
-                          {r.kind === 'post' ? 'โพสต์' : 'เทมเพลต'}
+                          {r.kind === 'post' ? t('admin.contentPost') : t('admin.contentTemplate')}
                         </span>
                         <div className="mt-1 text-ink font-medium max-w-[220px] truncate">
                           {r.kind === 'post' ? r.ranking_title : r.template_title}
@@ -146,7 +149,7 @@ export default function Reports() {
                       <td className="px-4 py-3 text-ink-soft whitespace-nowrap">{timeAgo(r.created_at)}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${meta.cls}`}>
-                          {meta.label}
+                          {t(meta.labelKey)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -156,7 +159,7 @@ export default function Reports() {
                             disabled={busy === r.id}
                             className="text-xs font-bold text-status-success hover:bg-status-success/10 rounded-lg px-2 py-1 disabled:opacity-50"
                           >
-                            จัดการแล้ว
+                            {t('admin.markResolved')}
                           </button>
                         )}
                         {r.status === 'pending' && (
@@ -165,7 +168,7 @@ export default function Reports() {
                             disabled={busy === r.id}
                             className="text-xs font-bold text-muted hover:bg-tag rounded-lg px-2 py-1 disabled:opacity-50"
                           >
-                            ปัดตก
+                            {t('admin.dismiss')}
                           </button>
                         )}
                         {r.status !== 'pending' && (
@@ -174,7 +177,7 @@ export default function Reports() {
                             disabled={busy === r.id}
                             className="text-xs font-bold text-brand-accent hover:bg-surface-glass rounded-lg px-2 py-1 disabled:opacity-50"
                           >
-                            เปิดใหม่
+                            {t('admin.reopen')}
                           </button>
                         )}
                         <button
@@ -183,7 +186,7 @@ export default function Reports() {
                           className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
                         >
                           <Trash2 size={14} className="inline-block mr-1" />
-                          ลบ
+                          {t('common.delete')}
                         </button>
                       </td>
                     </tr>

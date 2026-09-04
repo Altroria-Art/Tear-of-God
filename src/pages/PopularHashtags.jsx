@@ -6,15 +6,19 @@ import HashtagPill from '../components/discover/HashtagPill';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
 import { ArrowLeftIcon } from '../components/ui/Icons';
+import { useTranslation } from 'react-i18next';
 
 const PAGE_SIZE = 30;
 const SORT_OPTIONS = [
-  { value: 'used', label: 'Most Used' },
-  { value: 'az', label: 'A – Z' },
+  { value: 'used', labelKey: 'sort.mostUsed' },
+  { value: 'az', labelKey: 'sort.az' },
 ];
 
 export default function PopularHashtags() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t } = useTranslation();
+
+  const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
 
   const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
   const sort = searchParams.get('sort') || 'used';
@@ -28,14 +32,17 @@ export default function PopularHashtags() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false
     async function load() {
       setIsLoading(true);
-      const { data, total: t } = await fetchHashtags({ page, limit: PAGE_SIZE, sort, q });
+      const { data, total } = await fetchHashtags({ page, limit: PAGE_SIZE, sort, q });
+      if (cancelled) return;
       setHashtags(data || []);
-      setTotal(t || 0);
+      setTotal(total || 0);
       setIsLoading(false);
     }
     load();
+    return () => { cancelled = true }
   }, [page, sort, q]);
 
   // sync ช่อง filter กับ URL เมื่อผู้ใช้ navigate กลับมา (back/forward)
@@ -87,8 +94,8 @@ export default function PopularHashtags() {
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-ink">Popular Hashtags</h1>
-              <p className="text-sm text-muted">{total.toLocaleString()} hashtags</p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-ink">{t('discover.popularHashtags')}</h1>
+              <p className="text-sm text-muted">{total.toLocaleString()} {t('common.hashtags')}</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -98,18 +105,18 @@ export default function PopularHashtags() {
                 type="text"
                 value={inputValue}
                 onChange={(e) => handleFilterChange(e.target.value)}
-                placeholder="Filter tags..."
+                placeholder={t('discover.filterTags')}
                 className="bg-surface border border-line-soft rounded-lg py-2 pl-9 pr-4 text-sm w-64 outline-none focus:ring-2 focus:ring-brand text-ink transition-shadow placeholder-muted"
               />
             </div>
-            <SortDropdown value={sort} options={SORT_OPTIONS} onChange={handleSortChange} label="Sort:" />
+            <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />
           </div>
         </div>
 
         {isLoading ? (
-          <p className="text-muted animate-pulse text-center py-10">กำลังโหลดแฮชแท็ก...</p>
+          <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingHashtags')}</p>
         ) : hashtags.length === 0 ? (
-          <p className="text-muted text-center py-10">ไม่พบแฮชแท็กที่ค้นหา</p>
+          <p className="text-muted text-center py-10">{t('discover.emptyHashtags')}</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {hashtags.map((h) => (

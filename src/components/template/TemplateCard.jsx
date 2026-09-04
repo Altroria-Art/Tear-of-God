@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Users, Eye, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { shareUrl } from '../../lib/share';
@@ -6,15 +6,20 @@ import ShareExportModal from '../ui/ShareExportModal';
 import Avatar from '../ui/Avatar';
 import { formatCount } from '../../lib/format';
 import TierLabel from '../tier/TierLabel';
+import { useTranslation } from 'react-i18next';
 
 export default function TemplateCard({ template, onUse }) {
+  const { t } = useTranslation();
   const [shareOpen, setShareOpen] = useState(false);
-  const tiersMap = {};
-  template.template_items?.forEach((ti) => {
-    if (!ti.tier) return;
-    if (!tiersMap[ti.tier]) tiersMap[ti.tier] = [];
-    tiersMap[ti.tier].push(ti.item?.name || ti.item_id);
-  });
+  const tiersMap = useMemo(() => {
+    const map = {};
+    template.template_items?.forEach((ti) => {
+      if (!ti.tier) return;
+      if (!map[ti.tier]) map[ti.tier] = [];
+      map[ti.tier].push(ti.item?.name || ti.item_id);
+    });
+    return map;
+  }, [template.template_items]);
 
   const previewTiers = (template.tiers || []).slice(0, 2);
   const detailHref = `/template/${template.id}`;
@@ -29,10 +34,10 @@ export default function TemplateCard({ template, onUse }) {
     <div className="glass rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
       <Link to={detailHref} className="bg-surface-glass p-4 h-40 flex flex-col gap-2 relative">
         <div className="absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
-          <span className="flex items-center gap-1" title="Uses">
+          <span className="flex items-center gap-1" title={t('common.uses')}>
             <Users size={14} /> {formatCount(template.use_count)}
           </span>
-          <span className="flex items-center gap-1" title="Views">
+          <span className="flex items-center gap-1" title={t('common.views')}>
             <Eye size={14} /> {formatCount(template.view_count)}
           </span>
         </div>
@@ -65,7 +70,7 @@ export default function TemplateCard({ template, onUse }) {
           </Link>
           <div className="flex items-center gap-2 mb-4">
             <Avatar name={template.profile?.username} src={template.profile?.avatar_url} size="sm" />
-            <span className="text-sm text-muted">@{template.profile?.username || 'User'}</span>
+            <span className="text-sm text-muted">@{template.profile?.username || t('common.unknownUser')}</span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -73,13 +78,13 @@ export default function TemplateCard({ template, onUse }) {
             onClick={() => onUse?.(template)}
             className="flex-1 py-2.5 bg-brand-accent hover:bg-surface text-canvas font-bold rounded-lg flex items-center justify-center gap-2 transition-all shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
           >
-            Use Template
+            {t('template.use')}
           </button>
           <button
             type="button"
             onClick={handleShare}
-            aria-label="Share template"
-            title="แชร์เทมเพลต"
+            aria-label={t('common.share')}
+            title={t('common.share')}
             className="shrink-0 px-3 py-2.5 text-muted hover:text-ink transition-colors rounded-lg border border-line-soft hover:bg-surface"
           >
             <Share2 size={16} />

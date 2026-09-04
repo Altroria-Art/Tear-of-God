@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangleIcon, CheckCircleIcon, CloseIcon, InfoCircleIcon } from './Icons';
+import { useTranslation } from 'react-i18next';
 
 const ToastContext = createContext(null);
 
@@ -15,6 +16,7 @@ const EXIT_MS = 200;
 
 function ToastItem({ toast, onDismiss }) {
   const variant = VARIANTS[toast.variant] || VARIANTS.info;
+  const { t } = useTranslation();
   const Icon = variant.icon;
 
   return (
@@ -36,7 +38,7 @@ function ToastItem({ toast, onDismiss }) {
       <button
         type="button"
         onClick={() => onDismiss(toast.id)}
-        aria-label="Close notification"
+        aria-label={t('common.close')}
         className="absolute right-2 top-2 rounded-md p-1.5 text-muted transition-colors hover:bg-tag hover:text-ink"
       >
         <CloseIcon className="h-3.5 w-3.5" />

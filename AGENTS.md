@@ -19,7 +19,7 @@ Each file exports `onRequest` (or method-specific `onRequestGet`/`onRequestPost`
 
 ## Env
 
-Auth for email/password lives in `functions/api/auth.js` against the `profiles` table in D1 — there is no Supabase client anywhere in `src/`. Google sign-in goes through Firebase Auth (`src/lib/firebase.js`, config currently hardcoded inline, not env-driven). `.env.example` still lists `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` from the old Supabase setup; nothing in the current code reads them — do not add new Supabase env usage, and flag this file for cleanup rather than treating it as the source of truth for required env vars.
+Auth for email/password lives in `functions/api/auth.js` against the `profiles` table in D1 — there is no Supabase client anywhere in `src/`. Google sign-in goes through Firebase Auth (`src/lib/firebase.js`, config currently hardcoded inline, not env-driven). `.env.example` is already clean (comments only) — all runtime config lives in Cloudflare Workers bindings (D1 `tear_of_god_db`, R2 `STORAGE`) and the hardcoded Firebase config; there are no `VITE_*` env vars in use. Do not introduce `VITE_*`/dotenv usage for new features.
 
 ## Conventions
 
