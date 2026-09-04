@@ -18,10 +18,27 @@ export async function onRequest({ request, env }) {
       return jsonResponse({ error: 'No file provided' }, 400);
     }
 
+    // จำกัด type: allowlist รูปภาพเท่านั้น (กัน SVG ที่ฝัง script ได้ = XSS ผ่าน avatar_url)
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+    const fileExtension = (file.name.split('.').pop() || '').toLowerCase();
+    if (!file.type || !ALLOWED_TYPES.includes(file.type)) {
+      return jsonResponse({ error: 'ชนิดไฟล์ไม่ถูกต้อง — อนุญาตเฉพาะ JPG, PNG, WEBP, GIF' }, 415);
+    }
+    if (!allowedExtensions.includes(fileExtension)) {
+      return jsonResponse({ error: 'นามสกุลไฟล์ไม่ถูกต้อง' }, 415);
+    }
+
+    // จำกัดขนาด ≤ 5MB — กัน memory/bandwidth abuse
+    const MAX_SIZE = 5 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      return jsonResponse({ error: 'ไฟล์ใหญ่เกินไป — จำกัดสูงสุด 5MB' }, 413);
+    }
+
     // You must replace this with your actual R2 public URL or custom domain URL
     const R2_PUBLIC_URL = 'https://pub-dd67d11fd9e04c8183c7121ba6ea7a5a.r2.dev'; 
 
-    const fileExtension = file.name.split('.').pop();
     const uniqueFilename = `profiles/${crypto.randomUUID()}.${fileExtension}`;
 
     // Upload to R2

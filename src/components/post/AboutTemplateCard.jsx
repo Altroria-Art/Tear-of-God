@@ -28,7 +28,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
         type="button"
         disabled={!templateId}
         onClick={handleUseTemplate}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-100 border border-zinc-200 py-2.5 font-bold text-zinc-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-zinc-200 hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:-translate-y-0 disabled:hover:shadow-sm"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-surface-glass border border-line-soft py-2.5 font-bold text-ink-soft shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:-translate-y-0 disabled:hover:shadow-sm"
       >
         <TemplateIcon className="h-4 w-4" />
         Use Template

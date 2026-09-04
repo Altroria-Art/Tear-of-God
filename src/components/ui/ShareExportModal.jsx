@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Modal from './Modal';
 import { copyToClipboard } from '../../lib/share';
 import { downloadTablePng } from '../../lib/exportImage';
@@ -18,13 +18,23 @@ export default function ShareExportModal({
   const previewRef = useRef(null);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const closeTimerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(link);
     if (ok) {
       setCopied(true);
       toast.success('คัดลอกลิงก์เรียบร้อยแล้ว!');
-      setTimeout(onClose, 400);
+      closeTimerRef.current = setTimeout(onClose, 400);
     } else {
       toast.error('คัดลอกลิงก์ไม่สำเร็จ');
     }

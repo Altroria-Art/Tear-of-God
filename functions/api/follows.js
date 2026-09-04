@@ -31,7 +31,7 @@ export async function onRequest({ request, env }) {
       }
 
       const { results } = await db.prepare(query).bind(userId).all();
-      return jsonResponse({ data: results });
+      return jsonResponse({ success: true, data: results, total: results.length });
     } catch (e) {
       return jsonResponse({ error: e.message }, 500);
     }

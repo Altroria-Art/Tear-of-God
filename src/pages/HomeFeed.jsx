@@ -108,7 +108,7 @@ function HomeTierCard({ post }) {
   const navigate = useNavigate();
   const [modal, setModal] = useState(null); // 'share' | 'export' | null
 
-  const hashtags = post.hashtags ? post.hashtags.split(',').filter((t) => t.trim() !== '') : [];
+  const hashtags = post.hashtags ? post.hashtags.split(',').map((t) => t.trim()).filter(Boolean) : [];
   const builtRows = buildTierRows(post.ranking_items, post.tiers);
   // ranking ที่ไม่มีไอเทมถูกจัดเลย (เคสหายาก) — โชว์การ์ดเปล่า 2 แถวเหมือนพฤติกรรมเดิม
   // แทนไม่มีอะไรให้ดูเลย
@@ -152,7 +152,7 @@ function HomeTierCard({ post }) {
 
         <button
           onClick={() => navigate('/create', { state: { templateName: post.title } })}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-bold rounded-full transition-all shadow-sm hover:bg-zinc-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-sm hover:bg-surface hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
         >
           <Copy size={12} strokeWidth={2.5} />
           <span>Use Template: {post.title}</span>

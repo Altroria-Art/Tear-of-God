@@ -36,9 +36,9 @@ export async function onRequest(context) {
         ];
         const oldVote = existing[0].vote_type;
         if (oldVote === 'like') {
-          statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count - 1 WHERE id = ?`).bind(rankingId));
+          statements.push(db.prepare(`UPDATE rankings SET likes_count = MAX(likes_count - 1, 0) WHERE id = ?`).bind(rankingId));
         } else if (oldVote === 'dislike') {
-          statements.push(db.prepare(`UPDATE rankings SET dislikes_count = dislikes_count - 1 WHERE id = ?`).bind(rankingId));
+          statements.push(db.prepare(`UPDATE rankings SET dislikes_count = MAX(dislikes_count - 1, 0) WHERE id = ?`).bind(rankingId));
         }
         await db.batch(statements);
       }
@@ -55,9 +55,9 @@ export async function onRequest(context) {
             db.prepare(`UPDATE votes SET vote_type = ? WHERE ranking_id = ? AND user_id = ?`).bind(voteType, rankingId, userId)
           ];
           if (voteType === 'like') {
-            statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1, dislikes_count = dislikes_count - 1 WHERE id = ?`).bind(rankingId));
+            statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1, dislikes_count = MAX(dislikes_count - 1, 0) WHERE id = ?`).bind(rankingId));
           } else {
-            statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count - 1, dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
+            statements.push(db.prepare(`UPDATE rankings SET likes_count = MAX(likes_count - 1, 0), dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
           }
           await db.batch(statements);
         }

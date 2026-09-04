@@ -88,7 +88,7 @@ export default function CategoryPage() {
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <header className="mb-8 flex items-center gap-4">
-        <Link to="/discover" className="rounded-full border border-gray-300 p-2 text-ink-soft transition-colors hover:bg-surface-glass"><ArrowLeftIcon className="h-5 w-5" /></Link>
+        <Link to="/discover" className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"><ArrowLeftIcon className="h-5 w-5" /></Link>
         <div className={`flex h-16 w-16 items-center justify-center rounded-xl text-4xl ${meta.bg}`}><span aria-hidden="true">{meta.icon}</span></div>
         <div>
           <h1 className="text-3xl font-bold text-ink">{meta.title}</h1>

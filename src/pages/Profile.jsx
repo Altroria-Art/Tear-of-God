@@ -95,8 +95,14 @@ export default function Profile() {
     return () => { cancelled = true };
   }, [profileUserId, currentUser?.id]);
 
-  // ฟอร์มแก้ไข (เฉพาะโปรไฟล์ตัวเอง) sync กับ user ล่าสุดใน context
+  // ฟอร์มแก้ไข (เฉพาะโปรไฟล์ตัวเอง) sync กับ user ล่าสุดใน context —
+  // ใช้ profileUserId เป็น dep หลัก (เปลี่ยนเฉพาะตอนสลับหน้าใหม่) ไม่ใช่ currentUser
+  // ที่ context เปลี่ยนบ่อยๆ ไม่งั้นจะล้างฟอร์มที่กำลังพิมพ์ทิ้งทุกครั้งที่ state เปลี่ยน
+  const initialUserIdRef = useRef(profileUserId);
   useEffect(() => {
+    if (initialUserIdRef.current !== profileUserId) {
+      initialUserIdRef.current = profileUserId;
+    }
     if (isOwnProfile && currentUser) {
       setDisplayName(currentUser.username || '');
       setBio(currentUser.bio || 'Master of tier lists. Categorizing the virtual world one tier at a time.');
@@ -106,7 +112,7 @@ export default function Profile() {
       setYear(currentUser.year || '');
       setAvatarUrl(currentUser.avatar_url || '');
     }
-  }, [isOwnProfile, currentUser]);
+  }, [profileUserId, isOwnProfile, currentUser?.id]);
 
   // 📍 [แก้ไขแล้ว]: ยิง API บันทึกข้อมูลโปรไฟล์ของจริง (เฉพาะเมื่อดูโปรไฟล์ตัวเอง)
   const handleToggleFollow = async () => {
@@ -237,8 +243,8 @@ export default function Profile() {
                   onClick={handleToggleFollow}
                   className={`w-full py-2 mb-4 font-bold rounded-xl text-sm transition-all shadow-sm active:scale-[0.97] ${
                     isFollowing 
-                      ? 'bg-surface-glass text-zinc-700 hover:bg-zinc-200 '
-                      : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                      ? 'bg-surface-glass text-muted hover:bg-surface '
+                      : 'bg-ink text-canvas hover:bg-brand-accent'
                   }`}
                 >
                   {isFollowing ? 'Following' : 'Follow'}
@@ -254,10 +260,10 @@ export default function Profile() {
               {/* Education Info */}
               {(displayUser?.university || displayUser?.faculty || displayUser?.major || displayUser?.year) && (
                 <div className="mt-4 mb-4 text-xs text-ink-soft text-left bg-surface p-3 rounded-xl space-y-1">
-                  {displayUser?.university && <p><strong className="text-zinc-800">มหาวิทยาลัย:</strong> {displayUser.university}</p>}
-                  {displayUser?.faculty && <p><strong className="text-zinc-800">คณะ:</strong> {displayUser.faculty}</p>}
-                  {displayUser?.major && <p><strong className="text-zinc-800">สาขา:</strong> {displayUser.major}</p>}
-                  {displayUser?.year && <p><strong className="text-zinc-800">ชั้นปี:</strong> {displayUser.year}</p>}
+                  {displayUser?.university && <p><strong className="text-ink">มหาวิทยาลัย:</strong> {displayUser.university}</p>}
+                  {displayUser?.faculty && <p><strong className="text-ink">คณะ:</strong> {displayUser.faculty}</p>}
+                  {displayUser?.major && <p><strong className="text-ink">สาขา:</strong> {displayUser.major}</p>}
+                  {displayUser?.year && <p><strong className="text-ink">ชั้นปี:</strong> {displayUser.year}</p>}
                 </div>
               )}
 
