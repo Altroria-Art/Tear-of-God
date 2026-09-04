@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Download } from 'lucide-react'
+import { Download, Flag, X } from 'lucide-react'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import AboutTemplateCard from '../components/post/AboutTemplateCard'
@@ -13,7 +13,7 @@ import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
 
 // 📍 นำเข้า createComment มาใช้งาน
-import { fetchRanking, createComment, voteRanking, fetchTemplate } from '../lib/api'
+import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
 import { formatDbDate } from '../lib/format'
 
@@ -29,6 +29,9 @@ export default function PostDetail() {
   const [comments, setComments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [userVote, setUserVote] = useState(null) // 'like' | 'dislike' | null — seed จาก data.user_vote เท่านั้น
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] = useState('')
+  const [reporting, setReporting] = useState(false)
 
   useEffect(() => {
     async function loadPost() {
@@ -63,6 +66,7 @@ export default function PostDetail() {
           category: data.category,
           title: data.title,
           description: data.description,
+          hashtags: data.hashtags || '',
           tiers: tiers.length > 0 ? tiers : [{ tier: 'S', color: undefined, index: 0, items: [] }],
           stats: {
             likes: data.stats?.likes || 0,
@@ -168,7 +172,7 @@ export default function PostDetail() {
         postedAt: 'Just now',
         body: body.trim()
       }
-      setComments([newComment, ...comments]);
+      setComments(prev => [newComment, ...prev]);
       setPost(prev => ({
         ...prev,
         stats: { ...prev.stats, comments: prev.stats.comments + 1 }
@@ -180,6 +184,30 @@ export default function PostDetail() {
 
   const handleExport = async () => {
     setModal('export');
+  }
+
+  // 📍 รายงานโพสต์ (ranking) — ส่งไปหาแอดมินว่าอันนี้ไม่เหมาะสม
+  const handleReportPost = async () => {
+    if (!currentUser) {
+      toast.warning('กรุณาเข้าสู่ระบบก่อนรายงานครับ!');
+      return;
+    }
+    if (!reportReason.trim()) {
+      toast.warning('กรุณาระบุเหตุผลการรายงาน');
+      return;
+    }
+    setReporting(true);
+    const res = await reportPost({ postId, reporterId: currentUser.id, reason: reportReason.trim() });
+    setReporting(false);
+    if (res.success) {
+      toast.success('ส่งรายงานให้แอดมินแล้ว ขอบคุณครับ');
+      setReportOpen(false);
+      setReportReason('');
+    } else if (res.status === 409) {
+      toast.warning('คุณได้รายงานโพสต์นี้แล้ว รอแอดมินตรวจสอบ');
+    } else {
+      toast.error(res.error || 'รายงานไม่สำเร็จ');
+    }
   }
 
   if (isLoading) {
@@ -194,7 +222,7 @@ export default function PostDetail() {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
         <p className="text-lg font-bold text-ink">ไม่พบโพสต์ที่คุณตามหา</p>
-        <Link to="/" className="mt-2 inline-block text-sm text-blue-500 hover:underline">
+        <Link to="/" className="mt-2 inline-block text-sm text-status-info hover:underline">
           กลับสู่หน้าหลัก
         </Link>
       </main>
@@ -215,19 +243,33 @@ export default function PostDetail() {
           </Link>
 
           <article className="mt-4 rounded-2xl border border-line-soft glass p-4 shadow-sm">
-            {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
-            <Link
-              to={authorId ? `/profile/${authorId}` : '#'}
-              className={`flex items-center gap-3 w-fit ${!authorId ? 'pointer-events-none' : ''}`}
-            >
-              <Avatar name={author.name} src={author.avatarUrl} />
-              <div>
-                <p className="text-sm font-bold text-ink hover:text-highlight transition-colors">{author.name}</p>
-                <p className="text-xs text-muted">{postedAt}</p>
-              </div>
-            </Link>
+            <div className="flex items-start justify-between gap-3">
+              {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
+              <Link
+                to={authorId ? `/profile/${authorId}` : '#'}
+                className={`flex items-center gap-3 w-fit ${!authorId ? 'pointer-events-none' : ''}`}
+              >
+                <Avatar name={author.name} src={author.avatarUrl} />
+                <div>
+                  <p className="text-sm font-bold text-ink hover:text-highlight transition-colors">{author.name}</p>
+                  <p className="text-xs text-muted">{postedAt}</p>
+                </div>
+              </Link>
 
-            <p className="mt-4 inline-block rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold tracking-wider text-ink-soft uppercase">
+              {/* 📍 บนขวา: รายงานโพสต์ */}
+              <button
+                type="button"
+                onClick={() => { setReportReason(''); setReportOpen(true) }}
+                className="flex shrink-0 items-center gap-2 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
+                aria-label="รายงานโพสต์"
+                title="รายงานโพสต์"
+              >
+                <Flag size={14} />
+                <span>รายงาน</span>
+              </button>
+            </div>
+
+            <p className="mt-4 inline-block rounded-md bg-surface-glass border border-line-soft px-2 py-1 text-[10px] font-bold tracking-wider text-ink-soft uppercase">
               {category}
             </p>
 
@@ -236,8 +278,8 @@ export default function PostDetail() {
             
             {post.hashtags && (
               <div className="mt-3 flex flex-wrap gap-2">
-                {post.hashtags.split(',').filter(Boolean).map((tag, idx) => {
-                  const cleanTag = tag.trim().replace('#', '');
+                {post.hashtags.split(',').map((t) => t.trim()).filter(Boolean).map((tag, idx) => {
+                  const cleanTag = tag.replace('#', '');
                   return (
                     <Link 
                       key={idx} 
@@ -322,6 +364,59 @@ export default function PostDetail() {
           />
         </aside>
       </div>
+
+      {/* 📍 Modal รายงานโพสต์ */}
+      {reportOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          onClick={() => { if (!reporting) setReportOpen(false) }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-line-soft bg-surface-glass p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-ink">รายงานโพสต์</h3>
+                <p className="mt-0.5 text-sm text-muted">แจ้งแอดมินว่าโพสต์นี้ไม่เหมาะสม — ตรวจสอบกับหน้าแอดมิน</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (!reporting) setReportOpen(false) }}
+                className="rounded-full p-1 text-muted transition-colors hover:bg-surface-glass hover:text-ink"
+                aria-label="ปิด"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              rows={4}
+              placeholder="อธิบายเหตุผลที่รายงานโพสต์นี้..."
+              className="mt-4 w-full resize-none rounded-xl border border-line-soft bg-canvas p-3 text-sm text-ink focus:border-highlight focus:outline-none"
+            />
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setReportOpen(false)}
+                disabled={reporting}
+                className="rounded-full px-4 py-2 text-sm font-bold text-muted transition-colors hover:bg-surface-glass"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleReportPost}
+                disabled={reporting}
+                className="flex items-center gap-2 rounded-full bg-status-error px-5 py-2 text-sm font-bold text-white shadow-md transition-all hover:bg-red-700 disabled:opacity-60"
+              >
+                <Flag size={16} />
+                {reporting ? 'กำลังส่ง...' : 'ส่งรายงาน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

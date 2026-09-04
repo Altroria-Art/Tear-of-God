@@ -25,13 +25,13 @@ export default function Pagination({ page, totalPages, onChange }) {
         type="button"
         disabled={page <= 1}
         onClick={() => onChange(page - 1)}
-        className="rounded-md border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-md border border-line-soft px-3 py-1.5 text-sm hover:bg-surface-glass disabled:cursor-not-allowed disabled:opacity-40"
       >
         Prev
       </button>
       {pageList.map((p, idx) =>
         p === '...' ? (
-          <span key={`ellipsis-${idx}`} className="px-1.5 text-sm text-gray-400">
+          <span key={`ellipsis-${idx}`} className="px-1.5 text-sm text-muted">
             …
           </span>
         ) : (
@@ -49,7 +49,7 @@ export default function Pagination({ page, totalPages, onChange }) {
         type="button"
         disabled={page >= totalPages}
         onClick={() => onChange(page + 1)}
-        className="rounded-md border border-gray-200 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-md border border-line-soft px-3 py-1.5 text-sm hover:bg-surface-glass disabled:cursor-not-allowed disabled:opacity-40"
       >
         Next
       </button>

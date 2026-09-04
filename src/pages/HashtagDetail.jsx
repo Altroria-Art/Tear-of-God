@@ -75,7 +75,7 @@ export default function HashtagDetail() {
           <div className="flex items-center gap-4">
             <Link
               to="/discover/hashtags"
-              className="rounded-full border border-gray-300 p-2 text-gray-600 transition-colors hover:bg-gray-100"
+              className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
@@ -86,9 +86,9 @@ export default function HashtagDetail() {
         </div>
 
         {isLoading ? (
-          <p className="text-gray-500 animate-pulse text-center py-10">กำลังโหลดเทมเพลต...</p>
+          <p className="text-muted animate-pulse text-center py-10">กำลังโหลดเทมเพลต...</p>
         ) : templates.length === 0 ? (
-          <p className="text-gray-500 text-center py-10">ยังไม่มีเทมเพลตที่ติดแท็กนี้</p>
+          <p className="text-muted text-center py-10">ยังไม่มีเทมเพลตที่ติดแท็กนี้</p>
         ) : (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             {templates.map((template) => (

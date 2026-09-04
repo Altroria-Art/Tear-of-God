@@ -285,6 +285,21 @@ export async function onRequest({ request, env }) {
     if (request.method === 'POST') {
       const { payload, items, template } = await request.json();
       const rankingId = crypto.randomUUID(); 
+
+      // จำกัดขนาด field (payload + items) กัน abuse/bogus payload เขียนข้อมูลมโหฬาร
+      if (typeof payload.title === 'string' && payload.title.trim().length > 200) {
+        return jsonResponse({ success: false, error: 'ชื่อโพสต์ยาวเกินไป — จำกัด 200 ตัวอักษร' }, 400);
+      }
+      if (Array.isArray(items) && items.length > 500) {
+        return jsonResponse({ success: false, error: 'จำนวนไอเทมเกิน 500' }, 400);
+      }
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          if (typeof item?.item_id === 'string' && item.item_id.length > 100) {
+            return jsonResponse({ success: false, error: 'ชื่อไอเทมยาวเกินไป — จำกัด 100 ตัวอักษร' }, 400);
+          }
+        }
+      }
       
       if (payload.user_id) {
         await db.prepare(

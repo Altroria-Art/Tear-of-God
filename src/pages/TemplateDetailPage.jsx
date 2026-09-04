@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag } from 'lucide-react'
 import Avatar from '../components/ui/Avatar'
 import Pagination from '../components/ui/Pagination'
 import SortDropdown from '../components/ui/SortDropdown'
@@ -8,7 +8,7 @@ import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
-import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate } from '../lib/api'
+import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, reportTemplate } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
 import TierLabel from '../components/tier/TierLabel'
@@ -198,8 +198,12 @@ export default function TemplateDetailPage() {
   const { templateId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useUser()
+  const toast = useToast()
   const avgTableRef = useRef(null)
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] = useState('')
+  const [reporting, setReporting] = useState(false)
 
   const [template, setTemplate] = useState(null)
   const [communityAllTime, setCommunityAllTime] = useState(null)
@@ -298,6 +302,31 @@ export default function TemplateDetailPage() {
 
   const handleExportAverage = () => setModal('export')
 
+  // 📍 รายงานเทมเพลต — เปิด modal ให้เลือกเหตุผล แล้วยิง POST ไปหา admin
+  const handleReport = async () => {
+    if (!currentUser) {
+      toast.warning('กรุณาเข้าสู่ระบบก่อนรายงานครับ!')
+      navigate('/login')
+      return
+    }
+    if (!reportReason.trim()) {
+      toast.warning('กรุณาระบุเหตุผลการรายงาน')
+      return
+    }
+    setReporting(true)
+    const res = await reportTemplate({ templateId, reporterId: currentUser.id, reason: reportReason.trim() })
+    setReporting(false)
+    if (res.success) {
+      toast.success('ส่งรายงานให้แอดมินแล้ว ขอบคุณครับ')
+      setReportOpen(false)
+      setReportReason('')
+    } else if (res.status === 409) {
+      toast.warning('คุณได้รายงานเทมเพลตนี้แล้ว รอแอดมินตรวจสอบ')
+    } else {
+      toast.error(res.error || 'รายงานไม่สำเร็จ')
+    }
+  }
+
   // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action (เหมือน RankingCard)
   const handleTemplateVote = async (type) => {
     if (!currentUser) {
@@ -381,6 +410,16 @@ export default function TemplateDetailPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setReportOpen(true)}
+                className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-status-error shadow-md transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
+                aria-label="รายงานเทมเพลต"
+                title="รายงานเทมเพลต"
+              >
+                <Flag size={16} />
+                <span>รายงาน</span>
+              </button>
               <button
                 type="button"
                 onClick={handleShare}
@@ -487,7 +526,7 @@ export default function TemplateDetailPage() {
           )}
 
           {isLoadingRankings ? (
-            <p className="text-gray-500 text-center py-10 animate-pulse">กำลังโหลด...</p>
+            <p className="text-muted text-center py-10 animate-pulse">กำลังโหลด...</p>
           ) : rankings.length === 0 ? (
             <div className="rounded-xl glass p-8 text-center text-muted">
               ยังไม่มีใครสร้าง Tier List จากเทมเพลตนี้ เป็นคนแรกเลยสิ!
@@ -525,6 +564,49 @@ export default function TemplateDetailPage() {
         ).sort((a, b) => b.avg - a.avg)}
         statsFilename={`template-${templateId}-stats${periodDays ? `-${periodDays}d` : ''}`}
       />
+
+      {/* 📍 Modal รายงานเทมเพลต */}
+      {reportOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => { if (!reporting) setReportOpen(false) }}>
+          <div
+            className="glass w-full max-w-md rounded-2xl p-6 shadow-xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-ink mb-1">รายงานเทมเพลต</h3>
+            <p className="text-sm text-muted mb-4">แจ้งแอดมินให้ตรวจสอบเทมเพลตนี้</p>
+
+            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
+              เหตุผล
+            </label>
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              placeholder="อธิบายปัญหา เช่น เนื้อหาไม่เหมาะสม, ลิขสิทธิ์, โฆษณา เป็นต้น"
+              rows={3}
+              className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand placeholder-muted resize-none"
+            />
+
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setReportOpen(false)}
+                disabled={reporting}
+                className="text-ink-soft hover:bg-surface-glass rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleReport}
+                disabled={reporting || !reportReason.trim()}
+                className="bg-brand hover:bg-brand-accent text-canvas rounded-xl px-5 py-2 text-sm font-bold disabled:opacity-50"
+              >
+                {reporting ? 'กำลังส่ง...' : 'ส่งรายงาน'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

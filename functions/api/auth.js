@@ -33,7 +33,7 @@ export async function onRequest({ request, env }) {
         'INSERT INTO profiles (id, username, email, password, avatar_url) VALUES (?1, ?2, ?3, ?4, ?5)'
       ).bind(userId, name, email, hashedPassword, avatar).run();
 
-      return jsonResponse({ success: true, data: { id: userId, username: name, email, avatar_url: avatar } }, 201);
+      return jsonResponse({ success: true, data: { id: userId, username: name, email, avatar_url: avatar, role: 'user' } }, 201);
     } 
     
     else if (action === 'login') {
@@ -44,7 +44,7 @@ export async function onRequest({ request, env }) {
       if (users.length === 0) return jsonResponse({ success: false, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }, 401);
 
       const user = users[0];
-      return jsonResponse({ success: true, data: { id: user.id, username: user.username, email: user.email, bio: user.bio || null, avatar_url: user.avatar_url, university: user.university || null, faculty: user.faculty || null, major: user.major || null, year: user.year || null } }, 200);
+      return jsonResponse({ success: true, data: { id: user.id, username: user.username, email: user.email, bio: user.bio || null, avatar_url: user.avatar_url, university: user.university || null, faculty: user.faculty || null, major: user.major || null, year: user.year || null, role: user.role || 'user' } }, 200);
     }
 
     else if (action === 'google_sync') {
@@ -59,8 +59,16 @@ export async function onRequest({ request, env }) {
           'UPDATE profiles SET username = ?1, avatar_url = ?2 WHERE email = ?3'
         ).bind(username, avatar_url, email).run();
       }
-      
-      return jsonResponse({ success: true, data: { id, username, email, avatar_url } }, 200);
+
+      // ดึง role ที่แท้จริงจาก DB (ถ้าเป็น admin ที่สมัครด้วย Google จะได้ 'admin' กลับมา)
+      const { results: roleRows } = await db.prepare('SELECT role FROM profiles WHERE email = ?').bind(email).all();
+      const role = roleRows[0]?.role || 'user';
+
+      // สำคัญ: return id จริงจาก DB ไม่ใช่ Firebase uid — ผู้ใช้ที่เคยสมัครด้วย email/password
+      // (id รูป user_xxx) แล้วมา login ผ่าน Google (email เดียวกัน) จะถูก UPDATE ที่แถวเดิม
+      // ถ้า return Firebase uid กลับไป user_id ทุก action หลังจะชี้ไปที่แถวที่ไม่มีอยู่จริง
+      const { results: dbUser } = await db.prepare('SELECT id FROM profiles WHERE email = ?').bind(email).all();
+      return jsonResponse({ success: true, data: { id: dbUser[0].id, username, email, avatar_url, role } }, 200);
     }
 
     else if (action === 'update_profile') {
@@ -82,7 +90,7 @@ export async function onRequest({ request, env }) {
       params.push(user_id);
       await db.prepare(`UPDATE profiles SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run();
 
-      const { results: users } = await db.prepare('SELECT id, username, email, bio, avatar_url, university, faculty, major, year FROM profiles WHERE id = ?').bind(user_id).all();
+      const { results: users } = await db.prepare('SELECT id, username, email, bio, avatar_url, university, faculty, major, year, role FROM profiles WHERE id = ?').bind(user_id).all();
       return jsonResponse({ success: true, data: users[0] || null }, 200);
     }
 

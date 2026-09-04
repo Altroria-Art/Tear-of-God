@@ -107,6 +107,15 @@ const Navbar = () => {
                   >
                     Profile
                   </Link>
+                  {currentUser.role === 'admin' && (
+                    <Link 
+                      to="/admin" 
+                      className="block px-4 py-2 text-sm text-ink hover:bg-surface-glass font-medium transition-colors"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Admin
+                    </Link>
+                  )}
                   <button 
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-sm text-status-error hover:bg-status-error/10 font-medium flex items-center gap-2 transition-colors"

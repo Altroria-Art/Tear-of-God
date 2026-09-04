@@ -124,13 +124,10 @@ function ToastProvider({ children }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed top-4 left-1/2 -translate-x-1/2 sm:top-6 sm:right-6 sm:left-auto sm:translate-x-0 z-[100] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3"
+        className="pointer-events-none fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-3"
       >
         {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            onMouseEnter={() => pauseTimer(toast.id)}
-          >
+          <div key={toast.id} onMouseEnter={() => pauseTimer(toast.id)} onMouseLeave={() => resumeTimer(toast.id)}>
             <ToastItem toast={toast} onDismiss={dismiss} />
           </div>
         ))}

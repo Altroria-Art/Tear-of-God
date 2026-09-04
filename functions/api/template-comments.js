@@ -32,6 +32,15 @@ export async function onRequest({ request, env }) {
       if (!template_id || !user_id || !content?.trim()) {
         return jsonResponse({ success: false, error: 'ข้อมูลไม่ครบถ้วน' }, 400);
       }
+      if (content.trim().length > 1000) {
+        return jsonResponse({ success: false, error: 'คอมเมนต์ยาวเกินไป — จำกัด 1000 ตัวอักษร' }, 400);
+      }
+
+      // เช็คว่า user มีจริง และ template มีอยู่จริง (กัน insert กับ target ที่ไม่มีอยู่)
+      const user = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
+      if (!user) return jsonResponse({ success: false, error: 'ผู้ใช้ไม่มีอยู่ในระบบ' }, 400);
+      const template = await db.prepare('SELECT id FROM templates WHERE id = ?').bind(template_id).first();
+      if (!template) return jsonResponse({ success: false, error: 'เทมเพลตไม่มีอยู่ในระบบ' }, 404);
 
       const commentId = crypto.randomUUID();
       await db.prepare(

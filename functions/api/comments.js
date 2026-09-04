@@ -30,6 +30,15 @@ export async function onRequest({ request, env }) {
       if (!ranking_id || !user_id || !content?.trim()) {
         return jsonResponse({ success: false, error: 'ข้อมูลไม่ครบถ้วน' }, 400);
       }
+      if (content.trim().length > 1000) {
+        return jsonResponse({ success: false, error: 'คอมเมนต์ยาวเกินไป — จำกัด 1000 ตัวอักษร' }, 400);
+      }
+
+      // เช็คว่า user มีจริง และ ranking มีอยู่จริง (กัน insert กับ target ที่ไม่มีอยู่ → FK fail เงียบๆ)
+      const user = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
+      if (!user) return jsonResponse({ success: false, error: 'ผู้ใช้ไม่มีอยู่ในระบบ' }, 400);
+      const ranking = await db.prepare('SELECT id FROM rankings WHERE id = ?').bind(ranking_id).first();
+      if (!ranking) return jsonResponse({ success: false, error: 'โพสต์ไม่มีอยู่ในระบบ' }, 404);
 
       const commentId = crypto.randomUUID();
       await db.batch([

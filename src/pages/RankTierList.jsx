@@ -215,7 +215,7 @@ const RankTierList = () => {
               <button
                 onClick={handleSaveRanking}
                 disabled={isSaving}
-                className="bg-brand hover:bg-brand-accent disabled:bg-gray-400 text-canvas text-sm font-bold py-2 px-6 rounded-md transition-colors shadow-sm"
+                className="bg-brand hover:bg-brand-accent disabled:opacity-50 text-canvas text-sm font-bold py-2 px-6 rounded-md transition-colors shadow-sm"
               >
                 {isSaving ? 'Saving...' : 'Save Ranking'}
               </button>
@@ -266,7 +266,7 @@ const RankTierList = () => {
                   key={tag}
                   type="button"
                   onClick={() => toggleHashtag(tag)}
-                  className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors border bg-surface-glass border-line-soft text-ink-soft hover:bg-zinc-200"
+                  className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors border bg-surface-glass border-line-soft text-ink-soft hover:bg-surface"
                 >
                   + {tag}
                 </button>

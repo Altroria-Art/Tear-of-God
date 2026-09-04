@@ -166,6 +166,11 @@
     --color-pill-active: var(--color-light-pill-active);
     --color-avatar: var(--color-light-avatar);
     --color-avatar-ink: var(--color-light-avatar-ink);
+
+    /* สีสถานะ + vote ใน light mode — ค่าเดิมสว่างเกิน อ่านยากบนพื้นขาว เลยเข้มขึ้นเฉพาะใน light
+       (dark mode ยังใช้ค่าดั้งเดิมจาก @theme — ไม่ถูก override) */
+    --color-status-warning: #b45309;
+    --color-vote-up: #0369a1;
     
     color: var(--color-light-ink);
   }

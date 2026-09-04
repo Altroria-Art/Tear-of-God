@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   faculty TEXT,
   major TEXT,
   year TEXT,
+  role TEXT DEFAULT 'user',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -156,3 +157,22 @@ CREATE INDEX IF NOT EXISTS idx_ris_template_time ON ranking_item_scores(template
 CREATE INDEX IF NOT EXISTS idx_template_reactions_template ON template_reactions(template_id);
 CREATE INDEX IF NOT EXISTS idx_template_reactions_user ON template_reactions(template_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_template_comments_template ON template_comments(template_id, created_at);
+
+-- 📍 รายงานผู้ใช้ต่อ template — แจ้งแอดมินให้ช่วยตรวจสอบเนื้อหาไม่เหมาะสม
+-- status: pending (รอดำเนินการ) | resolved (จัดการแล้ว) | dismissed (ปัดตกไม่ผิด)
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  template_id TEXT,
+  ranking_id TEXT,
+  reporter_id TEXT,
+  reason TEXT,
+  status TEXT DEFAULT 'pending',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
+  FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
+  FOREIGN KEY (reporter_id) REFERENCES profiles(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_template ON reports(template_id);
+CREATE INDEX IF NOT EXISTS idx_reports_ranking ON reports(ranking_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);

@@ -60,7 +60,7 @@ export default function HomeRightSidebar() {
                   </div>
                 </div>
                 <div className="text-[11px] text-muted font-medium bg-surface-glass px-2 py-0.5 rounded-full border border-line-soft">
-                  {tag.count}
+                  {tag.template_count}
                 </div>
               </div>
             ))}

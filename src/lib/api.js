@@ -132,12 +132,13 @@ export async function fetchRankings(categoryParam) {
     let url = `${API_URL}/api/rankings`;
     
     if (typeof categoryParam === 'object' && categoryParam !== null) {
-      const { category, hashtag, userId, authorId, templateId, sort, page, limit } = categoryParam;
+      const { category, hashtag, userId, authorId, templateId, sort, page, limit, feedType } = categoryParam;
       const params = new URLSearchParams();
 
       if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
         params.append('category', category.toLowerCase());
       }
+      if (feedType) params.append('feed_type', feedType);
       if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
       if (userId) params.append('user_id', userId);
       // authorId = กรองเฉพาะโพสต์ของผู้ใช้คนนี้ (ใช้ตอนดูโปรไฟล์คนอื่น)
@@ -406,5 +407,197 @@ export async function createTemplateComment({ template_id, user_id, content }) {
     return await response.json();
   } catch (error) {
     return { data: null, error: 'ไม่สามารถสร้างคอมเมนต์ได้' };
+  }
+}
+
+// ==========================================
+// ระบบแอดมิน (Admin)
+// ==========================================
+
+// 📍 ดึงสถิติภาพรวมของระบบ (ใช้กับหน้า Dashboard ของแอดมิน) — ส่ง user_id ของแอดมินไปด้วย
+// ฝั่ง backend จะตรวจ role จาก DB ทุกครั้ง (functions/api/admin/_check.js) ถ้าไม่ใช่ admin คืน 403
+export async function fetchAdminStats(userId) {
+  try {
+    const url = `${API_URL}/api/admin?action=stats&user_id=${encodeURIComponent(userId)}`;
+    return await getJSON(url);
+  } catch (error) {
+    console.error("fetchAdminStats error:", error);
+    return { data: null, error: 'ไม่สามารถดึงสถิติได้' };
+  }
+}
+
+// 📍 ดึงรายชื่อผู้ใช้สำหรับหน้าแอดมิน (ค้นหา + แบ่งหน้า)
+export async function fetchAdminUsers({ userId, q, page, limit } = {}) {
+  try {
+    const params = new URLSearchParams();
+    params.append('user_id', userId);
+    if (q) params.append('q', q);
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    return await getJSON(`${API_URL}/api/admin/users?${params.toString()}`);
+  } catch (error) {
+    console.error("fetchAdminUsers error:", error);
+    return { data: [], error: 'ไม่สามารถดึงรายชื่อผู้ใช้ได้' };
+  }
+}
+
+// 📍 ตั้งบทบาท admin/user ให้ผู้ใช้
+export async function setUserRole({ userId, targetId, role }) {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_role', user_id: userId, target_id: targetId, role })
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถตั้งบทบาทได้' };
+  }
+}
+
+// 📍 ลบผู้ใช้
+export async function deleteAdminUser({ userId, targetId }) {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/users`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถลบผู้ใช้ได้' };
+  }
+}
+
+// 📍 ดึงรายการ ranking สำหรับหน้าแอดมิน (ค้นหา + แบ่งหน้า)
+export async function fetchAdminRankings({ userId, q, page, limit } = {}) {
+  try {
+    const params = new URLSearchParams();
+    params.append('user_id', userId);
+    if (q) params.append('q', q);
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    return await getJSON(`${API_URL}/api/admin/rankings?${params.toString()}`);
+  } catch (error) {
+    console.error("fetchAdminRankings error:", error);
+    return { data: [], error: 'ไม่สามารถดึงรายการโพสต์ได้' };
+  }
+}
+
+// 📍 ลบ ranking/โพสต์
+export async function deleteAdminRanking({ userId, targetId }) {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/rankings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถลบโพสต์ได้' };
+  }
+}
+
+// 📍 ดึงรายการ template สำหรับหน้าแอดมิน (ค้นหา + แบ่งหน้า)
+export async function fetchAdminTemplates({ userId, q, page, limit } = {}) {
+  try {
+    const params = new URLSearchParams();
+    params.append('user_id', userId);
+    if (q) params.append('q', q);
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    return await getJSON(`${API_URL}/api/admin/templates?${params.toString()}`);
+  } catch (error) {
+    console.error("fetchAdminTemplates error:", error);
+    return { data: [], error: 'ไม่สามารถดึงรายการเทมเพลตได้' };
+  }
+}
+
+// 📍 ลบ template
+export async function deleteAdminTemplate({ userId, targetId }) {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/templates`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถลบเทมเพลตได้' };
+  }
+}
+
+// ==========================================
+// ระบบรายงาน template (Report)
+// ==========================================
+
+// 📍 รายงาน template (ผู้ใช้ทั่วไป) — แจ้งแอดมินว่าเทมเพลตไม่เหมาะสม
+export async function reportTemplate({ templateId, reporterId, reason }) {
+  try {
+    const response = await fetch(`${API_URL}/api/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: templateId, reporter_id: reporterId, reason })
+    });
+    return { status: response.status, ...(await response.json()) };
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถรายงานได้' };
+  }
+}
+
+// 📍 รายงานโพสต์ (ranking) — แจ้งแอดมินว่าโพสต์/ranking นั้นไม่เหมาะสม
+export async function reportPost({ postId, reporterId, reason }) {
+  try {
+    const response = await fetch(`${API_URL}/api/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ranking_id: postId, reporter_id: reporterId, reason })
+    });
+    return { status: response.status, ...(await response.json()) };
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถรายงานได้' };
+  }
+}
+
+// 📍 ดึงรายการรายงานสำหรับหน้าแอดมิน (กรองตามสถานะ + แบ่งหน้า)
+export async function fetchAdminReports({ userId, status, page, limit } = {}) {
+  try {
+    const params = new URLSearchParams();
+    params.append('user_id', userId);
+    if (status) params.append('status', status);
+    if (page) params.append('page', page);
+    if (limit) params.append('limit', limit);
+    return await getJSON(`${API_URL}/api/admin/reports?${params.toString()}`);
+  } catch (error) {
+    console.error("fetchAdminReports error:", error);
+    return { data: [], error: 'ไม่สามารถดึงรายการรายงานได้' };
+  }
+}
+
+// 📍 ตั้งสถานะรายงาน (resolved/dismissed/pending)
+export async function setReportStatus({ userId, targetId, status }) {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/reports`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_status', user_id: userId, target_id: targetId, status })
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถอัปเดตสถานะได้' };
+  }
+}
+
+// 📍 ลบรายงาน
+export async function deleteAdminReport({ userId, targetId }) {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/reports`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
+    });
+    return await response.json();
+  } catch (error) {
+    return { success: false, error: 'ไม่สามารถลบรายงานได้' };
   }
 }

@@ -5,7 +5,13 @@ const UserContext = createContext(null);
 export function UserProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('tier_user');
-    return saved ? JSON.parse(saved) : null; // ถ้าเป็น null แปลว่ายังไม่ได้ล็อกอิน
+    if (!saved) return null;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      localStorage.removeItem('tier_user');
+      return null;
+    }
   });
 
   const login = useCallback((userData) => {

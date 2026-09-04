@@ -82,7 +82,7 @@ export default function PopularHashtags() {
           <div className="flex items-center gap-4">
             <Link
               to="/discover"
-              className="rounded-full border border-gray-300 p-2 text-gray-600 transition-colors hover:bg-gray-100"
+              className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
@@ -93,7 +93,7 @@ export default function PopularHashtags() {
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <div className="relative">
-              <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
                 type="text"
                 value={inputValue}
@@ -107,9 +107,9 @@ export default function PopularHashtags() {
         </div>
 
         {isLoading ? (
-          <p className="text-gray-500 animate-pulse text-center py-10">กำลังโหลดแฮชแท็ก...</p>
+          <p className="text-muted animate-pulse text-center py-10">กำลังโหลดแฮชแท็ก...</p>
         ) : hashtags.length === 0 ? (
-          <p className="text-gray-500 text-center py-10">ไม่พบแฮชแท็กที่ค้นหา</p>
+          <p className="text-muted text-center py-10">ไม่พบแฮชแท็กที่ค้นหา</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {hashtags.map((h) => (
