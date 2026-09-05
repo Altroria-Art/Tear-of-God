@@ -12,6 +12,8 @@ import ExportCard from '../components/ui/ExportCard';
 import { timeAgo } from '../lib/format';
 import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
 import HomeRightSidebar from '../components/feed/HomeRightSidebar';
+import { SkeletonFeedList } from '../components/ui/Skeleton';
+import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
 
 // buildTierRows() now lives in src/lib/tiers.js — shared with PostDetail.jsx
@@ -28,6 +30,7 @@ const PAGE_SIZE = 5
 function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null, onShare, onExport }) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const toast = useToast();
   const { t } = useTranslation();
 
   // seed จาก post.user_vote ที่ API ส่งมาเท่านั้น — ห้าม useState(null) เฉยๆ
@@ -39,7 +42,7 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   // state machine เดียวรับทั้ง like/dislike: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
   const handleVote = async (type) => {
     if (!currentUser) {
-      alert(t('feed.voteLogin'));
+      toast.warning(t('feed.voteLogin'));
       navigate('/login');
       return;
     }
@@ -70,7 +73,7 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
       setUserVote(prevVote);
       setLikes(prevLikes);
       setDislikes(prevDislikes);
-      alert(t('feed.voteFailed', { msg: result.error || t('common.error') }));
+      toast.error(t('feed.voteFailed', { msg: result.error || t('common.error') }));
     }
   };
 
@@ -195,9 +198,16 @@ function HomeTierCard({ post }) {
               {row.items.map((ri, idx) => (
                 <div
                   key={ri.id ?? idx}
-                  className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs break-words"
+                  className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs break-words overflow-hidden relative"
                 >
-                  <span className="w-full line-clamp-2 text-[11px] leading-normal">{ri.item?.name || ri.item_id || t('common.unknownItem')}</span>
+                  {ri.item?.image_url ? (
+                    <>
+                      <img src={ri.item.image_url} alt={ri.item?.name || ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                      <span className="absolute inset-x-0 bottom-0 bg-black/55 text-white text-[9px] leading-tight px-1 py-0.5 line-clamp-2 break-words">{ri.item?.name || ri.item_id || ''}</span>
+                    </>
+                  ) : (
+                    <span className="w-full line-clamp-2 text-[11px] leading-normal">{ri.item?.name || ri.item_id || t('common.unknownItem')}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -384,9 +394,7 @@ export default function HomeFeed() {
       <div className="mx-auto max-w-7xl px-4 flex gap-8 py-8 items-start justify-center"><aside className="hidden lg:block w-[240px] shrink-0 sticky top-[140px] max-h-[calc(100vh-140px)] overflow-y-auto hide-scrollbar pb-6"><HomeLeftSidebar /></aside><main className="w-full max-w-2xl shrink">
         <div className="space-y-6 mt-4">
           {isLoading && (
-            <p className="text-center text-sm font-medium text-muted animate-pulse py-10">
-              {t('feed.loadingYourFeed')}
-            </p>
+            <SkeletonFeedList />
           )}
 
           {!isLoading && displayData.length === 0 && (
@@ -398,8 +406,10 @@ export default function HomeFeed() {
             </div>
           )}
 
-          {!isLoading && displayData.map((post) => (
-            <HomeTierCard key={post.id} post={post} />
+          {!isLoading && displayData.map((post, idx) => (
+            <div key={post.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(idx, 8) * 60}ms` }}>
+              <HomeTierCard post={post} />
+            </div>
           ))}
 
           {/* เงื่อนไขต้องไม่มี isLoading — ถ้ามี sentinel จะยังไม่ mount ตอนโหลดหน้าแรก

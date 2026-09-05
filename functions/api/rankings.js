@@ -347,6 +347,18 @@ export async function onRequest({ request, env }) {
           const name = typeof item?.name === 'string' ? item.name.trim() : '';
           if (!name || seenNames.has(name)) return;
           seenNames.add(name);
+
+          // 📍 บันทึกรายละเอียด item ลงตาราง items ด้วย (เท่าที่มี) — GET /api/templates และ
+          // /api/rankings join กับตารางนี้เพื่อเอา image_url ไปโชว์บนการ์ด และชื่อที่เป็นทางการ
+          // key = ชื่อ item (item_id ที่เก็บทั้งใน template_items/ranking_items ก็คือชื่อนี้)
+          const imageUrl = typeof item?.image_url === 'string' && item.image_url.trim() ? item.image_url.trim() : null;
+          if (imageUrl) {
+            statements.push(db.prepare(
+              `INSERT INTO items (id, name, image_url) VALUES (?1, ?2, ?3)
+               ON CONFLICT(id) DO UPDATE SET image_url = excluded.image_url`
+            ).bind(name, name, imageUrl));
+          }
+
           statements.push(db.prepare(
             `INSERT INTO template_items (id, template_id, item_id, tier, position) VALUES (?1, ?2, ?3, NULL, ?4)`
           ).bind(crypto.randomUUID(), templateId, name, item.position ?? index));

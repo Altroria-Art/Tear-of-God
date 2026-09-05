@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { lazy } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from './components/layout/Navbar';
+import PageTransition from './components/layout/PageTransition';
 import ToastProvider from './components/ui/Toast';
 import { UserProvider } from './context/UserContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -50,21 +51,21 @@ function App() {
 
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/" element={<HomeFeed />} />
-                <Route path="/create" element={<Create />} />
-                <Route path="/discover" element={<Discover />} />
-                <Route path="/discover/templates" element={<PopularTemplates />} />
-                <Route path="/discover/hashtags" element={<PopularHashtags />} />
-                <Route path="/discover/hashtag/:tag" element={<HashtagDetail />} />
-                <Route path="/rank" element={<RankTierList />} />
-                <Route path="/category/:categoryId" element={<CategoryPage />} />
-                <Route path="/template/:templateId" element={<TemplateDetailPage />} />
-                <Route path="/template/:templateId/community" element={<CommunityAveragePage />} />
-                <Route path="/post/:postId" element={<PostDetail />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/profile/:userId" element={<Profile />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/admin" element={<AdminLayout />}>
+                <Route path="/" element={<PageTransition><HomeFeed /></PageTransition>} />
+                <Route path="/create" element={<PageTransition><Create /></PageTransition>} />
+                <Route path="/discover" element={<PageTransition><Discover /></PageTransition>} />
+                <Route path="/discover/templates" element={<PageTransition><PopularTemplates /></PageTransition>} />
+                <Route path="/discover/hashtags" element={<PageTransition><PopularHashtags /></PageTransition>} />
+                <Route path="/discover/hashtag/:tag" element={<PageTransition><HashtagDetail /></PageTransition>} />
+                <Route path="/rank" element={<PageTransition><RankTierList /></PageTransition>} />
+                <Route path="/category/:categoryId" element={<PageTransition><CategoryPage /></PageTransition>} />
+                <Route path="/template/:templateId" element={<PageTransition><TemplateDetailPage /></PageTransition>} />
+                <Route path="/template/:templateId/community" element={<PageTransition><CommunityAveragePage /></PageTransition>} />
+                <Route path="/post/:postId" element={<PageTransition><PostDetail /></PageTransition>} />
+                <Route path="/profile" element={<PageTransition><Profile /></PageTransition>} />
+                <Route path="/profile/:userId" element={<PageTransition><Profile /></PageTransition>} />
+                <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+                <Route path="/admin" element={<PageTransition><AdminLayout /></PageTransition>}>
                   <Route index element={<AdminDashboard />} />
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="rankings" element={<AdminRankings />} />

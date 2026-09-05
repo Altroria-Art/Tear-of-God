@@ -150,12 +150,12 @@ const RankTierList = () => {
 
   const handleSaveRanking = async () => {
     if (!currentUser) {
-      alert(t('rank.warnLoginSave'));
+      toast.warning(t('rank.warnLoginSave'));
       navigate('/login');
       return;
     }
-    if (!title.trim()) return alert(t('rank.warnTitle'));
-    if (selectedHashtags.length === 0) return alert(t('rank.warnHashtag'));
+    if (!title.trim()) { toast.warning(t('rank.warnTitle')); return; }
+    if (selectedHashtags.length === 0) { toast.warning(t('rank.warnHashtag')); return; }
 
     setIsSaving(true);
     const rankingData = {
@@ -179,7 +179,7 @@ const RankTierList = () => {
     setIsSaving(false);
 
     if (error) {
-      alert(t('rank.error', { msg: error }));
+      toast.error(t('rank.error', { msg: error }));
     } else {
       navigate('/');
     }
@@ -362,10 +362,10 @@ const RankTierList = () => {
         <footer className="mt-6 pt-6 border-t border-line-soft flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-muted">
           <p>{t('rank.footerTagline')}</p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.about')}</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.guidelines')}</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.privacy')}</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.terms')}</a>
+            <span>{t('rank.about')}</span>
+            <span>{t('rank.guidelines')}</span>
+            <span>{t('rank.privacy')}</span>
+            <span>{t('rank.terms')}</span>
           </div>
         </footer>
 

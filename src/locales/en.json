@@ -38,7 +38,8 @@
     "profile": "Profile",
     "admin": "Admin",
     "logout": "Log out",
-    "toggleLanguage": "Switch language"
+    "toggleLanguage": "Switch language",
+    "menu": "Menu"
   },
   "auth": {
     "createAccountTitle": "Create an Account",
@@ -86,6 +87,11 @@
   "create": {
     "title": "Create Tier List",
     "subtitle": "Define your categories and rank items seamlessly.",
+    "setItemImage": "Set item image",
+    "removeImage": "Remove image",
+    "uploadingImage": "Uploading image...",
+    "imageUploaded": "Image added",
+    "imageFailed": "Image upload failed",
     "templateName": "Template Name",
     "templateNamePh": "E.g. Best 90s Movies...",
     "hashtags": "Hashtags / Category",

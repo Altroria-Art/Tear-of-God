@@ -12,7 +12,7 @@ function Comment({ author, createdAt, body }) {
           <p className="text-sm font-bold text-ink">{author.name}</p>
           <p className="text-xs text-muted">{timeAgo(createdAt)}</p>
         </div>
-        <p className="mt-0.5 text-sm text-item">{body}</p>
+        <p className="mt-0.5 text-sm text-ink-soft">{body}</p>
       </div>
     </div>
   )

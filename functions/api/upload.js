@@ -13,6 +13,12 @@ export async function onRequest({ request, env }) {
 
     const formData = await request.formData();
     const file = formData.get('file');
+    // folder ที่เซฟลง R2 — จำกัดให้เจอแค่ค่าที่เรากำหนดเท่านั้น (กัน abuse ยัด path ตามใจ)
+    const folder = formData.get('folder') || 'profiles/';
+    const ALLOWED_FOLDERS = ['profiles/', 'items/'];
+    if (!ALLOWED_FOLDERS.includes(folder)) {
+      return jsonResponse({ error: 'โฟลเดอร์ไม่ถูกต้อง' }, 400);
+    }
 
     if (!file || !file.name) {
       return jsonResponse({ error: 'No file provided' }, 400);
@@ -39,7 +45,7 @@ export async function onRequest({ request, env }) {
     // You must replace this with your actual R2 public URL or custom domain URL
     const R2_PUBLIC_URL = 'https://pub-dd67d11fd9e04c8183c7121ba6ea7a5a.r2.dev'; 
 
-    const uniqueFilename = `profiles/${crypto.randomUUID()}.${fileExtension}`;
+    const uniqueFilename = `${folder}${crypto.randomUUID()}.${fileExtension}`;
 
     // Upload to R2
     await env.STORAGE.put(uniqueFilename, file.stream(), {

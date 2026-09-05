@@ -5,6 +5,9 @@ import { fetchTemplates } from '../lib/api';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
+import { SkeletonTemplateGrid } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
+import { useToast } from '../components/ui/Toast';
 import { ArrowLeftIcon } from '../components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +22,7 @@ export default function HashtagDetail() {
   const { tag } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const toast = useToast();
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -47,7 +51,7 @@ export default function HashtagDetail() {
 
   const handleProtectedAction = (callback) => {
     if (!currentUser) {
-      alert(t('discover.protectedLogin'));
+      toast.warning(t('discover.protectedLogin'));
       navigate('/login');
       return;
     }
@@ -86,16 +90,16 @@ export default function HashtagDetail() {
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
-            <span className="bg-[#ffc329] text-[#261a00] font-bold px-4 py-1.5 rounded-full">#{tag}</span>
+            <span className="bg-hashtag text-hashtag-ink font-bold px-4 py-1.5 rounded-full">#{tag}</span>
             <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
           </div>
           <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />
         </div>
 
         {isLoading ? (
-          <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingTemplates')}</p>
+          <SkeletonTemplateGrid />
         ) : templates.length === 0 ? (
-          <p className="text-muted text-center py-10">{t('discover.emptyTag')}</p>
+          <EmptyState title={t('discover.emptyTag')} />
         ) : (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             {templates.map((template) => (

@@ -3,8 +3,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchTemplates } from '../lib/api';
 import TemplateCard from '../components/template/TemplateCard';
+import { SkeletonTemplateGrid } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
+import { useToast } from '../components/ui/Toast';
 import { ArrowLeftIcon } from '../components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 
@@ -18,6 +21,7 @@ const SORT_OPTIONS = [
 export default function PopularTemplates() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const toast = useToast();
   const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -46,7 +50,7 @@ export default function PopularTemplates() {
 
   const handleProtectedAction = (callback) => {
     if (!currentUser) {
-      alert(t('discover.protectedLogin'));
+      toast.warning(t('discover.protectedLogin'));
       navigate('/login');
       return;
     }
@@ -94,9 +98,9 @@ export default function PopularTemplates() {
         </div>
 
         {isLoading ? (
-          <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingTemplates')}</p>
+          <SkeletonTemplateGrid />
         ) : templates.length === 0 ? (
-          <p className="text-muted text-center py-10">{t('discover.emptyTemplates')}</p>
+          <EmptyState title={t('discover.emptyTemplates')} />
         ) : (
           <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             {templates.map((template) => (

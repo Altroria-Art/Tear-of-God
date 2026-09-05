@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, LogOut, Sun, Moon, Languages } from 'lucide-react';
+import { Search, User, LogOut, Sun, Moon, Languages, Menu, X } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
@@ -13,7 +13,9 @@ const Navbar = () => {
   const { isLightMode, toggleTheme } = useTheme();
   const { t, i18n } = useTranslation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const mobileRef = useRef(null);
 
   const toggleLanguage = () => {
     switchLanguage(i18n.language === 'th' ? 'en' : 'th');
@@ -23,6 +25,9 @@ const Navbar = () => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
+      }
+      if (mobileRef.current && !mobileRef.current.contains(event.target)) {
+        setIsMobileOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -64,6 +69,43 @@ const Navbar = () => {
             {t('nav.discover')}
           </Link>
         </div>
+      </div>
+
+      {/* Hamburger สำหรับจอเล็ก */}
+      <div className="md:hidden relative" ref={mobileRef}>
+        <button
+          onClick={() => setIsMobileOpen(!isMobileOpen)}
+          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft"
+          aria-label={t('nav.menu')}
+          title={t('nav.menu')}
+        >
+          {isMobileOpen ? <X size={18} strokeWidth={2.5} /> : <Menu size={18} strokeWidth={2.5} />}
+        </button>
+        {isMobileOpen && (
+          <div className="absolute left-0 top-12 w-44 glass rounded-xl py-2 z-50 animate-dropdown-in">
+            <Link
+              to="/"
+              className={`block px-4 py-2 text-sm font-medium transition-colors ${isActive('/')}`}
+              onClick={() => setIsMobileOpen(false)}
+            >
+              {t('nav.home')}
+            </Link>
+            <Link
+              to="/create"
+              className={`block px-4 py-2 text-sm font-medium transition-colors ${isActive('/create')}`}
+              onClick={() => setIsMobileOpen(false)}
+            >
+              {t('nav.create')}
+            </Link>
+            <Link
+              to="/discover"
+              className={`block px-4 py-2 text-sm font-medium transition-colors ${isActive('/discover')}`}
+              onClick={() => setIsMobileOpen(false)}
+            >
+              {t('nav.discover')}
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* ฝั่งขวา: ค้นหา และ โปรไฟล์ */}
@@ -116,7 +158,7 @@ const Navbar = () => {
 
               {/* Dropdown เมนู */}
               {isDropdownOpen && (
-                <div className="absolute right-0 top-12 w-40 glass rounded-xl py-2 z-50">
+                <div className="absolute right-0 top-12 w-40 glass rounded-xl py-2 z-50 animate-dropdown-in">
                   <Link 
                     to="/profile" 
                     className="block px-4 py-2 text-sm text-ink hover:bg-surface-glass font-medium transition-colors"
