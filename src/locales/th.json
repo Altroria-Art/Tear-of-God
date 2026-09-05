@@ -245,10 +245,27 @@
     "backToTemplate": "กลับสู่หน้าเทมเพลต",
     "about": "เกี่ยวกับเทมเพลตนี้",
     "viewTemplate": "ดูเทมเพลต",
+    "openRankingPost": "เปิดโพสต์",
     "itemsText": "{{n}} ไอเทม · อัปเดตเมื่อ {{time}}",
     "usesLabel": "การใช้งาน: {{n}} · การเข้าชม: {{v}}",
     "viewCommunityAverage": "ดู Community Average",
     "aboutDesc": "จัดอันดับจากเทมเพลตชุมชน ‘{{name}}’ มี {{n}} ไอเทม"
+  },
+  "stats": {
+    "title": "สถิติความนิยม",
+    "subtitle": "{{totalItems}} ไอเทม · {{totalVotes}} โหวต",
+    "item": "ไอเทม",
+    "avg": "เฉลี่ย",
+    "votes": "โหวต",
+    "best": "อันดับ 1 · {{name}} — ★ {{avg}} · {{votes}} โหวต",
+    "vsCommunity": "การจัดของคุณ vs ชุมชน",
+    "loginToCompare": "เข้าสู่ระบบเพื่อจัดอันดับเทมเพลตนี้และเทียบกับค่าเฉลี่ยชุมชน",
+    "noRankingYet": "คุณยังไม่ได้จัดอันดับเทมเพลตนี้ —",
+    "rankNow": "ลองจัดดูเลย",
+    "matched": "ตรงกับชุมชน {{match}}/{{total}} รายการ",
+    "same": "ตรงกัน",
+    "higher": "↑ สูงกว่า {{n}} ชั้น",
+    "lower": "↓ ต่ำกว่า {{n}} ชั้น"
   },
   "discover": {
     "title": "ค้นพบ",

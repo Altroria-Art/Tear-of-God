@@ -25,6 +25,7 @@ export default function PostDetail() {
   const { t } = useTranslation()
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
   const tableRef = useRef(null)
+  const commentInputRef = useRef(null) // ช่องพิมพ์คอมเมนต์ — ไว้โฟกัสเมื่อกดปุ่มคอมเมนต์
 
   const [post, setPost] = useState(null)
   const [template, setTemplate] = useState(null)
@@ -187,6 +188,12 @@ export default function PostDetail() {
     setModal('export');
   }
 
+  // กดปุ่มคอมเมนต์ → เลื่อนไปที่ช่องพิมพ์ + โฟกัสให้พิมพ์ได้ทันที
+  const handleCommentClick = () => {
+    commentInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    commentInputRef.current?.focus()
+  }
+
   // 📍 รายงานโพสต์ (ranking) — ส่งไปหาแอดมินว่าอันนี้ไม่เหมาะสม
   const handleReportPost = async () => {
     if (!currentUser) {
@@ -318,10 +325,10 @@ export default function PostDetail() {
                   activeClass="text-red-600 font-bold"
                   onClick={() => handleVote('dislike')}
                 />
-                <ActionButton icon={CommentIcon} count={stats.comments} label={t('post.comments')} />
-                <ActionButton icon={Download} label={t('common.export')} onClick={handleExport} activeClass="hover:text-highlight" />
+                <ActionButton icon={CommentIcon} count={stats.comments} label={t('post.comments')} onClick={handleCommentClick} />
               </div>
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-3">
+                <ActionButton icon={Download} label={t('common.export')} onClick={handleExport} activeClass="hover:text-highlight" />
                 <ActionButton
                   icon={ShareIcon}
                   label={t('common.share')}
@@ -353,7 +360,7 @@ export default function PostDetail() {
             filename={`post-${postId}.png`}
           />
 
-          <CommentSection comments={comments} onSubmit={handleAddComment} />
+          <CommentSection comments={comments} onSubmit={handleAddComment} inputRef={commentInputRef} />
         </div>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">

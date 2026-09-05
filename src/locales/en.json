@@ -245,10 +245,27 @@
     "backToTemplate": "Back to template",
     "about": "About this template",
     "viewTemplate": "View template",
+    "openRankingPost": "Open post",
     "itemsText": "{{n}} items · Updated {{time}}",
     "usesLabel": "Uses: {{n}} · Views: {{v}}",
     "viewCommunityAverage": "View Community Average",
     "aboutDesc": "Ranked from the ‘{{name}}’ community template. Contains {{n}} items."
+  },
+  "stats": {
+    "title": "Popularity Statistics",
+    "subtitle": "{{totalItems}} items · {{totalVotes}} votes",
+    "item": "Item",
+    "avg": "Avg",
+    "votes": "Votes",
+    "best": "Top · {{name}} — ★ {{avg}} · {{votes}} votes",
+    "vsCommunity": "Your ranking vs Community",
+    "loginToCompare": "Log in to rank this template and compare with the community average.",
+    "noRankingYet": "You haven’t ranked this template yet —",
+    "rankNow": "rank it now",
+    "matched": "{{match}} of {{total}} match the community",
+    "same": "Match",
+    "higher": "↑ {{n}} higher",
+    "lower": "↓ {{n}} lower"
   },
   "discover": {
     "title": "Discover",

@@ -8,6 +8,7 @@ import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
+import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPreview'
 import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
@@ -129,7 +130,12 @@ function RankingCard({ ranking, tiersDef }) {
         avatarUrl={ranking.profile?.avatar_url}
         timeLabel={timeAgo(ranking.created_at)}
       />
-      <div>
+      <div
+        onClick={() => navigate(`/post/${ranking.id}`)}
+        className="cursor-pointer transition-colors hover:bg-surface-glass/50"
+        role="button"
+        aria-label={t('template.openRankingPost')}
+      >
         {tierRows.map(({ tier, items }) => (
           <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
         ))}
@@ -553,20 +559,20 @@ export default function TemplateDetailPage() {
         onClose={() => setModal(null)}
         link={shareUrl(`/template/${templateId}`)}
         preview={
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm" style={{ background: '#ffffff' }}>
-            <p className="mb-3 text-sm font-bold text-gray-900">{t('template.communityAverage')}</p>
-            <div className="space-y-2">
-              {communityAvgRows.map(({ tier, items }) => (
-                <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
-              ))}
-            </div>
-          </div>
+          <CommunityAvgExportPreview
+            title={t('template.communityAverage')}
+            updatedText={t('template.updated', { time: timeAgo(template.community_average?.updated_at ?? '') })}
+            tiers={(template.community_average?.tiers || []).map((avgTier) => {
+              const tierDef = tiersDef.find((x) => x.label === avgTier.label)
+              return {
+                label: avgTier.label,
+                color: tierDef?.color,
+                items: (avgTier.items || []).map((it) => ({ name: it.name, avg: it.avg, votes: it.votes ?? 0 })),
+              }
+            })}
+          />
         }
         filename={`template-${templateId}-average${periodDays ? `-${periodDays}d` : ''}.png`}
-        stats={(template.community_average?.tiers || []).flatMap((t) =>
-          (t.items || []).map((it) => ({ item: it.name, avg: it.avg, tier: t.label, votes: it.votes ?? 0 }))
-        ).sort((a, b) => b.avg - a.avg)}
-        statsFilename={`template-${templateId}-stats${periodDays ? `-${periodDays}d` : ''}`}
       />
 
       {/* 📍 Modal รายงานเทมเพลต */}
