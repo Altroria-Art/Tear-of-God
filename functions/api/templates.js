@@ -197,6 +197,42 @@ export async function onRequestGet(context) {
     if (!light && tierCount > 0) {
       // Community Average: อ่านจาก ranking_item_scores (บันทึกคะแนน freeze ตอนสร้าง) แล้ว
       // aggregate ตามช่วงเวลาที่ขอ — score เก็บค่า "แถวบนสุด = สูงสุด" อยู่แล้ว ไม่ต้อง map label ซ้ำ
+
+      // Self-heal: ถ้า template นี้มี rankings แต่ยังไม่มีคะแนนเลยใน ranking_item_scores
+      // (เช่น local state ถูก reset แล้ว rerun schema โดยไม่ได้ backfill — เหตุการณ์จริงที่ทำให้
+      // การ์ด Community Average หายทั้งใบ) ให้คำนวณคะแนนจาก ranking_items + tiers แล้ว insert
+      // ครั้งเดียว — logic เดียวกับ scripts/backfill-scores.mjs (ดู docs/community-average-backfill-plan.md)
+      const { results: scoreCountRows } = await db.prepare(
+        `SELECT COUNT(*) AS n FROM ranking_item_scores WHERE template_id = ?`
+      ).bind(templateId).all();
+      if (useCount > 0 && (scoreCountRows[0]?.n || 0) === 0) {
+        const { results: scoreSeedRows } = await db.prepare(
+          `SELECT ri.ranking_id, ri.item_id, ri.tier, r.created_at
+           FROM ranking_items ri
+           JOIN rankings r ON r.id = ri.ranking_id
+           WHERE r.template_id = ?`
+        ).bind(templateId).all();
+
+        const tierIndexByLabel = {};
+        tiersDef.forEach((t, i) => { tierIndexByLabel[String(t.label)] = i; });
+
+        const scoreInserts = [];
+        scoreSeedRows.forEach((row) => {
+          const tierIdx = tierIndexByLabel[String(row.tier)];
+          if (tierIdx === undefined) return; // item ยังไม่จัด / tier ไม่ตรง — ข้าม
+          scoreInserts.push(
+            db.prepare(
+              `INSERT INTO ranking_item_scores (id, ranking_id, template_id, item_id, tier_index, score, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`
+            ).bind(crypto.randomUUID(), row.ranking_id, templateId, row.item_id, tierIdx, tierCount - tierIdx, row.created_at || null)
+          );
+        });
+        // D1 batch จำกัด 100 statements ต่อครั้ง — ตัดเป็นชุด
+        for (let i = 0; i < scoreInserts.length; i += 100) {
+          await db.batch(scoreInserts.slice(i, i + 100));
+        }
+      }
+
       let whereSql = ` WHERE ris.template_id = ?`;
       const whereParams = [templateId];
       if (period?.from) { whereSql += ` AND ris.created_at >= ?`; whereParams.push(period.from); }

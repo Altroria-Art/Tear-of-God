@@ -18,7 +18,7 @@ function Comment({ author, createdAt, body }) {
   )
 }
 
-export default function CommentSection({ comments, onSubmit }) {
+export default function CommentSection({ comments, onSubmit, inputRef }) {
   const [draft, setDraft] = useState('')
   const { t } = useTranslation()
 
@@ -36,6 +36,7 @@ export default function CommentSection({ comments, onSubmit }) {
 
       <form onSubmit={handleSubmit} className="mt-3 flex gap-3">
         <textarea
+          ref={inputRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={t('post.commentPh')}
