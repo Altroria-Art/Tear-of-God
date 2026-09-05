@@ -84,14 +84,17 @@ export async function onRequestGet(context) {
         // (grep แล้ว: ไม่มี INSERT INTO template_items ที่ไหนในแอปตอนรันจริง) และ seed ทุกแถวเรียง
         // position ต่อเนื่องเริ่มที่ 0 เสมอ (ยืนยันด้วย query ตรวจ MIN/MAX/COUNT ต่อ template แล้ว)
         const { results: allItems } = await db.prepare(
-          `SELECT * FROM template_items WHERE template_id IN (${placeholders}) AND position < 4 ORDER BY template_id, position ASC`
+          `SELECT ti.*, i.name as item_name, i.image_url as item_image
+           FROM template_items ti
+           LEFT JOIN items i ON ti.item_id = i.id
+           WHERE ti.template_id IN (${placeholders}) AND ti.position < 4 ORDER BY ti.template_id, ti.position ASC`
         ).bind(...templateIds).all();
 
         allItems.forEach(ti => {
           if (!itemsMap[ti.template_id]) itemsMap[ti.template_id] = [];
           itemsMap[ti.template_id].push({
             ...ti,
-            item: { id: ti.item_id, name: ti.item_id, image_url: null }
+            item: { id: ti.item_id, name: ti.item_name || ti.item_id, image_url: ti.item_image }
           });
         });
       }
@@ -167,7 +170,10 @@ export async function onRequestGet(context) {
     const light = url.searchParams.get('fields') === 'meta';
 
     const { results: templateItems } = await db.prepare(
-      `SELECT * FROM template_items WHERE template_id = ? ORDER BY position ASC`
+      `SELECT ti.*, i.name as item_name, i.image_url as item_image
+       FROM template_items ti
+       LEFT JOIN items i ON ti.item_id = i.id
+       WHERE ti.template_id = ? ORDER BY ti.position ASC`
     ).bind(templateId).all();
 
     // รวม COUNT(*) กับ MAX(created_at) เป็น query เดียว (เดิมแยก 2 statement คนละ query)
@@ -293,7 +299,7 @@ export async function onRequestGet(context) {
       },
       template_items: templateItems.map(ti => ({
         ...ti,
-        item: { id: ti.item_id, name: ti.item_id, image_url: null }
+        item: { id: ti.item_id, name: ti.item_name || ti.item_id, image_url: ti.item_image }
       })),
       community_average: communityAverage
     };

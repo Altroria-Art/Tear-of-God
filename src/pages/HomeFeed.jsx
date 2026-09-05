@@ -198,9 +198,16 @@ function HomeTierCard({ post }) {
               {row.items.map((ri, idx) => (
                 <div
                   key={ri.id ?? idx}
-                  className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs break-words"
+                  className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs break-words overflow-hidden relative"
                 >
-                  <span className="w-full line-clamp-2 text-[11px] leading-normal">{ri.item?.name || ri.item_id || t('common.unknownItem')}</span>
+                  {ri.item?.image_url ? (
+                    <>
+                      <img src={ri.item.image_url} alt={ri.item?.name || ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                      <span className="absolute inset-x-0 bottom-0 bg-black/55 text-white text-[9px] leading-tight px-1 py-0.5 line-clamp-2 break-words">{ri.item?.name || ri.item_id || ''}</span>
+                    </>
+                  ) : (
+                    <span className="w-full line-clamp-2 text-[11px] leading-normal">{ri.item?.name || ri.item_id || t('common.unknownItem')}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -399,8 +406,10 @@ export default function HomeFeed() {
             </div>
           )}
 
-          {!isLoading && displayData.map((post) => (
-            <HomeTierCard key={post.id} post={post} />
+          {!isLoading && displayData.map((post, idx) => (
+            <div key={post.id} className="animate-fade-up" style={{ animationDelay: `${Math.min(idx, 8) * 60}ms` }}>
+              <HomeTierCard post={post} />
+            </div>
           ))}
 
           {/* เงื่อนไขต้องไม่มี isLoading — ถ้ามี sentinel จะยังไม่ mount ตอนโหลดหน้าแรก

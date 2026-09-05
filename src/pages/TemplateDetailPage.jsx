@@ -28,7 +28,7 @@ function groupItemsByTierOrder(rankingItems, tiersDef) {
   tiersDef.forEach((t) => { map[t.label] = [] })
   ;(rankingItems || []).forEach((ri) => {
     if (!ri.tier || !(ri.tier in map)) return
-    map[ri.tier].push(ri.item?.name || ri.item_id)
+    map[ri.tier].push(ri.item || { id: ri.item_id, name: ri.item_id, image_url: null })
   })
   return tiersDef.map((t) => ({ tier: t, items: map[t.label] }))
 }
@@ -43,14 +43,22 @@ function TierListRow({ tier, items }) {
         className={`w-12 min-h-12 rounded-sm font-bold px-1 ${isLong ? 'text-[10px]' : 'text-base'}`}
       />
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        {items.map((item, idx) => (
-          <span
-            key={idx}
-            className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-sm break-words"
-          >
-            {item}
-          </span>
-        ))}
+        {items.map((item, idx) => {
+          const name = typeof item === 'object' ? (item.name || '') : item;
+          const imageUrl = typeof item === 'object' ? (item.image_url || null) : null;
+          return imageUrl ? (
+            <span key={idx} className="relative shrink-0 w-14 h-10 rounded-md overflow-hidden border border-line-soft shadow-md">
+              <img src={imageUrl} alt={name} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+            </span>
+          ) : (
+            <span
+              key={idx}
+              className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-sm break-words"
+            >
+              {name}
+            </span>
+          );
+        })}
       </div>
     </div>
   )

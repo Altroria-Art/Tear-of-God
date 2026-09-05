@@ -16,7 +16,8 @@ export default function TemplateCard({ template, onUse }) {
     template.template_items?.forEach((ti) => {
       if (!ti.tier) return;
       if (!map[ti.tier]) map[ti.tier] = [];
-      map[ti.tier].push(ti.item?.name || ti.item_id);
+      // เก็บ object item ทั้งตัว (มี image_url ด้วย) — ตัว render ข้างล่างจัดการทั้งแบบมี/ไม่มีรูป
+      map[ti.tier].push(ti.item || { id: ti.item_id, name: ti.item_id, image_url: null });
     });
     return map;
   }, [template.template_items]);
@@ -53,11 +54,18 @@ export default function TemplateCard({ template, onUse }) {
                 className={`w-12 rounded-l font-bold px-1 ${tier.label.length > 2 ? 'text-[9px]' : 'text-sm'}`}
               />
               <div className="bg-surface min-w-0 flex-grow rounded-r opacity-80 flex items-center gap-2 px-2 overflow-hidden border-y border-r border-line-soft">
-                {items.slice(0, 2).map((item, idx) => (
-                  <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-2 py-1 text-[10px] whitespace-nowrap">
-                    {item}
-                  </span>
-                ))}
+                {items.slice(0, 2).map((item, idx) => {
+                  const name = item?.name || item?.id || '';
+                  return item?.image_url ? (
+                    <span key={idx} className="relative shrink-0 w-12 h-9 rounded-md overflow-hidden border border-line-soft shadow-md">
+                      <img src={item.image_url} alt={name} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                    </span>
+                  ) : (
+                    <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-2 py-1 text-[10px] whitespace-nowrap">
+                      {name}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           );

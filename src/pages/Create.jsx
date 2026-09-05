@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Settings, Upload, X, ChevronLeft, ChevronRight, ImagePlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { createRanking } from '../lib/api';
+import { createRanking, uploadImage } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
 import TierLabel from '../components/tier/TierLabel';
 import { useTranslation, Trans } from 'react-i18next';
@@ -113,13 +113,28 @@ const CreateTierList = () => {
     const newItems = quickAddText.split(',').map((item, index) => ({
         id: `item-${Date.now()}-${index}`,
         content: item.trim(),
-        tierId: null
+        tierId: null,
+        imageUrl: null
       })).filter((item) => item.content !== '');
     setItems([...items, ...newItems]);
     setQuickAddText('');
   };
 
   const handleDeleteItem = (idToRemove) => setItems(items.filter(item => item.id !== idToRemove));
+  const removeItemImage = (itemId) => setItems(items.map(item => item.id === itemId ? { ...item, imageUrl: null } : item));
+
+  // 📍 อัปโหลดรูปไอเทมไป R2 ทันทีที่เลือกไฟล์ (ไม่รอตอน publish) — รองรับลบ/แทนที่ก่อนโพสต์ได้
+  const handleItemImage = async (itemId, file) => {
+    if (!file) return;
+    toast.info(t('create.uploadingImage'));
+    const res = await uploadImage(file, 'items/');
+    if (!res?.url) {
+      toast.error(res?.error || t('create.imageFailed'));
+      return;
+    }
+    setItems(prev => prev.map(item => item.id === itemId ? { ...item, imageUrl: res.url } : item));
+    toast.success(t('create.imageUploaded'));
+  };
   const updateTierData = (id, field, value) => setTiers(tiers.map(tier => tier.id === id ? { ...tier, [field]: value } : tier));
 
   // 📍 ล้างทั้งกระดาน: items, ชื่อ, คำอธิบาย, แฮชแท็กที่เลือก, ข้อความ Quick Add
@@ -254,9 +269,39 @@ const CreateTierList = () => {
         data-item-id={item.id}
         draggable
         onDragStart={(e) => handleDragStart(e, item.id)}
-        className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center px-2 pt-2 pb-4 text-center text-[10px] md:text-xs cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl hover:border-brand-accent transition-all z-10"
+        className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative w-20 h-20 md:w-24 md:h-24 overflow-hidden flex items-center justify-center px-2 pt-2 pb-4 text-center text-[10px] md:text-xs cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl hover:border-brand-accent transition-all z-10"
       >
-        <span className="break-words line-clamp-3 leading-tight pointer-events-none drop-shadow-sm">{item.content}</span>
+        {item.imageUrl ? (
+          <>
+            <img src={item.imageUrl} alt={item.content} className="absolute inset-0 w-full h-full object-cover" />
+            <span className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[9px] leading-tight px-1 py-0.5 text-center line-clamp-2 break-words">{item.content}</span>
+            <button
+              type="button"
+              onClick={() => removeItemImage(item.id)}
+              title={t('create.removeImage')}
+              aria-label={t('create.removeImage')}
+              className="absolute top-1 right-1 rounded p-0.5 bg-black/50 text-white hover:bg-status-error opacity-0 group-hover:opacity-100 transition-all"
+            >
+              <X size={12} strokeWidth={3} />
+            </button>
+          </>
+        ) : (
+          <span className="break-words line-clamp-3 leading-tight pointer-events-none drop-shadow-sm">{item.content}</span>
+        )}
+
+        {/* ปุ่มอัปโหลดรูปไอเทม */}
+        <label
+          title={t('create.setItemImage')}
+          className="absolute top-1 left-1 rounded p-0.5 bg-black/50 text-white cursor-pointer opacity-0 group-hover:opacity-100 hover:bg-brand transition-all"
+        >
+          <ImagePlus size={12} strokeWidth={3} />
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(e) => { handleItemImage(item.id, e.target.files?.[0]); e.currentTarget.value = ''; }}
+          />
+        </label>
 
         {/* 📍 [ใหม่]: ปุ่มย้ายซ้าย/ขวา — สลับลำดับภายใน tier เดียวกัน */}
         <button
@@ -318,7 +363,7 @@ const CreateTierList = () => {
         category: selectedHashtags[0].replace('#', '').toLowerCase(),
         hashtags: selectedHashtags.join(','),
         tiers: tiers.map(({ id, label, color }) => ({ id, label, color })),
-        items: items.map((item, index) => ({ name: item.content, position: index }))
+        items: items.map((item, index) => ({ name: item.content, position: index, image_url: item.imageUrl || null }))
       },
       items: rankedItems.map((item, index) => {
         const tierObj = tiers.find((tier) => tier.id === item.tierId);

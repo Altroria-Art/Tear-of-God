@@ -373,9 +373,15 @@ export default function Profile() {
                           />
                           <div className="p-2 flex gap-2 overflow-x-auto items-center flex-grow">
                             {(row.items || []).slice(0, 2).map((ri, idx) => (
-                              <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-xs whitespace-nowrap">
-                                {ri.item?.name || ri.item_name || ri.item_id}
-                              </span>
+                              ri.item?.image_url ? (
+                                <span key={idx} className="relative shrink-0 w-10 h-7 rounded-md overflow-hidden border border-line-soft shadow-md">
+                                  <img src={ri.item.image_url} alt={ri.item?.name || ''} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
+                                </span>
+                              ) : (
+                                <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-xs whitespace-nowrap">
+                                  {ri.item?.name || ri.item_name || ri.item_id}
+                                </span>
+                              )
                             ))}
                           </div>
                         </div>

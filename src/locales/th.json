@@ -87,6 +87,11 @@
   "create": {
     "title": "สร้าง Tier List",
     "subtitle": "กำหนดหมวดหมู่ของคุณและจัดอันดับได้อย่างลงตัว",
+    "setItemImage": "เพิ่มรูปไอเทม",
+    "removeImage": "ลบรูป",
+    "uploadingImage": "กำลังอัปโหลดรูป...",
+    "imageUploaded": "เพิ่มรูปแล้ว",
+    "imageFailed": "อัปโหลดรูปไม่สำเร็จ",
     "templateName": "ชื่อเทมเพลต",
     "templateNamePh": "เช่น หนังยอดเยี่ยมยุค 90...",
     "hashtags": "แฮชแท็ก / หมวดหมู่",

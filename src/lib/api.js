@@ -109,11 +109,12 @@ export async function updateProfile(userId, profileData) {
   }
 }
 
-// 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปโหลดไฟล์รูปภาพไป R2
-export async function uploadImage(file) {
+// 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปโหลดไฟล์รูปภาพไป R2 (folder: 'profiles/' | 'items/')
+export async function uploadImage(file, folder = 'profiles/') {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('folder', folder);
     
     const response = await fetch(`${API_URL}/api/upload`, {
       method: 'POST',
