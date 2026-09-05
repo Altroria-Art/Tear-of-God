@@ -45,6 +45,10 @@
   --color-vote-up: #00d4ff;
   --color-vote-down: #ff2e93;
 
+  /* Hashtag pill */
+  --color-hashtag: #ffc329;
+  --color-hashtag-ink: #261a00;
+
   /* Status (toast notifications) */
   --color-status-success: #10b981;
   --color-status-error: #ef4444;
@@ -85,6 +89,13 @@
   --animate-toast-in: toast-in 0.28s cubic-bezier(0.21, 1.02, 0.73, 1);
   --animate-toast-progress: toast-progress 4s linear forwards;
 
+  /* Modal / dropdown motion */
+  --animate-modal-in: modal-in 0.22s cubic-bezier(0.21, 1.02, 0.73, 1);
+  --animate-modal-out: modal-out 0.16s ease-in forwards;
+  --animate-dropdown-in: dropdown-in 0.16s cubic-bezier(0.21, 1.02, 0.73, 1);
+  --animate-fade-in: fade-in 0.2s ease forwards;
+  --animate-fade-up: fade-up 0.35s cubic-bezier(0.21, 1.02, 0.73, 1);
+
   /* Aurora Animation */
   --animate-aurora: aurora 15s ease infinite;
 
@@ -95,6 +106,26 @@
   @keyframes toast-progress {
     from { width: 100%; }
     to { width: 0%; }
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(10px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes modal-out {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(8px) scale(0.97); }
+  }
+  @keyframes dropdown-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
   }
   @keyframes aurora {
     0% { background-position: 0% 50%; }

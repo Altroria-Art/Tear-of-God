@@ -245,7 +245,7 @@ export default function CommunityAveragePage() {
                   count={formatCount(reaction.likes)}
                   label={t('post.like')}
                   pressed={reaction.userVote === 'like'}
-                  activeClass="text-blue-600 font-bold"
+                  activeClass="text-vote-up font-bold"
                   onClick={() => handleVote('like')}
                 />
                 <ActionButton
@@ -253,7 +253,7 @@ export default function CommunityAveragePage() {
                   count={formatCount(reaction.dislikes)}
                   label={t('post.dislike')}
                   pressed={reaction.userVote === 'dislike'}
-                  activeClass="text-red-600 font-bold"
+                  activeClass="text-vote-down font-bold"
                   onClick={() => handleVote('dislike')}
                 />
 <ActionButton icon={CommentIcon} count={formatCount(commentCount)} label={t('post.comments')} onClick={handleCommentClick} />

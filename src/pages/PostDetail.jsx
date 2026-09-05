@@ -314,7 +314,7 @@ export default function PostDetail() {
                   count={stats.likes} 
                   label={t('post.like')} 
                   pressed={userVote === 'like'}
-                  activeClass="text-blue-600 font-bold"
+                  activeClass="text-vote-up font-bold"
                   onClick={() => handleVote('like')}
                 />
                 <ActionButton
@@ -322,7 +322,7 @@ export default function PostDetail() {
                   count={stats.dislikes}
                   label={t('post.dislike')}
                   pressed={userVote === 'dislike'}
-                  activeClass="text-red-600 font-bold"
+                  activeClass="text-vote-down font-bold"
                   onClick={() => handleVote('dislike')}
                 />
                 <ActionButton icon={CommentIcon} count={stats.comments} label={t('post.comments')} onClick={handleCommentClick} />
