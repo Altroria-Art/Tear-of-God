@@ -4,11 +4,15 @@ import { useUser } from '../context/UserContext';
 import { fetchTemplates, fetchHashtags } from '../lib/api';
 import TemplateCard from '../components/template/TemplateCard';
 import HashtagPill from '../components/discover/HashtagPill';
+import { SkeletonTemplateGrid } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
+import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
 
 export default function Discover() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const toast = useToast();
   const { t } = useTranslation();
   const [templates, setTemplates] = useState([]);
   const [hashtags, setHashtags] = useState([]);
@@ -41,7 +45,7 @@ export default function Discover() {
 
   const handleProtectedAction = (callback) => {
     if (!currentUser) {
-      alert(t('discover.protectedLogin'));
+      toast.warning(t('discover.protectedLogin'));
       navigate('/login');
       return;
     }
@@ -88,9 +92,9 @@ export default function Discover() {
           </div>
 
           {isLoading ? (
-            <p className="text-muted font-medium animate-pulse text-center py-10">{t('discover.loadingPopular')}</p>
+            <SkeletonTemplateGrid />
           ) : popularTemplates.length === 0 ? (
-            <p className="text-muted font-medium text-center py-10 glass rounded-2xl">{t('discover.emptyTemplates')}</p>
+            <EmptyState title={t('discover.emptyTemplates')} />
           ) : (
             <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
               {popularTemplates.map((template) => (
@@ -106,8 +110,10 @@ export default function Discover() {
             <Link to="/discover/hashtags" className="text-sm font-bold text-brand-accent hover:text-tier-d transition-colors">{t('discover.viewAll')}</Link>
           </div>
           <div className="flex flex-wrap gap-3 glass p-6 rounded-3xl border border-line-soft">
-            {hashtags.map((h) => (
-              <HashtagPill key={h.tag} tag={h.tag} count={h.template_count} />
+            {hashtags.map((h, i) => (
+              <div key={h.tag} className="animate-fade-up" style={{ animationDelay: `${i * 45}ms` }}>
+                <HashtagPill tag={h.tag} count={h.template_count} />
+              </div>
             ))}
           </div>
         </section>

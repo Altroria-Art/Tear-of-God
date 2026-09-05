@@ -133,7 +133,7 @@ export default function Login() {
             <div className="flex justify-between items-center mb-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-ink-soft">{t('auth.password')}</label>
               {!isRegister && (
-                <a href="#" className="text-xs text-muted hover:underline">{t('auth.forgotPassword')}</a>
+                <span className="text-xs text-muted">{t('auth.forgotPassword')}</span>
               )}
             </div>
             <div className="relative">

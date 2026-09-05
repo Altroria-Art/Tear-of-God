@@ -7,6 +7,8 @@ import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import TierLabel from '../components/tier/TierLabel';
 import { useToast } from '../components/ui/Toast';
+import { SkeletonCircle, SkeletonRow, FeedCardSkeleton } from '../components/ui/Skeleton';
+import EmptyState from '../components/ui/EmptyState';
 import { useTranslation } from 'react-i18next';
 
 export default function Profile() {
@@ -203,8 +205,29 @@ export default function Profile() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4">
-        <p className="text-sm font-medium text-muted animate-pulse">{t('profile.loading')}</p>
+      <main className="min-h-screen flex items-start justify-center px-4 py-10">
+        <div className="mx-auto max-w-7xl flex gap-8 items-start justify-center w-full">
+          <aside className="hidden lg:block w-[300px] shrink-0">
+            <div className="glass p-6 rounded-3xl flex flex-col items-center gap-3">
+              <SkeletonCircle className="w-24 h-24" />
+              <SkeletonRow className="w-28 h-5" />
+              <SkeletonRow className="w-20 h-3" />
+              <div className="flex gap-8 my-2">
+                <SkeletonRow className="w-12 h-4" />
+                <SkeletonRow className="w-12 h-4" />
+              </div>
+              <SkeletonRow className="w-full h-3" />
+              <SkeletonRow className="w-3/4 h-3" />
+              <SkeletonRow className="w-24 h-9 rounded-full mt-2" />
+            </div>
+          </aside>
+          <main className="w-full max-w-2xl shrink">
+            <div className="space-y-6 mt-4">
+              <FeedCardSkeleton />
+              <FeedCardSkeleton />
+            </div>
+          </main>
+        </div>
       </main>
     );
   }
@@ -320,11 +343,11 @@ export default function Profile() {
 
             {/* User's Created Templates */}
             {posts.length === 0 ? (
-              <p className="text-center text-sm text-muted py-8 glass rounded-2xl ">
-                {isOwnProfile
+              <EmptyState
+                title={isOwnProfile
                   ? t('profile.emptyOwn')
                   : t('profile.emptyOther', { name: displayUser?.username || t('common.unknownUser') })}
-              </p>
+              />
             ) : (
               posts.map((post) => (
                 <article
@@ -519,7 +542,7 @@ export default function Profile() {
               {isFollowListLoading ? (
                 <p className="text-center text-muted py-6">{t('profile.loading')}</p>
               ) : followListData.length === 0 ? (
-                <p className="text-center text-muted py-6">{t('profile.noUsers')}</p>
+                <EmptyState title={t('profile.noUsers')} />
               ) : (
                 followListData.map(user => (
                   <div key={user.id} 

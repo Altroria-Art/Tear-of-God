@@ -38,7 +38,8 @@
     "profile": "Profile",
     "admin": "Admin",
     "logout": "Log out",
-    "toggleLanguage": "Switch language"
+    "toggleLanguage": "Switch language",
+    "menu": "Menu"
   },
   "auth": {
     "createAccountTitle": "Create an Account",

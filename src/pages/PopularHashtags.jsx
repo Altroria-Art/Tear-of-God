@@ -5,6 +5,7 @@ import { fetchHashtags } from '../lib/api';
 import HashtagPill from '../components/discover/HashtagPill';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
+import EmptyState from '../components/ui/EmptyState';
 import { ArrowLeftIcon } from '../components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 
@@ -116,7 +117,7 @@ export default function PopularHashtags() {
         {isLoading ? (
           <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingHashtags')}</p>
         ) : hashtags.length === 0 ? (
-          <p className="text-muted text-center py-10">{t('discover.emptyHashtags')}</p>
+          <EmptyState title={t('discover.emptyHashtags')} />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {hashtags.map((h) => (

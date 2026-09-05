@@ -38,7 +38,8 @@
     "profile": "โปรไฟล์",
     "admin": "แอดมิน",
     "logout": "ออกจากระบบ",
-    "toggleLanguage": "สลับภาษา"
+    "toggleLanguage": "สลับภาษา",
+    "menu": "เมนู"
   },
   "auth": {
     "createAccountTitle": "สร้างบัญชี",

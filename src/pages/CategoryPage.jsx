@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import Avatar from '../components/ui/Avatar'
 import TierLabel from '../components/tier/TierLabel'
 import { fetchRankings } from '../lib/api' // 📍 นำเข้า API
+import EmptyState from '../components/ui/EmptyState'
 import { useTranslation } from 'react-i18next'
 
 // เก็บไว้แค่ข้อมูลตกแต่ง UI ไม่มี Mock Data โพสต์แล้ว — title/subtitle ใช้ i18n key (category.<id>)
@@ -109,7 +110,7 @@ export default function CategoryPage() {
       {isLoading ? (
         <p className="text-center text-muted py-10">{t('common.loading')}</p>
       ) : templates.length === 0 ? (
-        <p className="text-center text-muted py-10">{t('category.empty')}</p>
+        <EmptyState title={t('category.empty')} />
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {templates.map((template) => (
