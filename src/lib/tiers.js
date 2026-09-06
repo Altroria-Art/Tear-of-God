@@ -119,14 +119,19 @@ export function resolveTierColor(color, label, index) {
 // so both render tiers in the same order/color as Discover Detailed instead
 // of each guessing independently from ranking_items' insertion order.
 //
-// Two things this deliberately does NOT do, both fixing real bugs found
-// while tracing the feed data flow (see docs/tier-list-feed-debug-plan.md):
+// This deliberately does NOT do the following, each fixing a real bug found
+// while tracing the feed data flow (see docs/tier-list-feed-debug-plan.md and
+// docs/tier-list-empty-tier-and-publish-validation-plan.md):
 //   - `ranking_items` whose `tier` is falsy (an unranked item) are skipped
 //     entirely, never coerced into a fake tier (the old bug: `ri.tier || 'S'`).
 //   - a tier label present in `ranking_items` but absent from `tiersDef`
 //     (e.g. a ranking with no template at all) still gets its own row, using
 //     its position among those "extra" rows as `index` for resolveTierColor's
 //     fallback — items are never silently dropped.
+//   - a tier defined in `tiersDef` never disappears just because it has zero
+//     items — it keeps its row (label + color, empty container) so the full
+//     tier structure authored on the Create/Use-Template page is preserved in
+//     Feed, Post Detail and Profile (empty tiers were previously dropped here).
 //
 // Returns `[{ tier, color, index, items }]` where `items` are the *raw*
 // matching `ranking_items` entries — callers are the ones who know what
@@ -143,8 +148,8 @@ export function buildTierRows(rankingItems, tiersDef) {
   const seen = new Set()
 
   ;(tiersDef || []).forEach((t, index) => {
-    if (!itemsByLabel[t.label]) return // tier ของ template ที่ไม่มีไอเทมเลย — ไม่โชว์แถวเปล่า
-    rows.push({ tier: t.label, color: t.color, index, items: itemsByLabel[t.label] })
+    // tier ที่นิยามไว้แม้ไม่มีไอเทมเลยก็ต้องมีแถว (แสดงแถวเปล่า) — อย่า return ทิ้ง
+    rows.push({ tier: t.label, color: t.color, index, items: itemsByLabel[t.label] || [] })
     seen.add(t.label)
   })
 

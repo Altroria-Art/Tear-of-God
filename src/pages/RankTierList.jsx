@@ -167,6 +167,15 @@ const RankTierList = () => {
     if (!title.trim()) return alert(t('rank.warnTitle'));
     if (selectedHashtags.length === 0) return alert(t('rank.warnHashtag'));
 
+    // 📍 [ใหม่]: ห้าม publish ถ้ายังมีไอเทมค้างใน Unranked Pool — เดิมไอเทมที่ยังไม่จัด
+    // tier จะโดน drop เงียบๆ ไม่ถูกบันทึกลง ranking_items (ดู docs/tier-list-empty-tier-and-publish-validation-plan.md)
+    const unrankedItems = items.filter(item => item.tierId === null);
+    if (unrankedItems.length > 0) {
+      const names = unrankedItems.slice(0, 3).map(i => i.content).join(', ');
+      const more = unrankedItems.length > 3 ? t('rank.errUnrankedItemsMore', { n: unrankedItems.length - 3 }) : '';
+      return alert(t('rank.errUnrankedItems', { count: unrankedItems.length, names, more }));
+    }
+
     setIsSaving(true);
     const rankingData = {
       payload: {
