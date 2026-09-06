@@ -76,8 +76,18 @@ const RankTierList = () => {
         }));
         setItems(templateItems);
 
-        const fromTemplate = data.hashtags ? data.hashtags.split(',').filter(Boolean) : [];
-        setSuggestedTags([...new Set([...fromTemplate, ...STANDARD_HASHTAGS])]);
+        // 📍 hashtag ของ template ต้นทาง = ตัวที่เจ้าของ template เลือกไว้ (templates.hashtags)
+        // — นำมาเป็น selectedHashtags เริ่มต้น (inherit) พร้อมเก็บไว้ใน suggested ด้วย เพื่อให้
+        // ผู้ใช้เพิ่ม/ลบได้เหมือนเดิม และไม่มีทางได้รับแท็กที่คนอื่นเพิ่มไว้บน ranking ที่เกิดจาก
+        // template นี้ (ดู docs/template-hashtag-inheritance-plan.md)
+        const fromTemplate = (data.hashtags || '')
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean)
+          .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`));
+        const fromTemplateUnique = [...new Set(fromTemplate)];
+        setSelectedHashtags(fromTemplateUnique);
+        setSuggestedTags([...new Set([...fromTemplateUnique, ...STANDARD_HASHTAGS])]);
       } else {
         console.error('Failed to load template:', error);
       }

@@ -8,6 +8,7 @@ import ShareExportModal from '../components/ui/ShareExportModal'
 import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPreview'
 import CommunityAvgStatsChart from '../components/ui/CommunityAvgStatsChart'
 import TierLabel from '../components/tier/TierLabel'
+import HashtagList from '../components/template/HashtagList'
 import { ArrowLeftIcon, CommentIcon, ShareIcon, ThumbsDownIcon, ThumbsUpIcon } from '../components/ui/Icons'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
@@ -231,6 +232,8 @@ export default function CommunityAveragePage() {
             <p className="mt-1 text-xs text-muted">
               {t('template.itemsText', { n: itemCount, time: updatedAt ? timeAgo(updatedAt) : '—' })}
             </p>
+
+            <HashtagList hashtags={template.hashtags} className="mt-3" />
 
             <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2 glass">
               {avgTiers.map(({ tier, color, index, items }) => (

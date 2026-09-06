@@ -13,6 +13,7 @@ import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
 import TierLabel from '../components/tier/TierLabel'
+import HashtagList from '../components/template/HashtagList'
 import { useTranslation } from 'react-i18next'
 
 const PAGE_SIZE = 5
@@ -445,6 +446,8 @@ export default function TemplateDetailPage() {
           </div>
 
           <p className="mt-4 max-w-3xl text-muted">{template.description}</p>
+
+          <HashtagList hashtags={template.hashtags} className="mt-3" />
         </section>
 
         <section>
