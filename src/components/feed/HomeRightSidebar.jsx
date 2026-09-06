@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { TrendingUp, LayoutTemplate, ArrowRight, Music, Film, Utensils, Gamepad2, Tv, Hash, MonitorPlay, Sparkles, BookOpen, Dumbbell, Palette, Laptop, Plane } from 'lucide-react';
+import { TrendingUp, LayoutTemplate, ArrowRight, Music, Film, Utensils, Gamepad2, Tv, Hash, MonitorPlay, BookOpen, Dumbbell, Palette, Laptop, Plane } from 'lucide-react';
 import { fetchHashtags, fetchTemplates } from '../../lib/api';
 import { useTranslation } from 'react-i18next';
 
@@ -62,7 +62,7 @@ export default function HomeRightSidebar() {
                   </div>
                 </div>
                 <div className="text-[11px] text-muted font-medium bg-surface-glass px-2 py-0.5 rounded-full border border-line-soft">
-                  {tag.template_count}
+                  {tag.content_count}
                 </div>
               </div>
             ))}
@@ -89,15 +89,20 @@ export default function HomeRightSidebar() {
               <div 
                 key={tpl.id} 
                 onClick={() => navigate(`/template/${tpl.id}`)}
-                className="group cursor-pointer flex gap-3 items-center"
+                className="group cursor-pointer flex gap-3 items-center justify-between"
               >
-                <div className="w-12 h-12 shrink-0 rounded-lg bg-surface-glass border border-line-soft overflow-hidden relative">
+                <div className="flex gap-3 items-center min-w-0">
+                  <div className="w-12 h-12 shrink-0 rounded-lg bg-surface-glass border border-line-soft overflow-hidden relative">
                     <div className="w-full h-full flex items-center justify-center text-muted font-bold text-xs">{tpl.title.charAt(0)}</div>
-                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+                    <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+                  </div>
+                  <div className="overflow-hidden">
+                    <div className="text-[13px] font-bold text-ink-soft group-hover:text-highlight transition-colors truncate">{tpl.title}</div>
+                    <div className="text-[11px] text-muted truncate">{tpl.category || 'general'}</div>
+                  </div>
                 </div>
-                <div className="overflow-hidden">
-                  <div className="text-[13px] font-bold text-ink-soft group-hover:text-highlight transition-colors truncate">{tpl.title}</div>
-                  <div className="text-[11px] text-muted truncate">{tpl.category || 'general'} &bull; {tpl.use_count || 0} {t('common.uses').toLowerCase()}</div>
+                <div className="text-[11px] text-muted font-medium bg-surface-glass px-2 py-0.5 rounded-full border border-line-soft shrink-0">
+                  {tpl.use_count || 0}
                 </div>
               </div>
             ))}

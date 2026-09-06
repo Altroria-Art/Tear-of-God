@@ -120,7 +120,7 @@ export default function PopularHashtags() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {hashtags.map((h) => (
-              <HashtagPill key={h.tag} tag={h.tag} count={h.template_count} />
+              <HashtagPill key={h.tag} tag={h.tag} count={h.content_count} />
             ))}
           </div>
         )}

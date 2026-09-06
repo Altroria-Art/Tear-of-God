@@ -60,7 +60,7 @@ export default function Discover() {
   const hashtagSections = useMemo(
     () =>
       hashtags
-        .filter((h) => h.template_count >= 3)
+        .filter((h) => h.content_count >= 3)
         .slice(0, 3)
         .map((h) => ({
           tag: h.tag,
@@ -107,7 +107,7 @@ export default function Discover() {
           </div>
           <div className="flex flex-wrap gap-3 glass p-6 rounded-3xl border border-line-soft">
             {hashtags.map((h) => (
-              <HashtagPill key={h.tag} tag={h.tag} count={h.template_count} />
+              <HashtagPill key={h.tag} tag={h.tag} count={h.content_count} />
             ))}
           </div>
         </section>
