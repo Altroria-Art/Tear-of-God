@@ -25,7 +25,7 @@
 | Test Case ID | Module / Feature | ความสำคัญ (Priority) | คำอธิบาย (Test Case Description) | เงื่อนไขเบื้องต้น (Pre-Condition) | ขั้นตอนการทดสอบ (Test Steps) | ผลลัพธ์ที่คาดหวัง (Expected Result) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TC-07** | Feed | **High** | เลื่อนดูฟีดหลัก (Infinite Scroll) | มีข้อมูล Ranking ในระบบจำนวนมาก | 1. ไปที่หน้า Home<br>2. เลื่อนหน้าจอลงมาด้านล่างสุด | ระบบจะโหลด Ranking เพิ่มเติมโดยอัตโนมัติ (ไม่กระตุก/หน่วง) |
-| **TC-08** | Feed | **High** | ดูหน้าฟีด General และ Kindred | ล็อกอินเข้าสู่ระบบแล้ว | 1. ไปที่หน้า Home<br>2. สลับแท็บเป็น "General"<br>3. สลับแท็บเป็น "Kindred" | "General" แสดงฟีดแบบสุ่ม<br><br>"Kindred" แสดงเฉพาะ Template ที่เคยสร้าง เคยเล่น และใกล้เคียงกับที่เคยทำมา |
+| **TC-08** | Feed | **High** | ดูหน้าฟีด General และ Kindred ✅ Implemented (ดู docs/row-read-optimization-plan.md §14.2/§14.7) | ล็อกอินเข้าสู่ระบบแล้ว | 1. ไปที่หน้า Home<br>2. สลับแท็บเป็น "General"<br>3. สลับแท็บเป็น "Kindred" | "General" สุ่ม seeded ทั้ง pool ตั้งแต่หน้าแรก (ทุกรีโหลดลำดับเปลี่ยน); "Kindred" แสดงเฉพาะโพสต์ที่ตรง **≥2 สัญญาณ** (หมวดที่เคยสร้าง/ไลก์, template ที่เคยจัด, แฮชแท็กที่เคยใช้) แบบสุ่ม — เห็นต่างจาก General ชัดเจน; กรณีไม่ล็อกอินแล้วกด Kindred → หน้าชวนเข้าสู่ระบบ (kindredLocked) แทนการ fallback แบบเดิม |
 
 ## 4. การสร้างและนำไปใช้ (Create & Remix Tier List)
 

@@ -12,6 +12,42 @@ function parseTiers(raw) {
   }
 }
 
+// FNV-1a 32-bit hash — ใช้ประกอบ seed ของ Home Feed (ดูทรงด้านล่าง: ลำดับสุ่มต้อง
+// deterministic บน Workers runtime, SQLite/D1 ไม่มี seeded-random ให้ใช้)
+function fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+// mulberry32 PRNG — deterministic จาก seed เดียว
+function mulberry32(a) {
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Fisher–Yates ด้วย PRNG จาก seed — seed + ลำดับ input เดิม ⇒ ผลลัพธ์เดิมเสมอ
+// ทำให้ pagination (page/limit) เลื่อนไปทีละหน้าได้โดยไม่ซ้ำ/ไม่ข้าม ภายใน seed เดียวกัน
+function seededShuffle(list, seed) {
+  const rand = mulberry32((seed >>> 0) ^ 0x9e3779b9);
+  const arr = list.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = arr[i];
+    arr[i] = arr[j];
+    arr[j] = tmp;
+  }
+  return arr;
+}
+
 export async function onRequest({ request, env }) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
@@ -93,6 +129,16 @@ export async function onRequest({ request, env }) {
         const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
         const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
         const offset = (page - 1) * limit;
+        // 🟡 [ใหม่]: Home feed mode — 'general' | 'kindred' (มีแค่หน้า Home ส่งมา; จุดเรียกอื่น
+        // ไม่มี feed_type จึงไม่เข้ากระแสนี้ ไม่กระทบ behavior เดิม — ดู docs/row-read-optimization-plan.md §14.7 #11)
+        const feedType = ['general', 'kindred'].includes(url.searchParams.get('feed_type')) ? url.searchParams.get('feed_type') : null;
+        // seed สุ่มจาก client (ใหม่ทุก mount) → ลำดับเปลี่ยนทุก reload แต่คงที่ใน session.
+        // อันเป็น 0 = deterministic เหมือนเดิม (default)
+        const seed = Math.max(0, parseInt(url.searchParams.get('seed') || '0', 10) || 0) >>> 0;
+        // optional: กรอง pool แค่ช่วงเวลาที่ผ่านมา 'days' วัน (เชิงไวยากรณ์; Home ปัจจุบันไม่ส่ง).
+        // ระวัง Math.max(1, 0)=1 — ถ้าไม่ส่งต้องเป็น 0 (ไม่กรอง) ไม่ใช่ 1 วัน
+        const daysParam = parseInt(url.searchParams.get('days') || '', 10);
+        const days = (!Number.isNaN(daysParam) && daysParam > 0) ? daysParam : 0;
 
         // sort ที่ระบุมาชัดเจนต้องชนะ personalized order เสมอ — ไม่งั้นหน้าที่ส่ง user_id มา
         // เพื่อขอ user_vote (เช่น Template Detail) จะโดนแย่ง ORDER BY ไปแบบไม่ได้ตั้งใจ
@@ -119,6 +165,110 @@ export async function onRequest({ request, env }) {
         if (hashtag) { pageWhere += ` AND instr(',' || lower(r.hashtags) || ',', lower(?)) > 0`; pageWhereParams.push(`,#${hashtag.replace(/^#/, '')},`); }
         if (authorId) { pageWhere += ` AND r.user_id = ?`; pageWhereParams.push(authorId); }
         if (templateId) { pageWhere += ` AND r.template_id = ?`; pageWhereParams.push(templateId); }
+
+        // 🟡 [ใหม่] Home Feed (feedType != null) — สร้าง "ordered id list" แล้ว slice เป็นหน้า
+        // (เลื่อนใน JS ไม่ใช่ OFFSET ของ SQL ทั้งตาราง — สอดคล้อง NFR-1):
+        //   general: สุ่ม seeded ทั้ง pool (ทุกยุค) — สับทั้ง pool ตั้งแต่หน้าแรก; seed ใหม่
+        //            ต่อ mount (จาก client) → ทุกรีโหลดลำดับเปลี่ยน เห็นผล random ทันที;
+        //            seed เดียวใน session → เลื่อนหน้าไม่ซ้ำ/ไม่ข้าม (ดู §14.7 #11)
+        //   kindred: pool = โพสต์ที่ "เกี่ยวข้องกับฉัน" จริงๆ — ต้องตรง ≥ 2 สัญญาณจาก:
+        //            (1) หมวดที่เคยสร้าง/เคยไลก์, (2) template ที่เคยจัด/เคยไลก์,
+        //            (3) แฮชแท็กที่เคยใช้ → pool เล็กลง เห็นต่างกับ General ชัดเจน
+        //            guest (!currentUserId) → kindredLocked (ชวนล็อกอิน) แทน fallback เงียบๆ
+        //            ล็อกอินแล้วแต่ pool ว่าง (ยังไม่มีสัญญาณ) → fallback เป็น general
+        // rows-read: pool อ่านแค่ id (≤ HOME_POOL_CAP) ต่อหน้าใหม่; หน้าถัดๆ ไปอ่านแต่ detail ของ 1 หน้า
+        // (HomeFeed cache ผลต่อ tab+user ไว้ที่ client → pool scan เกิดขึ้นครั้งเดียวต่อครั้ง mount)
+        const HOME_POOL_CAP = 600;    // เพดาน pool ที่จะนำมาสับ — กัน pool โตเกินเหตุ
+
+        let homePoolIds = null;       // null = ไม่ใช่ home path
+        let kindredLocked = false;    // true = kindred แต่ไม่ล็อกอิน → หน้าบ้านชวนเข้าสู่ระบบ
+        if (feedType === 'general' || feedType === 'kindred') {
+          if (feedType === 'kindred' && !currentUserId) {
+            kindredLocked = true;
+            homePoolIds = [];
+          } else {
+            let poolWhere = pageWhere;
+            const poolParams = [...pageWhereParams];
+
+            if (feedType === 'kindred' && currentUserId) {
+              // normalize แฮชแท็กจากโพสต์ที่ฉันสร้าง ∪ โพสต์ที่ฉันไลก์ (ตัด '#')
+              // — ใช้เป็นสัญญาณที่ (3) ของเกณฑ์ "ตรง ≥ 2"
+              const tagRows = await db.prepare(`
+                SELECT r.hashtags FROM rankings r WHERE r.user_id = ?
+                UNION
+                SELECT fav.hashtags FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
+                WHERE v.user_id = ? AND v.vote_type = 'like'
+              `).bind(currentUserId, currentUserId).all();
+              const tagSet = new Set();
+              (tagRows.results || []).forEach((row) => {
+                (row.hashtags || '').split(',').forEach((raw) => {
+                  const tag = raw.trim().replace(/^#/, '');
+                  if (tag) tagSet.add(tag);
+                });
+              });
+              const myTags = [...tagSet];
+              // 3 สัญญาณ แต่ละอัน (CASE) ให้ 1 แต้ม — คงเฉพาะโพสต์ที่ผลรวม >= 2:
+              //   1) r.category ตรงกับหมวดที่เคยสร้าง/เคยไลก์
+              //   2) r.template_id ตรงกับ template ที่เคยจัด/เคยไลก์
+              //   3) มีแฮชแท็กที่เคยใช้อยู่ด้วย
+              const tagCond = myTags.length > 0
+                ? `(${myTags.map(() => `instr(',' || lower(r.hashtags) || ',', ?) > 0`).join(' OR ')})`
+                : '0';
+              const scoreExpr = `
+                CASE WHEN r.category IN (
+                  SELECT category FROM rankings WHERE user_id = ?
+                  UNION
+                  SELECT fav.category FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
+                  WHERE v.user_id = ? AND v.vote_type = 'like'
+                ) THEN 1 ELSE 0 END
+                +
+                CASE WHEN r.template_id IS NOT NULL AND r.template_id IN (
+                  SELECT template_id FROM rankings WHERE user_id = ? AND template_id IS NOT NULL
+                  UNION
+                  SELECT fav.template_id FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
+                  WHERE v.user_id = ? AND v.vote_type = 'like' AND fav.template_id IS NOT NULL
+                ) THEN 1 ELSE 0 END
+                +
+                CASE WHEN ${tagCond} THEN 1 ELSE 0 END
+              `;
+
+              poolWhere += `\n              AND (${scoreExpr}) >= 2`;
+              // ลำดับ "?": pageWhere -> category(2) -> template_id(2) -> tags
+              poolParams.push(currentUserId, currentUserId, currentUserId, currentUserId, ...myTags.map((tg) => `,#${tg},`));
+            }
+
+            if (days) {
+              poolWhere += ` AND r.created_at >= datetime('now', '-' || ? || ' days')`;
+              poolParams.push(String(days));
+            }
+
+            const { results: poolRows } = await db.prepare(`
+              SELECT r.id FROM rankings r
+              ${poolWhere}
+              ORDER BY r.created_at DESC, r.id DESC
+              LIMIT ?
+            `).bind(...poolParams, HOME_POOL_CAP).all();
+            let poolIds = (poolRows || []).map((row) => row.id);
+
+            // kindred: pool ว่างจริงๆ (ล็อกอินแล้วแต่ยังไม่มีสัญญาณครบ 2) → fallback
+            // เป็น general อย่างเดิม (guest ไม่เข้าเงื่อนไขนี้ — ถูกตัดที่ kindredLocked แล้ว)
+            if (feedType === 'kindred' && poolIds.length === 0) {
+              let fbWhere = pageWhere;
+              const fbParams = [...pageWhereParams];
+              if (days) { fbWhere += ` AND r.created_at >= datetime('now', '-' || ? || ' days')`; fbParams.push(String(days)); }
+              const { results: fbRows } = await db.prepare(`
+                SELECT r.id FROM rankings r
+                ${fbWhere}
+                ORDER BY r.created_at DESC, r.id DESC
+                LIMIT ?
+              `).bind(...fbParams, HOME_POOL_CAP).all();
+              poolIds = (fbRows || []).map((row) => row.id);
+            }
+
+            // สุ่มทั้งหมดแบบ seeded — ทุกรีโหลด (seed ใหม่จาก client) ลำดับเปลี่ยนตั้งแต่หน้าแรก
+            homePoolIds = seededShuffle(poolIds, seed ^ fnv1a(feedType));
+          }
+        }
 
         // แก้ปัญหา row-read สูงผิดปกติ (ดู docs/row-read-optimization-plan.md §3, §8):
         // เดิม query นี้ห่อด้วย "page" CTE + ROW_NUMBER() OVER (ORDER BY ...) เสมอ แม้แต่ตอน
@@ -213,7 +363,31 @@ export async function onRequest({ request, env }) {
           ];
         }
 
-        const { results: rankings } = await db.prepare(query).bind(...params).all();
+        // Home path: rankings = แถวในลำดับ homePoolIds ที่ slice ได้ (เรียงคืนตาม sliceIds)
+        // path เก่า: rankings = ผลจาก query ตามปกติ (author/category/template/sort …)
+        let rankings;
+        if (homePoolIds) {
+          const sliceIds = homePoolIds.slice(offset, offset + limit);
+          if (sliceIds.length === 0) {
+            rankings = [];
+          } else {
+            const placeholders = sliceIds.map(() => '?').join(',');
+            const { results: homeRows } = await db.prepare(`
+              SELECT r.*, p.username, p.avatar_url,
+                ${currentUserId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
+              FROM rankings r
+              LEFT JOIN profiles p ON r.user_id = p.id
+              WHERE r.id IN (${placeholders})
+            `).bind(...(currentUserId ? [currentUserId, ...sliceIds] : sliceIds)).all();
+            // IN (...) ไม่การันตีลำดับ → เรียงเองให้ตรงหน้าของฟีด
+            const rowById = {};
+            (homeRows || []).forEach((row) => { rowById[row.id] = row; });
+            rankings = sliceIds.map((id) => rowById[id]).filter(Boolean);
+          }
+        } else {
+          const { results: legacyRows } = await db.prepare(query).bind(...params).all();
+          rankings = legacyRows;
+        }
 
         let total = null;
         if (templateId) {
@@ -277,7 +451,7 @@ export async function onRequest({ request, env }) {
         const cacheHeaders = currentUserId
           ? { 'Cache-Control': 'private, no-store' }
           : { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=120' };
-        return jsonResponse({ success: true, data: formattedRankings, page, limit, total }, 200, cacheHeaders);
+        return jsonResponse({ success: true, data: formattedRankings, page, limit, total, ...(homePoolIds !== null ? { kindredLocked } : {}) }, 200, cacheHeaders);
       }
     }
 
