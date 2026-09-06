@@ -154,7 +154,7 @@ function HomeTierCard({ post }) {
         </div>
 
         <button
-          onClick={() => navigate('/create', { state: { templateName: post.title } })}
+          onClick={() => navigate(`/rank?template=${post.template_id || ''}`)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-sm hover:bg-surface hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
         >
           <Copy size={12} strokeWidth={2.5} />
