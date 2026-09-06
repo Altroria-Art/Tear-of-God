@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
-import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Heart } from 'lucide-react';
 import { shareUrl } from '../lib/share';
 import ShareExportModal from '../components/ui/ShareExportModal';
 import ExportCard from '../components/ui/ExportCard';
@@ -261,17 +261,26 @@ export default function HomeFeed() {
   const feedCacheRef = useRef({})
   const cacheKey = `${activeTab}:${currentUser?.id ?? 'anon'}`
 
-  // ⚠️ known gap (ตั้งใจไม่แก้ในรอบนี้ — ดูแผนใน docs/row-read-optimization-plan.md §5/§8):
-  // fetchRankings() ส่ง feedType ไปจริง แต่ src/lib/api.js ไม่เคยแปลงมันเป็น query param และ
-  // functions/api/rankings.js ก็ไม่เคยอ่านค่านี้เลย — General กับ Kindred เลยยิง query เดียวกัน
-  // เป๊ะ ได้ผลลัพธ์เดียวกัน (TC-08 ต้องการให้ Kindred โชว์เฉพาะ template ที่เคยสร้าง/เคยเล่น/
-  // ใกล้เคียง ซึ่งยังไม่ implement) การแก้ตอนนี้แค่ "หยุดยิงซ้ำโดยไม่จำเป็น" ไม่ใช่ทำให้ผลต่างกัน
+  // 🟡 [ใหม่]: feed_type/seed ถูก forward ไป backend แล้ว — functions/api/rankings.js อ่านค่าจริง
+  // (ดู docs/row-read-optimization-plan.md §14.7 #11):
+  //   general = สุ่ม seeded ทั้ง pool ตั้งแต่หน้าแรก (backend สับทั้ง pool; ไม่มีโซนใหม่ล่าสุดคั่นหัว)
+  //   kindred = pool โพสต์ที่เกี่ยวข้องจริง (ต้องตรง ≥ 2 สัญญาณ: หมวด/template/แฮชแท็ก)
+  //             แล้วสุ่มในนั้น; ไม่ล็อกอิน → backend ส่ง kindredLocked หน้าบ้านชวนเข้าสู่ระบบ
+  // seed สุ่มใหม่ทุกครั้งที่ mount (เปิด/โหลดหน้าใหม่ = ลำดับใหม่); cache ระหว่าง session ยังเก็บผลต่อ tab
   const feedType = activeTab;
+  const kindredLocked = activeTab === 'kindred' && !currentUser;
+  const seedRef = useRef(Math.floor(Math.random() * 1e9));
 
   // สลับแท็บ/ล็อกอิน ต้องเริ่มฟีดใหม่ตั้งแต่หน้า 1 เสมอ ไม่งั้นข้อมูลแท็บเก่าจะค้าง
   // ปนกับแท็บใหม่ตอน infinite scroll ต่อท้าย — เว้นแต่มี cache ของ key นี้อยู่แล้ว
   useEffect(() => {
     let cancelled = false
+    if (kindredLocked) {
+      setPosts([])
+      setHasMore(false)
+      setIsLoading(false)
+      return
+    }
     const cached = feedCacheRef.current[cacheKey]
     if (cached) {
       setPosts(cached.posts)
@@ -290,6 +299,7 @@ export default function HomeFeed() {
       const { data } = await fetchRankings({
         userId: currentUser?.id,
         feedType,
+        seed: seedRef.current,
         page: 1,
         limit: PAGE_SIZE
       })
@@ -303,12 +313,12 @@ export default function HomeFeed() {
     }
     loadFirstPage()
     return () => { cancelled = true }
-  }, [currentUser, activeTab, cacheKey, feedType]);
+  }, [currentUser, activeTab, cacheKey, feedType, kindredLocked]);
 
   // ไม่มี total จาก API สำหรับฟีดทั่วไป (เฉพาะ template_id เท่านั้นที่ API คำนวณ total ให้ —
   // ดู functions/api/rankings.js) เลยเช็คจบฟีดจากจำนวนที่ได้กลับมาน้อยกว่า PAGE_SIZE แทน
   const loadMore = useCallback(async () => {
-    if (loadingRef.current || !hasMore) return
+    if (kindredLocked || loadingRef.current || !hasMore) return
     loadingRef.current = true
     // 📍 ใช้ pageRef ไม่ใช่ closure `page` — ถ้า observer เก่ายิงค้างมาก่อน React commit
     // re-render (ที่จะ re-attach observer ใหม่) จะได้ร่างหน้าถัดไปที่ถูกต้อง ไม่ fetch ซ้ำหน้าเดิม
@@ -318,6 +328,7 @@ export default function HomeFeed() {
     const { data } = await fetchRankings({
       userId: currentUser?.id,
       feedType,
+      seed: seedRef.current,
       page: nextPage,
       limit: PAGE_SIZE
     })
@@ -330,7 +341,7 @@ export default function HomeFeed() {
     setHasMore((data?.length || 0) === PAGE_SIZE)
     setIsLoadingMore(false)
     loadingRef.current = false
-  }, [hasMore, currentUser, activeTab, cacheKey, feedType]);
+  }, [hasMore, currentUser, cacheKey, feedType, kindredLocked]);
 
   // callback ref แทน useRef+useEffect — React เรียก callback นี้เองทันทีที่ DOM node
   // ของ sentinel ถูกสร้าง/ถอดออกจริงๆ (ตอน commit) ไม่ต้องเดาว่า effect จะ rerun
@@ -394,6 +405,23 @@ export default function HomeFeed() {
               <p className="text-muted font-medium">{t('feed.empty')}</p>
               <button onClick={() => navigate('/create')} className="mt-4 text-sm font-bold text-brand hover:underline">
                 {t('feed.emptyCta')}
+              </button>
+            </div>
+          )}
+
+          {/* Kindred ต้องล็อกอิน — สลับแท็บแล้วเห็นต่างชัด แทนการ fallback เงียบๆ */}
+          {!isLoading && kindredLocked && (
+            <div className="text-center py-16 bg-surface rounded-2xl border border-line-soft shadow-sm">
+              <div className="mx-auto mb-4 w-12 h-12 flex items-center justify-center rounded-full bg-surface-glass text-brand">
+                <Heart size={24} />
+              </div>
+              <p className="text-base font-bold text-ink">{t('feed.kindredLockedTitle')}</p>
+              <p className="mt-2 text-sm text-muted font-medium">{t('feed.kindredLockedDesc')}</p>
+              <button
+                onClick={() => navigate('/login')}
+                className="mt-5 px-5 py-2.5 bg-brand text-canvas text-sm font-bold rounded-full shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97]"
+              >
+                {t('feed.kindredLoginCta')}
               </button>
             </div>
           )}

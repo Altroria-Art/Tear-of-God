@@ -591,7 +591,7 @@ against `git log`/`git merge-base --is-ancestor`:
 | 8 | Added a light (`?fields=meta`) template-detail mode that skips the community-average histogram | `functions/api/templates.js`, `src/lib/api.js`, `src/pages/PostDetail.jsx`, `src/pages/RankTierList.jsx` | ✅ Implemented, verified |
 | 9 | Merged the template-detail `COUNT(*)` + `MAX(created_at)` into one statement | `functions/api/templates.js` | ✅ Implemented |
 | 10 | Per-tab response cache in `HomeFeed` (General↔Kindred switch costs 0 requests after first visit each) | `src/pages/HomeFeed.jsx` | ✅ Implemented, browser-verified (Chrome DevTools network log) |
-| 11 | Documented, did **not** implement, real Kindred personalization logic — `feedType` is still not forwarded to the backend; General and Kindred still return identical data | `src/pages/HomeFeed.jsx` (comment) | Deliberately deferred, per §5/§8's agreed recommendation |
+| 11 | Implemented real General/Kindred feed logic — `feed_type` + `seed` now forwarded (`src/lib/api.js`) and read by the backend (`functions/api/rankings.js`). General = seeded-random across the whole pool from page 1 (no fixed "newest" head zone — reload changes the order visibly); Kindred = pool filtered to **≥2 signals** (category + template + hashtag overlaps against rankings the viewer created/liked) then seeded-random, so the pool is genuinely narrower than General; guests get `kindredLocked: true` (HomeFeed renders a login CTA instead of a silent General fallback), logged-in users with no matching signals still fall back to the General pool. Seed is client-generated per mount, so ordering changes on every reload while staying stable within a session (pagination won't skip/duplicate) | `src/pages/HomeFeed.jsx`, `src/lib/api.js`, `functions/api/rankings.js` | ✅ Implemented (see §14.7 addenda) |
 | 12 | Edge cache headers (`Cache-Control: public, max-age=60…`) on the fully public template list/detail and hashtags responses; **explicit `private, no-store` vs. `public, max-age=30…`** branch on the rankings list endpoint depending on whether `user_id` is present | `functions/api/templates.js`, `functions/api/hashtags.js`, `functions/api/rankings.js` | ✅ Implemented |
 | 13 | Added a defensive `LIMIT 200` to the two unbounded comment queries (H4) | `functions/api/rankings.js` (detail branch), `functions/api/comments.js` | ✅ Implemented |
 | 14 | Deleted dead code: `src/hooks/useRankings.js` (unreferenced; imported a non-existent `deleteRanking`) | — | ✅ Deleted |
@@ -700,8 +700,15 @@ is fixed, or (b) approve a follow-up task to add proper pagination to both pages
 ### 14.7 Remaining known issues / follow-up items
 
 1. **§14.5** — Profile/Category limits, needs your decision (accept as-is vs. approve pagination work).
-2. **Real Kindred personalization** — still deliberately unimplemented (§5/§8); General and Kindred
-   show identical data today, now at least without the duplicate-query cost.
+2. **Real Kindred personalization** — ✅ implemented (§14.2 item 11): `feed_type`/`seed` are now
+   forwarded and consumed by `functions/api/rankings.js`. General is a seeded-random shuffle of the
+   whole pool from page 1 (the earlier "10 newest first" head zone was removed after browser
+   validation showed it made every reload look identical — see `docs/TestCases.md` TC-08); Kindred is
+   a seeded-random mix of posts matching **≥2** of the viewer's category/template/hashtag signals so
+   the two tabs visibly differ. Guests receive `kindredLocked: true` and HomeFeed shows a login CTA
+   instead of silently falling back to General; logged-in viewers with no matching signals still
+   fall back to the General pool. Row-read cost: one bounded id-pool scan per tab visit plus
+   page-sized detail `IN` queries.
 3. **Personalized feed's ~750-row cost** (down from ~2,722 but still the single most expensive
    remaining query) is dominated by the `aff` CTE's per-user vote scan plus a per-candidate
    correlated `user_vote` subquery — a further optimization (e.g., precomputing affinity, or
