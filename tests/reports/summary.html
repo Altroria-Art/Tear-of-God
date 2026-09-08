@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Load Test Summary — Tear of God</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --border:#2a2f3a; --text:#e6e9ef; --muted:#9aa3b2; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,-apple-system,sans-serif; line-height:1.5; padding:32px 20px 60px; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:13px; margin-bottom:28px; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; color:var(--muted); font-size:12px; margin-bottom:22px; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  table { border-collapse:collapse; width:100%; font-size:13px; margin:0; }
+  th, td { padding:7px 10px; text-align:right; white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  thead th { color:var(--muted); font-weight:600; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--panel); }
+  td, th { border-bottom:1px solid var(--border); }
+  tbody tr:hover { background:var(--panel2); }
+  .num { font-variant-numeric:tabular-nums; }
+  .good { color:#52c41a; font-weight:600; }
+  .warn { color:#e8a33d; font-weight:600; }
+  .bad { color:#ff5d5d; font-weight:600; }
+  .overview { overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
+  header { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .test { margin-top:36px; }
+  .test h2 { font-size:18px; margin:0 0 2px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .test .desc { color:var(--muted); font-size:12px; margin-bottom:14px; }
+  .group-table { overflow-x:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel); }
+  .thBadge { padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; }
+  .thBadge.pass { background:rgba(82,196,26,.15); color:#52c41a; }
+  .thBadge.fail { background:rgba(255,93,93,.15); color:#ff5d5d; }
+  .footer { margin-top:40px; color:var(--muted); font-size:11px; }
+  .muted { color:var(--muted); }
+  .empty { color:var(--muted); font-style:italic; }
+  @media (max-width:760px){ th,td { padding:6px 7px; font-size:12px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Load Test Summary — Tear of God</h1>
+      <div class="sub">ผลสรุปจาก k6 · 5 test types · สร้างเมื่อ 8 ก.ย. 2569 06:50</div>
+    </div>
+  </header>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#52c41a"></span>p95 &lt; 800ms (ปกติ)</span>
+    <span><span class="dot" style="background:#e8a33d"></span>p95 800–2000ms (เริ่มเสื่อม)</span>
+    <span><span class="dot" style="background:#ff5d5d"></span>p95 &gt; 2000ms (ช้าหรือพัง)</span>
+    <span><span class="dot" style="background:#7a5fbf"></span>error rate การันตีสถานะ</span>
+  </div>
+
+  <div class="overview">
+    <table>
+      <thead>
+        <tr>
+          <th>Test</th><th>VUs สูงสุด</th><th>ระยะเวลา</th><th>จำนวน Request</th><th>req/s</th>
+          <th>Error %</th><th>Avg</th><th>p95</th><th>p99</th><th>Checks ผ่าน</th><th>Thresholds</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge" style="background:#3f9e4d"></span> Smoke Test</td>
+          <td class="num">1</td>
+          <td class="num">0.5 นาที</td>
+          <td class="num">1,090</td>
+          <td class="num">36.3</td>
+          <td class="num good">0.00%</td>
+          <td class="num">27 ms</td>
+          <td class="num good">51 ms</td>
+          <td class="num good">95 ms</td>
+          <td class="num">100.0%</td>
+          <td><span class="thBadge pass">ผ่านทั้งหมด</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge" style="background:#2f7dcc"></span> Load Test</td>
+          <td class="num">50</td>
+          <td class="num">4.0 นาที</td>
+          <td class="num">6,220</td>
+          <td class="num">25.9</td>
+          <td class="num good">0.00%</td>
+          <td class="num">980 ms</td>
+          <td class="num bad">2.13 s</td>
+          <td class="num bad">2.33 s</td>
+          <td class="num">94.8%</td>
+          <td><span class="thBadge fail">ล้ม 2 รายการ</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge" style="background:#d9822b"></span> Stress Test</td>
+          <td class="num">200</td>
+          <td class="num">10.0 นาที</td>
+          <td class="num">15,063</td>
+          <td class="num">25.1</td>
+          <td class="num good">0.00%</td>
+          <td class="num">4.42 s</td>
+          <td class="num bad">8.20 s</td>
+          <td class="num bad">9.64 s</td>
+          <td class="num">74.4%</td>
+          <td><span class="thBadge fail">ล้ม 2 รายการ</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge" style="background:#d64545"></span> Spike Test</td>
+          <td class="num">300</td>
+          <td class="num">3.3 นาที</td>
+          <td class="num">641,089</td>
+          <td class="num">3198.9</td>
+          <td class="num bad">99.86%</td>
+          <td class="num">4 ms</td>
+          <td class="num good">0 ms</td>
+          <td class="num good">0 ms</td>
+          <td class="num">33.4%</td>
+          <td><span class="thBadge fail">ล้ม 1 รายการ</span></td>
+        </tr>
+        <tr>
+          <td><span class="badge" style="background:#7a5fbf"></span> Soak Test</td>
+          <td class="num">50</td>
+          <td class="num">10.0 นาที</td>
+          <td class="num">14,617</td>
+          <td class="num">24.3</td>
+          <td class="num good">0.00%</td>
+          <td class="num">2.06 s</td>
+          <td class="num bad">2.95 s</td>
+          <td class="num bad">4.01 s</td>
+          <td class="num">81.8%</td>
+          <td><span class="thBadge fail">ล้ม 2 รายการ</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <section class="test">
+    <h2><span class="badge" style="background:#3f9e4d">Smoke Test</span> <span class="muted" style="font-weight:400;font-size:13px">ระบบทำงานปกติ · 1 VU · 30s</span></h2>
+    <div class="desc">รวม 1,090 requests · 36.3 req/s · error 0.00% · p95 51 ms · p99 95 ms · iteration เฉลี่ย 221 ms</div>
+    <div class="group-table">
+      <table>
+        <thead>
+          <tr><th>Endpoint (group)</th><th>Requests</th><th>Error %</th><th>Avg</th><th>p50</th><th>p90</th><th>p95</th><th>p99</th><th>Max</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>GET /api/templates?id (detail)</td>
+            <td class="num">136</td>
+            <td class="num good">0.00%</td>
+            <td class="num">51 ms</td>
+            <td class="num">49 ms</td>
+            <td class="num good">53 ms</td>
+            <td class="num good">58 ms</td>
+            <td class="num good">130 ms</td>
+            <td class="num">145 ms</td>
+          </tr>
+          <tr>
+            <td>GET /api/rankings?id (detail)</td>
+            <td class="num">136</td>
+            <td class="num good">0.00%</td>
+            <td class="num">33 ms</td>
+            <td class="num">33 ms</td>
+            <td class="num good">35 ms</td>
+            <td class="num good">38 ms</td>
+            <td class="num good">88 ms</td>
+            <td class="num">116 ms</td>
+          </tr>
+          <tr>
+            <td>GET /api/rankings (list)</td>
+            <td class="num">136</td>
+            <td class="num good">0.00%</td>
+            <td class="num">28 ms</td>
+            <td class="num">28 ms</td>
+            <td class="num good">31 ms</td>
+            <td class="num good">33 ms</td>
+            <td class="num good">49 ms</td>
+            <td class="num">103 ms</td>
+          </tr>
+          <tr>
+            <td>GET /api/templates (list)</td>
+            <td class="num">136</td>
+            <td class="num good">0.00%</td>
+            <td class="num">28 ms</td>
+            <td class="num">28 ms</td>
+            <td class="num good">30 ms</td>
+            <td class="num good">32 ms</td>
+            <td class="num good">38 ms</td>
+            <td class="num">53 ms</td>
+          </tr>
+          <tr>
+            <td>GET /api/hashtags</td>
+            <td class="num">136</td>
+            <td class="num good">0.00%</td>
+            <td class="num">20 ms</td>
+            <td class="num">19 ms</td>
+            <td class="num good">21 ms</td>
+            <td class="num good">30 ms</td>
+            <td class="num good">70 ms</td>
+            <td class="num">91 ms</td>
+          </tr>
+          <tr>
+            <td>GET /api/comments (list)</td>
+            <td class="num">136</td>
+            <td class="num good">0.00%</td>
+            <td class="num">19 ms</td>
+            <td class="num">17 ms</td>
+            <td class="num good">19 ms</td>
+            <td class="num good">24 ms</td>
+            <td class="num good">97 ms</td>
+            <td class="num">115 ms</td>
+          </tr>
+          <tr>
+            <td>GET /api/users</td>
+            <td class="num">136</td>
+            <td class="num good">0.00%</td>
+            <td class="num">18 ms</td>
+            <td class="num">17 ms</td>
+            <td class="num good">19 ms</td>
+            <td class="num good">24 ms</td>
+            <td class="num good">28 ms</td>
+            <td class="num">99 ms</td>
+          </tr>
+          <tr>
+            <td>GET /api/categories</td>
+            <td class="num">136</td>
+            <td class="num good">0.00%</td>
+            <td class="num">17 ms</td>
+            <td class="num">16 ms</td>
+            <td class="num good">19 ms</td>
+            <td class="num good">23 ms</td>
+            <td class="num good">32 ms</td>
+            <td class="num">90 ms</td>
+          </tr>
+        </tbody>
+      </table>
+    </div></section>
+  <section class="test">
+    <h2><span class="badge" style="background:#2f7dcc">Load Test</span> <span class="muted" style="font-weight:400;font-size:13px">การใช้งานปกติ · ramp 0→50 VUs · ~4นาที</span></h2>
+    <div class="desc">รวม 6,220 requests · 25.9 req/s · error 0.00% · p95 2.13 s · p99 2.33 s · iteration เฉลี่ย 586 ms</div><div class="desc" style="color:#ff5d5d">⚑ Threshold เกินเป้า: http_req_duration p(95)&lt;800 · http_req_duration p(99)&lt;1500</div>
+    <div class="group-table">
+      <table>
+        <thead>
+          <tr><th>Endpoint (group)</th><th>Requests</th><th>Error %</th><th>Avg</th><th>p50</th><th>p90</th><th>p95</th><th>p99</th><th>Max</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>discover: GET /api/templates (list)</td>
+            <td class="num">1,521</td>
+            <td class="num good">0.00%</td>
+            <td class="num">975 ms</td>
+            <td class="num">681 ms</td>
+            <td class="num bad">2.07 s</td>
+            <td class="num bad">2.15 s</td>
+            <td class="num bad">2.32 s</td>
+            <td class="num">2.49 s</td>
+          </tr>
+          <tr>
+            <td>feed: GET /api/rankings (list)</td>
+            <td class="num">3,654</td>
+            <td class="num good">0.00%</td>
+            <td class="num">990 ms</td>
+            <td class="num">710 ms</td>
+            <td class="num bad">2.07 s</td>
+            <td class="num bad">2.14 s</td>
+            <td class="num bad">2.33 s</td>
+            <td class="num">2.44 s</td>
+          </tr>
+          <tr>
+            <td>explore: GET /api/hashtags</td>
+            <td class="num">1,045</td>
+            <td class="num good">0.00%</td>
+            <td class="num">953 ms</td>
+            <td class="num">659 ms</td>
+            <td class="num bad">2.05 s</td>
+            <td class="num bad">2.11 s</td>
+            <td class="num bad">2.32 s</td>
+            <td class="num">2.41 s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div></section>
+  <section class="test">
+    <h2><span class="badge" style="background:#d9822b">Stress Test</span> <span class="muted" style="font-weight:400;font-size:13px">หาจุดพัง · ramp 0→200 VUs · ~10นาที</span></h2>
+    <div class="desc">รวม 15,063 requests · 25.1 req/s · error 0.00% · p95 8.20 s · p99 9.64 s · iteration เฉลี่ย 3.77 s</div><div class="desc" style="color:#ff5d5d">⚑ Threshold เกินเป้า: http_req_duration p(95)&lt;2000 · http_req_duration p(99)&lt;5000</div>
+    <div class="group-table">
+      <table>
+        <thead>
+          <tr><th>Endpoint (group)</th><th>Requests</th><th>Error %</th><th>Avg</th><th>p50</th><th>p90</th><th>p95</th><th>p99</th><th>Max</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>misc: GET /api/hashtags + categories</td>
+            <td class="num">5,452</td>
+            <td class="num good">0.00%</td>
+            <td class="num">4.44 s</td>
+            <td class="num">4.12 s</td>
+            <td class="num bad">7.77 s</td>
+            <td class="num bad">8.23 s</td>
+            <td class="num bad">9.95 s</td>
+            <td class="num">11.41 s</td>
+          </tr>
+          <tr>
+            <td>templates: GET /api/templates</td>
+            <td class="num">2,597</td>
+            <td class="num good">0.00%</td>
+            <td class="num">4.36 s</td>
+            <td class="num">4.02 s</td>
+            <td class="num bad">7.79 s</td>
+            <td class="num bad">8.20 s</td>
+            <td class="num bad">9.27 s</td>
+            <td class="num">11.82 s</td>
+          </tr>
+          <tr>
+            <td>feed: GET /api/rankings</td>
+            <td class="num">7,014</td>
+            <td class="num good">0.00%</td>
+            <td class="num">4.42 s</td>
+            <td class="num">4.08 s</td>
+            <td class="num bad">7.77 s</td>
+            <td class="num bad">8.20 s</td>
+            <td class="num bad">9.64 s</td>
+            <td class="num">11.73 s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div></section>
+  <section class="test">
+    <h2><span class="badge" style="background:#d64545">Spike Test</span> <span class="muted" style="font-weight:400;font-size:13px">traffic กระชาก · 0→300 VUs ทันใด · ~3.5นาที</span></h2>
+    <div class="desc">รวม 641,089 requests · 3198.9 req/s · error 99.86% · p95 0 ms · p99 0 ms · iteration เฉลี่ย 24 ms</div><div class="desc" style="color:#ff5d5d">⚑ Threshold เกินเป้า: http_req_failed rate&lt;0.3</div>
+    <div class="group-table">
+      <table>
+        <thead>
+          <tr><th>Endpoint (group)</th><th>Requests</th><th>Error %</th><th>Avg</th><th>p50</th><th>p90</th><th>p95</th><th>p99</th><th>Max</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>feed: GET /api/rankings</td>
+            <td class="num">458,421</td>
+            <td class="num bad">99.86%</td>
+            <td class="num">4 ms</td>
+            <td class="num">0 ms</td>
+            <td class="num good">0 ms</td>
+            <td class="num good">0 ms</td>
+            <td class="num good">0 ms</td>
+            <td class="num">18.96 s</td>
+          </tr>
+          <tr>
+            <td>templates: GET /api/templates</td>
+            <td class="num">182,668</td>
+            <td class="num bad">99.84%</td>
+            <td class="num">4 ms</td>
+            <td class="num">0 ms</td>
+            <td class="num good">0 ms</td>
+            <td class="num good">0 ms</td>
+            <td class="num good">0 ms</td>
+            <td class="num">18.03 s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div></section>
+  <section class="test">
+    <h2><span class="badge" style="background:#7a5fbf">Soak Test</span> <span class="muted" style="font-weight:400;font-size:13px">โหลดต่อเนื่อง · 50 VUs · 10 นาที</span></h2>
+    <div class="desc">รวม 14,617 requests · 24.3 req/s · error 0.00% · p95 2.95 s · p99 4.01 s · iteration เฉลี่ย 1.23 s</div><div class="desc" style="color:#ff5d5d">⚑ Threshold เกินเป้า: http_req_duration p(95)&lt;1000 · http_req_duration p(99)&lt;2000</div>
+    <div class="group-table">
+      <table>
+        <thead>
+          <tr><th>Endpoint (group)</th><th>Requests</th><th>Error %</th><th>Avg</th><th>p50</th><th>p90</th><th>p95</th><th>p99</th><th>Max</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>templates: GET /api/templates</td>
+            <td class="num">3,749</td>
+            <td class="num good">0.00%</td>
+            <td class="num">2.05 s</td>
+            <td class="num">2.02 s</td>
+            <td class="num bad">2.39 s</td>
+            <td class="num bad">2.95 s</td>
+            <td class="num bad">3.99 s</td>
+            <td class="num">8.96 s</td>
+          </tr>
+          <tr>
+            <td>feed: GET /api/rankings</td>
+            <td class="num">8,465</td>
+            <td class="num good">0.00%</td>
+            <td class="num">2.06 s</td>
+            <td class="num">2.02 s</td>
+            <td class="num bad">2.43 s</td>
+            <td class="num bad">2.95 s</td>
+            <td class="num bad">4.02 s</td>
+            <td class="num">15.41 s</td>
+          </tr>
+          <tr>
+            <td>explore: GET /api/hashtags</td>
+            <td class="num">2,403</td>
+            <td class="num good">0.00%</td>
+            <td class="num">2.04 s</td>
+            <td class="num">2.01 s</td>
+            <td class="num bad">2.36 s</td>
+            <td class="num bad">2.95 s</td>
+            <td class="num bad">3.94 s</td>
+            <td class="num">11.41 s</td>
+          </tr>
+        </tbody>
+      </table>
+    </div></section>
+  <div class="footer">
+    สร้างจาก Script: scripts/generate-k6-summary.mjs · แหล่งข้อมูล: tests/reports/{smoke,load,stress,spike,soak}.html
+    (k6 web dashboard export) · ทดสอบผ่าน local wrangler pages dev (http://localhost:8788) — ตัวเลข production บน Cloudflare edge อาจดีกว่า
+  </div>
+</div>
+</body>
+</html>
