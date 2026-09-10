@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Search, Trash2, Eye, Layers, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, Trash2, Eye, Layers, X, ExternalLink } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminTemplates, deleteAdminTemplate, fetchTemplate } from '../../lib/api';
@@ -61,7 +62,7 @@ export default function Templates() {
     }
   };
 
-  // 📍 เปิด modal ดูรายละเอียดเทมเพลต — fetch แบบเต็ม แล้วจัดกลุ่ม item ตาม tier
+  // 📍 เปิด modal ดูรายละเอียดเทมเพลต — fetch แบบเต็ม
   const handleView = async (template) => {
     setDetailLoading(true);
     const { data } = await fetchTemplate(template.id, { light: false, period: null });
@@ -70,15 +71,7 @@ export default function Templates() {
       toast.error(t('admin.errLoadList'));
       return;
     }
-    const rows = (Array.isArray(data.tiers) ? data.tiers : []).map((tier) => ({
-      label: tier.label,
-      color: tier.color,
-      items: (data.template_items || [])
-        .filter((ti) => ti.tier === tier.label || ti.tier === tier.id)
-        .map((ti) => ti.item?.name || ti.item_id)
-        .filter(Boolean)
-    }));
-    setDetail({ template: data, rows });
+    setDetail({ template: data });
   };
 
   const totalPages = Math.ceil(total / PAGE_LIMIT);
@@ -121,8 +114,32 @@ export default function Templates() {
               <tbody>
                 {templates.map((template) => (
                   <tr key={template.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
-                    <td className="px-4 py-3 text-ink font-medium max-w-[240px] truncate">{template.title}</td>
-                    <td className="px-4 py-3 text-ink-soft">{template.creator?.username}</td>
+                    <td className="px-4 py-3 text-ink font-medium max-w-[240px]">
+                      <Link
+                        to={`/template/${template.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-brand hover:underline inline-flex items-center gap-1.5 group max-w-full"
+                        title={template.title}
+                      >
+                        <span className="truncate">{template.title}</span>
+                        <ExternalLink size={13} className="shrink-0 opacity-60 group-hover:opacity-100 transition-opacity text-brand" />
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-ink-soft">
+                      {template.user_id ? (
+                        <Link
+                          to={`/profile/${template.user_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:text-ink hover:underline"
+                        >
+                          {template.creator?.username || t('common.unknownUser')}
+                        </Link>
+                      ) : (
+                        template.creator?.username || t('common.unknownUser')
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-ink-soft">{template.category}</td>
                     <td className="px-4 py-3 text-right text-ink-soft">
                       <span className="inline-flex items-center gap-1"><Layers size={13} /> {template.tier_count}</span>
@@ -165,7 +182,18 @@ export default function Templates() {
           <div className="glass w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl p-6 shadow-xl relative" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <h3 className="text-2xl font-black text-ink">{detail.template.title}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-2xl font-black text-ink">{detail.template.title}</h3>
+                  <Link
+                    to={`/template/${detail.template.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1 text-muted hover:text-brand transition-colors rounded-lg hover:bg-surface-glass inline-flex items-center"
+                    title={t('admin.view')}
+                  >
+                    <ExternalLink size={18} />
+                  </Link>
+                </div>
                 <p className="text-sm text-muted mt-1">
                   {t('admin.createdBy', { name: detail.template?.profile?.username || detail.template?.creator?.username || t('common.unknownUser') })}
                   {' · '}{t('admin.category')}: {detail.template.category || '—'}
@@ -192,32 +220,108 @@ export default function Templates() {
               ))}
             </div>
 
-            <div className="space-y-2 rounded-xl border border-line-soft p-2 bg-surface">
-              {detail.rows.length === 0 ? (
-                <p className="text-center text-sm text-muted py-6">{t('admin.noItems')}</p>
+            {/* คลังไอเทมของเทมเพลต (Item Pool) */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-1.5">
+                <h4 className="text-sm font-bold text-ink uppercase tracking-wider">
+                  {t('admin.itemPool')}
+                  <span className="ml-2 text-xs font-normal text-muted">
+                    ({detail.template.template_items?.length || 0} {t('admin.items')})
+                  </span>
+                </h4>
+              </div>
+              <p className="text-xs text-muted mb-3">{t('admin.itemPoolHelp')}</p>
+
+              {(!detail.template.template_items || detail.template.template_items.length === 0) ? (
+                <div className="p-4 rounded-xl border border-line-soft bg-surface text-center text-sm text-muted">
+                  {t('admin.noItems')}
+                </div>
               ) : (
-                detail.rows.map((row) => (
-                  <div key={row.label} className="flex items-stretch gap-2 rounded-lg">
-                    <TierLabel
-                      label={row.label}
-                      color={row.color}
-                      className="w-24 shrink-0 flex items-center justify-center rounded-md"
-                    />
-                    <div className="flex-1 p-2 min-h-[48px] flex flex-wrap gap-2 items-center">
-                      {row.items.length === 0 ? (
-                        <span className="text-xs text-muted italic">{t('admin.noItems')}</span>
-                      ) : (
-                        row.items.map((name, idx) => (
-                          <span key={idx} className="rounded-md border border-line-soft glass px-2.5 py-1 text-xs font-medium text-ink-soft whitespace-nowrap">
-                            {name}
+                <div className="p-3 rounded-2xl border border-line-soft bg-surface/80 flex flex-wrap gap-2.5 max-h-64 overflow-y-auto">
+                  {detail.template.template_items.map((ti, idx) => {
+                    const itemName = ti.item?.name || ti.item_id;
+                    const imgUrl = ti.item?.image_url;
+                    return (
+                      <div
+                        key={ti.id || idx}
+                        className="aspect-square h-16 w-16 sm:h-20 sm:w-20 rounded-xl border border-line-soft bg-canvas/60 flex flex-col items-center justify-center p-1 text-center overflow-hidden shadow-xs relative select-none group"
+                        title={itemName}
+                      >
+                        {imgUrl ? (
+                          <img
+                            src={imgUrl}
+                            alt={itemName}
+                            className="w-full h-full object-cover rounded-lg"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <span className="text-xs font-semibold text-ink break-words line-clamp-2 px-1">
+                            {itemName}
                           </span>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                ))
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
+
+            {/* โครงสร้างระดับ Tier */}
+            <div className="mb-6">
+              <h4 className="text-sm font-bold text-ink uppercase tracking-wider mb-2.5">
+                {t('admin.tierStructure')}
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {(detail.template.tiers || []).map((tier) => (
+                  <TierLabel
+                    key={tier.id || tier.label}
+                    label={tier.label}
+                    color={tier.color}
+                    className="px-3.5 py-1.5 text-sm rounded-xl font-bold shadow-xs"
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* อันดับเฉลี่ยของชุมชน (ถ้ามี) */}
+            {detail.template.community_average?.rows && detail.template.community_average.rows.length > 0 && (
+              <div>
+                <h4 className="text-sm font-bold text-ink uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <span>{t('admin.communityAverage')}</span>
+                  <span className="text-xs font-normal text-muted">
+                    ({detail.template.stats?.uses || 0} {t('admin.uses')})
+                  </span>
+                </h4>
+                <div className="space-y-2 rounded-2xl border border-line-soft p-3 bg-surface">
+                  {detail.template.community_average.rows.map((row) => (
+                    <div key={row.label} className="flex items-stretch gap-2 rounded-xl">
+                      <TierLabel
+                        label={row.label}
+                        color={row.color}
+                        className="w-24 shrink-0 flex items-center justify-center rounded-lg font-bold"
+                      />
+                      <div className="flex-1 p-2 min-h-[56px] flex flex-wrap gap-2 items-center bg-canvas/40 rounded-lg">
+                        {(!row.items || row.items.length === 0) ? (
+                          <span className="text-xs text-muted italic px-2">{t('admin.noItems')}</span>
+                        ) : (
+                          row.items.map((it, idx) => (
+                            <div
+                              key={idx}
+                              className="aspect-square h-14 w-14 sm:h-16 sm:w-16 rounded-xl border border-line-soft bg-surface flex items-center justify-center p-1 text-center overflow-hidden shadow-xs relative select-none"
+                              title={`${it.name} (avg: ${it.avg})`}
+                            >
+                              <span className="text-[11px] font-medium text-ink break-words line-clamp-2 px-1">
+                                {it.name}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mt-4 flex justify-end">
               <button

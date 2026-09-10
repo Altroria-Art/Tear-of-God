@@ -80,7 +80,7 @@ export default function CommunityAveragePage() {
       })))
     })
     return () => { cancelled = true }
-  }, [templateId, i18n.language])
+  }, [templateId, i18n.language, t])
 
   // ดึง ranking ล่าสุดของผู้ใช้บนเทมเพลตนี้ — ใช้เทียบ "ของฉัน vs ชุมชน"
   // (GET /api/rankings?template_id=..&author_id=.. รองรับอยู่แล้ว ไม่ต้องแก้ backend)
@@ -168,13 +168,22 @@ export default function CommunityAveragePage() {
   }
 
   const tiersDef = template.tiers || []
-  const avgTiers = (template.community_average?.tiers || []).map((tier) => {
-    const tierDef = tiersDef.find((x) => x.label === tier.label)
+  const avgTiers = tiersDef.map((tDef, index) => {
+    const tier = template.community_average?.tiers?.find((x) => x.label === tDef.label)
     return {
-      tier: tier.label,
-      color: tierDef?.color,
-      index: tiersDef.findIndex((x) => x.label === tier.label),
-      items: (tier.items || []).map((it) => ({ id: it.name, name: it.name, avg: it.avg, votes: it.votes ?? 0 }))
+      tier: tDef.label,
+      color: tDef.color,
+      index,
+      items: (tier?.items || []).map((it) => {
+        const tItem = template.template_items?.find((ti) => ti.item_id === it.name || ti.item?.name === it.name)
+        return {
+          id: it.name,
+          name: it.name,
+          image_url: tItem?.item?.image_url || null,
+          avg: it.avg,
+          votes: it.votes ?? 0,
+        }
+      })
     }
   })
   const itemCount = avgTiers.reduce((n, { items }) => n + items.length, 0)
@@ -280,11 +289,12 @@ export default function CommunityAveragePage() {
             preview={
               <CommunityAvgExportPreview
                 title={`${template.title} · ${t('template.communityAverage')}`}
+                category={template.category}
                 updatedText={t('template.updated', { time: updatedAt ? timeAgo(updatedAt) : '—' })}
                 tiers={avgTiers.map((row) => ({
                   label: row.tier,
                   color: row.color,
-                  items: (row.items || []).map((it) => ({ name: it.name, avg: it.avg, votes: it.votes ?? 0 })),
+                  items: row.items,
                 }))}
               />
             }

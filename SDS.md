@@ -21,16 +21,15 @@
 เอกสารนี้อธิบาย **การออกแบบ** ของระบบ Tear of God ในระดับที่ทำให้ผู้อ่าน (ผู้สอน, เพื่อนร่วมทีม, หรือ dev ที่เข้ามาใหม่) เข้าใจสถาปัตยกรรม โครงสร้างข้อมูล และ flow การทำงานหลัก โดยไม่ต้องไล่อ่านโค้ด ต่างจาก Project Proposal ที่เน้นตอบคำถามว่า "ทำไมถึงทำ" และ "ระบบทำอะไรได้บ้าง" เอกสารนี้เน้นตอบคำถามว่า **"ระบบถูกออกแบบมาให้ทำงานแบบนั้นได้อย่างไร"**
 
 ### 1.2 Scope
-ระบบเป็นเว็บแอปพลิเคชันโซเชียลขนาดเล็กที่มี core feature คือการสร้าง Tier List (จัดอันดับ S/A/B/C/D หรือ Top 10), การ remix Tier List ของผู้อื่น, การมีปฏิสัมพันธ์ (like/comment/share) และการรวบรวมผลโหวตมาแสดงเป็นสถิติ/เทรนด์ ครอบคลุมทั้งฝั่ง User ทั่วไปและฝั่ง Admin
+ระบบเป็นเว็บแอปพลิเคชันโซเชียลขนาดเล็กที่มี core feature คือการสร้าง Tier List (จัดอันดับตาม Tier เช่น S/A/B/C/D หรือกำหนดเอง), การ remix Tier List ของผู้อื่น, การมีปฏิสัมพันธ์ (like/comment/share) และการรวบรวมผลโหวตมาแสดงเป็นสถิติ/เทรนด์ ครอบคลุมทั้งฝั่ง User ทั่วไปและฝั่ง Admin
 
 ### 1.3 Definitions
 | คำศัพท์ | ความหมาย |
 |---|---|
-| **Template** | ชุด item pool + metadata (ชื่อ, หมวดหมู่, คำอธิบาย, mode) ที่ผู้สร้างคนแรกกำหนดไว้ ใช้เป็นต้นแบบให้คนอื่น remix ได้ |
+| **Template** | ชุด item pool + metadata (ชื่อ, หมวดหมู่, คำอธิบาย) ที่ผู้สร้างคนแรกกำหนดไว้ ใช้เป็นต้นแบบให้คนอื่น remix ได้ |
 | **Ranking** (Tier List) | การจัดอันดับ item ของ Template หนึ่ง ๆ โดยผู้ใช้คนใดคนหนึ่ง (อาจเป็นผู้สร้าง Template เองหรือคน remix) |
 | **Remix** | การที่ผู้ใช้หยิบ Template ของคนอื่นมาสร้าง Ranking ในแบบของตัวเอง |
 | **Tier Label** | ชื่อระดับการจัดอันดับที่ผู้สร้าง Template กำหนดเองได้ (ค่าเริ่มต้น S/A/B/C/D, ใส่ชื่อภาษาไทยได้) เก็บเป็นข้อมูลใน `templates.tiers` (JSON) — ไม่ใช่ชุดตายตัว 5 ค่า |
-| **Top 10 Mode** | โหมดจัดอันดับแบบตำแหน่ง 1–10 แทนที่จะเป็น tier label |
 
 ### 1.4 References
 - Project Proposal — `proposal.pdf` (เอกสารต้นฉบับที่แนบมา)
@@ -83,15 +82,14 @@ Responsive web application รันบน browser สมัยใหม่ (Chr
 | FR-3 | Edit Profile | เปลี่ยนชื่อผู้ใช้และรูปโปรไฟล์ | User | 4.1.2 |
 | FR-4 | View My Templates & Rankings | ดูรายการ Template ที่สร้าง และ Ranking ที่เคยเข้าร่วม | User | 4.1.2 |
 | FR-5 | Browse Home Feed | เลื่อนดูฟีดแบบ Infinite Scroll พร้อม Trending Topics | Guest, User | 4.1.3 |
-| FR-6 | Create Tier List (Normal Mode) | ตั้งชื่อ/หมวดหมู่/คำอธิบาย, เพิ่ม item ผ่าน Quick Add (text-to-item) แล้วจัดลง 5 tier (S/A/B/C/D) | User | 4.1.4 |
-| FR-7 | Create Tier List (Top 10 Mode) | สุ่มนำเสนอ item ทีละตัวให้จัดลงตำแหน่ง 1–10 ห้ามซ้ำตำแหน่ง | User | 4.1.4 |
-| FR-8 | Remix Template | นำ Template ผู้อื่นมาจัด Ranking ใหม่, เพิ่ม item ใหม่ได้, **แก้ tier label ไม่ได้** | User | 4.1.5 |
-| FR-9 | View Statistics | ดูสถิติภาพรวมของ Template และของ Ranking ย่อย พร้อมจำนวนผู้ใช้ที่ใช้ Template นั้น | User | 4.1.6 |
-| FR-10 | Like / Comment / Share | กดถูกใจ, คอมเมนต์, และคัดลอกลิงก์แชร์ Ranking | User | 4.1.7 |
-| FR-11 | Admin Login | ล็อกอินเข้าระบบหลังบ้านแยกจากผู้ใช้ทั่วไป | Admin | 4.2.1 |
-| FR-12 | Content Moderation | ตรวจสอบข้อมูลภาพรวม, ลบ/แก้ไข Ranking และลบคอมเมนต์ที่ผิดกฎ | Admin | 4.2.2 |
-| FR-13 | Ban User | ระงับบัญชีผู้ใช้งาน | Admin | 4.2.2 |
-| FR-14 | Personalized Feed | ปรับลำดับเนื้อหาในฟีดตามหมวดหมู่ที่ผู้ใช้กดถูกใจบ่อย | User | 4.3.1 |
+| FR-6 | Create Tier List | ตั้งชื่อ/หมวดหมู่/คำอธิบาย, เพิ่ม item ผ่าน Quick Add (text-to-item) แล้วจัดลง tier (ค่าเริ่มต้น S/A/B/C/D หรือกำหนดเอง) | User | 4.1.4 |
+| FR-7 | Remix Template | นำ Template ผู้อื่นมาจัด Ranking ใหม่, เพิ่ม item ใหม่ได้, **แก้ tier label ไม่ได้** | User | 4.1.5 |
+| FR-8 | View Statistics | ดูสถิติภาพรวมของ Template และของ Ranking ย่อย พร้อมจำนวนผู้ใช้ที่ใช้ Template นั้น | User | 4.1.6 |
+| FR-9 | Like / Comment / Share | กดถูกใจ, คอมเมนต์, และคัดลอกลิงก์แชร์ Ranking | User | 4.1.7 |
+| FR-10 | Admin Login | ล็อกอินเข้าระบบหลังบ้านแยกจากผู้ใช้ทั่วไป | Admin | 4.2.1 |
+| FR-11 | Content Moderation | ตรวจสอบข้อมูลภาพรวม, ลบ/แก้ไข Ranking และลบคอมเมนต์ที่ผิดกฎ | Admin | 4.2.2 |
+| FR-12 | Ban User | ระงับบัญชีผู้ใช้งาน | Admin | 4.2.2 |
+| FR-13 | Personalized Feed | ปรับลำดับเนื้อหาในฟีดตามหมวดหมู่ที่ผู้ใช้กดถูกใจบ่อย | User | 4.3.1 |
 
 ---
 
@@ -145,7 +143,7 @@ flowchart TB
 |---|---|---|
 | `auth/` | สมัคร/ล็อกอิน (email+password ผ่าน `functions/api/auth.js`) / Google Sign-In ผ่าน Firebase | Login |
 | `feed/` | Home Feed, category tabs, infinite scroll, personalization | Home (For You/Trending/Anime/Movie/Food/Sport) |
-| `create/` | ฟอร์มสร้าง Template + Ranking Canvas (Normal/Top 10) | Create Tier List |
+| `create/` | ฟอร์มสร้าง Template + Ranking Canvas | Create Tier List |
 | `discover/` | เรียกดู Template ตามหมวดหมู่, popular templates | Discover |
 | `ranking-detail/` | หน้ารายละเอียด Ranking, Community Rankings, Rank this Template | Template/Ranking detail |
 | `profile/` | ดู/แก้ไขโปรไฟล์, Templates Created, Participated Tier Lists | Profile, Edit Profile modal |
@@ -256,7 +254,7 @@ erDiagram
         text ranking_id FK
         text item_id
         string tier
-        int position "1-10 for Top 10"
+        int position "item order index"
     }
     VOTES {
         text id PK
@@ -314,11 +312,11 @@ erDiagram
 ### 6.2 Table Descriptions
 - **profiles** — ตารางผู้ใช้หลักของระบบเอง (ไม่ได้ต่อยอดจาก Supabase `auth.users` อีกต่อไป) เก็บ `password` เป็น hash SHA-256 ผ่าน Web Crypto (`crypto.subtle`) ที่ `functions/api/auth.js` — **ยังไม่มี salt (open issue ด้านความปลอดภัย ดู NFR-6)**; คอลัมน์ `role` (`user`/`admin`) ใช้แยกสิทธิ์ฝั่ง backend ตาม FR-11–13; ส่วน `university/faculty/major/year/bio` เป็นข้อมูลโปรไฟล์เสริม
 - **follows** — ตารางติดตาม แบบ composite PK `(follower_id, following_id)` กันซ้ำ; มี index ทั้งสองทิศทาง (`idx_follows_follower`, `idx_follows_following`) สำหรับหน้าโปรไฟล์/นับ follower
-- **templates** — item pool ต้นแบบ; `tiers` เป็น JSON เก็บชุด `{label, color}` ของแต่ละ Template (กำหนดเองได้ รวมภาษาไทย — ไม่ใช่ค่าคงที่ S/A/B/C/D); `hashtags` เป็น CSV; `use_count`/`view_count` ถูก **ไม่ใช่เลขที่เชื่อถือได้** — ตอนอ่านโค้ดจะคำนวณ `live_uses`/`live_views` ใหม่ด้วย `COUNT(*)` จาก `rankings`/`template_views` (ดู `functions/api/templates.js`); คอลัมน์ `mode` (`normal`/`top10`) ยังไม่มีจริง (ดู §6.3)
+- **templates** — item pool ต้นแบบ; `tiers` เป็น JSON เก็บชุด `{label, color}` ของแต่ละ Template (กำหนดเองได้ รวมภาษาไทย — ไม่ใช่ค่าคงที่ S/A/B/C/D); `hashtags` เป็น CSV; `use_count`/`view_count` ถูก **ไม่ใช่เลขที่เชื่อถือได้** — ตอนอ่านโค้ดจะคำนวณ `live_uses`/`live_views` ใหม่ด้วย `COUNT(*)` จาก `rankings`/`template_views` (ดู `functions/api/templates.js`)
 - **template_items** — bridge table ระหว่าง `templates` กับ `items` กลาง พร้อม `tier`/`position` กำกับว่า item นั้นอยู่แถวไหนใน pool เริ่มต้นของ template (ต่างจากดราฟต์แรกที่ให้ `template_items.label`/`image_url` ของตัวเอง) — item ตัวเดียวกันใช้ซ้ำข้าม template ได้โดยไม่ต้อง insert ซ้ำใน `items`
 - **items** — item กลางของทั้งระบบ ทั้ง `template_items` และ `ranking_items` อ้างอิงมาที่นี่ (แก้/ลบไม่ได้ผ่าน template เพราะ item ถูกแชร์ — ดู §6.3 ข้อ Remix)
 - **rankings** — การจัดอันดับหนึ่งครั้งของ user หนึ่งคนผูก `template_id` (กด Use Template มาจัด) หรือ `template_id NULL` (โพสต์อิสระ); `likes_count/dislikes_count/comments_count` เป็นตัวเลข denormalize ที่ vote/comment API อัปเดตให้ (ทำให้ feed ไม่ต้อง join นับทุกครั้ง); `rankings.template_id` ไม่มี FK constraint ใน schema (หย่อนกว่า `user_id` ที่มี FK ตอน delete cascade) — เป็นจุดที่เปิดไว้ใน §9 ข้อ 7
-- **ranking_items** — mapping ว่า item ถูกจัดไว้ tier ไหน (`tier` = ชื่อ tier ตามที่ template กำหนด) หรือตำแหน่งไหน (`position` = 1–10 สำหรับ Top 10 Mode); มี FK กับ `rankings` เท่านั้น (`item_id` ไม่มี FK — item แชร์ข้ามกัน)
+- **ranking_items** — mapping ว่า item ถูกจัดไว้ tier ไหน (`tier` = ชื่อ tier ตามที่ template กำหนด) และ `position` สำหรับลำดับการแสดงผลภายใน tier; มี FK กับ `rankings` เท่านั้น (`item_id` ไม่มี FK — item แชร์ข้ามกัน)
 - **votes / comments** — engagement ของ **ranking** (โพสต์ในฟีด); `votes.vote_type` บังคับ `like`/`dislike` ผ่าน `CHECK` + `UNIQUE(ranking_id, user_id)` กันโหวตซ้ำ; `comments` ผูกกับ `rankings` เช่นกัน
 - **template_views** — นับ view ของ template แบบ dedup ต่อ user ด้วย composite PK `(template_id, user_id)` (ดูครั้งแรกต่อ user ต่อ template เท่านั้น); จำนวนรวม = `COUNT(*)` 
 - **ranking_item_scores** — freeze คะแนนราย item ณ เวลาสร้าง ranking (`tier_index` + `score`) เพื่อให้ Community Average คำนวณย้อนหลังตามช่วงเวลา popularity ถูกต้องแม้เทมเพลตจะเปลี่ยนจำนวน tier ทีหลัง; มี index `(template_id, created_at)` สำหรับ query ช่วงเวลา
@@ -327,7 +325,6 @@ erDiagram
 
 ### 6.3 Business Rule Constraints
 - **Tier labels มาจาก data ไม่ใช่ค่าคงที่**: `ranking_items.tier` เก็บชื่อ tier ตามที่ผู้สร้าง template กำหนดเอง (รวมชื่อไทย) — ไม่มี `CHECK` constraint เพราะชุดค่าเปิดกว้าง; ความถูกต้องของคะแนนอยู่ที่ freeze ลง `ranking_item_scores` (จับ `tier_index` + `score`) ณ เวลา publish แล้ว (NFR-3)
-- **Top 10 uniqueness**: เมื่อ template เป็นโหมด Top 10, `ranking_items.position` ต้อง unique ภายใน `ranking_id` เดียวกัน (1–10 ห้ามซ้ำ) — ปัจจุบันบังคับที่ฝั่ง frontend เท่านั้น ยังไม่มี unique constraint หรือคอลัมน์ `mode` ใน D1 (เปิดอยู่ใน §9 ข้อ 5/7)
 - **Remix ห้ามแก้ item pool ที่มีอยู่**: item ใน `template_items` แก้/ลบ/ย้ายออกจาก template เดิมไม่ได้ เพิ่มได้เฉพาะ item ใหม่ (Section 9 ข้อ 2) — enforce ทั้ง frontend และ API: `functions/api/rankings.js` แทรก items ใหม่ + template_items + ranking_items ใน `db.batch` เดียว
 - **อ่านเลข live แทนคอลัมน์ frozen**: `templates.use_count`/`view_count` เป็นค่า seed/legacy ที่ drift ตามเวลา — การเรียงฟีดและรายการ admin ใช้ `COUNT(*)` จาก `rankings` / `template_views` คำนวณใหม่ (`live_uses`/`live_views` ใน `functions/api/templates.js`); เขียน `view_count` เป็น mirror ที่ refresh จาก count จริงหลังบันทึก view
 - **โหวตกันซ้ำ**: `votes` มี `UNIQUE(ranking_id, user_id)` + `CHECK(vote_type IN ('like', 'dislike'))` — โหวต type เดิมซ้ำ = API ทำ UPDATE (เปลี่ยนใจ/ยกเลิก) ไม่ใช่แทรกแถวซ้ำ
@@ -345,8 +342,7 @@ erDiagram
 |---|---|---|
 | Login | เข้าสู่ระบบ/สมัครสมาชิก | Email/Password field, "Continue with Google", link ไปหน้าสมัคร |
 | Home Feed | ฟีดหลัก แยกตาม tab (For You / Trending / Movies / Anime / Food / Sports) | Card ต่อ 1 ranking: avatar, username, category tag, tier rows (สี S=แดง, A=ส้ม, B=เหลือง, C=เขียว, D=ฟ้า), like/comment count, ปุ่ม "Use Template" |
-| Create Tier List — Normal Mode | สร้าง Template + Ranking แบบ 5 tier | ฟอร์ม (Template Name, Category, Description), Quick Add Items (textarea + Generate Cards), Ranking Canvas 5 แถวสี, Unranked Items Pool |
-| Create Tier List — Top 10 Mode | สร้าง Ranking แบบตำแหน่ง 1–10 | สลับโหมดด้วย toggle, ต้องมี item ครบ 10 ชิ้นพอดี, ช่องตำแหน่ง 1–10 |
+| Create Tier List | สร้าง Template + Ranking แบบ Tier List | ฟอร์ม (Template Name, Category, Description), Quick Add Items (textarea + Generate Cards), Ranking Canvas แถวสีตาม Tier, Unranked Items Pool |
 | Ranking Detail | ดู/แก้ไข ranking หนึ่งรายการ | ชื่อ ranking (แก้ได้), Save Ranking, Share, ปุ่ม Shuffle Items / Sort A-Z |
 | Discover | ค้นหา Template ตามหมวดหมู่ | Category grid (Anime/Movie/Food/Sport), Popular Templates cards พร้อมจำนวนผู้ใช้ |
 | Community Rankings (จาก Discover) | ดูภาพรวมผลโหวตของชุมชนต่อ Template | Sort dropdown (เช่น Most Liked), toggle "Community Average" |
@@ -354,7 +350,7 @@ erDiagram
 | Edit Profile (modal) | แก้ไขข้อมูลส่วนตัว | Username, Bio, Save Changes |
 
 ### 7.2 Key UI Components
-- **Ranking Canvas** — reusable component ใช้ทั้งตอนสร้างและตอน remix, รับ prop เป็น tier labels (fixed 5 แบบ หรือ 1–10) และ item list
+- **Ranking Canvas** — reusable component ใช้ทั้งตอนสร้างและตอน remix, รับ prop เป็น tier labels (ค่าเริ่มต้น S/A/B/C/D หรือที่ Template กำหนด) และ item list
 - **Tier Color Convention** — สีของ tier มาจาก field `color` ของ tier นั้น ๆ เอง (ค่าเริ่มต้น S=แดง, A=ส้ม, B=เหลือง, C=เขียว, D=ฟ้า) เก็บเป็นสไตล์ `bg-[#hex]` แล้ว apply เป็น inline style — badge ทุกจุดเรนเดอร์ผ่าน component `<TierLabel>` เดียวกันทั้งหมด (ดู docs/tier-list-ui-fix-plan.md)
 - **Quick Add Items** — text parser ที่รับ comma-separated string แล้ว generate เป็น item card อัตโนมัติ (ตรงกับ FR-6)
 
@@ -368,10 +364,10 @@ erDiagram
 | Actor | Use Cases |
 |---|---|
 | Guest | View Home Feed & Trends, Register |
-| User | ทุกอย่างที่ Guest ทำได้ + Login, Manage Profile, Create Tier List (Normal/Top 10), Remix, Like/Comment/Share, View Statistics |
+| User | ทุกอย่างที่ Guest ทำได้ + Login, Manage Profile, Create Tier List, Remix, Like/Comment/Share, View Statistics |
 | Admin | Login to Backend, Review Overview Data, Edit/Delete Inappropriate Ranking, Delete Rule-breaking Comments, Ban User |
 
-### 8.2 Sequence Diagram: Create Tier List (Normal Mode)
+### 8.2 Sequence Diagram: Create Tier List
 
 ```mermaid
 sequenceDiagram
@@ -439,13 +435,13 @@ Proposal ไม่ได้ลงรายละเอียดระดับ i
 2. **Remix เพิ่ม item เข้า shared pool** — item ใหม่ที่เพิ่มระหว่าง remix ถูก insert เข้า `items` (item กลาง) แล้วผูกเพิ่มใน `template_items` ของ template เดิม (ไม่ใช่แยกเฉพาะ ranking ของคนนั้น) เพื่อให้คน remix คนถัดไปเห็น item ครบและสถิติสะสมถูกต้อง — ของเดิมใน `items` ไม่ถูกแก้ ลบ หรือย้ายออกจาก template เดิม แก้ได้แค่ "เพิ่ม"
 3. **Personalized feed แบบ query-time** — เริ่มจาก aggregate query (`COUNT` votes group by category ของ user ใน N วันล่าสุด) แทนการสร้างตารางสะสมคะแนนแยก เพื่อความง่ายในสโคปนักศึกษา ค่อย migrate เป็น materialized view ถ้าข้อมูลโตขึ้นจริง (NFR-5)
 4. **Admin เป็น protected route ใน SPA เดียวกัน** — ✅ implement แล้ว ไม่ใช่แอปแยก ใช้ role-based guard ผ่าน `profiles.role` (มีจริงแล้วใน `schema.sql`) — ทุก `functions/api/admin/*` handler ตรวจ role จาก DB ผ่าน `_check.js` ทุก request (ผู้ใช้ปกติได้ 403)
-5. **Top 10 randomization** — ตีความ "สุ่มคำตอบมาทีละอัน" (4.3.2) เป็นกลไก client-side สุ่มลำดับ item จาก unranked pool มาให้ทีละตัว บังคับผู้ใช้เลือกตำแหน่งก่อนเห็นตัวถัดไป — ควร confirm กับทีมว่าตรงกับที่ตั้งใจไว้ เพราะ wireframe หน้า 12 แสดงแค่ layout ตำแหน่ง 1–10 ไม่ได้แสดงกลไกการสุ่มโดยตรง
+5. **ตัดโหมด Top 10 ออกจาก Scope** — ทีมตัดสินใจตัดโหมด Top 10 ออก เพื่อโฟกัสที่การจัดอันดับ Tier List แบบยืดหยุ่น (Custom Tiers) และการวิเคราะห์ Community Average ได้อย่างสมบูรณ์และชัดเจนที่สุด
 6. **Template / Community Average — ✅ implement แล้ว** (เดิม §9 ข้อนี้เขียนตอนยังเป็น mock data):
    - `schema.sql` มีตาราง `templates`, `template_items`, `template_views`, `ranking_item_scores`, `template_reactions`, `template_comments` ครบ (ดู §6)
    - `functions/api/templates.js` รองรับ `GET /api/templates?id=` (template + item pool + community average ตามช่วง popularity ผ่าน `days`/`from`/`to`) และ `POST` (สร้าง template + นับ view แบบ dedup ต่อ user ผ่าน `template_views`)
    - ปุ่ม "Use Template" / "View Community Average" ใน sidebar เชื่อมกับหน้า `TemplateDetailPage.jsx` / `CommunityAveragePage.jsx` จริงแล้ว (ไม่ได้ค้างบน mock)
    - "Community Average" คำนวณจาก `ranking_item_scores` (คะแนน freeze ตอน publish) แสดง tier ที่ถูกเลือกบ่อยที่สุดต่อ item พร้อมตัวกรองช่วงเวลา
-7. **FK บน `rankings.template_id` และ `mode` (Top 10) ยังไม่สมบูรณ์** — `rankings.template_id` อ้างอิง templates ด้วย text id แต่ไม่มี FK constraint (ลบ template จึงต้องไล่ลบ ranking เอง — ทำแล้วใน admin delete ผ่าน `db.batch`); โหมด Top 10 ยังเป็น logic ฝั่ง frontend ล้วน ๆ (ยังไม่มีคอลัมน์ `mode` หรือ unique constraint คู่ `(ranking_id, position)` ใน D1) — ควร confirm กับทีมว่าต้องปิด gap สองจุดนี้ก่อนส่ง production หรือไม่
+7. **FK บน `rankings.template_id`** — `rankings.template_id` อ้างอิง templates ด้วย text id แต่ไม่มี FK constraint (ลบ template จึงต้องไล่ลบ ranking เอง — ทำแล้วใน admin delete ผ่าน `db.batch` ป้องกัน orphan)
 
 ---
 

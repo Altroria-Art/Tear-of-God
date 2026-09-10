@@ -75,6 +75,7 @@ const RankTierList = () => {
         const templateItems = (data.template_items || []).map((ti, idx) => ({
           id: ti.id || `ti-${idx}`,
           content: ti.item?.name || ti.item_id,
+          image_url: ti.item?.image_url || null,
           tierId: null
         }));
         setItems(templateItems);
@@ -262,7 +263,7 @@ const RankTierList = () => {
     }
   };
 
-  const renderCard = (item) => {
+const renderCard = (item) => {
     const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
     const pos = mates.findIndex(i => i.id === item.id);
 
@@ -273,9 +274,16 @@ const RankTierList = () => {
         draggable
         onDragStart={(e) => handleDragStart(e, item.id)}
         onDragEnd={endDrag}
-        className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative min-w-[110px] h-[52px] px-4 pt-2 flex items-center justify-center text-center text-sm cursor-grab active:cursor-grabbing hover:-translate-y-0.5 transition-all"
+        title={item.content}
+        className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-bold shadow-xs hover:shadow-md hover:-translate-y-0.5 rounded-xl w-18 h-18 sm:w-20 sm:h-20 aspect-square p-1.5 flex items-center justify-center text-center cursor-grab group relative active:cursor-grabbing transition-all overflow-hidden select-none"
       >
-        <span className="line-clamp-2 leading-tight pointer-events-none">{item.content}</span>
+        {item.image_url ? (
+          <img src={item.image_url} alt={item.content} className="w-full h-full object-cover rounded-lg pointer-events-none" />
+        ) : (
+          <span className="w-full line-clamp-3 text-[11px] sm:text-xs font-semibold leading-tight pointer-events-none break-words drop-shadow-xs px-0.5">
+            {item.content}
+          </span>
+        )}
 
         {/* 📍 [ใหม่]: ปุ่มย้ายซ้าย/ขวา — สลับลำดับภายใน tier เดียวกัน (พอร์ตจากหน้า Create) */}
         <button
