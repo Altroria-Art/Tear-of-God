@@ -263,7 +263,29 @@
     "itemsText": "{{n}} ไอเทม · อัปเดตเมื่อ {{time}}",
     "usesLabel": "การใช้งาน: {{n}} · การเข้าชม: {{v}}",
     "viewCommunityAverage": "ดู Community Average",
-    "aboutDesc": "จัดอันดับจากเทมเพลตชุมชน ‘{{name}}’ มี {{n}} ไอเทม"
+    "viewParticipants": "ผู้เข้าร่วม",
+    "aboutDesc": "จัดอันดับจากเทมเพลตชุมชน '{{name}}' มี {{n}} ไอเทม"
+  },
+  "participants": {
+    "pageTitle": "ค่าเฉลี่ยชุมชน",
+    "filters": "ตัวกรอง",
+    "selectTiersToDisplay": "เลือก Tier ที่ต้องการแสดง",
+    "faculty": "คณะ",
+    "major": "สาขา",
+    "year": "ชั้นปี",
+    "all": "ทั้งหมด",
+    "clearAll": "ล้างตัวกรองทั้งหมด",
+    "clearFilters": "ล้างตัวกรอง",
+    "noUsers": "ยังไม่มีใครใช้เทมเพลตนี้",
+    "noUsersDesc": "เป็นคนแรกที่สร้าง Tier List จากเทมเพลตนี้!",
+    "noResults": "ไม่มีผลลัพธ์ที่ตรงกับตัวกรอง",
+    "noDataToExport": "ไม่มีข้อมูลให้ส่งออก",
+    "calculatedFrom": "คำนวณจาก {{count}} คน (จากทั้งหมด {{total}} คน)",
+    "calculatedFromSame": "คำนวณจาก {{count}} คน",
+    "exportImage": "ส่งออกรูปภาพ",
+    "exportExcel": "ส่งออก Excel",
+    "excelDownloaded": "ดาวน์โหลดไฟล์ Excel แล้ว",
+    "exportFailed": "ส่งออกไม่สำเร็จ"
   },
   "stats": {
     "title": "สถิติความนิยม",

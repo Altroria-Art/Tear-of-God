@@ -263,7 +263,29 @@
     "itemsText": "{{n}} items · Updated {{time}}",
     "usesLabel": "Uses: {{n}} · Views: {{v}}",
     "viewCommunityAverage": "View Community Average",
-    "aboutDesc": "Ranked from the ‘{{name}}’ community template. Contains {{n}} items."
+    "viewParticipants": "Participants",
+    "aboutDesc": "Ranked from the '{{name}}' community template. Contains {{n}} items."
+  },
+  "participants": {
+    "pageTitle": "Community Average",
+    "filters": "Filters",
+    "selectTiersToDisplay": "Select tiers to display",
+    "faculty": "Faculty",
+    "major": "Major",
+    "year": "Academic Year",
+    "all": "All",
+    "clearAll": "Clear all filters",
+    "clearFilters": "Clear filters",
+    "noUsers": "No one has used this template yet",
+    "noUsersDesc": "Be the first to create a Tier List from this template!",
+    "noResults": "No results match your filters",
+    "noDataToExport": "No data to export",
+    "calculatedFrom": "Calculated from {{count}} users (out of {{total}})",
+    "calculatedFromSame": "Calculated from {{count}} users",
+    "exportImage": "Export as Image",
+    "exportExcel": "Export as Excel",
+    "excelDownloaded": "Excel file downloaded",
+    "exportFailed": "Export failed"
   },
   "stats": {
     "title": "Popularity Statistics",

@@ -17,6 +17,7 @@ const HashtagDetail = lazy(() => import('./pages/HashtagDetail'));
 const CategoryPage = lazy(() => import('./pages/CategoryPage'));
 const TemplateDetailPage = lazy(() => import('./pages/TemplateDetailPage'));
 const CommunityAveragePage = lazy(() => import('./pages/CommunityAveragePage'));
+const CommunityParticipants = lazy(() => import('./pages/CommunityParticipants'));
 const PostDetail = lazy(() => import('./pages/PostDetail'));
 const Create = lazy(() => import('./pages/Create'));
 const RankTierList = lazy(() => import('./pages/RankTierList'));
@@ -60,6 +61,7 @@ function App() {
                 <Route path="/category/:categoryId" element={<CategoryPage />} />
                 <Route path="/template/:templateId" element={<TemplateDetailPage />} />
                 <Route path="/template/:templateId/community" element={<CommunityAveragePage />} />
+                <Route path="/template/:templateId/participants" element={<CommunityParticipants />} />
                 <Route path="/post/:postId" element={<PostDetail />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:userId" element={<Profile />} />
