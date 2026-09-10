@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
+import { FACULTIES, UP_UNIVERSITY_NAME, getMajorsForFaculty, getAdmissionYears } from '../lib/university';
 import TierLabel from '../components/tier/TierLabel';
 import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
@@ -26,13 +27,17 @@ export default function Profile() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
-  const [university, setUniversity] = useState('');
-  const [faculty, setFaculty] = useState('');
-  const [major, setMajor] = useState('');
-  const [year, setYear] = useState('');
+  const [studiedAtUp, setStudiedAtUp] = useState(false);
+  const [facultyValue, setFacultyValue] = useState('');
+  const [majorValue, setMajorValue] = useState('');
+  const [admissionYear, setAdmissionYear] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // 📍 ปีที่เข้าศึกษา (รหัสรุ่น) สร้างจากวันที่ปัจจุบัน: 38 (=พ.ศ.2538) ถึงสองหลักปี พ.ศ. ปัจจุบัน
+  // เดินเพิ่มเองทุกต้นปี ไม่ต้องแก้ไฟล์ — ดู src/lib/university.js
+  const admissionYears = useMemo(() => getAdmissionYears(), []);
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
@@ -110,10 +115,17 @@ export default function Profile() {
     if (isOwnProfile && currentUser) {
       setDisplayName(currentUser.username || '');
       setBio(currentUser.bio || 'Master of tier lists. Categorizing the virtual world one tier at a time.');
-      setUniversity(currentUser.university || '');
-      setFaculty(currentUser.faculty || '');
-      setMajor(currentUser.major || '');
-      setYear(currentUser.year || '');
+      // 📍 ค่าจาก dropdown เท่านั้น: ถ้าข้อมูลเดิมไม่ตรงกับคณะ/สาขา/ปีที่รู้จัก ให้จับเป็นค่าว่าง
+      // (ข้อมูลเก่าถูกล้างไปแล้วจาก migrations/0011_profile_education_reset.sql)
+      const storedFaculty = currentUser.faculty || '';
+      const matchedFaculty = FACULTIES.some((f) => f.name === storedFaculty) ? storedFaculty : '';
+      const storedMajor = currentUser.major || '';
+      const matchedMajor = matchedFaculty && getMajorsForFaculty(matchedFaculty).includes(storedMajor) ? storedMajor : '';
+      const storedYear = String(currentUser.year || '');
+      setStudiedAtUp(!!currentUser.university);
+      setFacultyValue(matchedFaculty);
+      setMajorValue(matchedMajor);
+      setAdmissionYear(admissionYears.includes(storedYear) ? storedYear : '');
       setAvatarUrl(currentUser.avatar_url || '');
     }
   }, [profileUserId, isOwnProfile, currentUser?.id]);
@@ -165,13 +177,31 @@ export default function Profile() {
   const handleSaveChanges = async (e) => {
     e.preventDefault();
 
+    // 📍 Validation ฝั่ง client — ถ้าเลือก "เคยศึกษาที่มหาวิทยาลัยพะเยา" ต้องเลือกครบทั้ง 3 ฟิลด์
+    // (ฝั่ง server ตรวจซ้ำอีกชั้นใน functions/api/auth.js)
+    if (studiedAtUp) {
+      if (!facultyValue) {
+        toast.error(t('profile.errRequireFaculty'));
+        return;
+      }
+      if (!majorValue) {
+        toast.error(t('profile.errRequireMajor'));
+        return;
+      }
+      if (!admissionYear) {
+        toast.error(t('profile.errRequireAdmissionYear'));
+        return;
+      }
+    }
+
+    const educationPayload = studiedAtUp
+      ? { university: UP_UNIVERSITY_NAME, faculty: facultyValue, major: majorValue, year: admissionYear }
+      : { university: null, faculty: null, major: null, year: null };
+
     const { error } = await updateProfile(currentUser.id, {
       username: displayName,
       bio: bio,
-      university,
-      faculty,
-      major,
-      year,
+      ...educationPayload,
       avatar_url: avatarUrl
     });
 
@@ -180,7 +210,16 @@ export default function Profile() {
       return;
     }
 
-    const updatedUser = { ...currentUser, username: displayName, bio, university, faculty, major, year, avatar_url: avatarUrl };
+    const updatedUser = {
+      ...currentUser,
+      username: displayName,
+      bio,
+      university: educationPayload.university,
+      faculty: educationPayload.faculty,
+      major: educationPayload.major,
+      year: educationPayload.year,
+      avatar_url: avatarUrl
+    };
     login(updatedUser); // อัปเดตข้อมูลใน Context / LocalStorage
     setIsEditOpen(false);
     toast.success(t('profile.successUpdate'));
@@ -267,7 +306,7 @@ export default function Profile() {
                   {displayUser?.university && <p><strong className="text-ink">{t('profile.university')}</strong> {displayUser.university}</p>}
                   {displayUser?.faculty && <p><strong className="text-ink">{t('profile.faculty')}</strong> {displayUser.faculty}</p>}
                   {displayUser?.major && <p><strong className="text-ink">{t('profile.major')}</strong> {displayUser.major}</p>}
-                  {displayUser?.year && <p><strong className="text-ink">{t('profile.year')}</strong> {displayUser.year}</p>}
+                  {displayUser?.year && <p><strong className="text-ink">{t('profile.admissionYear')}</strong> {displayUser.year}</p>}
                 </div>
               )}
 
@@ -442,45 +481,89 @@ export default function Profile() {
                 ></textarea>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.university')}</label>
-                <input
-                  type="text"
-                  value={university}
-                  onChange={(e) => setUniversity(e.target.value)}
-                  className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
-                />
-              </div>
+              <div className="bg-surface/50 border border-line-soft rounded-xl p-4 space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <span className="relative inline-flex items-center justify-center w-5 h-5 flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={studiedAtUp}
+                      onChange={(e) => {
+                        setStudiedAtUp(e.target.checked);
+                        if (!e.target.checked) {
+                          setFacultyValue('');
+                          setMajorValue('');
+                          setAdmissionYear('');
+                        }
+                      }}
+                      className="peer sr-only"
+                    />
+                    <span className="absolute inset-0 rounded-md border-2 border-line bg-surface transition-colors peer-checked:bg-brand peer-checked:border-brand" />
+                    <svg
+                      viewBox="0 0 12 12"
+                      className="absolute w-3 h-3 text-canvas opacity-0 peer-checked:opacity-100 transition-opacity"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M2 6.5 4.5 9 10 3" />
+                    </svg>
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">{t('profile.studiedUp')}</span>
+                </label>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.faculty')}</label>
-                  <input
-                    type="text"
-                    value={faculty}
-                    onChange={(e) => setFaculty(e.target.value)}
-                    className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.major')}</label>
-                  <input
-                    type="text"
-                    value={major}
-                    onChange={(e) => setMajor(e.target.value)}
-                    className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
-                  />
-                </div>
-              </div>
+                {studiedAtUp && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.faculty')}</label>
+                      <select
+                        value={facultyValue}
+                        onChange={(e) => {
+                          setFacultyValue(e.target.value);
+                          setMajorValue('');
+                        }}
+                        className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
+                      >
+                        <option value="">{t('profile.selectFaculty')}</option>
+                        {FACULTIES.map((f) => (
+                          <option key={f.id} value={f.name}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.year')}</label>
-                <input
-                  type="text"
-                  value={year}
-                  onChange={(e) => setYear(e.target.value)}
-                  className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
-                />
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.major')}</label>
+                      <select
+                        value={majorValue}
+                        onChange={(e) => setMajorValue(e.target.value)}
+                        disabled={!facultyValue}
+                        className={`w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand ${
+                          facultyValue ? '' : 'cursor-not-allowed opacity-50'
+                        }`}
+                      >
+                        <option value="">{t('profile.selectMajor')}</option>
+                        {getMajorsForFaculty(facultyValue).map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.admissionYear')}</label>
+                      <select
+                        value={admissionYear}
+                        onChange={(e) => setAdmissionYear(e.target.value)}
+                        className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
+                      >
+                        <option value="">{t('profile.selectAdmissionYear')}</option>
+                        {admissionYears.map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
