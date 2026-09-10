@@ -89,13 +89,19 @@ const Navbar = () => {
           <Languages size={18} strokeWidth={2.5} />
         </button>
 
-        {/* ปุ่มเปลี่ยนธีม */}
+        {/* ปุ่มเปลี่ยนธีม Ultra-smooth */}
         <button
           onClick={toggleTheme}
-          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft mr-1"
+          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 active:scale-90 hover:scale-105 shadow-sm border border-line-soft mr-1 cursor-pointer select-none overflow-hidden"
           aria-label={t('nav.toggleTheme')}
         >
-          {isLightMode ? <Moon size={18} strokeWidth={2.5} /> : <Sun size={18} strokeWidth={2.5} />}
+          <div className="transform transition-transform duration-300">
+            {isLightMode ? (
+              <Moon size={18} strokeWidth={2.5} className="rotate-0 transition-transform duration-300" />
+            ) : (
+              <Sun size={18} strokeWidth={2.5} className="rotate-90 transition-transform duration-300 text-amber-400" />
+            )}
+          </div>
         </button>
 
         {/* ปุ่มโปรไฟล์ / ล็อกอิน */}

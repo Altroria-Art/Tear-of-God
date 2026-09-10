@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, Shield, ShieldCheck, Trash2 } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminUsers, setUserRole, deleteAdminUser } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import Avatar from '../../components/ui/Avatar';
 import { useTranslation } from 'react-i18next';
 
 const PAGE_LIMIT = 20;
@@ -118,50 +120,68 @@ export default function Users() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
-                    <td className="px-4 py-3 flex items-center gap-3">
-                      <img
-                        src={u.avatar_url || ''}
-                        alt=""
-                        className="w-8 h-8 rounded-full object-cover bg-avatar"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                      />
-                      <span className="text-ink font-medium">{u.username}</span>
-                    </td>
-                    <td className="px-4 py-3 text-ink-soft">{u.email}</td>
-                    <td className="px-4 py-3">
-                      {u.role === 'admin' ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-status-success bg-status-success/10 rounded-full px-2.5 py-1">
-                          <ShieldCheck size={12} /> {t('admin.adminRole')}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-muted bg-tag rounded-full px-2.5 py-1">
-                          <Shield size={12} /> {t('admin.userRole')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right text-ink-soft">{u.posts_count}</td>
-                    <td className="px-4 py-3 text-right text-ink-soft">{u.followers_count}</td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => handleRole(u, u.role === 'admin' ? 'user' : 'admin')}
-                        disabled={busy === u.id}
-                        className="text-xs font-bold text-brand-accent hover:text-highlight px-2 py-1 disabled:opacity-50"
-                      >
-                        {u.role === 'admin' ? t('admin.demote') : t('admin.promote')}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(u)}
-                        disabled={busy === u.id}
-                        className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
-                      >
-                        <Trash2 size={14} className="inline-block mr-1" />
-                        {t('common.delete')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {users.map((u) => {
+                  const isSelf = u.id === currentUser?.id;
+                  return (
+                    <tr key={u.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
+                      <td className="px-4 py-3 flex items-center gap-3">
+                        <Avatar name={u.username} src={u.avatar_url} size="sm" />
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Link
+                            to={`/profile/${u.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-ink font-medium hover:text-brand hover:underline truncate"
+                          >
+                            {u.username}
+                          </Link>
+                          {isSelf && (
+                            <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-brand/10 text-brand-accent">
+                              {t('admin.you')}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-ink-soft">{u.email}</td>
+                      <td className="px-4 py-3">
+                        {u.role === 'admin' ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-status-success bg-status-success/10 rounded-full px-2.5 py-1">
+                            <ShieldCheck size={12} /> {t('admin.adminRole')}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-muted bg-tag rounded-full px-2.5 py-1">
+                            <Shield size={12} /> {t('admin.userRole')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right text-ink-soft">{u.posts_count}</td>
+                      <td className="px-4 py-3 text-right text-ink-soft">{u.followers_count}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {isSelf ? (
+                          <span className="text-xs text-muted italic px-2 py-1">—</span>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleRole(u, u.role === 'admin' ? 'user' : 'admin')}
+                              disabled={busy === u.id}
+                              className="text-xs font-bold text-brand-accent hover:text-highlight px-2 py-1 disabled:opacity-50"
+                            >
+                              {u.role === 'admin' ? t('admin.demote') : t('admin.promote')}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(u)}
+                              disabled={busy === u.id}
+                              className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
+                            >
+                              <Trash2 size={14} className="inline-block mr-1" />
+                              {t('common.delete')}
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

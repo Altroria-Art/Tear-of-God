@@ -22,6 +22,7 @@ export async function onRequest({ request, env }) {
 
     if (action === 'register') {
       if (!email || !password) return jsonResponse({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' }, 400);
+      if (password.length < 6) return jsonResponse({ success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' }, 400);
 
       const { results: existing } = await db.prepare('SELECT id FROM profiles WHERE email = ?').bind(email).all();
       if (existing.length > 0) return jsonResponse({ success: false, error: 'อีเมลนี้ถูกใช้งานเรียบร้อยแล้ว' }, 400);
@@ -42,7 +43,9 @@ export async function onRequest({ request, env }) {
       if (!email || !password) return jsonResponse({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' }, 400);
 
       const hashedPassword = await hashPassword(password);
-      const { results: users } = await db.prepare('SELECT * FROM profiles WHERE email = ? AND password = ?').bind(email, hashedPassword).all();
+      const { results: users } = await db.prepare(
+        'SELECT id, username, email, bio, avatar_url, university, faculty, major, year, role FROM profiles WHERE email = ? AND password = ?'
+      ).bind(email, hashedPassword).all();
       if (users.length === 0) return jsonResponse({ success: false, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }, 401);
 
       const user = users[0];

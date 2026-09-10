@@ -167,7 +167,11 @@ export async function onRequestGet(context) {
     const light = url.searchParams.get('fields') === 'meta';
 
     const { results: templateItems } = await db.prepare(
-      `SELECT * FROM template_items WHERE template_id = ? ORDER BY position ASC`
+      `SELECT ti.*, i.name as item_name, i.image_url as item_image
+       FROM template_items ti
+       LEFT JOIN items i ON (ti.item_id = i.id OR ti.item_id = i.name)
+       WHERE ti.template_id = ?
+       ORDER BY ti.position ASC`
     ).bind(templateId).all();
 
     // รวม COUNT(*) กับ MAX(created_at) เป็น query เดียว (เดิมแยก 2 statement คนละ query)
@@ -293,7 +297,7 @@ export async function onRequestGet(context) {
       },
       template_items: templateItems.map(ti => ({
         ...ti,
-        item: { id: ti.item_id, name: ti.item_id, image_url: null }
+        item: { id: ti.item_id, name: ti.item_name || ti.item_id, image_url: ti.item_image || null }
       })),
       community_average: communityAverage
     };

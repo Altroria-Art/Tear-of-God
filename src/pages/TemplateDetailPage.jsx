@@ -12,7 +12,7 @@ import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPrev
 import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
-import TierLabel from '../components/tier/TierLabel'
+import TierRow from '../components/feed/TierRow'
 import HashtagList from '../components/template/HashtagList'
 import { useTranslation } from 'react-i18next'
 
@@ -28,32 +28,18 @@ function groupItemsByTierOrder(rankingItems, tiersDef) {
   tiersDef.forEach((t) => { map[t.label] = [] })
   ;(rankingItems || []).forEach((ri) => {
     if (!ri.tier || !(ri.tier in map)) return
-    map[ri.tier].push(ri.item?.name || ri.item_id)
+    map[ri.tier].push({
+      id: ri.id || ri.item_id,
+      name: ri.item?.name || ri.item_id,
+      image_url: ri.item?.image_url || null,
+    })
   })
-  return tiersDef.map((t) => ({ tier: t, items: map[t.label] }))
-}
-
-function TierListRow({ tier, items }) {
-  const isLong = tier.label.length > 2
-  return (
-    <div className="flex items-stretch gap-3 border-b border-line-soft px-4 py-2.5 last:border-b-0">
-      <TierLabel
-        label={tier.label}
-        color={tier.color}
-        className={`w-12 min-h-12 rounded-sm font-bold px-1 ${isLong ? 'text-[10px]' : 'text-base'}`}
-      />
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-        {items.map((item, idx) => (
-          <span
-            key={idx}
-            className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-sm break-words"
-          >
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
+  return tiersDef.map((t, index) => ({
+    tier: t.label,
+    color: t.color,
+    index,
+    items: map[t.label]
+  }))
 }
 
 function UserTopBar({ username, avatarUrl, timeLabel }) {
@@ -133,12 +119,12 @@ function RankingCard({ ranking, tiersDef }) {
       />
       <div
         onClick={() => navigate(`/post/${ranking.id}`)}
-        className="cursor-pointer transition-colors hover:bg-surface-glass/50"
+        className="cursor-pointer transition-colors hover:bg-surface-glass/40 p-3 space-y-2"
         role="button"
         aria-label={t('template.openRankingPost')}
       >
-        {tierRows.map(({ tier, items }) => (
-          <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
+        {tierRows.map(({ tier, color, index, items }) => (
+          <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
         ))}
       </div>
       <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-sm text-muted">
@@ -190,10 +176,10 @@ function RankingCard({ ranking, tiersDef }) {
             authorAvatar={ranking.profile?.avatar_url}
             postedAt={timeAgo(ranking.created_at)}
             category={ranking.category}
-            tiers={tierRows.map(({ tier, items }) => ({
-              tier: tier.label,
-              color: tier.color,
-              items: (items || []).map((i) => (typeof i === 'object' ? i.name : i)),
+            tiers={tierRows.map(({ tier, color, items }) => ({
+              tier: tier,
+              color: color,
+              items: (items || []).map((i) => (typeof i === 'object' ? { name: i.name, image_url: i.image_url } : { name: i, image_url: null })),
             }))}
           />
         }
@@ -278,10 +264,10 @@ export default function TemplateDetailPage() {
 
   // 📍 Record view แยก effect — ยิงเฉพาะครั้งแรกที่เข้ามาดู template (หรือ login/logout)
   // ไม่ต้อง re-fire เมื่อผู้ใช้เปลี่ยน periodDays
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!templateId || !currentUser) return
-    recordTemplateView(templateId, currentUser.id)
+    const currentUserId = currentUser?.id
+    if (!templateId || !currentUserId) return
+    recordTemplateView(templateId, currentUserId)
   }, [templateId, currentUser?.id])
 
   useEffect(() => {
@@ -391,11 +377,24 @@ export default function TemplateDetailPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   // ตรวจจากข้อมูล all-time (ทุกช่วง) ว่าเทมเพลตนี้มี Community Average หรือไม่
-  // ไม่ใช่ข้อมูลช่วงที่เลือก — เพราะถ้าเลือกช่วงที่ยังไม่มี ranking การ์ดจะได้ไม่หายไป
-  const hasCommunityAverage = (communityAllTime?.tiers || []).some((t) => t.items.length > 0)
-  const communityAvgRows = tiersDef.map((t) => {
-    const found = template.community_average?.tiers.find((x) => x.label === t.label)
-    return { tier: t, items: (found?.items || []).map((i) => i.name) }
+  const hasCommunityAverage = (communityAllTime?.tiers || []).some((t) => (t.items || []).length > 0)
+  const communityAvgRows = tiersDef.map((t, index) => {
+    const found = template.community_average?.tiers?.find((x) => x.label === t.label)
+    return {
+      tier: t.label,
+      color: t.color,
+      index,
+      items: (found?.items || []).map((i) => {
+        const tItem = template.template_items?.find((ti) => ti.item_id === i.name || ti.item?.name === i.name)
+        return {
+          id: i.name,
+          name: i.name,
+          image_url: tItem?.item?.image_url || null,
+          avg: i.avg,
+          votes: i.votes,
+        }
+      }),
+    }
   })
 
   return (
@@ -472,7 +471,7 @@ export default function TemplateDetailPage() {
                     {periodDays
                       ? t('template.lastPeriodDays', { days: periodDays }) + ' · '
                       : ''}
-                    {t('template.updated', { time: timeAgo(template.community_average.updated_at) })}
+                    {t('template.updated', { time: timeAgo(template.community_average?.updated_at ?? '') })}
                   </span>
                   <select
                     value={periodDays}
@@ -489,12 +488,12 @@ export default function TemplateDetailPage() {
               <div
                 ref={avgTableRef}
                 onClick={() => navigate(`/template/${templateId}/community`)}
-                className="cursor-pointer transition-colors hover:bg-surface-glass/50"
+                className="cursor-pointer transition-colors hover:bg-surface-glass/40 p-3 space-y-2"
                 role="button"
                 aria-label={t('template.openCommunityAverage')}
               >
-                {communityAvgRows.map(({ tier, items }) => (
-                  <TierListRow key={tier.id ?? tier.label} tier={tier} items={items} />
+                {communityAvgRows.map(({ tier, color, index, items }) => (
+                  <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
                 ))}
               </div>
               <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-sm text-muted">
@@ -563,14 +562,23 @@ export default function TemplateDetailPage() {
         link={shareUrl(`/template/${templateId}`)}
         preview={
           <CommunityAvgExportPreview
-            title={t('template.communityAverage')}
+            title={template.title ? `${template.title} · ${t('template.communityAverage')}` : t('template.communityAverage')}
+            category={template.category}
             updatedText={t('template.updated', { time: timeAgo(template.community_average?.updated_at ?? '') })}
-            tiers={(template.community_average?.tiers || []).map((avgTier) => {
-              const tierDef = tiersDef.find((x) => x.label === avgTier.label)
+            tiers={tiersDef.map((t) => {
+              const avgTier = template.community_average?.tiers?.find((x) => x.label === t.label)
               return {
-                label: avgTier.label,
-                color: tierDef?.color,
-                items: (avgTier.items || []).map((it) => ({ name: it.name, avg: it.avg, votes: it.votes ?? 0 })),
+                label: t.label,
+                color: t.color,
+                items: (avgTier?.items || []).map((it) => {
+                  const tItem = template.template_items?.find((ti) => ti.item_id === it.name || ti.item?.name === it.name)
+                  return {
+                    name: it.name,
+                    image_url: tItem?.item?.image_url || null,
+                    avg: it.avg,
+                    votes: it.votes ?? 0,
+                  }
+                }),
               }
             })}
           />

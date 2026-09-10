@@ -77,7 +77,7 @@ export async function onRequest({ request, env }) {
         const { results: items } = await db.prepare(`
           SELECT ri.*, i.name as item_name, i.image_url as item_image
           FROM ranking_items ri
-          LEFT JOIN items i ON ri.item_id = i.id
+          LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)
           WHERE ri.ranking_id = ?
           ORDER BY ri.position ASC
         `).bind(id).all();
@@ -206,7 +206,8 @@ export async function onRequest({ request, env }) {
                   if (tag) tagSet.add(tag);
                 });
               });
-              const myTags = [...tagSet];
+              // จำกัดแฮชแท็กไม่เกิน 50 อันเพื่อป้องกัน SQLite/D1 bound parameter limit
+              const myTags = [...tagSet].slice(0, 50);
               // 3 สัญญาณ แต่ละอัน (CASE) ให้ 1 แต้ม — คงเฉพาะโพสต์ที่ผลรวม >= 2:
               //   1) r.category ตรงกับหมวดที่เคยสร้าง/เคยไลก์
               //   2) r.template_id ตรงกับ template ที่เคยจัด/เคยไลก์
@@ -234,7 +235,7 @@ export async function onRequest({ request, env }) {
 
               poolWhere += `\n              AND (${scoreExpr}) >= 2`;
               // ลำดับ "?": pageWhere -> category(2) -> template_id(2) -> tags
-              poolParams.push(currentUserId, currentUserId, currentUserId, currentUserId, ...myTags.map((tg) => `,#${tg},`));
+              poolParams.push(currentUserId, currentUserId, currentUserId, currentUserId, ...myTags.map((tg) => `,#${tg.toLowerCase()},`));
             }
 
             if (days) {
@@ -412,7 +413,7 @@ export async function onRequest({ request, env }) {
             db.prepare(`
               SELECT ri.*, i.name as item_name, i.image_url as item_image
               FROM ranking_items ri
-              LEFT JOIN items i ON ri.item_id = i.id
+              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)
               WHERE ri.ranking_id IN (${placeholders})
               ORDER BY ri.position ASC
             `).bind(...rankingIds).all(),
