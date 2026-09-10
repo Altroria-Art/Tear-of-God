@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Plus, Shuffle, ArrowDownAZ, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Share2, Shuffle, ArrowDownAZ, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
@@ -48,7 +48,7 @@ const RankTierList = () => {
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateId);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [customItem, setCustomItem] = useState('');
+  
 
   // 📍 Hashtags
   const [selectedHashtags, setSelectedHashtags] = useState([]);
@@ -168,22 +168,6 @@ const RankTierList = () => {
       if (targetPos < 0 || targetPos >= mates.length) return prev;
       return repositionItem(prev, itemId, item.tierId, targetPos);
     });
-  };
-
-  const handleAddCustomItem = () => {
-    if (!customItem.trim()) return;
-
-    const newItems = customItem
-      .split(',')
-      .map((item, index) => ({
-        id: `custom-${Date.now()}-${index}`,
-        content: item.trim(),
-        tierId: null // ให้การ์ดใหม่ไปโผล่ที่กล่องข้างล่าง (Unranked Pool) เสมอ
-      }))
-      .filter((item) => item.content !== '');
-
-    setItems([...items, ...newItems]);
-    setCustomItem('');
   };
 
   const handleShuffle = () => {
@@ -417,25 +401,8 @@ const renderCard = (item) => {
           )}
         </div>
 
-        {/* Action Bar (Add Custom / Shuffle / Sort) */}
-        <div className="bg-surface-glass rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="relative w-full md:w-[300px]">
-            <input
-              type="text"
-              value={customItem}
-              onChange={(e) => setCustomItem(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddCustomItem()}
-              placeholder={t('rank.customItemPh')}
-              className="w-full bg-surface rounded-md py-2.5 pl-4 pr-10 text-sm outline-none focus:ring-1 focus:ring-brand"
-            />
-            <button
-              onClick={handleAddCustomItem}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-brand hover:text-highlight"
-            >
-              <Plus size={18} strokeWidth={2.5} />
-            </button>
-          </div>
-
+        {/* Action Bar (Shuffle / Sort) */}
+        <div className="bg-surface-glass rounded-xl p-4 flex flex-col md:flex-row justify-end items-center gap-4">
           <div className="flex gap-3 w-full md:w-auto">
             <button
               onClick={handleShuffle}
