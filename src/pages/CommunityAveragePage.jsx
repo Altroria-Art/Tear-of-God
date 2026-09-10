@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Download, Star, BarChart3, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Download, Star, BarChart3, ArrowUpRight, ArrowDownRight, Users } from 'lucide-react'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import CommentSection from '../components/post/CommentSection'
@@ -271,6 +271,12 @@ export default function CommunityAveragePage() {
 <ActionButton icon={CommentIcon} count={formatCount(commentCount)} label={t('post.comments')} onClick={handleCommentClick} />
               </div>
               <div className="ml-auto flex items-center gap-3">
+                <Link
+                  to={`/template/${templateId}/participants`}
+                  className="flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-muted transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:text-ink hover:shadow-md active:scale-[0.95]"
+                >
+                  <Users size={14} /> {t('template.viewParticipants')}
+                </Link>
                 <ActionButton icon={Download} label={t('common.export')} onClick={() => setModal('export')} activeClass="hover:text-highlight" />
                 <ActionButton
                   icon={ShareIcon}

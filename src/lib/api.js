@@ -414,6 +414,17 @@ export async function fetchTemplateComments(templateId) {
   }
 }
 
+// 📍 ดึงรายชื่อผู้ใช้ทั้งหมดที่สร้าง ranking จาก template นี้ พร้อม profile data + ranking_items
+// ใช้โดยหน้า Community Participants — ข้อมูลทั้งหมดถูกดึงมาครั้งเดียว แล้ว filter ในฝั่ง client
+export async function fetchTemplateParticipants(templateId) {
+  try {
+    return await getJSON(`${API_URL}/api/template-participants?template_id=${templateId}`);
+  } catch (error) {
+    console.error('fetchTemplateParticipants error:', error);
+    return { data: [], error: i18n.t('errors.fetchFailed') };
+  }
+}
+
 // สร้างคอมเมนต์ใหม่ให้ Community Average — คืน object ใหม่พร้อม username/avatar_url
 export async function createTemplateComment({ template_id, user_id, content }) {
   try {
