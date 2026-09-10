@@ -143,6 +143,8 @@
     "searchAddHashtags": "Search & Add Hashtags",
     "addTagsPh": "Add tags (e.g. #rpg, #2024)",
     "suggestedTags": "Suggested Tags:",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
     "loadingTemplate": "Loading template...",
     "customItemPh": "Add custom item...",
     "shuffleItems": "Shuffle Items",

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
 import { markLastPublished } from '../lib/lastPublished';
+import useDragAutoScroll from '../lib/useDragAutoScroll';
 import { useToast } from '../components/ui/Toast';
 import TierLabel from '../components/tier/TierLabel';
 import { useTranslation, Trans } from 'react-i18next';
@@ -55,6 +56,7 @@ const CreateTierList = () => {
   const { currentUser } = useUser();
   const toast = useToast();
   const { t } = useTranslation();
+  const { beginDrag, endDrag } = useDragAutoScroll();
 
   // 📍 [ใหม่]: อ่าน draft ครั้งเดียวตอน mount แล้วเอามาเป็นค่า initial ของทุก state
   const [draft] = useState(loadDraft);
@@ -184,6 +186,7 @@ const CreateTierList = () => {
   const handleDragStart = (e, itemId) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('itemId', itemId);
+    beginDrag(); // 📍 auto-scroll ขอบจอระหว่างลาก (src/lib/useDragAutoScroll.js)
   };
   const handleDragOver = (e) => e.preventDefault();
 
@@ -255,6 +258,7 @@ const CreateTierList = () => {
         data-item-id={item.id}
         draggable
         onDragStart={(e) => handleDragStart(e, item.id)}
+        onDragEnd={endDrag}
         className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center px-2 pt-2 pb-4 text-center text-[10px] md:text-xs cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl hover:border-brand-accent transition-all z-10"
       >
         <span className="break-words line-clamp-3 leading-tight pointer-events-none drop-shadow-sm">{item.content}</span>

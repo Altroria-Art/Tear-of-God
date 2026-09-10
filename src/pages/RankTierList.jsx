@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Plus, Shuffle, ArrowDownAZ } from 'lucide-react';
+import { Share2, Plus, Shuffle, ArrowDownAZ, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
 import { fetchTemplate, createRanking } from '../lib/api';
 import { markLastPublished } from '../lib/lastPublished';
+import useDragAutoScroll from '../lib/useDragAutoScroll';
 import TierLabel from '../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
 
@@ -36,6 +37,7 @@ const RankTierList = () => {
   const toast = useToast();
   const { currentUser } = useUser();
   const { t } = useTranslation();
+  const { beginDrag, endDrag } = useDragAutoScroll();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
 
@@ -99,19 +101,72 @@ const RankTierList = () => {
   }, [templateId]);
 
   const handleDragStart = (e, itemId) => {
+    e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('itemId', itemId);
+    beginDrag(); // 📍 auto-scroll ขอบจอระหว่างลาก (src/lib/useDragAutoScroll.js)
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
   };
 
+  // 📍 [ใหม่]: ย้าย item ไป tier ปลายทางโดย "แทรก" ที่ลำดับ insertIndex ภายใน tier นั้น
+  // (order ใน tier = ลำดับการเรียงใน array — เดินเก็บทีละตัวแล้วแทรก dragged ตรงจุดที่ต้องการ)
+  // พอร์ตจากหน้า Create (src/pages/Create.jsx) เพื่อให้หน้าใช้ template สลับหน้า/หลังได้
+  const repositionItem = (list, draggedId, targetTierId, insertIndex) => {
+    const fromIndex = list.findIndex(i => i.id === draggedId);
+    if (fromIndex === -1) return list;
+    const dragged = { ...list[fromIndex], tierId: targetTierId };
+    const remaining = list.filter((_, idx) => idx !== fromIndex);
+
+    const sameTier = (i) => (i.tierId ?? null) === (targetTierId ?? null);
+    const clamped = Math.max(0, Math.min(insertIndex, remaining.filter(sameTier).length));
+
+    const result = [];
+    let seen = 0;
+    let placed = false;
+    for (const it of remaining) {
+      if (!placed && sameTier(it) && seen === clamped) {
+        result.push(dragged);
+        placed = true;
+      }
+      if (sameTier(it)) seen++;
+      result.push(it);
+    }
+    if (!placed) result.push(dragged); // กรณีแทรกท้ายสุดของ tier
+    return result;
+  };
+
+  // 📍 [ใหม่]: แปลงตำแหน่งเมาส์เป็นลำดับการแทรก — เทียบกับกึ่งกลางการ์ดแต่ละใบ (ไม่รวมใบที่กำลังลาก)
+  const getInsertIndexFromZone = (zoneEl, clientX, draggedItemId) => {
+    const cards = Array.from(zoneEl.querySelectorAll('[data-item-id]'))
+      .filter(el => el.dataset.itemId !== draggedItemId);
+    for (let i = 0; i < cards.length; i++) {
+      const box = cards[i].getBoundingClientRect();
+      if (clientX < box.left + box.width / 2) return i;
+    }
+    return cards.length;
+  };
+
   const handleDrop = (e, targetTierId) => {
     e.preventDefault();
     const draggedItemId = e.dataTransfer.getData('itemId');
-    setItems(items.map(item =>
-      item.id === draggedItemId ? { ...item, tierId: targetTierId } : item
-    ));
+    if (!draggedItemId) return;
+    const insertIndex = getInsertIndexFromZone(e.currentTarget, e.clientX, draggedItemId);
+    setItems(prev => repositionItem(prev, draggedItemId, targetTierId, insertIndex));
+  };
+
+  // 📍 [ใหม่]: ปุ่ม ◀ ▶ — สลับตำแหน่งกับเพื่อนบ้านใน tier เดียวกัน
+  const shiftItem = (itemId, direction) => {
+    setItems(prev => {
+      const item = prev.find(i => i.id === itemId);
+      if (!item) return prev;
+      const mates = prev.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
+      const pos = mates.findIndex(i => i.id === itemId);
+      const targetPos = pos + direction;
+      if (targetPos < 0 || targetPos >= mates.length) return prev;
+      return repositionItem(prev, itemId, item.tierId, targetPos);
+    });
   };
 
   const handleAddCustomItem = () => {
@@ -207,16 +262,43 @@ const RankTierList = () => {
     }
   };
 
-  const renderCard = (item) => (
-    <div
-      key={item.id}
-      draggable
-      onDragStart={(e) => handleDragStart(e, item.id)}
-      className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg min-w-[110px] h-[52px] px-4 flex items-center justify-center text-center text-sm cursor-grab active:cursor-grabbing hover:-translate-y-0.5 transition-all"
-    >
-      <span className="line-clamp-2 leading-tight pointer-events-none">{item.content}</span>
-    </div>
-  );
+  const renderCard = (item) => {
+    const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
+    const pos = mates.findIndex(i => i.id === item.id);
+
+    return (
+      <div
+        key={item.id}
+        data-item-id={item.id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, item.id)}
+        onDragEnd={endDrag}
+        className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative min-w-[110px] h-[52px] px-4 pt-2 flex items-center justify-center text-center text-sm cursor-grab active:cursor-grabbing hover:-translate-y-0.5 transition-all"
+      >
+        <span className="line-clamp-2 leading-tight pointer-events-none">{item.content}</span>
+
+        {/* 📍 [ใหม่]: ปุ่มย้ายซ้าย/ขวา — สลับลำดับภายใน tier เดียวกัน (พอร์ตจากหน้า Create) */}
+        <button
+          type="button"
+          onClick={() => shiftItem(item.id, -1)}
+          disabled={pos === 0}
+          aria-label={t('rank.moveLeft')}
+          className="absolute bottom-0.5 left-1 rounded p-0.5 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
+        >
+          <ChevronLeft size={14} strokeWidth={3} />
+        </button>
+        <button
+          type="button"
+          onClick={() => shiftItem(item.id, 1)}
+          disabled={pos === mates.length - 1}
+          aria-label={t('rank.moveRight')}
+          className="absolute bottom-0.5 right-1 rounded p-0.5 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
+        >
+          <ChevronRight size={14} strokeWidth={3} />
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen font-sans text-ink flex flex-col">

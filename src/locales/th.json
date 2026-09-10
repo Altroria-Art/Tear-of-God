@@ -143,6 +143,8 @@
     "searchAddHashtags": "ค้นหาและเพิ่ม Hashtag",
     "addTagsPh": "เพิ่มแท็ก (เช่น #rpg, #2024)",
     "suggestedTags": "แท็กแนะนำ:",
+    "moveLeft": "เลื่อนซ้าย",
+    "moveRight": "เลื่อนขวา",
     "loadingTemplate": "กำลังโหลดเทมเพลต...",
     "customItemPh": "เพิ่มไอเทมเอง...",
     "shuffleItems": "สับเปลี่ยนไอเทม",
