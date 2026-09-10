@@ -16,11 +16,19 @@ export function ThemeProvider({ children }) {
   });
 
   useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
     if (isLightMode) {
-      document.body.classList.add('light-theme');
+      body.classList.add('light-theme');
+      body.classList.remove('dark');
+      root.classList.remove('dark');
+      root.classList.add('light');
       localStorage.setItem('tog-theme', 'light');
     } else {
-      document.body.classList.remove('light-theme');
+      body.classList.remove('light-theme');
+      body.classList.add('dark');
+      root.classList.add('dark');
+      root.classList.remove('light');
       localStorage.setItem('tog-theme', 'dark');
     }
   }, [isLightMode]);

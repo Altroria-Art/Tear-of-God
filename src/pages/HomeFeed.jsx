@@ -156,10 +156,11 @@ function HomeTierCard({ post }) {
 
         <button
           onClick={() => navigate(`/rank?template=${post.template_id || ''}`)}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-sm hover:bg-surface hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+          title={t('feed.useTemplate', { title: post.title })}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
         >
           <Copy size={12} strokeWidth={2.5} />
-          <span>{t('feed.useTemplate', { title: post.title })}</span>
+          <span>{t('feed.useTemplateShort')}</span>
         </button>
       </div>
 
@@ -190,17 +191,34 @@ function HomeTierCard({ post }) {
       {/* Tier List Preview Blocks */}
       <div className="space-y-2 mb-6">
         {tierRows.map((row) => (
-          <div key={row.tier} className="flex bg-tag rounded-xl border border-line-soft overflow-hidden min-h-[50px] shadow-sm items-stretch">
+          <div key={row.tier} className="flex bg-tag rounded-xl border border-line-soft overflow-hidden min-h-[52px] shadow-sm items-stretch">
             <TierLabel label={row.tier} color={row.color} index={row.index} className="w-14 font-black text-lg" />
-            <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap bg-tag min-w-0">
-              {row.items.map((ri, idx) => (
-                <div
-                  key={ri.id ?? idx}
-                  className="flex h-20 w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg p-2 text-center text-xs break-words"
-                >
-                  <span className="w-full line-clamp-2 text-[11px] leading-normal">{ri.item?.name || ri.item_id || t('common.unknownItem')}</span>
+            <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap min-w-0">
+              {row.items.length > 0 ? (
+                row.items.map((ri, idx) => (
+                  <div
+                    key={ri.id ?? idx}
+                    className="group/item relative flex h-18 w-18 sm:h-20 sm:w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft/80 font-bold shadow-xs hover:shadow-md hover:-translate-y-0.5 rounded-xl p-2 text-center text-xs transition-all duration-200 select-none overflow-hidden"
+                    title={ri.item?.name || ri.item_id}
+                  >
+                    {ri.item?.image_url ? (
+                      <img
+                        src={ri.item.image_url}
+                        alt={ri.item?.name || 'item'}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                    ) : (
+                      <span className="w-full line-clamp-3 text-[11px] font-semibold leading-tight">
+                        {ri.item?.name || ri.item_id || t('common.unknownItem')}
+                      </span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-center px-3 py-1 text-xs text-muted/50 italic font-medium select-none">
+                  {t('feed.emptyTier')}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         ))}
@@ -232,7 +250,10 @@ function HomeTierCard({ post }) {
             tiers={tierRows.map((row) => ({
               tier: row.tier,
               color: row.color,
-              items: row.items.map((ri) => ri.item?.name || ri.item_id || t('common.unknownItem')),
+              items: row.items.map((ri) => ({
+                name: ri.item?.name || ri.item_id || t('common.unknownItem'),
+                image_url: ri.item?.image_url || null,
+              })),
             }))}
           />
         }
@@ -251,9 +272,39 @@ export default function HomeFeed() {
   const [isLoading, setIsLoading] = useState(true) // หน้าแรกเท่านั้น — กันจอกระพริบตอน append หน้าถัดไป
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [activeTab, setActiveTab] = useState('general');
+  const [showTabNav, setShowTabNav] = useState(true);
+  const lastScrollYRef = useRef(0);
   const loadingRef = useRef(false) // กันยิงซ้ำตอนเลื่อนเร็วๆ หรือ observer ยิงซ้อนตอนกำลังโหลดอยู่
   const observerRef = useRef(null) // instance ของ IntersectionObserver ตัวปัจจุบัน (ผูกกับ sentinel node ล่าสุด)
   const pageRef = useRef(1) // หน้าล่าสุดที่ fetch ไป — loadMore อ่านที่นี่ ไม่ใช่ closure `page` ที่ค้าง
+
+  // Auto-hide tab navigation on scroll down, reveal on scroll up
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (currentScrollY <= 60) {
+            setShowTabNav(true);
+          } else {
+            const diff = currentScrollY - lastScrollYRef.current;
+            if (diff > 8) {
+              setShowTabNav(false);
+            } else if (diff < -8) {
+              setShowTabNav(true);
+            }
+          }
+          lastScrollYRef.current = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // 📍 per-tab cache — ดู docs/row-read-optimization-plan.md §6/§8: สลับ General↔Kindred
   // เดิมยิง fetchRankings ใหม่ทุกครั้ง ทั้งที่ backend ยังไม่รองรับ feedType จริง (ดูหมายเหตุ
@@ -373,16 +424,22 @@ export default function HomeFeed() {
 
   return (
     <div className="min-h-screen font-sans">
-      {/* Tab Navigation */}
-      <div className="sticky top-[73px] z-10 glass-nav border-b border-line-soft backdrop-blur-xl py-3">
-        <div className="mx-auto flex max-w-fit rounded-full bg-surface border border-line-soft p-1 shadow-inner">
+      {/* Floating Tab Navigation Capsule with Auto-hide on Scroll */}
+      <div
+        className={`sticky top-[80px] z-30 flex justify-center pointer-events-none transition-all duration-300 ease-in-out pb-2 ${
+          showTabNav
+            ? 'translate-y-0 opacity-100'
+            : '-translate-y-16 opacity-0'
+        }`}
+      >
+        <div className="pointer-events-auto flex items-center rounded-full bg-surface/85 border border-line-soft/80 backdrop-blur-xl p-1 shadow-md hover:shadow-lg transition-shadow">
           <button
             type="button"
             onClick={() => setActiveTab('general')}
-            className={`rounded-full px-8 py-2 text-sm font-bold transition-all duration-300 ${
+            className={`rounded-full px-7 py-1.5 text-xs font-bold transition-all duration-200 ${
               activeTab === 'general'
-                ? 'bg-brand text-canvas shadow-md scale-100'
-                : 'text-muted hover:text-ink scale-95 hover:bg-surface-glass'
+                ? 'bg-brand text-canvas shadow-xs scale-100'
+                : 'text-muted hover:text-ink hover:bg-surface-glass scale-95'
             }`}
           >
             {t('feed.general')}
@@ -390,10 +447,10 @@ export default function HomeFeed() {
           <button
             type="button"
             onClick={() => setActiveTab('kindred')}
-            className={`rounded-full px-8 py-2 text-sm font-bold transition-all duration-300 ${
+            className={`rounded-full px-7 py-1.5 text-xs font-bold transition-all duration-200 ${
               activeTab === 'kindred'
-                ? 'bg-brand text-canvas shadow-md scale-100'
-                : 'text-muted hover:text-ink scale-95 hover:bg-surface-glass'
+                ? 'bg-brand text-canvas shadow-xs scale-100'
+                : 'text-muted hover:text-ink hover:bg-surface-glass scale-95'
             }`}
           >
             {t('feed.kindred')}
@@ -401,8 +458,12 @@ export default function HomeFeed() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 flex gap-8 py-8 items-start justify-center"><aside className="hidden lg:block w-[240px] shrink-0 sticky top-[140px] max-h-[calc(100vh-140px)] overflow-y-auto hide-scrollbar pb-6"><HomeLeftSidebar /></aside><main className="w-full max-w-2xl shrink">
-        <div className="space-y-6 mt-4">
+      <div className="mx-auto max-w-7xl px-4 flex gap-8 pt-3 pb-12 items-start justify-center">
+        <aside className="hidden lg:block w-[240px] shrink-0 sticky top-[92px] max-h-[calc(100vh-92px)] overflow-y-auto hide-scrollbar pb-6">
+          <HomeLeftSidebar />
+        </aside>
+        <main className="w-full max-w-2xl shrink">
+        <div className="space-y-6">
           {isLoading && (
             <p className="text-center text-sm font-medium text-muted animate-pulse py-10">
               {t('feed.loadingYourFeed')}
@@ -457,7 +518,11 @@ export default function HomeFeed() {
             </p>
           )}
         </div>
-      </main><aside className="hidden xl:block w-[300px] shrink-0 sticky top-[140px] max-h-[calc(100vh-140px)] overflow-y-auto hide-scrollbar pb-6"><HomeRightSidebar /></aside></div>
+      </main>
+      <aside className="hidden xl:block w-[300px] shrink-0 sticky top-[88px] max-h-[calc(100vh-88px)] overflow-y-auto hide-scrollbar pb-6">
+        <HomeRightSidebar />
+      </aside>
+    </div>
     </div>
   );
 }

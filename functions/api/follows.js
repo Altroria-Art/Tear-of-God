@@ -17,6 +17,7 @@ export async function onRequest({ request, env }) {
           JOIN profiles p ON f.follower_id = p.id
           WHERE f.following_id = ?
           ORDER BY f.created_at DESC
+          LIMIT 500
         `;
       } else if (type === 'following') {
         query = `
@@ -25,6 +26,7 @@ export async function onRequest({ request, env }) {
           JOIN profiles p ON f.following_id = p.id
           WHERE f.follower_id = ?
           ORDER BY f.created_at DESC
+          LIMIT 500
         `;
       } else {
         return jsonResponse({ error: 'Invalid type' }, 400);
@@ -41,6 +43,11 @@ export async function onRequest({ request, env }) {
     try {
       const { action, follower_id, following_id } = await request.json();
       if (!follower_id || !following_id) return jsonResponse({ error: 'Missing params' }, 400);
+
+      // กัน user follow ตัวเอง
+      if (follower_id === following_id) {
+        return jsonResponse({ error: 'ไม่สามารถ follow ตัวเองได้' }, 400);
+      }
 
       if (action === 'follow') {
         await db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').bind(follower_id, following_id).run();

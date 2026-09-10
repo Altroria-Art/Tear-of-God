@@ -110,13 +110,13 @@ export default function ShareExportModal({
 
   if (mode === 'export') {
     return (
-      <Modal open={open} onClose={onClose} title={t('shareExport.exportTableTitle')} maxWidth="max-w-lg">
+      <Modal open={open} onClose={onClose} title={t('shareExport.exportTableTitle')} maxWidth="max-w-3xl">
         <p className="mb-3 text-sm text-muted">
           {t('shareExport.exportHint')}
           {filename ? <span className="text-ink-soft"> · {filename}</span> : null}
         </p>
-        <div className="max-h-[55vh] overflow-auto rounded-lg border border-line-soft bg-white p-2">
-          <div ref={previewRef} className="inline-block min-w-full">
+        <div className="max-h-[70vh] overflow-y-auto rounded-2xl border border-line-soft bg-black/5 dark:bg-white/5 p-3 sm:p-5 flex justify-center items-start shadow-inner">
+          <div ref={previewRef} className="w-full max-w-[640px] shadow-md rounded-2xl overflow-hidden">
             {preview}
           </div>
         </div>

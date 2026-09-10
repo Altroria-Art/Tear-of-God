@@ -128,7 +128,7 @@ export default function Profile() {
       setAdmissionYear(admissionYears.includes(storedYear) ? storedYear : '');
       setAvatarUrl(currentUser.avatar_url || '');
     }
-  }, [profileUserId, isOwnProfile, currentUser?.id]);
+  }, [profileUserId, isOwnProfile, currentUser, admissionYears]);
 
   // 📍 [แก้ไขแล้ว]: ยิง API บันทึกข้อมูลโปรไฟล์ของจริง (เฉพาะเมื่อดูโปรไฟล์ตัวเอง)
   const handleToggleFollow = async () => {
@@ -442,7 +442,7 @@ export default function Profile() {
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center font-bold text-xl text-brand">
-                      {displayName.charAt(0).toUpperCase()}
+                      {displayName?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
                   )}
                 </div>

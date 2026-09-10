@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Trash2, Flag } from 'lucide-react';
+import { Link, useOutletContext } from 'react-router-dom';
+import { Trash2, Flag, ExternalLink } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminReports, setReportStatus, deleteAdminReport } from '../../lib/api';
@@ -24,6 +25,7 @@ export default function Reports() {
   const { currentUser } = useUser();
   const toast = useToast();
   const { t } = useTranslation();
+  const { refreshPending } = useOutletContext() || {};
   const [reports, setReports] = useState([]);
   const [total, setTotal] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -59,6 +61,7 @@ export default function Reports() {
       setReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: nextStatus } : x)));
       if (nextStatus !== 'pending' && r.status === 'pending') setPendingCount((c) => Math.max(0, c - 1));
       if (nextStatus === 'pending' && r.status !== 'pending') setPendingCount((c) => c + 1);
+      refreshPending?.();
     } else {
       toast.error(res.error || t('admin.statusUpdateFailed', { msg: '' }));
     }
@@ -73,6 +76,7 @@ export default function Reports() {
       toast.success(t('admin.reportDeleted'));
       setReports((prev) => prev.filter((x) => x.id !== r.id));
       setTotal((prev) => Math.max(0, prev - 1));
+      refreshPending?.();
     } else {
       toast.error(res.error || t('admin.deleteReportFailed', { msg: '' }));
     }
@@ -127,6 +131,11 @@ export default function Reports() {
               <tbody>
                 {reports.map((r) => {
                   const meta = STATUS_META[r.status] || STATUS_META.pending;
+                  const targetUrl = r.kind === 'post'
+                    ? (r.ranking_id ? `/post/${r.ranking_id}` : null)
+                    : (r.template_id ? `/template/${r.template_id}` : null);
+                  const titleText = (r.kind === 'post' ? r.ranking_title : r.template_title) || '—';
+
                   return (
                     <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
                       <td className="px-4 py-3">
@@ -135,8 +144,21 @@ export default function Reports() {
                         }`}>
                           {r.kind === 'post' ? t('admin.contentPost') : t('admin.contentTemplate')}
                         </span>
-                        <div className="mt-1 text-ink font-medium max-w-[220px] truncate">
-                          {r.kind === 'post' ? r.ranking_title : r.template_title}
+                        <div className="mt-1 text-ink font-medium max-w-[220px]">
+                          {targetUrl ? (
+                            <Link
+                              to={targetUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-brand hover:underline inline-flex items-center gap-1 group max-w-full"
+                              title={titleText}
+                            >
+                              <span className="truncate">{titleText}</span>
+                              <ExternalLink size={12} className="shrink-0 opacity-60 group-hover:opacity-100 transition-opacity text-brand" />
+                            </Link>
+                          ) : (
+                            <span className="truncate text-muted">{titleText}</span>
+                          )}
                         </div>
                         <div className="text-xs text-muted">
                           {r.kind === 'post' ? r.ranking_category : r.template_category}
@@ -144,7 +166,20 @@ export default function Reports() {
                       </td>
                       <td className="px-4 py-3 text-ink-soft max-w-[220px]">{r.reason}</td>
                       <td className="px-4 py-3 text-ink-soft">
-                        {r.reporter ? r.reporter.username : <span className="text-muted">—</span>}
+                        {r.reporter?.id ? (
+                          <Link
+                            to={`/profile/${r.reporter.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-ink hover:underline"
+                          >
+                            {r.reporter.username}
+                          </Link>
+                        ) : r.reporter ? (
+                          r.reporter.username
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-ink-soft whitespace-nowrap">{timeAgo(r.created_at)}</td>
                       <td className="px-4 py-3">

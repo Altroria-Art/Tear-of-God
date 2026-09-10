@@ -7,12 +7,12 @@ function Comment({ author, createdAt, body }) {
   return (
     <div className="flex gap-3 py-3">
       <Avatar name={author.name} src={author.avatarUrl} size="sm" />
-      <div>
+      <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <p className="text-sm font-bold text-ink">{author.name}</p>
           <p className="text-xs text-muted">{timeAgo(createdAt)}</p>
         </div>
-        <p className="mt-0.5 text-sm text-item">{body}</p>
+        <p className="mt-0.5 text-sm text-ink-soft leading-relaxed break-words">{body}</p>
       </div>
     </div>
   )

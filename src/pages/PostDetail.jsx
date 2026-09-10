@@ -81,7 +81,7 @@ export default function PostDetail() {
           const formattedComments = data.comments.map(c => ({
             id: c.id,
             author: {
-              name: c.username || t('common.unknownItem'),
+              name: c.username || t('common.unknownUser'),
               avatarUrl: c.avatar_url
             },
             createdAt: c.created_at,
@@ -353,7 +353,7 @@ export default function PostDetail() {
                 tiers={tiers.map((t) => ({
                   tier: t.tier,
                   color: t.color,
-                  items: (t.items || []).map((i) => (typeof i === 'object' ? i.name : i)),
+                  items: (t.items || []).map((i) => (typeof i === 'object' ? { name: i.name, image_url: i.image_url } : { name: i, image_url: null })),
                 }))}
               />
             }
