@@ -1,13 +1,50 @@
 # Tear of God
 
-Social tier-list app: create rankings, vote, and comment on other users' tier lists.
+**Tear of God** is a social platform for creating, sharing, and debating tier lists. Think of it as a community-driven ranking tool — users pick a template (a set of items to rank), drag items into custom tiers (S/A/B/C/D or any labels they choose), and publish their rankings. Others can vote, comment, and follow creators. Each template also has a **Community Average** that aggregates every published ranking into a single consensus view. The app is built for University of Phayao students, with built-in faculty/major data, and supports both English and Thai interfaces.
+
+## Features
+
+- Create and share tier lists from community templates
+- Drag-and-drop tier list editor with auto-scroll and in-tier reorder
+- Community Average — aggregated rankings per template with time-period filtering
+- Home feed with General/Kindred personalized tabs
+- Discover section — trending templates, categories, hashtags
+- Like/dislike voting on posts and Community Average
+- Comments on posts and Community Average
+- Follow other users
+- User profiles with University of Phayao faculty/major info
+- Admin panel — dashboard, user/ranking/template/report management
+- Share and export tier lists as PNG
+- Dark/light theme toggle
+- Internationalization (English + Thai)
+- Report inappropriate content
+- Email/password + Google Sign-In authentication
 
 ## Stack
 
-- Frontend: React 19 + Vite, Tailwind CSS 4, React Router v7
-- Backend: Cloudflare Pages Functions (`functions/api/`) + Cloudflare D1 (SQLite)
-- Auth: email/password (stored in D1) + Google Sign-In via Firebase Auth
-- Storage: Cloudflare R2 (planned, not wired up yet; images are currently plain URLs)
+- Frontend: React 19 + Vite 8, Tailwind CSS 4, React Router v7, i18next (EN/TH), lucide-react icons
+- Backend: Cloudflare Pages Functions (`functions/api/`) — Workers runtime, hand-written SQL, no ORM
+- Database: Cloudflare D1 (SQLite), binding `tear_of_god_db`
+- Storage: Cloudflare R2 (avatar/image uploads, binding `STORAGE`)
+- Auth: email/password (SHA-256, stored in D1) + Google Sign-In (Firebase Auth)
+
+## Project Structure
+
+```
+├── functions/api/       Cloudflare Pages Functions (backend endpoints + admin/)
+├── src/
+│   ├── pages/           Page components (14 user pages + 5 admin pages)
+│   ├── components/      Reusable UI (admin/, discover/, feed/, layout/, post/, template/, tier/, ui/)
+│   ├── lib/             Core utilities (api client, auth, format, tiers, colors, university, share, export)
+│   ├── context/         React contexts (UserContext, ThemeContext)
+│   ├── locales/         i18n translations (en.json, th.json)
+│   └── data/            Legacy mock data (largely unused)
+├── schema.sql           Full database schema (14 tables)
+├── migrations/          D1 migration files
+├── scripts/             Utility scripts (score backfill, seed generation, k6 reports)
+├── tests/               k6 load test scenarios and reports
+└── docs/                Internal planning documents
+```
 
 ## Setup
 
@@ -15,83 +52,103 @@ Social tier-list app: create rankings, vote, and comment on other users' tier li
 npm install
 ```
 
-Frontend only (UI work, no backend — `/api/*` calls will 404 and pages render empty states, they do NOT fall back to mock data):
+Frontend only (UI work, no backend — `/api/*` calls will 404 and pages render empty states):
 ```
 npm run dev
 ```
 
 Full stack (frontend + API + D1), first time setup:
 ```
-npm run db:reset      # create local D1 schema + load fake sample data
+npm run db:reset      # create local D1 schema
 npm run dev:full       # build + wrangler pages dev dist
 ```
 
 ## Database
 
-Schema in `schema.sql`: profiles, rankings, items, ranking_items, votes, comments, templates, template_items.
+Schema in `schema.sql`: profiles, follows, rankings, items, ranking_items, votes, comments, templates, template_views, template_items, ranking_item_scores, template_reactions, template_comments, reports.
 D1 binding (`tear_of_god_db`) is defined in `wrangler.toml`.
 
 **Local D1 and production D1 are two entirely separate databases.** `wrangler pages dev` runs against a local SQLite file under `.wrangler/state/` (gitignored), never against the real database at `tear-of-god.pages.dev`. Nothing you do locally can affect production data, and nothing you do in production ever shows up locally on its own.
 
 | Script | What it does |
 |---|---|
-| `npm run db:reset` | Wipe local D1, apply `schema.sql`, load `seed.sql` (fake demo data) |
+| `npm run db:reset` | Wipe local D1, apply `schema.sql` |
 | `npm run db:sync` | Export the **real** production D1 (read-only) and load that snapshot into local D1, replacing whatever was there |
 | `npm run db:clean` | Just wipe local D1 state |
 
-If your local site looks out of date or shows old/fake profiles, that's not a cache problem — run `npm run db:sync` to pull down a fresh copy of production data. Requires `npx wrangler login` once.
+If your local site looks out of date, that's not a cache problem — run `npm run db:sync` to pull down a fresh copy of production data. Requires `npx wrangler login` once.
 
 `npm run db:sync` writes a `.d1-snapshot.sql` file containing real user emails and password hashes — it's gitignored; never commit or share it.
 
+## API Endpoints
+
+All endpoints live under `functions/api/`. Each file exports `onRequest` (or method-specific `onRequestGet`/`onRequestPost`) and receives `{ request, env }`.
+
+### Public
+
+| Endpoint | Methods | Purpose |
+|----------|---------|---------|
+| `/api/auth` | POST | Register, login, Google sync, update profile |
+| `/api/rankings` | GET, POST | List/feed rankings (pagination, filtering, sorting), create ranking |
+| `/api/templates` | GET, POST | List templates, create template, record views |
+| `/api/users` | GET | Public user profile |
+| `/api/follows` | GET, POST | Followers/following, follow/unfollow |
+| `/api/votes` | POST | Like/dislike ranking |
+| `/api/comments` | GET, POST | Comments on rankings |
+| `/api/template-votes` | GET, POST | Like/dislike Community Average |
+| `/api/template-comments` | GET, POST | Comments on Community Average |
+| `/api/template-participants` | GET | Users who created rankings from a template |
+| `/api/hashtags` | GET | Aggregated hashtags from templates + rankings |
+| `/api/categories` | GET | Top categories |
+| `/api/upload` | POST | Image upload to R2 (JPEG/PNG/WebP/GIF, max 5MB) |
+| `/api/report` | POST | Report template or ranking for inappropriate content |
+
+### Admin
+
+| Endpoint | Methods | Purpose |
+|----------|---------|---------|
+| `/api/admin` | GET | Dashboard stats |
+| `/api/admin/users` | GET, POST | User management (search, set role, delete) |
+| `/api/admin/rankings` | GET, POST | Ranking management (search, delete) |
+| `/api/admin/templates` | GET, POST | Template management (search, delete) |
+| `/api/admin/reports` | GET, POST | Report management (filter, resolve/dismiss/delete) |
+
 ## Deploying
 
-Deploys are manual — there is no CI and pushing to a branch does not auto-deploy. Two independent
-halves: the Pages app (frontend + `functions/api`) and the D1 seed data. Do them in this order.
-
-### 1. Frontend + API
+Deploys are manual — there is no CI and pushing to a branch does not auto-deploy.
 
 ```
 npm run deploy      # build + wrangler pages deploy dist --branch=master
 ```
 
-This is the only thing that ships `functions/api/*` and the built frontend to
-https://tear-of-god.pages.dev/. Requires `npx wrangler login` once per machine.
+This ships `functions/api/*` and the built frontend to https://tear-of-god.pages.dev/. Requires `npx wrangler login` once per machine.
 
-### 2. D1 seed data (only when seed content changed)
-
-**Production D1 has real registered users and their real tier lists — never destroy that data.**
-Before pushing, check what's actually on remote (read-only, no PII downloaded):
+**Production D1 has real registered users and their real tier lists — never destroy that data.** Before any schema change, verify against remote first:
 
 ```
 npx wrangler d1 execute tear-of-god-db --remote --command "SELECT (SELECT COUNT(*) FROM profiles) profiles, (SELECT COUNT(*) FROM rankings) rankings"
 ```
 
-The pre-flight also means checking the **write budget**, not just what data exists. D1's free plan
-caps writes at 100,000 rows/day, and DELETE + index maintenance count toward that too (see
-`docs/feature-hashtag-coverage-expansion.md` §4 for the full breakdown — the multiplier per row is
-not precisely documented by Cloudflare, so treat any estimate as approximate). For the **first ever**
-push, stage it rather than firing the whole thing at once: push `templates-seed.sql` alone first
-(a few hundred rows), then read the actual `rows written` off the Cloudflare D1 dashboard
-(`dash.cloudflare.com` → D1 → the database → Metrics) to see the real multiplier before pushing the
-much larger `community-rankings-seed.sql`. If a push would exceed the remaining daily budget, split
-it across the 00:00 UTC reset rather than letting it fail partway through.
+## Load Testing
 
-Then push everything:
+k6 test scenarios in `tests/scenarios/` (smoke, load, stress, spike, soak). Run against a running local or remote instance:
 
 ```
-npm run db:push:remote
+k6 run tests/scenarios/smoke.js
 ```
 
-This regenerates `community-rankings-seed.sql`, runs `reset-seed-data.sql` (deletes only
-seed-owned rows — real accounts and real rankings are never touched, see the comments in that
-file for exactly which id patterns are safe), then reloads `seed.sql`, `templates-seed.sql`, and
-`community-rankings-seed.sql` in that order. Safe to re-run, but note DELETEs are themselves writes,
-so a same-day re-push costs roughly double.
+HTML reports in `tests/reports/`. Helper script `scripts/generate-k6-summary.mjs` produces summary reports from raw k6 JSON output.
 
-Never run `db:migrate:0001` against any database that already has templates — it starts with
-`DROP TABLE templates`.
+## Architecture Notes
 
-## Known gaps
+- **Auth model** — Client-reported `user_id` from localStorage. No JWT or session tokens. Admin role verification queries D1 but relies on the client sending the correct ID. See `functions/api/admin/_check.js`.
+- **Home feed** — Seeded-shuffled (FNV-1a hash + mulberry32 PRNG + Fisher-Yates) for deterministic-random ordering stable within a session. "General" tab shows all posts; "Kindred" tab shows personalized content (requires 2+ matching signals from category, template, or hashtags).
+- **Community Average** — Aggregated tier rankings per template, computed from frozen `ranking_item_scores` (score = tier position at time of publish). Supports time-period filtering. Includes self-healing backfill if scores are missing for older rankings.
+- **Timestamps** — D1 returns `created_at`/`updated_at` as `"YYYY-MM-DD HH:MM:SS"` in UTC with no timezone marker. Always parse through `parseDbDate()` / `formatDbDate()` in `src/lib/format.js` — never pass raw D1 timestamps to `new Date()`.
+- **Theme** — Dark/light toggle persisted to `localStorage`, respects system preference on first visit.
 
-- R2 image upload/storage not implemented yet
-- `Dockerfile` / `docker-compose.yml` currently build the static frontend only; `functions/api` does not run in that container
+## Known Gaps
+
+- No JWT or session-based auth — `user_id` is client-reported only
+- No formal test suite (only k6 load tests for the API)
+- No CI/CD pipeline — deploys are manual via `npm run deploy`
