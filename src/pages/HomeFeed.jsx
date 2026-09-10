@@ -10,6 +10,7 @@ import ShareExportModal from '../components/ui/ShareExportModal';
 import ExportCard from '../components/ui/ExportCard';
 
 import { timeAgo } from '../lib/format';
+import { takeLastPublished } from '../lib/lastPublished';
 import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
 import HomeRightSidebar from '../components/feed/HomeRightSidebar';
 import { useTranslation } from 'react-i18next';
@@ -270,6 +271,10 @@ export default function HomeFeed() {
   const feedType = activeTab;
   const kindredLocked = activeTab === 'kindred' && !currentUser;
   const seedRef = useRef(Math.floor(Math.random() * 1e9));
+  // 📍 [ใหม่]: ranking ที่เพิ่ง publish ของฉัน — ขึ้นการ์ดแรกหน้า Home แค่ mount แรกหลัง publish
+  // (ได้จาก src/lib/lastPublished.js; F5/เข้าหน้าใหม่ = module reset → null → สับสุ่มตามเดิม)
+  // ส่ง pin ต่อทุกหน้า (loadMore) เพื่อให้ backend slice จาก shuffle ชุดเดียวกัน ไม่ซ้ำ/ไม่ข้าม
+  const pinnedIdRef = useRef(null);
 
   // สลับแท็บ/ล็อกอิน ต้องเริ่มฟีดใหม่ตั้งแต่หน้า 1 เสมอ ไม่งั้นข้อมูลแท็บเก่าจะค้าง
   // ปนกับแท็บใหม่ตอน infinite scroll ต่อท้าย — เว้นแต่มี cache ของ key นี้อยู่แล้ว
@@ -296,10 +301,13 @@ export default function HomeFeed() {
       pageRef.current = 1
       setHasMore(true)
       loadingRef.current = true
+      // consume pin ครั้งเดียวตอน mount (ครั้งถัดไป/เข้าหน้าใหม่ = ไม่มีอีก → กลับสุ่ม)
+      pinnedIdRef.current = takeLastPublished(currentUser?.id)
       const { data } = await fetchRankings({
         userId: currentUser?.id,
         feedType,
         seed: seedRef.current,
+        pin: pinnedIdRef.current || undefined,
         page: 1,
         limit: PAGE_SIZE
       })
@@ -329,6 +337,7 @@ export default function HomeFeed() {
       userId: currentUser?.id,
       feedType,
       seed: seedRef.current,
+      pin: pinnedIdRef.current || undefined,
       page: nextPage,
       limit: PAGE_SIZE
     })

@@ -139,6 +139,10 @@ export async function onRequest({ request, env }) {
         // ระวัง Math.max(1, 0)=1 — ถ้าไม่ส่งต้องเป็น 0 (ไม่กรอง) ไม่ใช่ 1 วัน
         const daysParam = parseInt(url.searchParams.get('days') || '', 10);
         const days = (!Number.isNaN(daysParam) && daysParam > 0) ? daysParam : 0;
+        // 🟡 [ใหม่]: pin = ranking ที่ "เพิ่ง publish" ของ currentUser — client จาก
+        // src/lib/lastPublished.js ส่งมาเฉพาะ mount แรกหลัง publish; ให้การ์ดนั้นขึ้นอันแรก
+        // อีกครั้ง (ถ้ารีโหลดหน้าใหม่ client ส่งไม่มา → กลับไปสุ่มแบบเดิม) — ตรวจเจ้าของเอง
+        const runPin = url.searchParams.get('pin');
 
         // sort ที่ระบุมาชัดเจนต้องชนะ personalized order เสมอ — ไม่งั้นหน้าที่ส่ง user_id มา
         // เพื่อขอ user_vote (เช่น Template Detail) จะโดนแย่ง ORDER BY ไปแบบไม่ได้ตั้งใจ
@@ -266,7 +270,22 @@ export async function onRequest({ request, env }) {
             }
 
             // สุ่มทั้งหมดแบบ seeded — ทุกรีโหลด (seed ใหม่จาก client) ลำดับเปลี่ยนตั้งแต่หน้าแรก
-            homePoolIds = seededShuffle(poolIds, seed ^ fnv1a(feedType));
+            // 🟡 [ใหม่]: pin (เฉพาะ general) — Ranking ที่เพิ่ง publish ของ currentUser ขึ้นอันแรก
+            // เอา pin ออกจาก pool ก่อนสับ → ใช้ shuffle ชุดเดียวกัน deterministic ตลอด seed+feedType
+            // เดียว (client ส่ง pin ต่อทุกหน้า) → เลื่อนหน้าไม่ซ้ำ/ไม่ข้าม เหมือนแบบไม่ pin; ตรวจ
+            // เจ้าของจริงก่อน (กัน url /api/rankings?pin=<id ของคนอื่น> ไปยัดการ์ดขึ้นบนสุด)
+            let pinnedId = null;
+            if (feedType === 'general' && runPin && currentUserId) {
+              const { results: owned } = await db.prepare(
+                `SELECT id FROM rankings WHERE id = ? AND user_id = ? LIMIT 1`
+              ).bind(runPin, currentUserId).all();
+              if (owned.length > 0) pinnedId = owned[0].id;
+            }
+            if (pinnedId) {
+              homePoolIds = [pinnedId, ...seededShuffle(poolIds.filter((id) => id !== pinnedId), seed ^ fnv1a(feedType))];
+            } else {
+              homePoolIds = seededShuffle(poolIds, seed ^ fnv1a(feedType));
+            }
           }
         }
 
