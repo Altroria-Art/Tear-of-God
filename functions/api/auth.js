@@ -1,3 +1,5 @@
+import { UP_UNIVERSITY_NAME, getFacultyByName, isValidAdmissionYear } from '../../src/lib/university.js';
+
 export async function onRequest({ request, env }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -73,6 +75,28 @@ export async function onRequest({ request, env }) {
 
     else if (action === 'update_profile') {
       if (!user_id) return jsonResponse({ success: false, error: 'Missing user_id' }, 400);
+
+      // 📍 ตรวจสอบข้อมูลการศึกษา (คณะ/สาขา/ปีเข้าศึกษา) ให้เป็นชุดค่าที่เป็นไปได้เสมอ
+      // ใช้ข้อมูลกลางจาก src/lib/university.js (source of truth เดียวกับ UI)
+      // กัน client ส่งค่าที่ไม่ตรงกัน (เช่น คณะหนึ่งแต่สาขาอีกคณะ) เข้า DB ซึ่งอนาคต
+      // ต้องใช้กรองข้อมูลตามคณะ/สาขา ดู docs/bio-university-dropdown-plan.md §6
+      const knownFaculty = faculty !== undefined && faculty !== null && faculty !== ''
+        ? getFacultyByName(faculty)
+        : null;
+      if (university !== undefined && university !== null && university !== '' && university !== UP_UNIVERSITY_NAME) {
+        return jsonResponse({ success: false, error: 'มหาวิทยาลัยไม่ถูกต้อง' }, 400);
+      }
+      if (faculty !== undefined && faculty !== null && faculty !== '' && !knownFaculty) {
+        return jsonResponse({ success: false, error: 'คณะไม่ถูกต้อง' }, 400);
+      }
+      if (major !== undefined && major !== null && major !== '') {
+        if (!knownFaculty || knownFaculty.majors.indexOf(major) === -1) {
+          return jsonResponse({ success: false, error: 'สาขาไม่ตรงกับคณะที่เลือก' }, 400);
+        }
+      }
+      if (year !== undefined && year !== null && year !== '' && !isValidAdmissionYear(year)) {
+        return jsonResponse({ success: false, error: 'ปีเข้าศึกษาไม่ถูกต้อง' }, 400);
+      }
 
       const updates = [];
       const params = [];
