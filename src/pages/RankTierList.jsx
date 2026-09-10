@@ -189,6 +189,8 @@ const RankTierList = () => {
 
     setItems([...items, ...newItems]);
     setCustomItem('');
+  };
+
   // 📍 [ใหม่]: ปุ่ม ◀ ▶ — สลับตำแหน่งกับเพื่อนบ้านใน tier เดียวกัน
   const shiftItem = (itemId, direction) => {
     setItems(prev => {
@@ -279,25 +281,7 @@ const RankTierList = () => {
     }
   };
 
-  const renderCard = (item) => (
-    <div
-      key={item.id}
-      draggable
-      onDragStart={(e) => handleDragStart(e, item.id)}
-      onClick={() => handleItemClick(item)}
-      className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-bold shadow-xs hover:shadow-md hover:-translate-y-0.5 rounded-xl w-18 h-18 sm:w-20 sm:h-20 aspect-square p-1.5 flex items-center justify-center text-center cursor-pointer md:cursor-grab md:active:cursor-grabbing transition-all overflow-hidden select-none"
-      title={item.content}
-    >
-      {item.image_url ? (
-        <img src={item.image_url} alt={item.content} className="w-full h-full object-cover rounded-lg pointer-events-none" />
-      ) : (
-        <span className="w-full line-clamp-3 text-[11px] sm:text-xs font-semibold leading-tight pointer-events-none break-words drop-shadow-xs px-0.5">
-          {item.content}
-        </span>
-      )}
-    </div>
-  );
-const renderCard = (item) => {
+  const renderCard = (item) => {
     const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
     const pos = mates.findIndex(i => i.id === item.id);
 
