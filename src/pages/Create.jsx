@@ -76,6 +76,20 @@ const CreateTierList = () => {
   );
 
   const [activeSettingsTier, setActiveSettingsTier] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setActiveSettingsTier(null);
+        setSelectedItem(null);
+      }
+    };
+    if (activeSettingsTier || selectedItem) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [activeSettingsTier, selectedItem]);
 
   // 📍 ระบบ Hashtag (มาแทนที่ Category)
   const [hashtags, setHashtags] = useState(() => [
@@ -111,11 +125,11 @@ const CreateTierList = () => {
 
   const handleGenerateCards = () => {
     if (!quickAddText.trim()) return;
-    const newItems = quickAddText.split(',').map((item, index) => ({
+    const newItems = quickAddText.split(/[,\n]+/).map(s => s.trim()).filter(Boolean).map((item, index) => ({
         id: `item-${Date.now()}-${index}`,
-        content: item.trim(),
+        content: item,
         tierId: null
-      })).filter((item) => item.content !== '');
+      }));
     setItems([...items, ...newItems]);
     setQuickAddText('');
   };
@@ -125,6 +139,7 @@ const CreateTierList = () => {
 
   // 📍 ล้างทั้งกระดาน: items, ชื่อ, คำอธิบาย, แฮชแท็กที่เลือก, ข้อความ Quick Add
   const handleResetAll = () => {
+    if (!window.confirm(t('create.confirmReset', 'Are you sure you want to reset everything?'))) return;
     setItems([]);
     setTitle('');
     setDescription('');
@@ -255,7 +270,8 @@ const CreateTierList = () => {
         data-item-id={item.id}
         draggable
         onDragStart={(e) => handleDragStart(e, item.id)}
-        className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center px-2 pt-2 pb-4 text-center text-[10px] md:text-xs cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl hover:border-brand-accent transition-all z-10"
+        onClick={() => item.tierId === null && setSelectedItem(item)}
+        className={`bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center px-2 pt-2 pb-4 text-center text-[10px] md:text-xs cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl hover:border-brand-accent transition-all z-10 ${item.tierId === null ? 'cursor-pointer' : ''}`}
       >
         <span className="break-words line-clamp-3 leading-tight pointer-events-none drop-shadow-sm">{item.content}</span>
 
@@ -354,9 +370,9 @@ const CreateTierList = () => {
       
       {/* POPUP SETTINGS MODAL */}
       {activeSettingsTier && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-surface border border-line-soft text-ink w-full max-w-md rounded-lg shadow-2xl relative border border-[#52463e]">
-            <button onClick={() => setActiveSettingsTier(null)} className="absolute top-4 right-4 text-gray-400 hover:text-ink transition-colors"><X size={20} /></button>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setActiveSettingsTier(null); }}>
+          <div className="bg-surface border border-line text-ink w-full max-w-md rounded-lg shadow-2xl relative">
+            <button onClick={() => setActiveSettingsTier(null)} className="absolute top-4 right-4 text-muted hover:text-ink transition-colors"><X size={20} /></button>
             <div className="p-8">
               <h3 className="text-center font-bold text-base mb-6">{t('create.chooseLabelBg')}</h3>
               <div className="flex flex-wrap justify-center gap-2.5 mb-8 px-4">
@@ -372,6 +388,29 @@ const CreateTierList = () => {
               <div className="flex justify-center">
                 <button onClick={() => setActiveSettingsTier(null)} className="bg-brand-accent hover:bg-surface text-canvas py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm">{t('common.save')}</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }}>
+          <div className="bg-surface border border-line rounded-xl p-6 max-w-xs w-full shadow-2xl relative">
+            <h3 className="font-bold text-center mb-4 text-ink">{t('create.assignTier', 'Assign to tier')}</h3>
+            <div className="flex flex-col gap-2">
+              {tiers.map(tier => (
+                <button
+                  key={tier.id}
+                  onClick={() => {
+                    setItems(prev => repositionItem(prev, selectedItem.id, tier.id, 9999));
+                    setSelectedItem(null);
+                  }}
+                  className="py-2 px-4 rounded-lg font-bold border border-line-soft hover:brightness-110 transition-all text-center text-tag shadow-sm"
+                  style={{ backgroundColor: tier.color }}
+                >
+                  {tier.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>

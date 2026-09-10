@@ -22,14 +22,17 @@ import { useTranslation } from 'react-i18next';
 
 
 
+import { useToast } from '../components/ui/Toast';
+
 // 📍 [ลบ mockKindredData ทิ้งไปเรียบร้อย บอทจะไม่มากวนใจอีก!]
 
-const PAGE_SIZE = 5
+const PAGE_SIZE = 12
 
 function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null, onShare, onExport }) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
+  const toast = useToast();
 
   // seed จาก post.user_vote ที่ API ส่งมาเท่านั้น — ห้าม useState(null) เฉยๆ
   // (ดู docs/feature-like-dislike-voting.md §8)
@@ -40,7 +43,7 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   // state machine เดียวรับทั้ง like/dislike: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
   const handleVote = async (type) => {
     if (!currentUser) {
-      alert(t('feed.voteLogin'));
+      toast.warning(t('feed.voteLogin'));
       navigate('/login');
       return;
     }
@@ -71,37 +74,37 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
       setUserVote(prevVote);
       setLikes(prevLikes);
       setDislikes(prevDislikes);
-      alert(t('feed.voteFailed', { msg: result.error || t('common.error') }));
+      toast.error(t('feed.voteFailed', { msg: result.error || t('common.error') }));
     }
   };
 
   return (
     <div className="flex items-center justify-between pt-4 border-t border-line-soft">
       <div className="flex items-center gap-6">
-        <div onClick={() => handleVote('like')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'like' ? 'text-vote-up' : 'text-muted hover:text-ink'}`}>
+        <button type="button" aria-label={t('post.like')} aria-pressed={userVote === 'like'} onClick={() => handleVote('like')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'like' ? 'text-vote-up' : 'text-muted hover:text-ink'}`}>
           <ThumbsUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
           <span className="text-[13px] font-bold">{likes}</span>
-        </div>
+        </button>
 
-        <div onClick={() => handleVote('dislike')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'dislike' ? 'text-vote-down' : 'text-muted hover:text-ink'}`}>
+        <button type="button" aria-label={t('post.dislike')} aria-pressed={userVote === 'dislike'} onClick={() => handleVote('dislike')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'dislike' ? 'text-vote-down' : 'text-muted hover:text-ink'}`}>
           <ThumbsDown size={18} className="group-hover:translate-y-0.5 transition-transform" />
           <span className="text-[13px] font-bold">{dislikes}</span>
-        </div>
+        </button>
 
-        <div onClick={() => navigate(`/post/${id}#comments`)} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
+        <button type="button" aria-label={t('post.comments')} onClick={() => navigate(`/post/${id}#comments`)} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <MessageSquare size={18} />
           <span className="text-[13px] font-bold">{initialComments}</span>
-        </div>
+        </button>
       </div>
       <div className="flex items-center gap-4">
-        <div onClick={onExport} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
+        <button type="button" aria-label={t('common.export')} onClick={onExport} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <Download size={18} />
           <span className="text-[13px] font-bold">{t('common.export')}</span>
-        </div>
-        <div onClick={onShare} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
+        </button>
+        <button type="button" aria-label={t('common.share')} onClick={onShare} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <Share2 size={18} />
           <span className="text-[13px] font-bold">{t('common.share')}</span>
-        </div>
+        </button>
       </div>
     </div>
   );
@@ -235,30 +238,32 @@ function HomeTierCard({ post }) {
         onExport={() => setModal('export')}
       />
 
-      <ShareExportModal
-        open={modal !== null}
-        mode={modal}
-        onClose={() => setModal(null)}
-        link={shareUrl(`/post/${post.id}`)}
-        preview={
-          <ExportCard
-            title={post.title}
-            authorName={post.profile?.username}
-            authorAvatar={post.profile?.avatar_url}
-            postedAt={timeAgo(post.created_at)}
-            category={post.category}
-            tiers={tierRows.map((row) => ({
-              tier: row.tier,
-              color: row.color,
-              items: row.items.map((ri) => ({
-                name: ri.item?.name || ri.item_id || t('common.unknownItem'),
-                image_url: ri.item?.image_url || null,
-              })),
-            }))}
-          />
-        }
-        filename={`feed-${post.id}.png`}
-      />
+      {modal !== null && (
+        <ShareExportModal
+          open={modal !== null}
+          mode={modal}
+          onClose={() => setModal(null)}
+          link={shareUrl(`/post/${post.id}`)}
+          preview={
+            <ExportCard
+              title={post.title}
+              authorName={post.profile?.username}
+              authorAvatar={post.profile?.avatar_url}
+              postedAt={timeAgo(post.created_at)}
+              category={post.category}
+              tiers={tierRows.map((row) => ({
+                tier: row.tier,
+                color: row.color,
+                items: row.items.map((ri) => ({
+                  name: ri.item?.name || ri.item_id || t('common.unknownItem'),
+                  image_url: ri.item?.image_url || null,
+                })),
+              }))}
+            />
+          }
+          filename={`feed-${post.id}.png`}
+        />
+      )}
     </article>
   );
 }
@@ -393,7 +398,9 @@ export default function HomeFeed() {
       limit: PAGE_SIZE
     })
     setPosts(prev => {
-      const merged = [...prev, ...(data || [])]
+      const existingIds = new Set(prev.map(p => p.id));
+      const newPosts = (data || []).filter(p => !existingIds.has(p.id));
+      const merged = [...prev, ...newPosts]
       const nextHasMore = (data?.length || 0) === PAGE_SIZE
       feedCacheRef.current[cacheKey] = { posts: merged, page: nextPage, hasMore: nextHasMore }
       return merged

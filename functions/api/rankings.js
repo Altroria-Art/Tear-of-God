@@ -127,7 +127,7 @@ export async function onRequest({ request, env }) {
         const templateId = url.searchParams.get('template_id');
         const sort = url.searchParams.get('sort'); // 'recent' | 'liked'
         const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
-        const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
+        const limit = Math.min(parseInt(url.searchParams.get('limit')) || 12, 50);
         const offset = (page - 1) * limit;
         // 🟡 [ใหม่]: Home feed mode — 'general' | 'kindred' (มีแค่หน้า Home ส่งมา; จุดเรียกอื่น
         // ไม่มี feed_type จึงไม่เข้ากระแสนี้ ไม่กระทบ behavior เดิม — ดู docs/row-read-optimization-plan.md §14.7 #11)
@@ -578,7 +578,9 @@ export async function onRequest({ request, env }) {
         });
       }
 
-      await db.batch(statements);
+      for (let i = 0; i < statements.length; i += 100) {
+        await db.batch(statements.slice(i, i + 100));
+      }
       return jsonResponse({ success: true, data: { id: rankingId, template_id: templateId, ...payload } }, 201);
     }
 

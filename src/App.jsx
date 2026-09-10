@@ -6,6 +6,8 @@ import Navbar from './components/layout/Navbar';
 import ToastProvider from './components/ui/Toast';
 import { UserProvider } from './context/UserContext';
 import { ThemeProvider } from './context/ThemeContext';
+import ScrollToTop from './components/layout/ScrollToTop';
+import ErrorBoundary from './components/layout/ErrorBoundary';
 
 // 📍 Lazy-load ตามหน้า (code-splitting) — แยก bundle ใหญ่ (หน้าแรกที่ใช้บ่อยโหลดก่อน,
 // หน้าที่ไม่ใช่หน้าแรกค่อยโหลดเมื่อเข้า) ลดขนาด initial JS (ดู bundle warning จาก build)
@@ -30,6 +32,7 @@ const AdminUsers = lazy(() => import('./pages/admin/Users'));
 const AdminRankings = lazy(() => import('./pages/admin/Rankings'));
 const AdminTemplates = lazy(() => import('./pages/admin/Templates'));
 const AdminReports = lazy(() => import('./pages/admin/Reports'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 function PageLoader() {
   const { t } = useTranslation();
@@ -43,13 +46,15 @@ function PageLoader() {
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <ToastProvider>
         <ThemeProvider>
           <UserProvider>
             <Navbar />
 
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
                 <Route path="/" element={<HomeFeed />} />
                 <Route path="/create" element={<Create />} />
                 <Route path="/discover" element={<Discover />} />
@@ -71,8 +76,10 @@ function App() {
                   <Route path="templates" element={<AdminTemplates />} />
                   <Route path="reports" element={<AdminReports />} />
                 </Route>
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </ErrorBoundary>
           </UserProvider>
         </ThemeProvider>
       </ToastProvider>

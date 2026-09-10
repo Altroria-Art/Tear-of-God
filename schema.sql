@@ -22,8 +22,6 @@ CREATE TABLE IF NOT EXISTS follows (
   FOREIGN KEY (following_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
-CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
-
 CREATE TABLE IF NOT EXISTS rankings (
   id TEXT PRIMARY KEY,
   title TEXT,
@@ -115,6 +113,7 @@ CREATE TABLE IF NOT EXISTS ranking_item_scores (
   tier_index INTEGER NOT NULL,
   score INTEGER NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(ranking_id, item_id),
   FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE
 );
 
@@ -128,7 +127,6 @@ CREATE INDEX IF NOT EXISTS idx_comments_ranking_id ON comments(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
 CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category);
 CREATE INDEX IF NOT EXISTS idx_template_items_template_id ON template_items(template_id);
-CREATE INDEX IF NOT EXISTS idx_template_views_template ON template_views(template_id);
 -- like/dislike/comment เป็นของ "Community Average" ของ template — ไม่ใช่ ranking เดียว
 -- เพราะตาราง Community Average เป็นข้อมูลรวมของเทมเพลต จึงผูกกับ template_id โดยตรง
 CREATE TABLE IF NOT EXISTS template_reactions (
@@ -155,7 +153,6 @@ CREATE TABLE IF NOT EXISTS template_comments (
 CREATE INDEX IF NOT EXISTS idx_ris_ranking ON ranking_item_scores(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_ris_template_time ON ranking_item_scores(template_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_template_reactions_template ON template_reactions(template_id);
-CREATE INDEX IF NOT EXISTS idx_template_reactions_user ON template_reactions(template_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_template_comments_template ON template_comments(template_id, created_at);
 
 -- 📍 รายงานผู้ใช้ต่อ template — แจ้งแอดมินให้ช่วยตรวจสอบเนื้อหาไม่เหมาะสม
@@ -176,3 +173,13 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE INDEX IF NOT EXISTS idx_reports_template ON reports(template_id);
 CREATE INDEX IF NOT EXISTS idx_reports_ranking ON reports(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles(created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_rankings_created_at   ON rankings(created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_rankings_cat_created  ON rankings(category, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_rankings_tpl_likes    ON rankings(template_id, likes_count DESC, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_rankings_user_created ON rankings(user_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_templates_use_count   ON templates(use_count DESC, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_templates_view_count  ON templates(view_count DESC, use_count DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_template_items_tpl_position ON template_items(template_id, position);

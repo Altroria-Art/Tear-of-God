@@ -285,7 +285,7 @@ export default function TemplateDetailPage() {
 
   const handleUseTemplate = () => {
     if (!currentUser) {
-      alert(t('template.warnLoginUse'))
+      toast.warning(t('template.warnLoginUse'))
       navigate('/login')
       return
     }
@@ -405,8 +405,10 @@ export default function TemplateDetailPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
-              <span className="font-medium text-ink">@{template.profile?.username || t('common.unknownUser')}</span>
+              <Link to={`/profile/${template.profile?.username}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
+                <span className="font-medium text-ink">@{template.profile?.username || t('common.unknownUser')}</span>
+              </Link>
               <span className="text-muted">|</span>
               <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
                 <Users size={14} /> {formatCount(template.stats?.uses)} {t('template.uses')}
@@ -437,7 +439,7 @@ export default function TemplateDetailPage() {
               <button
                 type="button"
                 onClick={handleUseTemplate}
-                className="flex items-center gap-2 rounded-full glass px-6 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass hover: active:scale-[0.97]"
+                className="flex items-center gap-2 rounded-full glass px-6 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97]"
               >
                 {t('template.use')}
               </button>
@@ -447,6 +449,28 @@ export default function TemplateDetailPage() {
           <p className="mt-4 max-w-3xl text-muted">{template.description}</p>
 
           <HashtagList hashtags={template.hashtags} className="mt-3" />
+        </section>
+
+        <section className="mb-8">
+          <h2 className="mb-4 text-xl font-bold text-ink">{t('template.itemsInTemplate', { defaultValue: 'Items in this Template' })}</h2>
+          <div className="bg-surface rounded-xl border border-line-soft p-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+              {(template.template_items || []).map((ti, i) => (
+                <div key={i} className="flex flex-col items-center gap-1.5 p-2 bg-surface-glass rounded-lg border border-line-soft">
+                  {ti.item?.image_url ? (
+                    <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-surface">
+                      <img src={ti.item.image_url} alt={ti.item?.name || ti.item_id} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded bg-surface flex-shrink-0 border border-line-soft" />
+                  )}
+                  <span className="text-xs font-medium text-ink text-center line-clamp-2 w-full leading-tight">
+                    {ti.item?.name || ti.item_id}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section>

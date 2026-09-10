@@ -130,7 +130,19 @@ export default function Profile() {
     }
   }, [profileUserId, isOwnProfile, currentUser, admissionYears]);
 
-  // 📍 [แก้ไขแล้ว]: ยิง API บันทึกข้อมูลโปรไฟล์ของจริง (เฉพาะเมื่อดูโปรไฟล์ตัวเอง)
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') {
+        setIsEditOpen(false);
+        setFollowListModal(null);
+      }
+    };
+    if (isEditOpen || followListModal) {
+      window.addEventListener('keydown', handleEsc);
+    }
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isEditOpen, followListModal]);
+
   const handleToggleFollow = async () => {
     if (!currentUser) {
       toast.error(t('profile.errLoginFollow'));
@@ -163,8 +175,13 @@ export default function Profile() {
       return;
     }
 
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t('profile.errImageTooLarge', 'Image too large. Maximum 5MB.'));
+      return;
+    }
+
     setIsUploading(true);
-    const { url, error } = await uploadImage(file);
+    const { url, error } = await uploadImage(file, currentUser.id);
     if (error) {
       toast.error(error);
     } else if (url) {
@@ -340,7 +357,7 @@ export default function Profile() {
             {isOwnProfile && (
               <div
                 onClick={() => navigate('/create')}
-                className="glass border-2 border-dashed border-line hover:border-[#7c5d22] rounded-2xl p-6 text-center cursor-pointer transition-colors group"
+                className="glass border-2 border-dashed border-line hover:border-highlight rounded-2xl p-6 text-center cursor-pointer transition-colors group"
               >
                 <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-canvas flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
                   +
@@ -419,7 +436,12 @@ export default function Profile() {
 
       {/* Edit Profile Modal (เฉพาะโปรไฟล์ตัวเอง) */}
       {isOwnProfile && isEditOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsEditOpen(false);
+          }}
+        >
           <div className="glass w-full max-w-md rounded-2xl p-6 shadow-xl relative">
             <button
               onClick={() => setIsEditOpen(false)}
@@ -588,7 +610,12 @@ export default function Profile() {
 
       {/* Follow List Modal */}
       {followListModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setFollowListModal(null);
+          }}
+        >
           <div className="glass w-full max-w-lg rounded-3xl p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
             <button
               onClick={() => setFollowListModal(null)}
@@ -596,7 +623,9 @@ export default function Profile() {
             >
               ✕
             </button>
-            <h3 className="text-xl font-bold text-ink mb-4 capitalize">{followListModal}</h3>
+            <h3 className="text-xl font-bold text-ink mb-4 capitalize">
+              {followListModal === 'followers' ? t('profile.followers') : t('profile.following')}
+            </h3>
             
             <div className="flex-1 overflow-y-auto pr-2 space-y-4">
               {isFollowListLoading ? (

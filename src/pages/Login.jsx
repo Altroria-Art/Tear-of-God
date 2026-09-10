@@ -599,18 +599,19 @@ export default function Login() {
                     <form onSubmit={handleSubmit} noValidate className="space-y-4">
                       {/* Email */}
                       <div>
-                        <label className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
+                        <label htmlFor="login-email" className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
                           {t('auth.email')}
                         </label>
                         <div className="relative group">
-                          <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-[#ff553e] transition-colors pointer-events-none" />
+                          <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-login-accent transition-colors pointer-events-none" />
                           <input
+                            id="login-email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder={t('auth.emailPlaceholder')}
                             tabIndex={!isRegister ? 0 : -1}
-                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-4 text-sm outline-none focus:bg-surface dark:focus:bg-[#1b1c24] focus:border-[#ff553e]/80 focus:ring-4 focus:ring-[#ff553e]/12 transition-all placeholder:text-muted/60"
+                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-4 text-sm outline-none focus:bg-surface dark:focus:bg-login-surface focus:border-login-accent/80 focus:ring-4 focus:ring-login-accent/12 transition-all placeholder:text-muted/60"
                           />
                         </div>
                       </div>
@@ -618,22 +619,21 @@ export default function Login() {
                       {/* Password */}
                       <div>
                         <div className="flex justify-between items-center mb-1.5">
-                          <label className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider">
+                          <label htmlFor="login-password" className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider">
                             {t('auth.password')}
                           </label>
-                          <a href="#" className="text-[11px] text-muted hover:text-[#ff553e] hover:underline transition-colors">
-                            {t('auth.forgotPassword')}
-                          </a>
+                          <span className="text-muted text-xs cursor-not-allowed opacity-50">{t('auth.forgotPasswordComingSoon', 'Forgot password? (Coming soon)')}</span>
                         </div>
                         <div className="relative group">
-                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-[#ff553e] transition-colors pointer-events-none" />
+                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-login-accent transition-colors pointer-events-none" />
                           <input
+                            id="login-password"
                             type={showPassword ? 'text' : 'password'}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
                             tabIndex={!isRegister ? 0 : -1}
-                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-11 text-sm outline-none focus:bg-surface dark:focus:bg-[#1b1c24] focus:border-[#ff553e]/80 focus:ring-4 focus:ring-[#ff553e]/12 transition-all placeholder:text-muted/60"
+                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-11 text-sm outline-none focus:bg-surface dark:focus:bg-login-surface focus:border-login-accent/80 focus:ring-4 focus:ring-login-accent/12 transition-all placeholder:text-muted/60"
                           />
                           <button
                             type="button"
@@ -651,7 +651,7 @@ export default function Login() {
                         type="submit"
                         disabled={isLoading}
                         tabIndex={!isRegister ? 0 : -1}
-                        className="w-full py-3.5 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-[#ff553e] via-[#ff6347] to-[#ff7845] hover:from-[#f0452e] hover:via-[#f05335] hover:to-[#f06935] shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 mt-2 border-t border-white/20 relative overflow-hidden group"
+                        className="w-full py-3.5 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-login-accent via-login-accent-soft to-[#ff7845] hover:from-[#f0452e] hover:via-[#f05335] hover:to-[#f06935] shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 mt-2 border-t border-white/20 relative overflow-hidden group"
                       >
                         <span className="relative z-10 flex items-center justify-center gap-2">
                           {isLoading ? (
@@ -677,54 +677,57 @@ export default function Login() {
                     <form onSubmit={handleSubmit} noValidate className="space-y-4">
                       {/* Username */}
                       <div>
-                        <label className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
+                        <label htmlFor="register-username" className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
                           {t('auth.username')}
                         </label>
                         <div className="relative group">
-                          <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-[#ff553e] transition-colors pointer-events-none" />
+                          <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-login-accent transition-colors pointer-events-none" />
                           <input
+                            id="register-username"
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder={t('auth.usernamePlaceholder')}
                             tabIndex={isRegister ? 0 : -1}
-                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-4 text-sm outline-none focus:bg-surface dark:focus:bg-[#1b1c24] focus:border-[#ff553e]/80 focus:ring-4 focus:ring-[#ff553e]/12 transition-all placeholder:text-muted/60"
+                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-4 text-sm outline-none focus:bg-surface dark:focus:bg-login-surface focus:border-login-accent/80 focus:ring-4 focus:ring-login-accent/12 transition-all placeholder:text-muted/60"
                           />
                         </div>
                       </div>
 
                       {/* Email */}
                       <div>
-                        <label className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
+                        <label htmlFor="register-email" className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
                           {t('auth.email')}
                         </label>
                         <div className="relative group">
-                          <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-[#ff553e] transition-colors pointer-events-none" />
+                          <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-login-accent transition-colors pointer-events-none" />
                           <input
+                            id="register-email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder={t('auth.emailPlaceholder')}
                             tabIndex={isRegister ? 0 : -1}
-                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-4 text-sm outline-none focus:bg-surface dark:focus:bg-[#1b1c24] focus:border-[#ff553e]/80 focus:ring-4 focus:ring-[#ff553e]/12 transition-all placeholder:text-muted/60"
+                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-4 text-sm outline-none focus:bg-surface dark:focus:bg-login-surface focus:border-login-accent/80 focus:ring-4 focus:ring-login-accent/12 transition-all placeholder:text-muted/60"
                           />
                         </div>
                       </div>
 
                       {/* Password */}
                       <div>
-                        <label className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
+                        <label htmlFor="register-password" className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
                           {t('auth.password')}
                         </label>
                         <div className="relative group">
-                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-[#ff553e] transition-colors pointer-events-none" />
+                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-login-accent transition-colors pointer-events-none" />
                           <input
+                            id="register-password"
                             type={showPassword ? 'text' : 'password'}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
                             tabIndex={isRegister ? 0 : -1}
-                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-11 text-sm outline-none focus:bg-surface dark:focus:bg-[#1b1c24] focus:border-[#ff553e]/80 focus:ring-4 focus:ring-[#ff553e]/12 transition-all placeholder:text-muted/60"
+                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-11 text-sm outline-none focus:bg-surface dark:focus:bg-login-surface focus:border-login-accent/80 focus:ring-4 focus:ring-login-accent/12 transition-all placeholder:text-muted/60"
                           />
                           <button
                             type="button"
@@ -739,18 +742,19 @@ export default function Login() {
 
                       {/* Confirm Password */}
                       <div>
-                        <label className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
+                        <label htmlFor="register-confirm-password" className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider mb-1.5">
                           {t('auth.confirmPassword')}
                         </label>
                         <div className="relative group">
-                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-[#ff553e] transition-colors pointer-events-none" />
+                          <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-login-accent transition-colors pointer-events-none" />
                           <input
+                            id="register-confirm-password"
                             type={showConfirmPassword ? 'text' : 'password'}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"
                             tabIndex={isRegister ? 0 : -1}
-                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-11 text-sm outline-none focus:bg-surface dark:focus:bg-[#1b1c24] focus:border-[#ff553e]/80 focus:ring-4 focus:ring-[#ff553e]/12 transition-all placeholder:text-muted/60"
+                            className="w-full bg-black/[0.025] hover:bg-black/[0.04] dark:bg-white/[0.035] dark:hover:bg-white/[0.05] border border-line-soft hover:border-line-soft/80 text-ink rounded-2xl py-3 pl-10.5 pr-11 text-sm outline-none focus:bg-surface dark:focus:bg-login-surface focus:border-login-accent/80 focus:ring-4 focus:ring-login-accent/12 transition-all placeholder:text-muted/60"
                           />
                           <button
                             type="button"
@@ -768,7 +772,7 @@ export default function Login() {
                         type="submit"
                         disabled={isLoading}
                         tabIndex={isRegister ? 0 : -1}
-                        className="w-full py-3.5 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-[#ff553e] via-[#ff6347] to-[#ff7845] hover:from-[#f0452e] hover:via-[#f05335] hover:to-[#f06935] shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 mt-2 border-t border-white/20 relative overflow-hidden group"
+                        className="w-full py-3.5 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-login-accent via-login-accent-soft to-[#ff7845] hover:from-[#f0452e] hover:via-[#f05335] hover:to-[#f06935] shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 mt-2 border-t border-white/20 relative overflow-hidden group"
                       >
                         <span className="relative z-10 flex items-center justify-center gap-2">
                           {isLoading ? (

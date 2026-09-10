@@ -95,6 +95,11 @@ export async function onRequest({ request, env }) {
 
       if (action === 'delete') {
         await db.batch([
+          db.prepare('DELETE FROM template_items WHERE template_id = ?').bind(target_id),
+          db.prepare('DELETE FROM template_views WHERE template_id = ?').bind(target_id),
+          db.prepare('DELETE FROM template_reactions WHERE template_id = ?').bind(target_id),
+          db.prepare('DELETE FROM template_comments WHERE template_id = ?').bind(target_id),
+          db.prepare('DELETE FROM ranking_item_scores WHERE template_id = ?').bind(target_id),
           db.prepare('DELETE FROM rankings WHERE template_id = ?').bind(target_id),
           db.prepare('DELETE FROM templates WHERE id = ?').bind(target_id),
         ]);

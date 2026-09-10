@@ -11,8 +11,10 @@ const CATEGORY_META = {
   movie: { icon: '🎬', bg: 'bg-red-400' },
   food: { icon: '🍔', bg: 'bg-yellow-400' },
   sport: { icon: '⚽', bg: 'bg-blue-400' },
+  sports: { icon: '⚽', bg: 'bg-blue-400' },
   music: { icon: '🎵', bg: 'bg-rose-400' },
   game: { icon: '🎮', bg: 'bg-indigo-400' },
+  gaming: { icon: '🎮', bg: 'bg-indigo-400' },
   anime: { icon: '📺', bg: 'bg-purple-400' },
 } 
 
@@ -45,7 +47,7 @@ function TemplateCard({ template }) {
   const tiersMap = {};
   template.ranking_items?.forEach(ri => {
     if (!tiersMap[ri.tier]) tiersMap[ri.tier] = [];
-    tiersMap[ri.tier].push(ri.item_id || ri.item?.name);
+    tiersMap[ri.tier].push(ri.item?.name || ri.item_id);
   });
   // สีของ tier มาจาก definition ใน template.tiers (label -> color) — ไม่ใช่ hardcode
   const tierColors = {};
@@ -59,8 +61,9 @@ function TemplateCard({ template }) {
           ตลอด — เอาออกแทนที่จะโชว์เลขปลอม ดู docs/discover-template-uses-views-fix-plan.md */}
       <div className="relative m-3 rounded-lg bg-surface p-3">
         <div className="space-y-2">
-          <TierPreviewRow tier="S" color={tierColors['S']} items={tiersMap['S']} />
-          <TierPreviewRow tier="A" color={tierColors['A']} items={tiersMap['A']} />
+          {Object.keys(tiersMap).slice(0, 2).map(tierLabel => (
+            <TierPreviewRow key={tierLabel} tier={tierLabel} color={tierColors[tierLabel]} items={tiersMap[tierLabel]} />
+          ))}
         </div>
       </div>
       <div className="px-4 pb-4">

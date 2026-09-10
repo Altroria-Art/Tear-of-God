@@ -36,6 +36,12 @@
   --color-avatar: rgba(255, 255, 255, 0.1);
   --color-avatar-ink: #cbd5e1;
 
+  /* Login accent */
+  --color-login-accent: #ff6347;
+  --color-login-accent-soft: #ff7a58;
+  --color-login-surface: #1b1c24;
+  --color-login-surface-alt: #22242f;
+
   /* Tier badges — Classic Bright */
   --color-tier-s: #ff7f7f; /* Bright Red */
   --color-tier-a: #ffbf7f; /* Bright Orange */
@@ -211,6 +217,11 @@
     --color-pill-active: var(--color-light-pill-active);
     --color-avatar: var(--color-light-avatar);
     --color-avatar-ink: var(--color-light-avatar-ink);
+
+    --color-login-accent: #ff6347;
+    --color-login-accent-soft: #ff7a58;
+    --color-login-surface: #ffffff;
+    --color-login-surface-alt: #f8fafc;
 
     /* สีสถานะ + vote ใน light mode — ค่าเดิมสว่างเกิน อ่านยากบนพื้นขาว เลยเข้มขึ้นเฉพาะใน light
        (dark mode ยังใช้ค่าดั้งเดิมจาก @theme — ไม่ถูก override) */

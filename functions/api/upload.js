@@ -13,6 +13,15 @@ export async function onRequest({ request, env }) {
 
     const formData = await request.formData();
     const file = formData.get('file');
+    const user_id = formData.get('user_id');
+
+    if (!user_id) {
+      return jsonResponse({ error: 'Unauthorized: missing user_id' }, 401);
+    }
+    const user = await env.tear_of_god_db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
+    if (!user) {
+      return jsonResponse({ error: 'Unauthorized: invalid user' }, 403);
+    }
 
     if (!file || !file.name) {
       return jsonResponse({ error: 'No file provided' }, 400);
@@ -37,7 +46,7 @@ export async function onRequest({ request, env }) {
     }
 
     // You must replace this with your actual R2 public URL or custom domain URL
-    const R2_PUBLIC_URL = 'https://pub-dd67d11fd9e04c8183c7121ba6ea7a5a.r2.dev'; 
+    const R2_PUBLIC_URL = env.R2_PUBLIC_URL || 'https://pub-dd67d11fd9e04c8183c7121ba6ea7a5a.r2.dev'; 
 
     const uniqueFilename = `profiles/${crypto.randomUUID()}.${fileExtension}`;
 

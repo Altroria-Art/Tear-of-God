@@ -43,7 +43,7 @@ export async function onRequest({ request, env }) {
       }
 
       const { results: users } = await db.prepare(`
-        SELECT p.*,
+        SELECT p.id, p.username, p.email, p.avatar_url, p.role, p.created_at,
           (SELECT COUNT(*) FROM rankings r WHERE r.user_id = p.id) AS posts_count,
           (SELECT COUNT(*) FROM follows f WHERE f.following_id = p.id) AS followers_count
         FROM profiles p
@@ -97,7 +97,24 @@ export async function onRequest({ request, env }) {
       }
 
       if (action === 'delete') {
-        await db.prepare('DELETE FROM profiles WHERE id = ?').bind(target_id).run();
+        await db.batch([
+          db.prepare('DELETE FROM ranking_items WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM comments WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM rankings WHERE user_id = ?').bind(target_id),
+          db.prepare('DELETE FROM template_items WHERE template_id IN (SELECT id FROM templates WHERE creator_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM template_views WHERE template_id IN (SELECT id FROM templates WHERE creator_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM template_reactions WHERE template_id IN (SELECT id FROM templates WHERE creator_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM template_comments WHERE template_id IN (SELECT id FROM templates WHERE creator_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM ranking_item_scores WHERE template_id IN (SELECT id FROM templates WHERE creator_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM rankings WHERE template_id IN (SELECT id FROM templates WHERE creator_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM templates WHERE creator_id = ?').bind(target_id),
+          db.prepare('DELETE FROM votes WHERE user_id = ?').bind(target_id),
+          db.prepare('DELETE FROM comments WHERE user_id = ?').bind(target_id),
+          db.prepare('DELETE FROM follows WHERE follower_id = ? OR following_id = ?').bind(target_id, target_id),
+          db.prepare('DELETE FROM profiles WHERE id = ?').bind(target_id)
+        ]);
         return jsonResponse({ success: true, data: { id: target_id } });
       }
 

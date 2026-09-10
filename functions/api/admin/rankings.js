@@ -81,7 +81,13 @@ export async function onRequest({ request, env }) {
       if (!target_id) return jsonResponse({ success: false, error: 'Missing target_id' }, 400);
 
       if (action === 'delete') {
-        await db.prepare('DELETE FROM rankings WHERE id = ?').bind(target_id).run();
+        await db.batch([
+          db.prepare('DELETE FROM ranking_items WHERE ranking_id = ?').bind(target_id),
+          db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(target_id),
+          db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(target_id),
+          db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id = ?').bind(target_id),
+          db.prepare('DELETE FROM rankings WHERE id = ?').bind(target_id)
+        ]);
         return jsonResponse({ success: true, data: { id: target_id } });
       }
 
