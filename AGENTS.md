@@ -15,7 +15,7 @@ There are no test or typecheck scripts; do not invent them.
 
 ## Backend (functions/api/)
 
-Each file exports `onRequest` (or method-specific `onRequestGet`/`onRequestPost`) and receives `{ request, env }`. `env.tear_of_god_db` is the D1 binding (see `wrangler.toml`). Query with `db.prepare(sql).bind(...).all()` / `.first()` / `.run()`, never string-interpolate user input into SQL. `crypto.randomUUID()` and `crypto.subtle` are available as Workers globals — do not `import crypto from 'crypto'` (Node built-in, unavailable here). Node-only packages in `package.json` (`pg`, `jsonwebtoken`, `bcryptjs`, `dotenv`) do not run in this runtime; treat their presence as leftover cruft, not as available tools.
+Each file exports `onRequest` (or method-specific `onRequestGet`/`onRequestPost`) and receives `{ request, env }`. `env.tear_of_god_db` is the D1 binding (see `wrangler.toml`). Query with `db.prepare(sql).bind(...).all()` / `.first()` / `.run()`, never string-interpolate user input into SQL. `crypto.randomUUID()` and `crypto.subtle` are available as Workers globals — do not `import crypto from 'crypto'` (Node built-in, unavailable here). Node-only packages have been cleaned up and do not run in this runtime.
 
 ## Env
 
@@ -27,7 +27,7 @@ Auth for email/password lives in `functions/api/auth.js` against the `profiles` 
 - Pages in `src/pages/`, components grouped by area in `src/components/{feed,layout,ui}/`.
 - Design tokens are custom Tailwind 4 theme colors defined in `src/index.css` (`@theme`): `bg-canvas`, `text-ink`, `bg-tier-s`, etc. These are not stock Tailwind colors — add new ones to `@theme`, don't inline hex.
 - Tier names are data, not a fixed 5-value set — templates can define custom tier labels (including Thai). Tier color must always come from the tier's own `color` field via `resolveTierColor()` in `src/lib/tiers.js`, applied as an inline `style`, never looked up by indexing a map with the display label (colors are stored as `bg-[#hex]` and are not Tailwind classes the build can see). Render every tier badge through the shared `<TierLabel>` component (`src/components/tier/TierLabel.jsx`) — don't re-derive tier color/markup per screen. See `docs/tier-list-ui-fix-plan.md` for the full investigation.
-- Icons are hand-rolled inline SVGs in `src/components/ui/Icons.jsx` (inherit `currentColor`). No icon library; add new icons there.
+- Icons primarily come from `lucide-react`. Legacy hand-rolled inline SVGs exist in `src/components/ui/Icons.jsx` but new icons should prefer `lucide-react` for consistency.
 - Mock data still lives in `src/data/mockFeed.js` and is used by `FeedProvider.jsx`; `HomeFeed.jsx` and `useRankings.js`, however, already call the real `functions/api/rankings` endpoint via `src/lib/api.js`. Don't assume the whole feed is mocked — check which component you're touching before adding more mock arrays.
 - D1 returns `created_at`/`updated_at` as `"YYYY-MM-DD HH:MM:SS"` in **UTC with no timezone marker**. Never pass one to `new Date()` directly — a zone-less date-time string is parsed as local time, not UTC, which shifted every fresh row by the viewer's UTC offset (was visible as newly-created tier lists showing "7 hours ago" in Feed). Always parse through `parseDbDate()` / `formatDbDate()` in `src/lib/format.js`. See `docs/tier-list-feed-timestamp-fix-plan.md` for the full investigation.
 

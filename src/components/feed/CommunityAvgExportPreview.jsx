@@ -1,9 +1,11 @@
 import TierLabel from '../tier/TierLabel'
+import { useTranslation } from 'react-i18next'
 
 // Export preview สำหรับ Community Average — ใช้ capture เป็น PNG (ภาพตารางสะอาด)
 // แสดงชื่อ item ต่อ tier ตามที่เห็นบนหน้า ไม่มีป้ายคะแนน/โหวตยิบย่อยปนในภาพ
 // สำหรับจุด export ของ Community Average ใน TemplateDetailPage และ CommunityAveragePage
 export default function CommunityAvgExportPreview({ title, category, updatedText, tiers = [] }) {
+  const { t } = useTranslation()
   const totalItems = tiers.reduce((acc, row) => acc + (row.items?.length || 0), 0)
 
   return (

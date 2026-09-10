@@ -150,7 +150,7 @@ export async function onRequestGet(context) {
     let period = null;
     if (!Number.isNaN(daysParam) && daysParam > 0) {
       const from = new Date(Date.now() - daysParam * 86400000);
-      period = { from: from.toISOString(), to: null };
+      period = { from: from.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ''), to: null };
     } else {
       const fromRaw = url.searchParams.get('from');
       const toRaw = url.searchParams.get('to');
@@ -226,7 +226,7 @@ export async function onRequestGet(context) {
           if (tierIdx === undefined) return; // item ยังไม่จัด / tier ไม่ตรง — ข้าม
           scoreInserts.push(
             db.prepare(
-              `INSERT INTO ranking_item_scores (id, ranking_id, template_id, item_id, tier_index, score, created_at)
+              `INSERT OR IGNORE INTO ranking_item_scores (id, ranking_id, template_id, item_id, tier_index, score, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)`
             ).bind(crypto.randomUUID(), row.ranking_id, templateId, row.item_id, tierIdx, tierCount - tierIdx, row.created_at || null)
           );

@@ -42,26 +42,41 @@ export default function TemplateCard({ template, onUse }) {
           </span>
         </div>
 
-        {previewTiers.map((tier) => {
-          const items = tiersMap[tier.label];
-          if (!items) return null;
-          return (
-            <div key={tier.id ?? tier.label} className="flex min-h-0 flex-1 gap-2">
-              <TierLabel
-                label={tier.label}
-                color={tier.color}
-                className={`w-12 rounded-l font-bold px-1 ${tier.label.length > 2 ? 'text-[9px]' : 'text-sm'}`}
-              />
-              <div className="bg-surface min-w-0 flex-grow rounded-r opacity-80 flex items-center gap-2 px-2 overflow-hidden border-y border-r border-line-soft">
-                {items.slice(0, 2).map((item, idx) => (
-                  <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-2 py-1 text-[10px] whitespace-nowrap">
-                    {item}
-                  </span>
-                ))}
-              </div>
+        {Object.keys(tiersMap).length === 0 && template.template_items?.length > 0 ? (
+          <div className="flex-1 bg-surface rounded flex flex-col items-center justify-center gap-2 p-2 overflow-hidden border border-line-soft">
+            <span className="text-xs font-semibold text-ink-soft">
+              {template.template_items.length} items
+            </span>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {template.template_items.slice(0, 6).map((ti, idx) => (
+                <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft shadow-sm rounded-lg px-2 py-0.5 text-[10px] whitespace-nowrap">
+                  {ti.item?.name || ti.item_id}
+                </span>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        ) : (
+          previewTiers.map((tier) => {
+            const items = tiersMap[tier.label];
+            if (!items) return null;
+            return (
+              <div key={tier.id ?? tier.label} className="flex min-h-0 flex-1 gap-2">
+                <TierLabel
+                  label={tier.label}
+                  color={tier.color}
+                  className={`w-12 rounded-l font-bold px-1 ${tier.label.length > 2 ? 'text-[9px]' : 'text-sm'}`}
+                />
+                <div className="bg-surface min-w-0 flex-grow rounded-r opacity-80 flex items-center gap-2 px-2 overflow-hidden border-y border-r border-line-soft">
+                  {items.slice(0, 2).map((item, idx) => (
+                    <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-2 py-1 text-[10px] whitespace-nowrap">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })
+        )}
       </Link>
       <div className="p-4 flex-grow flex flex-col justify-between bg-surface/50 border-t border-line-soft">
         <div>

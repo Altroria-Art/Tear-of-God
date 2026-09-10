@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { useToast } from "../components/ui/Toast";
 import { fetchTemplates, fetchHashtags } from '../lib/api';
 import TemplateCard from '../components/template/TemplateCard';
 import HashtagPill from '../components/discover/HashtagPill';
@@ -9,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 export default function Discover() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const { toast } = useToast();
   const { t } = useTranslation();
   const [templates, setTemplates] = useState([]);
   const [hashtags, setHashtags] = useState([]);
@@ -41,7 +43,7 @@ export default function Discover() {
 
   const handleProtectedAction = (callback) => {
     if (!currentUser) {
-      alert(t('discover.protectedLogin'));
+      toast.warning(t('discover.protectedLogin'));
       navigate('/login');
       return;
     }
@@ -64,7 +66,10 @@ export default function Discover() {
         .slice(0, 3)
         .map((h) => ({
           tag: h.tag,
-          items: templates.filter((tpl) => (tpl.hashtags || '').split(',').includes(h.tag)).slice(0, 4)
+          items: templates.filter((tpl) => {
+            const cleanHashtags = (tpl.hashtags || '').split(',').map(t => t.trim().toLowerCase());
+            return cleanHashtags.includes(h.tag.toLowerCase());
+          }).slice(0, 4)
         }))
         .filter((s) => s.items.length > 0),
     [hashtags, templates]

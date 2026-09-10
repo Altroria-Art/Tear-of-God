@@ -12,7 +12,18 @@ const inFlightGET = new Map();
 async function getJSON(url) {
   if (inFlightGET.has(url)) return inFlightGET.get(url);
   const promise = fetch(url)
-    .then((response) => response.json())
+    .then(async (res) => {
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        throw new Error(`Expected JSON but received ${ct}`);
+      }
+      const json = await res.json();
+      if (!res.ok) {
+        json.success = false;
+        json.error = json.error || res.statusText;
+      }
+      return json;
+    })
     .finally(() => inFlightGET.delete(url));
   inFlightGET.set(url, promise);
   return promise;
@@ -110,10 +121,11 @@ export async function updateProfile(userId, profileData) {
 }
 
 // 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปโหลดไฟล์รูปภาพไป R2
-export async function uploadImage(file) {
+export async function uploadImage(file, userId) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    if (userId) formData.append('user_id', userId);
     
     const response = await fetch(`${API_URL}/api/upload`, {
       method: 'POST',

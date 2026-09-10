@@ -150,7 +150,8 @@
     "errGeneric": "An error occurred: {{msg}}",
     "successPublish": "Published successfully!",
     "backToPoolTip": "Move items already placed in the table back into this pool",
-    "resetAllTip": "Reset the whole board: clear items, title, hashtags and description"
+    "resetAllTip": "Reset the whole board: clear items, title, hashtags and description",
+    "assignTierTo": "Assign to tier"
   },
   "rank": {
     "shareInfo": "Save your ranking first before you can share the link",
@@ -215,6 +216,7 @@
     "errLoginFollow": "Please log in to follow this user",
     "errAction": "Could not complete the action",
     "errImageOnly": "Please upload an image file only",
+    "errImageTooLarge": "Image too large. Maximum 5MB.",
     "successUpload": "Image uploaded. Please tap Save Changes to save.",
     "errUpdate": "Failed to update profile: {{msg}}",
     "successUpdate": "Profile updated!",

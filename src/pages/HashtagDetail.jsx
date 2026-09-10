@@ -86,7 +86,7 @@ export default function HashtagDetail() {
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
-            <span className="bg-[#ffc329] text-[#261a00] font-bold px-4 py-1.5 rounded-full">#{tag}</span>
+            <span className="bg-highlight text-canvas font-bold px-4 py-1.5 rounded-full">#{tag}</span>
             <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
           </div>
           <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />

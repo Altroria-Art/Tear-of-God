@@ -73,7 +73,8 @@ const RankTierList = () => {
         setTiers(templateTiers);
 
         const templateItems = (data.template_items || []).map((ti, idx) => ({
-          id: ti.id || `ti-${idx}`,
+          id: `ti-${idx}-${Date.now()}`,
+          item_id: ti.item_id || ti.item?.name || `custom-${idx}`,
           content: ti.item?.name || ti.item_id,
           image_url: ti.item?.image_url || null,
           tierId: null
@@ -100,6 +101,21 @@ const RankTierList = () => {
 
     loadTemplate();
   }, [templateId]);
+
+  const [selectedItemForModal, setSelectedItemForModal] = useState(null);
+
+  const handleItemClick = (item) => {
+    setSelectedItemForModal(item);
+  };
+
+  const handleAssignTier = (tierId) => {
+    if (selectedItemForModal) {
+      setItems(items.map(item =>
+        item.id === selectedItemForModal.id ? { ...item, tierId } : item
+      ));
+      setSelectedItemForModal(null);
+    }
+  };
 
   const handleDragStart = (e, itemId) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -157,6 +173,22 @@ const RankTierList = () => {
     setItems(prev => repositionItem(prev, draggedItemId, targetTierId, insertIndex));
   };
 
+  const handleAddCustomItem = () => {
+    if (!customItem.trim()) return;
+
+    const newItems = customItem
+      .split(',')
+      .map((item, index) => ({
+        id: `custom-${Date.now()}-${index}`,
+        item_id: item.trim(),
+        content: item.trim(),
+        image_url: null,
+        tierId: null // ให้การ์ดใหม่ไปโผล่ที่กล่องข้างล่าง (Unranked Pool) เสมอ
+      }))
+      .filter((item) => item.content !== '');
+
+    setItems([...items, ...newItems]);
+    setCustomItem('');
   // 📍 [ใหม่]: ปุ่ม ◀ ▶ — สลับตำแหน่งกับเพื่อนบ้านใน tier เดียวกัน
   const shiftItem = (itemId, direction) => {
     setItems(prev => {
@@ -201,12 +233,12 @@ const RankTierList = () => {
 
   const handleSaveRanking = async () => {
     if (!currentUser) {
-      alert(t('rank.warnLoginSave'));
+      toast.warning(t('rank.warnLoginSave'));
       navigate('/login');
       return;
     }
-    if (!title.trim()) return alert(t('rank.warnTitle'));
-    if (selectedHashtags.length === 0) return alert(t('rank.warnHashtag'));
+    if (!title.trim()) return toast.warning(t('rank.warnTitle'));
+    if (selectedHashtags.length === 0) return toast.warning(t('rank.warnHashtag'));
 
     // 📍 [ใหม่]: ห้าม publish ถ้ายังมีไอเทมค้างใน Unranked Pool — เดิมไอเทมที่ยังไม่จัด
     // tier จะโดน drop เงียบๆ ไม่ถูกบันทึกลง ranking_items (ดู docs/tier-list-empty-tier-and-publish-validation-plan.md)
@@ -214,7 +246,7 @@ const RankTierList = () => {
     if (unrankedItems.length > 0) {
       const names = unrankedItems.slice(0, 3).map(i => i.content).join(', ');
       const more = unrankedItems.length > 3 ? t('rank.errUnrankedItemsMore', { n: unrankedItems.length - 3 }) : '';
-      return alert(t('rank.errUnrankedItems', { count: unrankedItems.length, names, more }));
+      return toast.warning(t('rank.errUnrankedItems', { count: unrankedItems.length, names, more }));
     }
 
     setIsSaving(true);
@@ -231,7 +263,7 @@ const RankTierList = () => {
       },
       items: items.filter(item => item.tierId !== null).map((item, index) => {
         const tierObj = tiers.find(t => t.id === item.tierId);
-        return { item_id: item.content, tier: tierObj ? tierObj.label : (tiers[0]?.label || 'S'), position: index };
+        return { item_id: item.item_id || item.content, tier: tierObj ? tierObj.label : (tiers[0]?.label || 'S'), position: index };
       })
     };
 
@@ -239,7 +271,7 @@ const RankTierList = () => {
     setIsSaving(false);
 
     if (error) {
-      alert(t('rank.error', { msg: error }));
+      toast.error(t('rank.error', { msg: error }));
     } else {
       // 📍 จำโพสต์ที่เพิ่ง publish ไว้ ให้ Home Feed ดันขึ้นการ์ดแรก (transient — รีหน้าแล้วหาย)
       markLastPublished(data?.id, currentUser.id);
@@ -247,6 +279,24 @@ const RankTierList = () => {
     }
   };
 
+  const renderCard = (item) => (
+    <div
+      key={item.id}
+      draggable
+      onDragStart={(e) => handleDragStart(e, item.id)}
+      onClick={() => handleItemClick(item)}
+      className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-bold shadow-xs hover:shadow-md hover:-translate-y-0.5 rounded-xl w-18 h-18 sm:w-20 sm:h-20 aspect-square p-1.5 flex items-center justify-center text-center cursor-pointer md:cursor-grab md:active:cursor-grabbing transition-all overflow-hidden select-none"
+      title={item.content}
+    >
+      {item.image_url ? (
+        <img src={item.image_url} alt={item.content} className="w-full h-full object-cover rounded-lg pointer-events-none" />
+      ) : (
+        <span className="w-full line-clamp-3 text-[11px] sm:text-xs font-semibold leading-tight pointer-events-none break-words drop-shadow-xs px-0.5">
+          {item.content}
+        </span>
+      )}
+    </div>
+  );
 const renderCard = (item) => {
     const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
     const pos = mates.findIndex(i => i.id === item.id);
@@ -449,6 +499,58 @@ const renderCard = (item) => {
         </footer>
 
       </div>
+
+      {/* Tap-to-assign modal (mobile friendly) */}
+      {selectedItemForModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setSelectedItemForModal(null)}
+        >
+          <div 
+            className="bg-surface border border-line-soft rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-ink mb-4 text-center">
+              {t('create.assignTierTo', { defaultValue: 'Assign to tier' })}
+            </h3>
+            
+            <div className="flex justify-center mb-6">
+              {renderCard(selectedItemForModal)}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => handleAssignTier(null)}
+                className="w-full py-2.5 rounded-lg border border-line-soft hover:bg-surface-glass text-ink-soft font-medium transition-colors"
+              >
+                {t('create.unrankedPool', { defaultValue: 'Unranked Pool' })}
+              </button>
+              
+              {tiers.map((tier) => (
+                <button
+                  key={tier.id}
+                  onClick={() => handleAssignTier(tier.id)}
+                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-glass transition-colors border border-transparent hover:border-line-soft"
+                >
+                  <TierLabel
+                    label={tier.label}
+                    color={tier.color}
+                    className="w-12 h-10 font-bold rounded-md"
+                  />
+                  <span className="font-semibold text-ink">{tier.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setSelectedItemForModal(null)}
+              className="mt-6 w-full py-2.5 bg-surface-glass hover:bg-surface rounded-xl text-ink-soft font-bold transition-colors"
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

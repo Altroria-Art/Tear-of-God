@@ -19,7 +19,6 @@
     "db:migrate:0001": "wrangler d1 execute tear-of-god-db --local --file=./migrations/0001_templates_tiers.sql"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
     "firebase": "^12.17.1",
     "html-to-image": "^1.11.13",
     "i18next": "^26.4.2",
@@ -32,8 +31,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
     "vite": "^8.1.1",

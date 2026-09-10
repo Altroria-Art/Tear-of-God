@@ -8,6 +8,8 @@ import SortDropdown from '../components/ui/SortDropdown';
 import { ArrowLeftIcon } from '../components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 
+import { useToast } from '../components/ui/Toast';
+
 const PAGE_SIZE = 12;
 const SORT_OPTIONS = [
   { value: 'popular', labelKey: 'sort.popular' },
@@ -19,6 +21,7 @@ export default function PopularTemplates() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
@@ -46,7 +49,7 @@ export default function PopularTemplates() {
 
   const handleProtectedAction = (callback) => {
     if (!currentUser) {
-      alert(t('discover.protectedLogin'));
+      toast.warning(t('discover.protectedLogin'));
       navigate('/login');
       return;
     }
