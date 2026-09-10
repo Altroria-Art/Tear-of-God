@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
 import { fetchTemplate, createRanking } from '../lib/api';
+import { markLastPublished } from '../lib/lastPublished';
 import TierLabel from '../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
 
@@ -194,12 +195,14 @@ const RankTierList = () => {
       })
     };
 
-    const { error } = await createRanking(rankingData);
+    const { error, data } = await createRanking(rankingData);
     setIsSaving(false);
 
     if (error) {
       alert(t('rank.error', { msg: error }));
     } else {
+      // 📍 จำโพสต์ที่เพิ่ง publish ไว้ ให้ Home Feed ดันขึ้นการ์ดแรก (transient — รีหน้าแล้วหาย)
+      markLastPublished(data?.id, currentUser.id);
       navigate('/');
     }
   };

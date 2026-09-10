@@ -134,7 +134,7 @@ export async function fetchRankings(categoryParam) {
     let url = `${API_URL}/api/rankings`;
     
     if (typeof categoryParam === 'object' && categoryParam !== null) {
-      const { category, hashtag, userId, authorId, templateId, sort, page, limit, feedType, seed, days } = categoryParam;
+      const { category, hashtag, userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin } = categoryParam;
       const params = new URLSearchParams();
 
       if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
@@ -142,6 +142,7 @@ export async function fetchRankings(categoryParam) {
       }
       if (feedType) params.append('feed_type', feedType);
       if (seed != null) params.append('seed', seed);
+      if (pin) params.append('pin', pin);
       if (days != null) params.append('days', days);
       if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
       if (userId) params.append('user_id', userId);

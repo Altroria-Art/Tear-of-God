@@ -3,6 +3,7 @@ import { Settings, Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
+import { markLastPublished } from '../lib/lastPublished';
 import { useToast } from '../components/ui/Toast';
 import TierLabel from '../components/tier/TierLabel';
 import { useTranslation, Trans } from 'react-i18next';
@@ -334,7 +335,7 @@ const CreateTierList = () => {
       })
     };
 
-    const { error } = await createRanking(rankingData);
+    const { error, data } = await createRanking(rankingData);
     setIsPublishing(false);
 
     if (error) {
@@ -342,6 +343,8 @@ const CreateTierList = () => {
     } else {
       clearDraft(); // 📍 [ใหม่]: publish สำเร็จ → ล้าง draft ใน localStorage
       toast.success(t('create.successPublish'));
+      // 📍 จำโพสต์ที่เพิ่ง publish ไว้ ให้ Home Feed ดันขึ้นการ์ดแรก (transient — รีหน้าแล้วหาย)
+      markLastPublished(data?.id, currentUser.id);
       navigate('/');
     }
   };
