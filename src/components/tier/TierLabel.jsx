@@ -1,6 +1,4 @@
 
-import { resolveTierColor, TIER_LABEL_INK } from '../../lib/tiers'
-
 import { resolveTierColor, tierGlowStyle, TIER_LABEL_INK } from '../../lib/tiers'
 
 
@@ -25,8 +23,6 @@ import { resolveTierColor, tierGlowStyle, TIER_LABEL_INK } from '../../lib/tiers
 export default function TierLabel({ label, color, index, className = '', fallbackClassName = 'bg-surface text-ink', style = {} }) {
   const bg = resolveTierColor(color, label, index)
 
-  const base = 'flex shrink-0 items-center justify-center break-words text-center leading-tight'
-
   const glow = tierGlowStyle(bg)
   const { boxShadow: callerShadow, ...restStyle } = style
   const base = 'flex shrink-0 items-center justify-center break-words text-center leading-tight drop-shadow-sm'
@@ -35,16 +31,12 @@ export default function TierLabel({ label, color, index, className = '', fallbac
   if (bg) {
     return (
       <span
-
-        style={{ backgroundColor: bg, color: TIER_LABEL_INK }}
-
         style={{
           backgroundColor: bg,
           color: TIER_LABEL_INK,
           boxShadow: [callerShadow, glow].filter(Boolean).join(', ') || undefined,
           ...restStyle,
         }}
-
         className={`${base} ${className}`}
       >
         {label}

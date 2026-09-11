@@ -8,22 +8,6 @@ async function apiFetch(url, options = {}) {
   const response = await fetch(url, { credentials: 'same-origin', ...options });
   if (response.status === 401 && !url.startsWith('/api/auth')) window.dispatchEvent(new Event('tog-session-expired'));
   return response;
-
-function getSessionToken() {
-  try {
-    const saved = localStorage.getItem('tier_user');
-    return saved ? JSON.parse(saved)?.token || null : null;
-  } catch {
-    return null;
-  }
-}
-
-function apiFetch(url, options = {}) {
-  const headers = new Headers(options.headers);
-  const token = getSessionToken();
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-  return fetch(url, { ...options, headers });
-
 }
 
 // 📍 In-flight GET dedup — ดู docs/row-read-optimization-plan.md §4/§8: จาก trace จริงพบว่า
@@ -33,12 +17,7 @@ function apiFetch(url, options = {}) {
 const inFlightGET = new Map();
 
 async function getJSON(url) {
-
   if (inFlightGET.has(url)) return inFlightGET.get(url);
-=======
-  const key = `${url}::${getSessionToken() || ''}`;
-  if (inFlightGET.has(key)) return inFlightGET.get(key);
-
   const promise = apiFetch(url)
     .then(async (res) => {
       const ct = res.headers.get('content-type') || '';
@@ -52,8 +31,8 @@ async function getJSON(url) {
       }
       return json;
     })
-    .finally(() => inFlightGET.delete(key));
-  inFlightGET.set(key, promise);
+    .finally(() => inFlightGET.delete(url));
+  inFlightGET.set(url, promise);
   return promise;
 }
 

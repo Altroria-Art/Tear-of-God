@@ -624,23 +624,15 @@ const CreateTierList = () => {
                   <TierLabel
                     label={tier.label}
                     color={tier.color}
-
-                    className={`w-14 sm:w-20 p-1.5 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
-
                     style={{ boxShadow: 'inset -2px 0 10px rgba(0,0,0,0.2)' }}
                     className={`w-24 p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
-
                   />
                   <div className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center bg-transparent" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
                     {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
                   </div>
 
-                  <div className="w-9 sm:w-12 bg-tag flex items-center justify-center border-l border-line-soft/50 ">
-                    <button onClick={() => setActiveSettingsTier(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
-
                   <div className="w-14 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
                     <button onClick={() => openTierSettings(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
-
                   </div>
                 </div>
               ))}

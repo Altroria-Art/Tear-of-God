@@ -24,7 +24,6 @@ export const signInWithGoogle = async () => {
         username: user.displayName,
         email: user.email,
         avatar_url: user.photoURL
-        username: user.displayName
 
       },
       error: null
