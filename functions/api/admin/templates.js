@@ -18,18 +18,7 @@ export async function onRequest({ request, env }) {
 
   const url = new URL(request.url);
 
-  // 📍 user_id อาจมาใน query param (GET) หรือ body (POST) — อ่านให้ครอบคลุมทั้งสองแบบ
-  let user_id = url.searchParams.get('user_id');
-  if (request.method === 'POST' && user_id == null) {
-    try {
-      const body = await request.clone().json();
-      user_id = body.user_id;
-    } catch {
-      // body ไม่ใช่ JSON — ปล่อยให้ requireAdmin จัดการ (user_id ยังเป็น null → 403)
-    }
-  }
-
-  if (!(await requireAdmin(env, user_id))) {
+  if (!(await requireAdmin(env, request))) {
     return jsonResponse({ success: false, error: 'ไม่มีสิทธิ์เข้าถึง (ต้องเป็นแอดมิน)' }, 403);
   }
 

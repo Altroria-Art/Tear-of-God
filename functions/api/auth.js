@@ -1,129 +1,152 @@
 import { UP_UNIVERSITY_NAME, getFacultyByName, isValidAdmissionYear } from '../../src/lib/university.js';
+import { createSession, hashPassword, requireUser, revokeSession, verifyFirebaseIdToken, verifyPassword } from './_auth.js';
+
+const jsonResponse = (data, status = 200) => Response.json(data, {
+  status,
+  headers: { 'Cache-Control': 'no-store' },
+});
+
+function normalizeEmail(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function profileData(user, token) {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    bio: user.bio || null,
+    avatar_url: user.avatar_url || null,
+    university: user.university || null,
+    faculty: user.faculty || null,
+    major: user.major || null,
+    year: user.year || null,
+    role: user.role || 'user',
+    ...(token ? { token } : {}),
+  };
+}
+
+function validateEducation({ university, faculty, major, year }) {
+  const knownFaculty = faculty !== undefined && faculty !== null && faculty !== ''
+    ? getFacultyByName(faculty)
+    : null;
+  if (university !== undefined && university !== null && university !== '' && university !== UP_UNIVERSITY_NAME) return 'มหาวิทยาลัยไม่ถูกต้อง';
+  if (faculty !== undefined && faculty !== null && faculty !== '' && !knownFaculty) return 'คณะไม่ถูกต้อง';
+  if (major !== undefined && major !== null && major !== '' && (!knownFaculty || !knownFaculty.majors.includes(major))) return 'สาขาไม่ตรงกับคณะที่เลือก';
+  if (year !== undefined && year !== null && year !== '' && !isValidAdmissionYear(year)) return 'ปีเข้าศึกษาไม่ถูกต้อง';
+  return null;
+}
 
 export async function onRequest({ request, env }) {
   const db = env.tear_of_god_db;
-  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
-
-  async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  if (request.method !== 'POST') {
-    return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
-  }
+  if (request.method !== 'POST') return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
 
   try {
     const payload = await request.json();
-    const { action, email, password, username, bio, avatar_url, id, user_id, university, faculty, major, year } = payload;
 
-    if (action === 'register') {
-      if (!email || !password) return jsonResponse({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' }, 400);
-      if (password.length < 6) return jsonResponse({ success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร' }, 400);
+    if (payload.action === 'register') {
+      const email = normalizeEmail(payload.email);
+      const password = payload.password;
+      const username = typeof payload.username === 'string' ? payload.username.trim() : '';
+      if (!email || !password || !username) return jsonResponse({ success: false, error: 'กรุณากรอกข้อมูลให้ครบถ้วน' }, 400);
+      if (password.length < 8) return jsonResponse({ success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' }, 400);
+      if (username.length > 60) return jsonResponse({ success: false, error: 'ชื่อผู้ใช้ยาวเกินไป' }, 400);
 
-      const { results: existing } = await db.prepare('SELECT id FROM profiles WHERE email = ?').bind(email).all();
-      if (existing.length > 0) return jsonResponse({ success: false, error: 'อีเมลนี้ถูกใช้งานเรียบร้อยแล้ว' }, 400);
+      const existing = await db.prepare('SELECT id FROM profiles WHERE email = ?').bind(email).first();
+      if (existing) return jsonResponse({ success: false, error: 'อีเมลนี้ถูกใช้งานเรียบร้อยแล้ว' }, 409);
 
-      const userId = 'user_' + crypto.randomUUID();
-      const name = username || email.split('@')[0];
-      const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`;
-      const hashedPassword = await hashPassword(password);
-
-      await db.prepare(
-        'INSERT INTO profiles (id, username, email, password, avatar_url) VALUES (?1, ?2, ?3, ?4, ?5)'
-      ).bind(userId, name, email, hashedPassword, avatar).run();
-
-      return jsonResponse({ success: true, data: { id: userId, username: name, email, avatar_url: avatar, role: 'user' } }, 201);
-    } 
-    
-    else if (action === 'login') {
-      if (!email || !password) return jsonResponse({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' }, 400);
-
-      const hashedPassword = await hashPassword(password);
-      const { results: users } = await db.prepare(
-        'SELECT id, username, email, bio, avatar_url, university, faculty, major, year, role FROM profiles WHERE email = ? AND password = ?'
-      ).bind(email, hashedPassword).all();
-      if (users.length === 0) return jsonResponse({ success: false, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }, 401);
-
-      const user = users[0];
-      return jsonResponse({ success: true, data: { id: user.id, username: user.username, email: user.email, bio: user.bio || null, avatar_url: user.avatar_url, university: user.university || null, faculty: user.faculty || null, major: user.major || null, year: user.year || null, role: user.role || 'user' } }, 200);
+      const userId = `user_${crypto.randomUUID()}`;
+      const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(username)}`;
+      await db.prepare('INSERT INTO profiles (id, username, email, password, avatar_url) VALUES (?1, ?2, ?3, ?4, ?5)')
+        .bind(userId, username, email, await hashPassword(password), avatar).run();
+      return jsonResponse({ success: true, data: { id: userId, username, email, avatar_url: avatar, role: 'user' } }, 201);
     }
 
-    else if (action === 'google_sync') {
-      const { results: existing } = await db.prepare('SELECT id FROM profiles WHERE email = ?').bind(email).all();
-      
-      if (existing.length === 0) {
-        await db.prepare(
-          'INSERT INTO profiles (id, username, email, avatar_url) VALUES (?1, ?2, ?3, ?4)'
-        ).bind(id, username, email, avatar_url).run();
+    if (payload.action === 'login') {
+      const email = normalizeEmail(payload.email);
+      const password = payload.password;
+      if (!email || typeof password !== 'string') return jsonResponse({ success: false, error: 'กรุณากรอกอีเมลและรหัสผ่าน' }, 400);
+
+      const user = await db.prepare(
+        'SELECT id, username, email, password, bio, avatar_url, university, faculty, major, year, role FROM profiles WHERE email = ? LIMIT 1',
+      ).bind(email).first();
+      const checked = await verifyPassword(password, user?.password);
+      if (!user || !checked.valid) return jsonResponse({ success: false, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }, 401);
+      if (checked.needsUpgrade) await db.prepare('UPDATE profiles SET password = ? WHERE id = ?').bind(await hashPassword(password), user.id).run();
+
+      return jsonResponse({ success: true, data: profileData(user, await createSession(db, user.id)) });
+    }
+
+    if (payload.action === 'google_sync') {
+      const claims = await verifyFirebaseIdToken(payload.idToken);
+      const email = normalizeEmail(claims.email);
+      if (!email || claims.email_verified !== true) return jsonResponse({ success: false, error: 'บัญชี Google นี้ยังไม่ได้ยืนยันอีเมล' }, 401);
+
+      const username = ((typeof claims.name === 'string' && claims.name.trim()) || email.split('@')[0]).slice(0, 60);
+      const avatarUrl = typeof claims.picture === 'string' ? claims.picture : null;
+      let user = await db.prepare(
+        'SELECT id, username, email, bio, avatar_url, university, faculty, major, year, role FROM profiles WHERE email = ? LIMIT 1',
+      ).bind(email).first();
+
+      if (!user) {
+        const id = `firebase_${claims.sub}`;
+        await db.prepare('INSERT INTO profiles (id, username, email, avatar_url) VALUES (?1, ?2, ?3, ?4)')
+          .bind(id, username, email, avatarUrl).run();
+        user = await db.prepare(
+          'SELECT id, username, email, bio, avatar_url, university, faculty, major, year, role FROM profiles WHERE id = ?',
+        ).bind(id).first();
       } else {
-        await db.prepare(
-          'UPDATE profiles SET username = ?1, avatar_url = ?2 WHERE email = ?3'
-        ).bind(username, avatar_url, email).run();
+        await db.prepare('UPDATE profiles SET username = ?1, avatar_url = ?2 WHERE id = ?3').bind(username, avatarUrl, user.id).run();
+        user = { ...user, username, avatar_url: avatarUrl };
       }
 
-      // ดึง role ที่แท้จริงจาก DB (ถ้าเป็น admin ที่สมัครด้วย Google จะได้ 'admin' กลับมา)
-      const { results: roleRows } = await db.prepare('SELECT role FROM profiles WHERE email = ?').bind(email).all();
-      const role = roleRows[0]?.role || 'user';
-
-      // สำคัญ: return id จริงจาก DB ไม่ใช่ Firebase uid — ผู้ใช้ที่เคยสมัครด้วย email/password
-      // (id รูป user_xxx) แล้วมา login ผ่าน Google (email เดียวกัน) จะถูก UPDATE ที่แถวเดิม
-      // ถ้า return Firebase uid กลับไป user_id ทุก action หลังจะชี้ไปที่แถวที่ไม่มีอยู่จริง
-      const { results: dbUser } = await db.prepare('SELECT id FROM profiles WHERE email = ?').bind(email).all();
-      return jsonResponse({ success: true, data: { id: dbUser[0].id, username, email, avatar_url, role } }, 200);
+      return jsonResponse({ success: true, data: profileData(user, await createSession(db, user.id)) });
     }
 
-    else if (action === 'update_profile') {
-      if (!user_id) return jsonResponse({ success: false, error: 'Missing user_id' }, 400);
+    if (payload.action === 'logout') {
+      await revokeSession(request, env);
+      return jsonResponse({ success: true });
+    }
 
-      // 📍 ตรวจสอบข้อมูลการศึกษา (คณะ/สาขา/ปีเข้าศึกษา) ให้เป็นชุดค่าที่เป็นไปได้เสมอ
-      // ใช้ข้อมูลกลางจาก src/lib/university.js (source of truth เดียวกับ UI)
-      // กัน client ส่งค่าที่ไม่ตรงกัน (เช่น คณะหนึ่งแต่สาขาอีกคณะ) เข้า DB ซึ่งอนาคต
-      // ต้องใช้กรองข้อมูลตามคณะ/สาขา ดู docs/bio-university-dropdown-plan.md §6
-      const knownFaculty = faculty !== undefined && faculty !== null && faculty !== ''
-        ? getFacultyByName(faculty)
-        : null;
-      if (university !== undefined && university !== null && university !== '' && university !== UP_UNIVERSITY_NAME) {
-        return jsonResponse({ success: false, error: 'มหาวิทยาลัยไม่ถูกต้อง' }, 400);
-      }
-      if (faculty !== undefined && faculty !== null && faculty !== '' && !knownFaculty) {
-        return jsonResponse({ success: false, error: 'คณะไม่ถูกต้อง' }, 400);
-      }
-      if (major !== undefined && major !== null && major !== '') {
-        if (!knownFaculty || knownFaculty.majors.indexOf(major) === -1) {
-          return jsonResponse({ success: false, error: 'สาขาไม่ตรงกับคณะที่เลือก' }, 400);
-        }
-      }
-      if (year !== undefined && year !== null && year !== '' && !isValidAdmissionYear(year)) {
-        return jsonResponse({ success: false, error: 'ปีเข้าศึกษาไม่ถูกต้อง' }, 400);
-      }
+    if (payload.action === 'update_profile') {
+      const actor = await requireUser(request, env);
+      if (!actor) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
+      const educationError = validateEducation(payload);
+      if (educationError) return jsonResponse({ success: false, error: educationError }, 400);
 
       const updates = [];
       const params = [];
-      if (username !== undefined) { updates.push('username = ?'); params.push(username); }
-      if (bio !== undefined) { updates.push('bio = ?'); params.push(bio); }
-      if (avatar_url !== undefined) { updates.push('avatar_url = ?'); params.push(avatar_url); }
-      if (university !== undefined) { updates.push('university = ?'); params.push(university); }
-      if (faculty !== undefined) { updates.push('faculty = ?'); params.push(faculty); }
-      if (major !== undefined) { updates.push('major = ?'); params.push(major); }
-      if (year !== undefined) { updates.push('year = ?'); params.push(year); }
-      if (password !== undefined) { updates.push('password = ?'); params.push(await hashPassword(password)); }
-
+      if (payload.username !== undefined) {
+        const username = typeof payload.username === 'string' ? payload.username.trim() : '';
+        if (!username || username.length > 60) return jsonResponse({ success: false, error: 'ชื่อผู้ใช้ไม่ถูกต้อง' }, 400);
+        updates.push('username = ?'); params.push(username);
+      }
+      if (payload.bio !== undefined) {
+        if (typeof payload.bio !== 'string' || payload.bio.length > 500) return jsonResponse({ success: false, error: 'ประวัติส่วนตัวยาวเกินไป' }, 400);
+        updates.push('bio = ?'); params.push(payload.bio);
+      }
+      if (payload.avatar_url !== undefined) { updates.push('avatar_url = ?'); params.push(payload.avatar_url); }
+      if (payload.university !== undefined) { updates.push('university = ?'); params.push(payload.university); }
+      if (payload.faculty !== undefined) { updates.push('faculty = ?'); params.push(payload.faculty); }
+      if (payload.major !== undefined) { updates.push('major = ?'); params.push(payload.major); }
+      if (payload.year !== undefined) { updates.push('year = ?'); params.push(payload.year); }
+      if (payload.password !== undefined) {
+        if (typeof payload.password !== 'string' || payload.password.length < 8) return jsonResponse({ success: false, error: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' }, 400);
+        updates.push('password = ?'); params.push(await hashPassword(payload.password));
+      }
       if (updates.length === 0) return jsonResponse({ success: false, error: 'No fields to update' }, 400);
 
-      params.push(user_id);
+      params.push(actor.id);
       await db.prepare(`UPDATE profiles SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run();
-
-      const { results: users } = await db.prepare('SELECT id, username, email, bio, avatar_url, university, faculty, major, year, role FROM profiles WHERE id = ?').bind(user_id).all();
-      return jsonResponse({ success: true, data: users[0] || null }, 200);
+      const user = await db.prepare(
+        'SELECT id, username, email, bio, avatar_url, university, faculty, major, year, role FROM profiles WHERE id = ?',
+      ).bind(actor.id).first();
+      return jsonResponse({ success: true, data: profileData(user) });
     }
 
     return jsonResponse({ success: false, error: 'Invalid action' }, 400);
-  } catch (err) {
-    console.error(err);
-    return jsonResponse({ success: false, error: err.message }, 500);
+  } catch (error) {
+    console.error('auth error', error);
+    return jsonResponse({ success: false, error: 'เกิดข้อผิดพลาดในการยืนยันตัวตน' }, 500);
   }
 }
