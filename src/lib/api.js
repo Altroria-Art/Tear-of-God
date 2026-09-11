@@ -3,6 +3,12 @@ import i18n from '../i18n';
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
 const API_URL = '';
 
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, { credentials: 'same-origin', ...options });
+  if (response.status === 401 && !url.startsWith('/api/auth')) window.dispatchEvent(new Event('tog-session-expired'));
+  return response;
+}
+
 // 📍 In-flight GET dedup — ดู docs/row-read-optimization-plan.md §4/§8: จาก trace จริงพบว่า
 // URL เดียวกันถูกยิงซ้ำติดกันภายใน 2-3 วินาที 92 ครั้งจาก 855 request (เสีย 556,992 rows)
 // ถ้ามี request เดียวกันค้างอยู่ (ยังไม่ resolve) ให้ใช้ promise เดิมแทนการยิง fetch ใหม่ซ้ำ —
@@ -11,7 +17,7 @@ const inFlightGET = new Map();
 
 async function getJSON(url) {
   if (inFlightGET.has(url)) return inFlightGET.get(url);
-  const promise = fetch(url)
+  const promise = apiFetch(url)
     .then(async (res) => {
       const ct = res.headers.get('content-type') || '';
       if (!ct.includes('application/json')) {
@@ -69,7 +75,7 @@ function applyFreshViewCounts(result) {
 
 export async function registerUser({ email, password, username }) {
   try {
-    const response = await fetch(`${API_URL}/api/auth`, {
+    const response = await apiFetch(`${API_URL}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'register', email, password, username })
@@ -82,7 +88,7 @@ export async function registerUser({ email, password, username }) {
 
 export async function loginUser({ email, password }) {
   try {
-    const response = await fetch(`${API_URL}/api/auth`, {
+    const response = await apiFetch(`${API_URL}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'login', email, password })
@@ -95,10 +101,10 @@ export async function loginUser({ email, password }) {
 
 export async function syncGoogleUser(userData) {
   try {
-    const response = await fetch(`${API_URL}/api/auth`, {
+    const response = await apiFetch(`${API_URL}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'google_sync', ...userData })
+      body: JSON.stringify({ action: 'google_sync', idToken: userData.idToken })
     });
     return await response.json();
   } catch {
@@ -109,11 +115,12 @@ export async function syncGoogleUser(userData) {
 // 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปเดตโปรไฟล์
 export async function updateProfile(userId, profileData) {
   try {
-    const response = await fetch(`${API_URL}/api/auth`, {
+    const response = await apiFetch(`${API_URL}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update_profile', user_id: userId, ...profileData })
     });
+    if (response.status === 401) window.dispatchEvent(new Event('tog-session-expired'));
     return await response.json();
   } catch {
     return { data: null, error: i18n.t('errors.profileUpdateFailed') };
@@ -127,7 +134,7 @@ export async function uploadImage(file, userId) {
     formData.append('file', file);
     if (userId) formData.append('user_id', userId);
     
-    const response = await fetch(`${API_URL}/api/upload`, {
+    const response = await apiFetch(`${API_URL}/api/upload`, {
       method: 'POST',
       body: formData // ไม่ต้องตั้ง Content-Type เอง fetch จะจัดการ multipart form boundary ให้
     });
@@ -202,7 +209,7 @@ export async function fetchUserProfile(userId, viewerId = null) {
 
 export async function toggleFollow(followerId, followingId, isFollowing) {
   try {
-    const response = await fetch(`${API_URL}/api/follows`, {
+    const response = await apiFetch(`${API_URL}/api/follows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: isFollowing ? 'unfollow' : 'follow', follower_id: followerId, following_id: followingId })
@@ -224,7 +231,7 @@ export async function fetchFollowList(userId, type) {
 }
 
 export async function createRanking(rankingData) {  try {
-    const response = await fetch(`${API_URL}/api/rankings`, {
+    const response = await apiFetch(`${API_URL}/api/rankings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(rankingData)
@@ -253,7 +260,7 @@ export async function createRanking(rankingData) {  try {
 
 export async function voteRanking({ rankingId, userId, voteType }) {
   try {
-    const response = await fetch(`${API_URL}/api/votes`, {
+    const response = await apiFetch(`${API_URL}/api/votes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rankingId, userId, voteType })
@@ -274,7 +281,7 @@ export async function fetchComments(rankingId) {
 
 export async function createComment({ ranking_id, user_id, content }) {
   try {
-    const response = await fetch(`${API_URL}/api/comments`, {
+    const response = await apiFetch(`${API_URL}/api/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ranking_id, user_id, content })
@@ -305,9 +312,11 @@ export async function fetchTemplate(templateId, { light = false, period = null }
   }
 }
 
-export async function fetchTemplates({ hashtag, category, limit, page, sort } = {}) {
+export async function fetchTemplates({ hashtag, category, limit, page, sort, q, saved } = {}) {
   try {
     const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (saved) params.set('saved', 'true');
     if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
     if (category) params.append('category', category.toLowerCase());
     if (limit) params.append('limit', limit);
@@ -356,7 +365,7 @@ export async function fetchHashtags({ page, limit, sort, q } = {}) {
 // นับ view ให้ template — ฝั่ง API จะนับให้แค่ครั้งแรกที่ user คนนี้เปิดดู template นี้เท่านั้น
 export async function recordTemplateView(templateId, userId) {
   try {
-    const response = await fetch(`${API_URL}/api/templates`, {
+    const response = await apiFetch(`${API_URL}/api/templates`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: templateId, user_id: userId })
@@ -394,7 +403,7 @@ export async function fetchTemplateReaction({ templateId, userId } = {}) {
 // โหวต/สลับ/ยกเลิก like | dislike ให้ Community Average (voteType = 'like' | 'dislike' | null)
 export async function voteTemplate({ templateId, userId, voteType }) {
   try {
-    const response = await fetch(`${API_URL}/api/template-votes`, {
+    const response = await apiFetch(`${API_URL}/api/template-votes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: templateId, user_id: userId, voteType })
@@ -428,7 +437,7 @@ export async function fetchTemplateParticipants(templateId) {
 // สร้างคอมเมนต์ใหม่ให้ Community Average — คืน object ใหม่พร้อม username/avatar_url
 export async function createTemplateComment({ template_id, user_id, content }) {
   try {
-    const response = await fetch(`${API_URL}/api/template-comments`, {
+    const response = await apiFetch(`${API_URL}/api/template-comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id, user_id, content })
@@ -473,7 +482,7 @@ export async function fetchAdminUsers({ userId, q, page, limit } = {}) {
 // 📍 ตั้งบทบาท admin/user ให้ผู้ใช้
 export async function setUserRole({ userId, targetId, role }) {
   try {
-    const response = await fetch(`${API_URL}/api/admin/users`, {
+    const response = await apiFetch(`${API_URL}/api/admin/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_role', user_id: userId, target_id: targetId, role })
@@ -487,7 +496,7 @@ export async function setUserRole({ userId, targetId, role }) {
 // 📍 ลบผู้ใช้
 export async function deleteAdminUser({ userId, targetId }) {
   try {
-    const response = await fetch(`${API_URL}/api/admin/users`, {
+    const response = await apiFetch(`${API_URL}/api/admin/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
@@ -516,7 +525,7 @@ export async function fetchAdminRankings({ userId, q, page, limit } = {}) {
 // 📍 ลบ ranking/โพสต์
 export async function deleteAdminRanking({ userId, targetId }) {
   try {
-    const response = await fetch(`${API_URL}/api/admin/rankings`, {
+    const response = await apiFetch(`${API_URL}/api/admin/rankings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
@@ -545,7 +554,7 @@ export async function fetchAdminTemplates({ userId, q, page, limit } = {}) {
 // 📍 ลบ template
 export async function deleteAdminTemplate({ userId, targetId }) {
   try {
-    const response = await fetch(`${API_URL}/api/admin/templates`, {
+    const response = await apiFetch(`${API_URL}/api/admin/templates`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
@@ -563,7 +572,7 @@ export async function deleteAdminTemplate({ userId, targetId }) {
 // 📍 รายงาน template (ผู้ใช้ทั่วไป) — แจ้งแอดมินว่าเทมเพลตไม่เหมาะสม
 export async function reportTemplate({ templateId, reporterId, reason }) {
   try {
-    const response = await fetch(`${API_URL}/api/report`, {
+    const response = await apiFetch(`${API_URL}/api/report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: templateId, reporter_id: reporterId, reason })
@@ -577,7 +586,7 @@ export async function reportTemplate({ templateId, reporterId, reason }) {
 // 📍 รายงานโพสต์ (ranking) — แจ้งแอดมินว่าโพสต์/ranking นั้นไม่เหมาะสม
 export async function reportPost({ postId, reporterId, reason }) {
   try {
-    const response = await fetch(`${API_URL}/api/report`, {
+    const response = await apiFetch(`${API_URL}/api/report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ranking_id: postId, reporter_id: reporterId, reason })
@@ -606,7 +615,7 @@ export async function fetchAdminReports({ userId, status, page, limit } = {}) {
 // 📍 ตั้งสถานะรายงาน (resolved/dismissed/pending)
 export async function setReportStatus({ userId, targetId, status }) {
   try {
-    const response = await fetch(`${API_URL}/api/admin/reports`, {
+    const response = await apiFetch(`${API_URL}/api/admin/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_status', user_id: userId, target_id: targetId, status })
@@ -620,7 +629,7 @@ export async function setReportStatus({ userId, targetId, status }) {
 // 📍 ลบรายงาน
 export async function deleteAdminReport({ userId, targetId }) {
   try {
-    const response = await fetch(`${API_URL}/api/admin/reports`, {
+    const response = await apiFetch(`${API_URL}/api/admin/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
@@ -629,4 +638,11 @@ export async function deleteAdminReport({ userId, targetId }) {
   } catch {
     return { success: false, error: i18n.t('errors.reportDeleteFailed') };
   }
+}
+
+export async function saveTemplate(templateId, saved) {
+  try {
+    const response = await apiFetch("/api/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template_id: templateId, saved }) });
+    return await response.json();
+  } catch { return { success: false, error: i18n.t("errors.serverUnreachable") }; }
 }

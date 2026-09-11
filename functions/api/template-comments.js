@@ -1,7 +1,7 @@
 // คอมเมนต์ของ Community Average — ผูกกับ template_id (ดู template-votes.js ทำไมถึงเป็น template)
 // - GET  /api/template-comments?template_id=..  → รายการคอมเมนต์ (LIMIT 200)
 // - POST /api/template-comments  body: { template_id, user_id, content } → สร้างคอมเมนต์
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -27,7 +27,8 @@ export async function onRequest({ request, env }) {
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
     if (request.method === 'POST') {
-      const { template_id, user_id, content } = await request.json();
+      const { template_id, content } = await request.json();
+      const user_id = auth.user.id;
 
       if (!template_id || !user_id || !content?.trim()) {
         return jsonResponse({ success: false, error: 'ข้อมูลไม่ครบถ้วน' }, 400);

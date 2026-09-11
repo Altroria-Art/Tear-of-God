@@ -1,10 +1,7 @@
 // 📍 helper ตรวจสิทธิ์แอดมิน — ใช้โดยทุก endpoint ในโฟลเดอร์ functions/api/admin/
 // เช็ค role จาก database จริงทุก request (ไม่เชื่อค่าจากหน้าบ้าน)
 //
-// ⚠️ ข้อควรระวังด้านความปลอดภัย (ดู AGENTS.md §Backend): ระบบนี้ยังไม่มี session/token
-// จริง — endpoint ทั่วไปรับ user_id จาก client payload โดยตรง วิธีเช็คแบบนี้เป็นแค่
-// baseline ขั้นต่ำเพื่อกัน user ธรรมดาปลอมตัวเป็น admin ยังควรวางแผนทำ session/token
-// แบบจริงโดยรวมในภายหลัง อย่าเอาวิธีนี้ไปถือว่าปลอดภัยสมบูรณ์
+// userId must come from context.data.user set by /api/_middleware.js.
 
 export async function requireAdmin(env, userId) {
   if (!userId) return false;

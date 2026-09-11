@@ -1,141 +1,117 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Search, Bookmark, ArrowRight } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { useToast } from "../components/ui/Toast";
+import { useToast } from '../components/ui/Toast';
 import { fetchTemplates, fetchHashtags } from '../lib/api';
+import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
 import HashtagPill from '../components/discover/HashtagPill';
+import Pagination from '../components/ui/Pagination';
 import { useTranslation } from 'react-i18next';
 
 export default function Discover() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
-  const { toast } = useToast();
+  const viewerId = currentUser?.id;
+  const toast = useToast();
   const { t } = useTranslation();
+  const [params, setParams] = useSearchParams();
+  const q = (params.get('q') || '').trim();
+  const saved = params.get('view') === 'saved';
+  const page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
+  const [query, setQuery] = useState(q);
   const [templates, setTemplates] = useState([]);
   const [hashtags, setHashtags] = useState([]);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [retry, setRetry] = useState(0);
+  const browsingResults = !!q || saved;
 
-  // 📍 ดึงข้อมูล template + hashtag จากฐานข้อมูลจริง — เลขบน hashtag pill ต้องมาจาก
-  // /api/hashtags เสมอ (นับจากทุก template ใน DB) ไม่ใช่นับเองจาก 50 template ที่โหลดมาโชว์
-  // ไม่งั้นเลขจะไม่ตรงกับหน้า /discover/hashtags เมื่อจำนวน template เกิน 50
+  useEffect(() => setQuery(q), [q]);
   useEffect(() => {
     let cancelled = false;
-    async function loadDiscover() {
+    async function load() {
       setIsLoading(true);
-      try {
-        const [tplRes, tagRes] = await Promise.all([
-          fetchTemplates({ limit: 50 }),
-          fetchHashtags({ limit: 30, sort: 'used' })
-        ]);
-        if (cancelled) return;
-        if (tplRes.data) setTemplates(tplRes.data);
-        if (tagRes.data) setHashtags(tagRes.data);
-      } catch {
-        // network / unexpected error — ปล่อยให้โชว์ empty state แทน spinner ค้าง
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
+      setLoadError('');
+      if (saved && !viewerId) { setTemplates([]); setIsLoading(false); return; }
+      const [tpl, tags] = await Promise.all([
+        fetchTemplates({ q, saved, page: browsingResults ? page : 1, limit: browsingResults ? 12 : 50 }),
+        browsingResults ? Promise.resolve({ data: [] }) : fetchHashtags({ limit: 12, sort: 'used' }),
+      ]);
+      if (cancelled) return;
+      setTemplates(tpl.data || []);
+      setHashtags(tags.data || []);
+      setTotal(tpl.total || 0);
+      setLoadError(tpl.error || tags.error || '');
+      setIsLoading(false);
     }
-    loadDiscover();
+    load();
     return () => { cancelled = true; };
-  }, []);
+  }, [q, saved, page, browsingResults, viewerId, retry]);
 
-  const handleProtectedAction = (callback) => {
-    if (!currentUser) {
-      toast.warning(t('discover.protectedLogin'));
-      navigate('/login');
-      return;
-    }
-    if (callback) callback();
+  useEffect(() => {
+    const update = event => { if (saved && !event.detail.saved) setRetry(n => n + 1); };
+    window.addEventListener('tog-bookmark', update);
+    return () => window.removeEventListener('tog-bookmark', update);
+  }, [saved]);
+
+  const useTemplate = template => {
+    const next = '/rank?template=' + encodeURIComponent(template.id);
+    if (!currentUser) { toast.warning(t('discover.protectedLogin')); navigate(loginPath(next)); return; }
+    navigate(next);
   };
-
-  const handleUseTemplate = (template) => {
-    handleProtectedAction(() => {
-      navigate(`/rank?template=${template.id}`);
-    });
+  const sections = useMemo(() => hashtags.slice(0, 3).map(h => ({
+    tag: h.tag,
+    items: templates.filter(tpl => (tpl.hashtags || '').split(',').some(tag => tag.trim().replace(/^#/, '').toLowerCase() === h.tag.replace(/^#/, '').toLowerCase())).slice(0, 4),
+  })).filter(section => section.items.length), [hashtags, templates]);
+  const search = event => {
+    event.preventDefault();
+    const next = new URLSearchParams();
+    if (query.trim()) next.set('q', query.trim());
+    if (saved) next.set('view', 'saved');
+    setParams(next);
   };
+  const grid = list => <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">{list.map(template => <TemplateCard key={template.id} template={template} onUse={useTemplate} />)}</div>;
 
-  // section ต่อท้าย: ไล่จาก hashtag ที่มี template เยอะที่สุด (อย่างน้อย 3 อันถึงจะคุ้มเปิด section)
-  // ตัด section ที่ไม่มีการ์ดให้โชว์ทิ้ง — กันเคสที่ template ของแท็กนั้นไม่ติดอยู่ใน 50 อันแรก
-  // ที่โหลดมา (hashtags มาจาก /api/hashtags ซึ่งนับจากทุก template ใน DB ไม่ใช่แค่ 50 อันนี้)
-  const hashtagSections = useMemo(
-    () =>
-      hashtags
-        .filter((h) => h.content_count >= 3)
-        .slice(0, 3)
-        .map((h) => ({
-          tag: h.tag,
-          items: templates.filter((tpl) => {
-            const cleanHashtags = (tpl.hashtags || '').split(',').map(t => t.trim().toLowerCase());
-            return cleanHashtags.includes(h.tag.toLowerCase());
-          }).slice(0, 4)
-        }))
-        .filter((s) => s.items.length > 0),
-    [hashtags, templates]
-  );
-
-  const popularTemplates = templates.slice(0, 4);
-
-  return (
-    <div className="font-sans min-h-screen flex flex-col">
-      <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12 relative z-10">
-
-        <div className="mb-12">
-          <h1 className="text-4xl font-extrabold tracking-tight text-brand mb-2 drop-shadow-md">{t('discover.title')}</h1>
-          <p className="text-base text-muted font-medium">{t('discover.subtitle')}</p>
-        </div>
-
-        <section className="mb-16">
-          <div className="flex justify-between items-end mb-6">
-            <h2 className="text-2xl font-bold text-brand drop-shadow-sm">{t('discover.popularTemplates')}</h2>
-            <Link to="/discover/templates" className="text-sm font-bold text-brand-accent hover:text-tier-d transition-colors">{t('discover.viewAll')}</Link>
-          </div>
-
-          {isLoading ? (
-            <p className="text-muted font-medium animate-pulse text-center py-10">{t('discover.loadingPopular')}</p>
-          ) : popularTemplates.length === 0 ? (
-            <p className="text-muted font-medium text-center py-10 glass rounded-2xl">{t('discover.emptyTemplates')}</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-              {popularTemplates.map((template) => (
-                <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="mb-16">
-          <div className="flex justify-between items-end mb-6">
-            <h2 className="text-2xl font-bold text-brand drop-shadow-sm">{t('discover.popularHashtags')}</h2>
-            <Link to="/discover/hashtags" className="text-sm font-bold text-brand-accent hover:text-tier-d transition-colors">{t('discover.viewAll')}</Link>
-          </div>
-          <div className="flex flex-wrap gap-3 glass p-6 rounded-3xl border border-line-soft">
-            {hashtags.map((h) => (
-              <HashtagPill key={h.tag} tag={h.tag} count={h.content_count} />
-            ))}
-          </div>
-        </section>
-
-        {hashtagSections.map(({ tag, items }) => (
-          <section key={tag} className="mb-16">
-            <div className="flex justify-between items-end mb-6">
-              <h2 className="text-2xl font-bold text-brand drop-shadow-sm">{tag}</h2>
-              <Link to={`/discover/hashtag/${encodeURIComponent(tag.replace('#', ''))}`} className="text-sm font-bold text-brand-accent hover:text-tier-d transition-colors">{t('discover.viewAll')}</Link>
-            </div>
-            <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-              {items.map((template) => (
-                <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
-              ))}
-            </div>
-          </section>
-        ))}
-
-      </main>
+  return <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7 sm:py-10 text-ink">
+    <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+      <div>
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2">{t(saved ? 'discover.savedTemplates' : 'discover.title')}</h1>
+        <p className="text-sm sm:text-base text-muted">{t(saved ? 'discover.savedHelp' : 'discover.subtitle')}</p>
+      </div>
+      <Link to={saved ? '/discover' : '/discover?view=saved'} className="inline-flex items-center gap-2 rounded-xl border border-line-soft bg-surface px-4 py-3 text-sm font-semibold"><Bookmark size={17} />{t(saved ? 'discover.explore' : 'discover.savedTemplates')}</Link>
     </div>
-  );
+    <form onSubmit={search} role="search" className="flex gap-2 max-w-2xl mb-8">
+      <div className="relative flex-1 min-w-0">
+        <Search size={19} className="absolute left-4 top-3.5 text-muted pointer-events-none" />
+        <input aria-label={t('discover.search')} placeholder={t('discover.search')} value={query} onChange={e => setQuery(e.target.value)} maxLength={100} className="w-full rounded-xl border border-line bg-surface text-ink py-3 pl-11 pr-4 text-sm" />
+      </div>
+      <button className="rounded-xl bg-brand text-canvas px-5 py-3 font-semibold text-sm">{t('discover.searchButton')}</button>
+    </form>
+
+    {saved && !currentUser ? <div className="glass p-8 rounded-2xl text-center"><p className="mb-4">{t('discover.savedLogin')}</p><Link className="inline-block bg-brand text-canvas rounded-xl px-5 py-3" to={loginPath('/discover?view=saved')}>{t('nav.login')}</Link></div>
+      : loadError ? <div role="alert" className="glass p-8 rounded-2xl text-center"><p>{loadError}</p><button className="mt-4 underline" onClick={() => setRetry(n => n + 1)}>{t('common.retry')}</button></div>
+      : isLoading ? <p role="status" className="text-center text-muted py-16">{t('common.loading')}</p>
+      : browsingResults ? <section>
+        <h2 role="status" className="font-semibold mb-5">{q ? t('discover.searchResults', { q, count: total }) : t('discover.savedCount', { count: total })}</h2>
+        {templates.length ? grid(templates) : <div className="glass rounded-2xl p-8 text-center text-muted">{t(saved ? 'discover.noSaved' : 'discover.noResults')}</div>}
+        <Pagination page={page} totalPages={Math.ceil(total / 12)} onChange={nextPage => { const next = new URLSearchParams(params); next.set('page', nextPage); setParams(next); }} />
+      </section>
+      : <>
+        <section className="mb-10">
+          <div className="flex justify-between items-center gap-4 mb-5"><h2 className="text-xl font-bold">{t('discover.popularTemplates')}</h2><Link className="text-sm inline-flex items-center gap-1" to="/discover/templates">{t('discover.viewAll')}<ArrowRight size={15} /></Link></div>
+          {templates.length ? grid(templates.slice(0, 4)) : <p className="text-muted py-6">{t('discover.emptyTemplates')}</p>}
+        </section>
+        <section className="mb-10">
+          <div className="flex justify-between items-center gap-4 mb-4"><h2 className="text-xl font-bold">{t('discover.popularHashtags')}</h2><Link className="text-sm" to="/discover/hashtags">{t('discover.viewAll')}</Link></div>
+          <div className="flex flex-wrap gap-2">{hashtags.map(h => <HashtagPill key={h.tag} tag={h.tag} count={h.content_count} />)}</div>
+        </section>
+        {sections.map(({ tag, items }) => <section key={tag} className="mb-10">
+          <div className="flex justify-between items-center gap-4 mb-5"><h2 className="text-xl font-bold">{tag}</h2><Link className="text-sm" to={'/discover/hashtag/' + encodeURIComponent(tag.replace(/^#/, ''))}>{t('discover.viewAll')}</Link></div>
+          {grid(items)}
+        </section>)}
+      </>}
+  </main>;
 }
-
-
-
-

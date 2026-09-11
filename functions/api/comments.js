@@ -1,4 +1,4 @@
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -25,7 +25,8 @@ export async function onRequest({ request, env }) {
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
     if (request.method === 'POST') {
-      const { ranking_id, user_id, content } = await request.json();
+      const { ranking_id, content } = await request.json();
+      const user_id = auth.user.id;
 
       if (!ranking_id || !user_id || !content?.trim()) {
         return jsonResponse({ success: false, error: 'ข้อมูลไม่ครบถ้วน' }, 400);

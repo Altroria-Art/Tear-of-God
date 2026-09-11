@@ -121,6 +121,8 @@ function RankingCard({ ranking, tiersDef }) {
         onClick={() => navigate(`/post/${ranking.id}`)}
         className="cursor-pointer transition-colors hover:bg-surface-glass/40 p-3 space-y-2"
         role="button"
+                tabIndex={0}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }}
         aria-label={t('template.openRankingPost')}
       >
         {tierRows.map(({ tier, color, index, items }) => (
@@ -397,6 +399,7 @@ export default function TemplateDetailPage() {
     }
   })
 
+  const CreatorLink = template.profile?.id ? Link : 'span'
   return (
     <main className="min-h-screen text-ink">
       <div className="mx-auto max-w-5xl px-4 py-8">
@@ -405,10 +408,10 @@ export default function TemplateDetailPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <Link to={`/profile/${template.profile?.username}`} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <CreatorLink to={template.profile?.id ? `/profile/${encodeURIComponent(template.profile.id)}` : undefined} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                 <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
                 <span className="font-medium text-ink">@{template.profile?.username || t('common.unknownUser')}</span>
-              </Link>
+              </CreatorLink>
               <span className="text-muted">|</span>
               <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
                 <Users size={14} /> {formatCount(template.stats?.uses)} {t('template.uses')}
@@ -418,17 +421,17 @@ export default function TemplateDetailPage() {
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
+            <div className="flex flex-wrap items-center gap-2">
+              <details className="relative order-last"><summary aria-label={t('common.more')} className="cursor-pointer list-none px-3 py-2 rounded-xl border border-line-soft">•••</summary><div className="absolute right-0 top-full mt-2 z-30 rounded-xl bg-canvas border border-line p-2 min-w-40 shadow-panel"><button
                 type="button"
                 onClick={() => setReportOpen(true)}
-                className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-status-error shadow-md transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-status-error hover:bg-tag w-full"
                 aria-label={t('template.report')}
                 title={t('template.report')}
               >
                 <Flag size={16} />
                 <span>{t('template.report')}</span>
-              </button>
+              </button></div></details>
               <button
                 type="button"
                 onClick={handleShare}
@@ -439,7 +442,7 @@ export default function TemplateDetailPage() {
               <button
                 type="button"
                 onClick={handleUseTemplate}
-                className="flex items-center gap-2 rounded-full glass px-6 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97]"
+                className="flex items-center gap-2 rounded-xl bg-brand text-canvas px-5 py-3 text-sm font-bold hover:bg-brand-accent"
               >
                 {t('template.use')}
               </button>
@@ -462,9 +465,9 @@ export default function TemplateDetailPage() {
                       <img src={ti.item.image_url} alt={ti.item?.name || ti.item_id} className="w-full h-full object-cover" />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded bg-surface flex-shrink-0 border border-line-soft" />
+                    null
                   )}
-                  <span className="text-xs font-medium text-ink text-center line-clamp-2 w-full leading-tight">
+                  <span className="text-xs font-medium text-ink text-center w-full leading-relaxed break-words">
                     {ti.item?.name || ti.item_id}
                   </span>
                 </div>

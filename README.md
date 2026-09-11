@@ -26,7 +26,7 @@
 - Backend: Cloudflare Pages Functions (`functions/api/`) — Workers runtime, hand-written SQL, no ORM
 - Database: Cloudflare D1 (SQLite), binding `tear_of_god_db`
 - Storage: Cloudflare R2 (avatar/image uploads, binding `STORAGE`)
-- Auth: email/password (SHA-256, stored in D1) + Google Sign-In (Firebase Auth)
+- Auth: email/password (salted PBKDF2 in D1) + Google Sign-In (Firebase token verified server-side); HttpOnly cookie sessions
 
 ## Project Structure
 
@@ -141,7 +141,7 @@ HTML reports in `tests/reports/`. Helper script `scripts/generate-k6-summary.mjs
 
 ## Architecture Notes
 
-- **Auth model** — Client-reported `user_id` from localStorage. No JWT or session tokens. Admin role verification queries D1 but relies on the client sending the correct ID. See `functions/api/admin/_check.js`.
+- **Auth model** — `/api/_middleware.js` verifies a 7-day HttpOnly cookie against hashed sessions in D1. Mutations use the session owner, and admin endpoints verify the current database role. Legacy SHA-256 passwords upgrade to PBKDF2 on successful login. Firebase public config is shared in `src/lib/firebaseConfig.js`; Google tokens are verified by Firebase on the server. Apply migrations `0012` and `0013` before deploying this version; see [session and UI rollout notes](docs/session-and-ui-improvements.md).
 - **Home feed** — Seeded-shuffled (FNV-1a hash + mulberry32 PRNG + Fisher-Yates) for deterministic-random ordering stable within a session. "General" tab shows all posts; "Kindred" tab shows personalized content (requires 2+ matching signals from category, template, or hashtags).
 - **Community Average** — Aggregated tier rankings per template, computed from frozen `ranking_item_scores` (score = tier position at time of publish). Supports time-period filtering. Includes self-healing backfill if scores are missing for older rankings.
 - **Timestamps** — D1 returns `created_at`/`updated_at` as `"YYYY-MM-DD HH:MM:SS"` in UTC with no timezone marker. Always parse through `parseDbDate()` / `formatDbDate()` in `src/lib/format.js` — never pass raw D1 timestamps to `new Date()`.
@@ -149,6 +149,7 @@ HTML reports in `tests/reports/`. Helper script `scripts/generate-k6-summary.mjs
 
 ## Known Gaps
 
-- No JWT or session-based auth — `user_id` is client-reported only
+- Password recovery by email is not implemented.
+- k6 mutation scenarios that only send `user_id` now need authenticated cookie sessions.
 - No formal test suite (only k6 load tests for the API)
 - No CI/CD pipeline — deploys are manual via `npm run deploy`

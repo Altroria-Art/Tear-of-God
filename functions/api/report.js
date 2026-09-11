@@ -2,7 +2,7 @@
 // POST body: { template_id? | ranking_id?, reporter_id, reason }
 // ต้องส่งอย่างใดอย่างหนึ่ง (template_id สำหรับรายงานเทมเพลต, ranking_id สำหรับรายงานโพสต์)
 // ผู้ใช้ทั่วไป (ทุกคนที่ล็อกอิน) ส่งรายงานได้ — ไม่ต้องเป็น admin (ฝั่ง admin อ่าน/จัดการแยกที่ /api/admin/reports)
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -11,7 +11,8 @@ export async function onRequest({ request, env }) {
   }
 
   try {
-    const { template_id, ranking_id, reporter_id, reason } = await request.json();
+    const { template_id, ranking_id, reason } = await request.json();
+    const reporter_id = auth.user.id;
 
     if (!template_id && !ranking_id) return jsonResponse({ success: false, error: 'Missing template_id or ranking_id' }, 400);
     if (!reporter_id) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบก่อนรายงาน' }, 401);

@@ -24,6 +24,10 @@ export async function onRequestGet(context) {
     if (!templateId) {
       const hashtag = url.searchParams.get('hashtag');
       const category = url.searchParams.get('category');
+      const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
+      const savedOnly = url.searchParams.get('saved') === 'true';
+      const viewerId = context.data.user?.id || null;
+      if (savedOnly && !viewerId) return Response.json({ success: false, error: 'Please log in' }, { status: 401 });
       const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
       const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
       const offset = (page - 1) * limit;
@@ -31,6 +35,8 @@ export async function onRequestGet(context) {
 
       let whereSql = ` WHERE 1=1`;
       const whereParams = [];
+      if (q) { whereSql += " AND (instr(lower(t.title), lower(?)) > 0 OR instr(lower(COALESCE(t.description, '')), lower(?)) > 0 OR instr(lower(COALESCE(t.hashtags, '')), lower(?)) > 0)"; whereParams.push(q, q, q); }
+      if (savedOnly) { whereSql += ' AND EXISTS (SELECT 1 FROM template_bookmarks b WHERE b.template_id = t.id AND b.user_id = ?)'; whereParams.push(viewerId); }
       if (category && category !== 'null') { whereSql += ` AND t.category = ?`; whereParams.push(category); }
       if (hashtag) {
         // แมตช์แท็กแบบเป๊ะ (ไม่ใช่ substring) — ห่อทั้งสองฝั่งด้วย ',' แล้วค้นหา ',#tag,'
@@ -47,6 +53,7 @@ export async function onRequestGet(context) {
 
       const query = `
         SELECT t.*, p.username, p.avatar_url,
+          EXISTS(SELECT 1 FROM template_bookmarks b WHERE b.template_id = t.id AND b.user_id = ?) AS is_saved,
           (SELECT COUNT(*) FROM rankings r       WHERE r.template_id = t.id) AS live_uses,
           (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views
         FROM templates t
@@ -55,7 +62,7 @@ export async function onRequestGet(context) {
         ${orderSql}
         LIMIT ? OFFSET ?
       `;
-      const params = [...whereParams, limit, offset];
+      const params = [viewerId, ...whereParams, limit, offset];
 
       const { results: templates } = await db.prepare(query).bind(...params).all();
 
@@ -98,6 +105,7 @@ export async function onRequestGet(context) {
 
       const data = templates.map(t => ({
         id: t.id,
+        is_saved: !!t.is_saved,
         title: t.title,
         description: t.description,
         category: t.category,
@@ -105,11 +113,12 @@ export async function onRequestGet(context) {
         tiers: parseTiers(t.tiers),
         use_count: t.live_uses || 0,
         view_count: t.live_views || 0,
-        profile: { username: t.username, avatar_url: t.avatar_url },
+        profile: { id: t.creator_id, username: t.username, avatar_url: t.avatar_url },
         template_items: itemsMap[t.id] || []
       }));
 
-      // 📍 ข้อมูล public ล้วน ไม่มี field เฉพาะผู้ชม (ไม่มี user_vote/is_following) — cache ที่ edge
+      // The middleware marks authenticated responses private/no-store because is_saved is personal.
+      // Guest responses may be cached at the edge with Vary: Cookie.
       // ได้ปลอดภัย (ดู docs/row-read-optimization-plan.md §6/§8) แต่ max-age เดิม 60s บวก
       // stale-while-revalidate=300s ทำให้ browser ค้าง response เก่าได้นานสุด ~360s — เคยเป็นบั๊กจริง:
       // Discover ยังโชว์ Views เก่าหลังกลับมาจากหน้า Template Detail ที่เพิ่งนับ view ไปแล้ว
@@ -285,6 +294,7 @@ export async function onRequestGet(context) {
       hashtags: template.hashtags,
       tiers: tiersDef,
       profile: {
+        id: template.creator_id,
         username: template.username,
         avatar_url: template.avatar_url
       },
@@ -324,7 +334,8 @@ export async function onRequestPost(context) {
   const db = env.tear_of_god_db;
 
   try {
-    const { template_id, user_id } = await request.json();
+    const { template_id } = await request.json();
+    const user_id = context.data.user.id;
     if (!template_id || !user_id) {
       return Response.json({ success: false, error: 'Missing template_id or user_id' }, { status: 400 });
     }

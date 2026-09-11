@@ -1,4 +1,4 @@
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const url = new URL(request.url);
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -41,7 +41,8 @@ export async function onRequest({ request, env }) {
 
   if (request.method === 'POST') {
     try {
-      const { action, follower_id, following_id } = await request.json();
+      const { action, following_id } = await request.json();
+      const follower_id = auth.user.id;
       if (!follower_id || !following_id) return jsonResponse({ error: 'Missing params' }, 400);
 
       // กัน user follow ตัวเอง

@@ -48,7 +48,7 @@ function seededShuffle(list, seed) {
   return arr;
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const db = env.tear_of_god_db;
@@ -62,7 +62,7 @@ export async function onRequest({ request, env }) {
     if (request.method === 'GET') {
       if (id) {
         // user_id ที่ส่งมาคือ "คนที่กำลังดู" (ไม่ใช่เจ้าของโพสต์) ใช้เพื่อรู้ว่าคนนี้เคยโหวตไว้ยังไง
-        const viewerId = url.searchParams.get('user_id');
+        const viewerId = auth.user?.id || null;
         const { results: rankings } = await db.prepare(`
           SELECT r.*, p.username, p.avatar_url,
             ${viewerId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
@@ -121,7 +121,7 @@ export async function onRequest({ request, env }) {
       else {
         const category = url.searchParams.get('category');
         const hashtag = url.searchParams.get('hashtag');
-        const currentUserId = url.searchParams.get('user_id');
+        const currentUserId = auth.user?.id || null;
         // author_id = "กรองเฉพาะโพสต์ของคนนี้" (หน้าโปรไฟล์) — ต่างจาก user_id ที่แปลว่า "คนกำลังดู"
         const authorId = url.searchParams.get('author_id');
         const templateId = url.searchParams.get('template_id');
@@ -478,6 +478,10 @@ export async function onRequest({ request, env }) {
     // 🟢 [POST] สร้าง Ranking ใหม่
     if (request.method === 'POST') {
       const { payload, items, template } = await request.json();
+      if (!payload || typeof payload !== 'object' || !Array.isArray(items) || !items.length) {
+        return jsonResponse({ success: false, error: 'Ranking and ranked items are required' }, 400);
+      }
+      payload.user_id = auth.user.id;
       const rankingId = crypto.randomUUID(); 
 
       // จำกัดขนาด field (payload + items) กัน abuse/bogus payload เขียนข้อมูลมโหฬาร
@@ -495,11 +499,7 @@ export async function onRequest({ request, env }) {
         }
       }
       
-      if (payload.user_id) {
-        await db.prepare(
-          `INSERT OR IGNORE INTO profiles (id, username, avatar_url) VALUES (?1, ?2, ?3)`
-        ).bind(payload.user_id, payload.username || 'Unknown', payload.avatar_url || '').run();
-      }
+
       
       const statements = [];
       let templateId = null;

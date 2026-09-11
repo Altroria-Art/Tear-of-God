@@ -1,22 +1,12 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 // Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCtH2k5FZlxanMt0psIGqobL_0jGTfe9-4",
-  authDomain: "tear-of-god.firebaseapp.com",
-  projectId: "tear-of-god",
-  storageBucket: "tear-of-god.firebasestorage.app",
-  messagingSenderId: "909440480371",
-  appId: "1:909440480371:web:fcc574fcd06a5d301aa606",
-  measurementId: "G-HE4V7ETVP3"
-};
+import { firebaseConfig } from './firebaseConfig';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
@@ -28,6 +18,7 @@ export const signInWithGoogle = async () => {
     
     return {
       data: {
+        idToken: await user.getIdToken(),
         id: user.uid,
         username: user.displayName,
         email: user.email,

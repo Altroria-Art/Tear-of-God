@@ -1,4 +1,4 @@
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
   if (request.method !== 'POST') {
@@ -13,7 +13,7 @@ export async function onRequest({ request, env }) {
 
     const formData = await request.formData();
     const file = formData.get('file');
-    const user_id = formData.get('user_id');
+    const user_id = auth.user.id;
 
     if (!user_id) {
       return jsonResponse({ error: 'Unauthorized: missing user_id' }, 401);

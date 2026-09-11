@@ -225,9 +225,9 @@ export default function CommunityAveragePage() {
   const matchedCount = myComparison.filter((c) => c.gap === 0).length
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-6">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div>
+    <main className="mx-auto max-w-6xl px-4 sm:px-6 py-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
           <Link to={`/template/${templateId}`} className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
@@ -242,15 +242,16 @@ export default function CommunityAveragePage() {
               {t('template.itemsText', { n: itemCount, time: updatedAt ? timeAgo(updatedAt) : '—' })}
             </p>
 
+            <p className="mt-3 text-sm font-semibold text-ink-soft">{t('template.usesLabel', { n: formatCount(template.stats?.uses), v: formatCount(template.stats?.views) })}</p>
             <HashtagList hashtags={template.hashtags} className="mt-3" />
 
-            <div className="mt-4 space-y-2 rounded-xl border border-line-soft p-2 glass">
+            <div className="mt-4 space-y-2">
               {avgTiers.map(({ tier, color, index, items }) => (
                 <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}
             </div>
 
-            <div className="mt-4 flex items-center border-t border-line-soft pt-3">
+            <div className="mt-4 flex flex-wrap gap-3 items-center border-t border-line-soft pt-3">
               <div className="flex items-center gap-5">
                 <ActionButton
                   icon={ThumbsUpIcon}

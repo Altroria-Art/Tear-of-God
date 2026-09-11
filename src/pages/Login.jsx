@@ -1,5 +1,6 @@
+import { returnPath } from '../lib/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
@@ -83,6 +84,8 @@ const ROTATING_WORDS = {
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const next = returnPath(location.search);
   const { login } = useUser();
   const { isLightMode } = useTheme();
   const toast = useToast();
@@ -222,7 +225,7 @@ export default function Login() {
       } else {
         login(data);
         toast.success(t('auth.successLogin'));
-        navigate('/');
+        navigate(next, { replace: true });
       }
     }
   };
@@ -240,9 +243,9 @@ export default function Login() {
         toast.error(t('auth.errSyncFailed', { msg: syncError }));
         return;
       }
-      login(dbUser || firebaseUser);
+      login(dbUser);
       toast.success(t('auth.successWelcome', { name: dbUser?.username || firebaseUser.username }));
-      navigate('/');
+      navigate(next, { replace: true });
     } catch (err) {
       toast.error(t('auth.errGoogleFailed', { msg: err.message }));
     } finally {
@@ -251,7 +254,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-68px)] w-full relative overflow-hidden flex items-center justify-center px-4 sm:px-6 lg:px-12 py-10 lg:py-16">
+    <div className="min-h-[calc(100vh-68px)] w-full relative overflow-hidden flex items-center justify-center px-4 sm:px-6 lg:px-12 py-8 lg:py-16">
       {/* ========================================================
           Atmospheric Glow Layers (ตามรูปต้นฉบับ Light & Dark)
          ======================================================== */}
@@ -303,7 +306,7 @@ export default function Login() {
         {/* ========================================================
             Left Column: Brand & Hero Catchphrase + Real Tier List Boxes
            ======================================================== */}
-        <div className="lg:col-span-6 xl:col-span-7 flex flex-col justify-center text-left">
+        <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-center text-left">
           {/* Brand Pill */}
           <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#ff553e]/10 border border-[#ff553e]/20 text-[#ff553e] dark:bg-[#ff553e]/20 dark:border-[#ff553e]/30 w-fit mb-6 shadow-xs">
             <span className="w-6 h-6 rounded-lg bg-[#ff553e] text-white flex items-center justify-center text-xs font-black shadow-xs">
@@ -592,6 +595,7 @@ export default function Login() {
                   {/* Panel 1: Log In (50% Width) */}
                   <div
                     ref={loginRef}
+                    inert={isRegister}
                     className={`w-1/2 pr-3 transition-opacity duration-300 ease-out ${
                       !isRegister ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                     }`}
@@ -670,6 +674,7 @@ export default function Login() {
                   {/* Panel 2: Create an account / Register (50% Width) */}
                   <div
                     ref={registerRef}
+                    inert={!isRegister}
                     className={`w-1/2 pl-3 transition-opacity duration-300 ease-out ${
                       isRegister ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                     }`}

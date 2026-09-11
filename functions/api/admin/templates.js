@@ -12,22 +12,14 @@ function parseTiers(raw) {
   }
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
   const url = new URL(request.url);
 
-  // 📍 user_id อาจมาใน query param (GET) หรือ body (POST) — อ่านให้ครอบคลุมทั้งสองแบบ
-  let user_id = url.searchParams.get('user_id');
-  if (request.method === 'POST' && user_id == null) {
-    try {
-      const body = await request.clone().json();
-      user_id = body.user_id;
-    } catch {
-      // body ไม่ใช่ JSON — ปล่อยให้ requireAdmin จัดการ (user_id ยังเป็น null → 403)
-    }
-  }
+  // The API middleware supplies the verified session owner.
+  const user_id = auth.user.id;
 
   if (!(await requireAdmin(env, user_id))) {
     return jsonResponse({ success: false, error: 'ไม่มีสิทธิ์เข้าถึง (ต้องเป็นแอดมิน)' }, 403);

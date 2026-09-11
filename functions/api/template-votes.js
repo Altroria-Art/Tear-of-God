@@ -2,7 +2,7 @@
 // แต่ผูกกับ template_id เพราะตาราง Community Average เป็นข้อมูลรวมของเทมเพลต)
 // - GET  /api/template-votes?template_id=..&user_id=..  → คืน user_vote + จำนวน like/dislike
 // - POST /api/template-votes  body: { template_id, user_id, voteType }  → โหวต/สลับ/ยกเลิก
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -25,14 +25,15 @@ export async function onRequest({ request, env }) {
     // 🟢 [GET] อ่านสถานะโหวตของผู้ใช้ + จำนวนรวม (ใช้ตอนเปิดหน้าเพื่อ seed การ์ด)
     if (request.method === 'GET') {
       if (!templateId) return jsonResponse({ success: false, error: 'Missing template_id' }, 400);
-      const userId = url.searchParams.get('user_id') || null;
+      const userId = auth.user?.id || null;
       const counts = await fetchCounts(templateId, userId);
       return jsonResponse({ success: true, ...counts });
     }
 
     // 🟢 [POST] โหวต/สลับ/ยกเลิก
     if (request.method === 'POST') {
-      const { template_id, user_id, voteType } = await request.json();
+      const { template_id, voteType } = await request.json();
+      const user_id = auth.user.id;
       if (!template_id || !user_id) {
         return jsonResponse({ success: false, error: 'Missing template_id or user_id' }, 400);
       }

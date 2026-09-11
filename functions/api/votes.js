@@ -1,5 +1,5 @@
 export async function onRequest(context) {
-  const { request, env } = context;
+  const { request, env, data: auth } = context;
   const db = env.tear_of_god_db; // 📍 ใช้ชื่อ binding ให้ตรงกับ wrangler.toml
 
   const jsonResponse = (data, status = 200) => {
@@ -16,7 +16,7 @@ export async function onRequest(context) {
   try {
     const body = await request.json();
     const rankingId = body.rankingId || body.ranking_id;
-    const userId = body.userId || body.user_id;
+    const userId = auth.user.id;
     const voteType = body.voteType; // 'like', 'dislike', หรือ null (กรณียกเลิกโหวต)
 
     if (!rankingId || !userId) {
