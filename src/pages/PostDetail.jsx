@@ -324,9 +324,10 @@ export default function PostDetail() {
                     <Link 
                       key={idx} 
                       to={`/discover/hashtag/${encodeURIComponent(cleanTag)}`}
-                      className="px-3 py-1 rounded-md bg-surface-glass text-ink-soft text-[11px] font-bold uppercase tracking-wider hover:bg-surface transition-colors"
+                      className="px-3 py-1 rounded-md bg-surface border border-line-soft text-ink text-[11px] font-bold uppercase tracking-wider hover:border-line hover:shadow-sm transition-all flex items-center"
                     >
-                      #{cleanTag}
+                      <span className="text-highlight mr-[2px]">#</span>
+                      {cleanTag}
                     </Link>
                   );
                 })}

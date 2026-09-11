@@ -8,6 +8,7 @@ import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Heart } fr
 import { shareUrl } from '../lib/share';
 import ShareExportModal from '../components/ui/ShareExportModal';
 import ExportCard from '../components/ui/ExportCard';
+import BookmarkButton from '../components/template/BookmarkButton';
 
 import { timeAgo } from '../lib/format';
 import { takeLastPublished } from '../lib/lastPublished';
@@ -157,14 +158,20 @@ function HomeTierCard({ post }) {
           </div>
         </div>
 
-        <button
-          onClick={() => navigate(`/rank?template=${post.template_id || ''}`)}
-          title={t('feed.useTemplate', { title: post.title })}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
-        >
-          <Copy size={12} strokeWidth={2.5} />
-          <span>{t('feed.useTemplateShort')}</span>
-        </button>
+        <div className="flex gap-1.5">
+          <BookmarkButton 
+            template={{ id: post.template_id, is_saved: post.is_template_saved }} 
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+          />
+          <button
+            onClick={() => navigate(`/rank?template=${post.template_id || ''}`)}
+            title={t('feed.useTemplate', { title: post.title })}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+          >
+            <Copy size={12} strokeWidth={2.5} />
+            <span>{t('feed.useTemplateShort')}</span>
+          </button>
+        </div>
       </div>
 
       {/* Hashtags */}
@@ -175,9 +182,10 @@ function HomeTierCard({ post }) {
             <span
               key={idx}
               onClick={(e) => { e.stopPropagation(); navigate(`/discover/hashtag/${encodeURIComponent(cleanTag)}`); }}
-              className="px-3 py-1 rounded-md bg-surface-glass text-ink-soft text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:bg-surface transition-colors"
+              className="px-3 py-1 rounded-md bg-surface border border-line-soft text-ink text-[11px] font-bold uppercase tracking-wider cursor-pointer hover:border-line hover:shadow-sm transition-all flex items-center"
             >
-              #{cleanTag}
+              <span className="text-highlight mr-[2px]">#</span>
+              {cleanTag}
             </span>
           );
         })}

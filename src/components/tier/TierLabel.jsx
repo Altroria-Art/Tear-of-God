@@ -25,7 +25,7 @@ export default function TierLabel({ label, color, index, className = '', fallbac
 
   const glow = tierGlowStyle(bg)
   const { boxShadow: callerShadow, ...restStyle } = style
-  const base = 'flex shrink-0 items-center justify-center break-words text-center leading-tight drop-shadow-sm'
+  const base = 'flex shrink-0 items-center justify-center break-words text-center leading-tight drop-shadow-sm transition-all duration-300 ease-out'
 
 
   if (bg) {

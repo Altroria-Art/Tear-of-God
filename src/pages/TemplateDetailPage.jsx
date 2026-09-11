@@ -14,6 +14,7 @@ import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
 import TierRow from '../components/feed/TierRow'
 import HashtagList from '../components/template/HashtagList'
+import BookmarkButton from '../components/template/BookmarkButton'
 import { useTranslation } from 'react-i18next'
 
 const PAGE_SIZE = 5
@@ -439,6 +440,10 @@ export default function TemplateDetailPage() {
               >
                 <Share2 size={16} /> {t('common.share')}
               </button>
+              <BookmarkButton 
+                template={template} 
+                className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97]" 
+              />
               <button
                 type="button"
                 onClick={handleUseTemplate}
