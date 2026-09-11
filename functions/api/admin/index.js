@@ -13,9 +13,7 @@ export async function onRequest({ request, env }) {
   }
 
   const url = new URL(request.url);
-  const user_id = url.searchParams.get('user_id');
-
-  if (!(await requireAdmin(env, user_id))) {
+  if (!(await requireAdmin(env, request))) {
     return jsonResponse({ success: false, error: 'ไม่มีสิทธิ์เข้าถึง (ต้องเป็นแอดมิน)' }, 403);
   }
 

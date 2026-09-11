@@ -9,19 +9,8 @@ export async function onRequest({ request, env }) {
 
   const url = new URL(request.url);
 
-  // 📍 user_id อาจมาใน query param (GET) หรือ body (POST) — ต้องอ่านให้ครอบคลุมทั้งสองแบบ
-  // ไม่งั้น POST ที่ฝั่ง frontend ส่ง user_id ใน body จะโดน requireAdmin ขวางเพราะเห็นเป็น null
-  let user_id = url.searchParams.get('user_id');
-  if (request.method === 'POST' && user_id == null) {
-    try {
-      const body = await request.clone().json();
-      user_id = body.user_id;
-    } catch {
-      // มี body ไม่ใช่ JSON — ปล่อยให้ requireAdmin จัดการ (user_id ยังเป็น null → 403)
-    }
-  }
-
-  if (!(await requireAdmin(env, user_id))) {
+  const admin = await requireAdmin(env, request);
+  if (!admin) {
     return jsonResponse({ success: false, error: 'ไม่มีสิทธิ์เข้าถึง (ต้องเป็นแอดมิน)' }, 403);
   }
 
@@ -84,7 +73,7 @@ export async function onRequest({ request, env }) {
       if (!target_id) return jsonResponse({ success: false, error: 'Missing target_id' }, 400);
 
       // ⚠️ กันแอดมินลบตัวเองโดยไม่ตั้งใจ (จะได้ไม่มี admin เหลือในระบบ)
-      if (target_id === user_id) {
+      if (target_id === admin.id) {
         return jsonResponse({ success: false, error: 'ไม่สามารถจัดการบัญชีแอดมินของตัวเองได้' }, 400);
       }
 
@@ -113,6 +102,7 @@ export async function onRequest({ request, env }) {
           db.prepare('DELETE FROM votes WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM comments WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM follows WHERE follower_id = ? OR following_id = ?').bind(target_id, target_id),
+          db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM profiles WHERE id = ?').bind(target_id)
         ]);
         return jsonResponse({ success: true, data: { id: target_id } });

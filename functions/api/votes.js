@@ -1,3 +1,5 @@
+import { requireUser } from './_auth.js';
+
 export async function onRequest(context) {
   const { request, env } = context;
   const db = env.tear_of_god_db; // 📍 ใช้ชื่อ binding ให้ตรงกับ wrangler.toml
@@ -14,13 +16,15 @@ export async function onRequest(context) {
   }
 
   try {
+    const actor = await requireUser(request, env);
+    if (!actor) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
     const body = await request.json();
     const rankingId = body.rankingId || body.ranking_id;
-    const userId = body.userId || body.user_id;
+    const userId = actor.id;
     const voteType = body.voteType; // 'like', 'dislike', หรือ null (กรณียกเลิกโหวต)
 
-    if (!rankingId || !userId) {
-      return jsonResponse({ success: false, error: 'Missing rankingId or userId' }, 400);
+    if (!rankingId) {
+      return jsonResponse({ success: false, error: 'Missing rankingId' }, 400);
     }
 
     // 1. เช็คว่า User เคยโหวตโพสต์นี้ไปหรือยัง

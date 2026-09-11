@@ -1,3 +1,5 @@
+import { requireUser } from './_auth.js';
+
 function parseTiers(raw) {
   if (!raw) return null;
   try {
@@ -316,17 +318,18 @@ export async function onRequestGet(context) {
 }
 
 // ==========================================
-// POST /api/templates — บันทึกว่า user คนนี้เปิดดู template นี้แล้ว (นับ view ครั้งแรกเท่านั้น)
-// body: { template_id, user_id }
+// POST /api/templates — บันทึกว่า session นี้เปิดดู template นี้แล้ว (นับ view ครั้งแรกเท่านั้น)
 // ==========================================
 export async function onRequestPost(context) {
   const { request, env } = context;
   const db = env.tear_of_god_db;
 
   try {
-    const { template_id, user_id } = await request.json();
-    if (!template_id || !user_id) {
-      return Response.json({ success: false, error: 'Missing template_id or user_id' }, { status: 400 });
+    const actor = await requireUser(request, env);
+    if (!actor) return Response.json({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, { status: 401 });
+    const { template_id } = await request.json();
+    if (!template_id) {
+      return Response.json({ success: false, error: 'Missing template_id' }, { status: 400 });
     }
 
     // 📍 INSERT + UPDATE รวมเป็น db.batch() เดียว (atomic) — เดิมเป็น 2 .run() แยกกัน ถ้า worker
@@ -338,7 +341,7 @@ export async function onRequestPost(context) {
     // ไม่ต้องมี migration/backfill แยกต่างหาก)
     const [insertResult] = await db.batch([
       db.prepare(`INSERT OR IGNORE INTO template_views (template_id, user_id) VALUES (?, ?)`)
-        .bind(template_id, user_id),
+        .bind(template_id, actor.id),
       db.prepare(
         `UPDATE templates SET view_count = (SELECT COUNT(*) FROM template_views WHERE template_id = ?) WHERE id = ?`
       ).bind(template_id, template_id)

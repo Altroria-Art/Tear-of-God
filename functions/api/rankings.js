@@ -1,3 +1,5 @@
+import { getSessionUser, requireUser } from './_auth.js';
+
 // 📍 [ใหม่]: ranking_items.tier เก็บแค่ "ชื่อ tier" เป็นสตริง — สี/id ของ tier อยู่ที่
 // templates.tiers เท่านั้น (ดู functions/api/templates.js). ก่อนหน้านี้ endpoint นี้ไม่เคย
 // ส่ง tiers กลับมาเลย ทำให้ Home Feed / Feed Detailed โชว์ tier ไม่มีสี ต่างจาก Discover
@@ -61,8 +63,8 @@ export async function onRequest({ request, env }) {
     // 🟢 [GET] ดึงข้อมูล
     if (request.method === 'GET') {
       if (id) {
-        // user_id ที่ส่งมาคือ "คนที่กำลังดู" (ไม่ใช่เจ้าของโพสต์) ใช้เพื่อรู้ว่าคนนี้เคยโหวตไว้ยังไง
-        const viewerId = url.searchParams.get('user_id');
+        // Viewer identity is derived from the bearer session, not a query string.
+        const viewerId = (await getSessionUser(request, env))?.id || null;
         const { results: rankings } = await db.prepare(`
           SELECT r.*, p.username, p.avatar_url,
             ${viewerId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
@@ -121,7 +123,7 @@ export async function onRequest({ request, env }) {
       else {
         const category = url.searchParams.get('category');
         const hashtag = url.searchParams.get('hashtag');
-        const currentUserId = url.searchParams.get('user_id');
+        const currentUserId = (await getSessionUser(request, env))?.id || null;
         // author_id = "กรองเฉพาะโพสต์ของคนนี้" (หน้าโปรไฟล์) — ต่างจาก user_id ที่แปลว่า "คนกำลังดู"
         const authorId = url.searchParams.get('author_id');
         const templateId = url.searchParams.get('template_id');
@@ -477,7 +479,10 @@ export async function onRequest({ request, env }) {
 
     // 🟢 [POST] สร้าง Ranking ใหม่
     if (request.method === 'POST') {
-      const { payload, items, template } = await request.json();
+      const actor = await requireUser(request, env);
+      if (!actor) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
+      const { payload = {}, items, template } = await request.json();
+      if (!payload || typeof payload !== 'object') return jsonResponse({ success: false, error: 'ข้อมูลโพสต์ไม่ถูกต้อง' }, 400);
       const rankingId = crypto.randomUUID(); 
 
       // จำกัดขนาด field (payload + items) กัน abuse/bogus payload เขียนข้อมูลมโหฬาร
@@ -493,12 +498,6 @@ export async function onRequest({ request, env }) {
             return jsonResponse({ success: false, error: 'ชื่อไอเทมยาวเกินไป — จำกัด 100 ตัวอักษร' }, 400);
           }
         }
-      }
-      
-      if (payload.user_id) {
-        await db.prepare(
-          `INSERT OR IGNORE INTO profiles (id, username, avatar_url) VALUES (?1, ?2, ?3)`
-        ).bind(payload.user_id, payload.username || 'Unknown', payload.avatar_url || '').run();
       }
       
       const statements = [];
@@ -526,7 +525,7 @@ export async function onRequest({ request, env }) {
           `INSERT INTO templates (id, creator_id, title, description, category, hashtags, tiers) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
         ).bind(
           templateId,
-          payload.user_id || null,
+          actor.id,
           template.title.trim(),
           template.description || '',
           template.category || 'general',
@@ -551,7 +550,7 @@ export async function onRequest({ request, env }) {
         `INSERT INTO rankings (id, template_id, title, description, category, hashtags, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
       ).bind(
         rankingId, payload.template_id || templateId, payload.title || 'Untitled', payload.description || '', 
-        payload.category || 'general', payload.hashtags || '', payload.user_id
+        payload.category || 'general', payload.hashtags || '', actor.id
       ));
 
       if (payload.template_id || templateId) {
@@ -581,7 +580,7 @@ export async function onRequest({ request, env }) {
       for (let i = 0; i < statements.length; i += 100) {
         await db.batch(statements.slice(i, i + 100));
       }
-      return jsonResponse({ success: true, data: { id: rankingId, template_id: templateId, ...payload } }, 201);
+      return jsonResponse({ success: true, data: { id: rankingId, template_id: templateId, ...payload, user_id: actor.id } }, 201);
     }
 
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);

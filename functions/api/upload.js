@@ -1,3 +1,5 @@
+import { requireUser } from './_auth.js';
+
 export async function onRequest({ request, env }) {
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -11,17 +13,11 @@ export async function onRequest({ request, env }) {
       return jsonResponse({ error: 'R2 bucket binding (STORAGE) is not configured' }, 500);
     }
 
+    const user = await requireUser(request, env);
+    if (!user) return jsonResponse({ error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
+
     const formData = await request.formData();
     const file = formData.get('file');
-    const user_id = formData.get('user_id');
-
-    if (!user_id) {
-      return jsonResponse({ error: 'Unauthorized: missing user_id' }, 401);
-    }
-    const user = await env.tear_of_god_db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
-    if (!user) {
-      return jsonResponse({ error: 'Unauthorized: invalid user' }, 403);
-    }
 
     if (!file || !file.name) {
       return jsonResponse({ error: 'No file provided' }, 400);

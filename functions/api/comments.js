@@ -1,3 +1,5 @@
+import { requireUser } from './_auth.js';
+
 export async function onRequest({ request, env }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -25,7 +27,10 @@ export async function onRequest({ request, env }) {
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
     if (request.method === 'POST') {
-      const { ranking_id, user_id, content } = await request.json();
+      const actor = await requireUser(request, env);
+      if (!actor) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
+      const { ranking_id, content } = await request.json();
+      const user_id = actor.id;
 
       if (!ranking_id || !user_id || !content?.trim()) {
         return jsonResponse({ success: false, error: 'ข้อมูลไม่ครบถ้วน' }, 400);
@@ -35,8 +40,6 @@ export async function onRequest({ request, env }) {
       }
 
       // เช็คว่า user มีจริง และ ranking มีอยู่จริง (กัน insert กับ target ที่ไม่มีอยู่ → FK fail เงียบๆ)
-      const user = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
-      if (!user) return jsonResponse({ success: false, error: 'ผู้ใช้ไม่มีอยู่ในระบบ' }, 400);
       const ranking = await db.prepare('SELECT id FROM rankings WHERE id = ?').bind(ranking_id).first();
       if (!ranking) return jsonResponse({ success: false, error: 'โพสต์ไม่มีอยู่ในระบบ' }, 404);
 
