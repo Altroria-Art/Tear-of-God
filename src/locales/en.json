@@ -151,6 +151,8 @@
     "successPublish": "Published successfully!",
     "backToPoolTip": "Move items already placed in the table back into this pool",
     "resetAllTip": "Reset the whole board: clear items, title, hashtags and description",
+    "resetConfirmTitle": "Reset all?",
+    "resetConfirmMsg": "This will clear every item, the title, description and selected hashtags. Continue?",
     "assignTierTo": "Assign to tier"
   },
   "rank": {

@@ -15,14 +15,16 @@ const CLASSIC_TIER_HEX = {
   D: '#7fbfff',
 }
 
-// Glow stays keyed by the classic label on purpose: S/A/B/C/D keep their
-// exact current glow, custom-named tiers simply get no glow (same as today).
-export const TIER_GLOW = {
-  S: 'tier-glow-s',
-  A: 'tier-glow-a',
-  B: 'tier-glow-b',
-  C: 'tier-glow-c',
-  D: 'tier-glow-d',
+// Glow (the outer highlight on tier badges) is derived from the tier's own
+// resolved color at runtime so the highlight always matches the header color —
+// even after the user changes it in Create/Use-Template — instead of being
+// pinned to the class keyed by the label (the old `tier-glow-s`… classes).
+// `color-mix` keeps this working for any CSS color format the resolver can
+// return (hex, rgb/hsl, even a `var()` reference). Same 20px blur / ~60%
+// strength as the old CSS classes, but the hue now tracks the header.
+export function tierGlowStyle(bg) {
+  if (!bg) return ''
+  return `0 0 20px color-mix(in srgb, ${bg} 60%, transparent)`
 }
 
 export const TIER_LABEL_INK = '#1a1a1a'
@@ -53,18 +55,6 @@ const LEGACY_TIER_COLORS = {
   'bg-pink-400': '#f472b6',
   'bg-gray-400': '#9ca3af',
   'bg-gray-200': '#e5e7eb',
-}
-
-// Retained for any code that still wants a ready-made class string for the
-// five classic tiers (e.g. quick default-state styling). Do NOT index this
-// by an arbitrary/custom tier label — it only has S/A/B/C/D keys. New tier
-// rendering should go through resolveTierColor()/TierLabel instead.
-export const TIER_STYLES = {
-  S: 'bg-tier-s tier-glow-s text-[#1a1a1a] drop-shadow-sm',
-  A: 'bg-tier-a tier-glow-a text-[#1a1a1a] drop-shadow-sm',
-  B: 'bg-tier-b tier-glow-b text-[#1a1a1a] drop-shadow-sm',
-  C: 'bg-tier-c tier-glow-c text-[#1a1a1a] drop-shadow-sm',
-  D: 'bg-tier-d tier-glow-d text-[#1a1a1a] drop-shadow-sm',
 }
 
 // Position-based fallback for tiers that have neither a usable `color` nor a
