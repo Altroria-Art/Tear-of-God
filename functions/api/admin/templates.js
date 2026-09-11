@@ -91,7 +91,12 @@ export async function onRequest({ request, env, data: auth }) {
           db.prepare('DELETE FROM template_views WHERE template_id = ?').bind(target_id),
           db.prepare('DELETE FROM template_reactions WHERE template_id = ?').bind(target_id),
           db.prepare('DELETE FROM template_comments WHERE template_id = ?').bind(target_id),
+          db.prepare('DELETE FROM template_bookmarks WHERE template_id = ?').bind(target_id),
+          db.prepare('DELETE FROM reports WHERE template_id = ?').bind(target_id),
           db.prepare('DELETE FROM ranking_item_scores WHERE template_id = ?').bind(target_id),
+          db.prepare('DELETE FROM ranking_items WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(target_id),
+          db.prepare('DELETE FROM comments WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(target_id),
           db.prepare('DELETE FROM rankings WHERE template_id = ?').bind(target_id),
           db.prepare('DELETE FROM templates WHERE id = ?').bind(target_id),
         ]);
