@@ -242,12 +242,6 @@
     @apply bg-nav backdrop-blur-2xl border-b border-line-soft;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
   }
-  /* Enhanced Glowing Tiers */
-  .tier-glow-s { box-shadow: 0 0 20px rgba(255, 46, 147, 0.6); }
-  .tier-glow-a { box-shadow: 0 0 20px rgba(255, 139, 26, 0.6); }
-  .tier-glow-b { box-shadow: 0 0 20px rgba(255, 213, 0, 0.6); }
-  .tier-glow-c { box-shadow: 0 0 20px rgba(0, 224, 121, 0.6); }
-  .tier-glow-d { box-shadow: 0 0 20px rgba(0, 212, 255, 0.6); }
 }
 
 
