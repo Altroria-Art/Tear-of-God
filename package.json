@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "dev:full": "npm run build && wrangler pages dev dist",
-    "deploy": "npm run build && wrangler pages deploy dist --branch=master --project-name=tear-of-god",
+    "deploy": "npm run build && wrangler pages deploy dist --branch=main --project-name=tear-of-god",
     "db:clean": "node -e \"require('fs').rmSync('.wrangler/state/v3/d1',{recursive:true,force:true})\"",
     "db:schema": "wrangler d1 execute tear-of-god-db --local --file=./schema.sql",
     "db:reset": "npm run db:clean && npm run db:schema",
