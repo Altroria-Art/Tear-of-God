@@ -431,7 +431,7 @@ const CreateTierList = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans p-4 md:p-8 pb-28 relative">
+    <div className="min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
       
 {/* POPUP SETTINGS MODAL */}
       {activeSettingsTier && (
@@ -444,7 +444,7 @@ const CreateTierList = () => {
                 {palette.map(color => (
                   <button key={color} onClick={() => handlePickColor(color)}
                     style={{ backgroundColor: color }}
-                    className={`w-8 h-8 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${(pendingColor ?? tiers.find((tier) => tier.id === activeSettingsTier.id)?.color) === color ? 'border-white scale-110' : 'border-transparent'}`}                  />
+                    className={`w-8 h-8 rounded-full cursor-pointer border-2 transition-all duration-200 hover:scale-110 ${(pendingColor ?? tiers.find((tier) => tier.id === activeSettingsTier.id)?.color) === color ? 'border-white scale-110' : 'border-transparent'}`}                  />
                 ))}
               </div>
               <h3 className="text-center font-bold text-base mb-4">{t('create.editLabelText')}</h3>

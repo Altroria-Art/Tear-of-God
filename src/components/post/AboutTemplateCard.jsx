@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { EyeIcon, TemplateIcon } from '../ui/Icons'
 import { useUser } from '../../context/UserContext'
 import { useTranslation } from 'react-i18next'
+import BookmarkButton from '../template/BookmarkButton'
 
 export default function AboutTemplateCard({ name, description, itemCount, templateId }) {
   const navigate = useNavigate()
@@ -26,15 +27,23 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
       </p>
       {description && <p className="mt-2 text-sm text-muted">{description}</p>}
 
-      <button
-        type="button"
-        disabled={!templateId}
-        onClick={handleUseTemplate}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-surface-glass border border-line-soft py-2.5 font-bold text-ink-soft shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:-translate-y-0 disabled:hover:shadow-sm"
-      >
-        <TemplateIcon className="h-4 w-4" />
-        {t('template.use')}
-      </button>
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          type="button"
+          disabled={!templateId}
+          onClick={handleUseTemplate}
+          className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-surface-glass border border-line-soft py-2.5 font-bold text-ink-soft shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:-translate-y-0 disabled:hover:shadow-sm"
+        >
+          <TemplateIcon className="h-4 w-4" />
+          {t('template.use')}
+        </button>
+        {templateId && (
+          <BookmarkButton 
+            template={{ id: templateId }} 
+            className="shrink-0 flex items-center justify-center w-[46px] h-[46px] rounded-lg bg-surface-glass border border-line-soft text-ink-soft shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.97]" 
+          />
+        )}
+      </div>
 
       {templateId ? (
         <Link

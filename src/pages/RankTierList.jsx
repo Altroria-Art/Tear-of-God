@@ -266,7 +266,7 @@ const RankTierList = () => {
 
   return (
     <div className="min-h-screen font-sans text-ink flex flex-col">
-      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-5 sm:py-8 pb-28 flex-1 flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-8 sm:pb-32 flex-1 flex flex-col gap-6">
 
         {/* Top Info Card */}
         <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col gap-4">

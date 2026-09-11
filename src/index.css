@@ -184,7 +184,7 @@
 
   /* Ultra-smooth Theme Transitions (High Performance, 60+ FPS, Zero Jank) */
   html, body, div, header, nav, main, aside, section, article, p, span, h1, h2, h3, h4, h5, h6, a, button, input, textarea, select {
-    transition-property: background-color, border-color, color, fill, stroke;
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
     transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
     transition-duration: 250ms;
   }
@@ -267,8 +267,13 @@
 }
 
 @layer utilities {
-  .editor-toolbar { @apply fixed bottom-0 left-1/2 -translate-x-1/2 z-60 flex items-center gap-2 p-3 border border-line-soft rounded-t-2xl backdrop-blur-xl; width: min(calc(100% - 24px), 76rem); padding-bottom: max(12px, env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--color-canvas) 94%, transparent); box-shadow: var(--shadow-panel); }
-  .editor-icon-button { @apply min-w-10 min-h-11 grid place-items-center rounded-xl text-ink-soft hover:bg-tag disabled:opacity-30; }
+  .editor-toolbar {
+    @apply fixed bottom-0 left-0 w-full z-60 border-t border-line-soft backdrop-blur-xl py-3;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--color-canvas) 94%, transparent);
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.06);
+  }
+  .editor-icon-button { @apply min-w-10 min-h-11 grid place-items-center rounded-xl text-ink-soft hover:bg-surface-glass transition-colors disabled:opacity-30; }
 }
 :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-highlight); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }

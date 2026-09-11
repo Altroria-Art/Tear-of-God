@@ -7,7 +7,7 @@ import { useToast } from '../ui/Toast';
 import { saveTemplate } from '../../lib/api';
 import { loginPath } from '../../lib/navigation';
 
-export default function BookmarkButton({ template }) {
+export default function BookmarkButton({ template, className, children }) {
   const { t } = useTranslation();
   const { currentUser } = useUser();
   const toast = useToast();
@@ -31,5 +31,13 @@ export default function BookmarkButton({ template }) {
     window.dispatchEvent(new CustomEvent('tog-bookmark', { detail: { id: template.id, saved: result.saved } }));
     toast.success(t(result.saved ? 'discover.bookmarked' : 'discover.bookmarkRemoved'));
   };
-  return <button type="button" onClick={toggle} disabled={busy} aria-pressed={saved} aria-label={t(saved ? 'discover.unsave' : 'discover.save')} title={t(saved ? 'discover.unsave' : 'discover.save')} className="shrink-0 min-w-11 min-h-11 grid place-items-center rounded-lg border border-line-soft text-ink-soft hover:bg-tag disabled:opacity-50"><Bookmark size={18} fill={saved ? 'currentColor' : 'none'} /></button>;
+  
+  const btnClass = className || "shrink-0 min-w-11 min-h-11 grid place-items-center rounded-lg border border-line-soft text-ink-soft hover:bg-tag disabled:opacity-50";
+  
+  return (
+    <button type="button" onClick={toggle} disabled={busy} aria-pressed={saved} aria-label={t(saved ? 'discover.unsave' : 'discover.save')} title={t(saved ? 'discover.unsave' : 'discover.save')} className={btnClass}>
+      <Bookmark size={18} fill={saved ? 'currentColor' : 'none'} />
+      {children}
+    </button>
+  );
 }
