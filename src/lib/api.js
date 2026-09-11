@@ -254,6 +254,21 @@ export async function createRanking(rankingData) {  try {
   }
 }
 
+// 📍 ลบโพสต์/Ranking ของผู้ใช้ (Self-Delete)
+export async function deleteRanking(rankingId) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/rankings`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: rankingId })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("deleteRanking error:", error);
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
+  }
+}
+
 // ==========================================
 // ส่วนที่ 3: ระบบโหวต และ คอมเมนต์ (Interactive)
 // ==========================================

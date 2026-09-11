@@ -269,7 +269,6 @@
 @layer utilities {
   .editor-toolbar { @apply fixed bottom-0 left-1/2 -translate-x-1/2 z-60 flex items-center gap-2 p-3 border border-line-soft rounded-t-2xl backdrop-blur-xl; width: min(calc(100% - 24px), 76rem); padding-bottom: max(12px, env(safe-area-inset-bottom)); background: color-mix(in srgb, var(--color-canvas) 94%, transparent); box-shadow: var(--shadow-panel); }
   .editor-icon-button { @apply min-w-10 min-h-11 grid place-items-center rounded-xl text-ink-soft hover:bg-tag disabled:opacity-30; }
-  .readable-tier-item { @apply max-w-full min-h-9 px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-item-card text-item-card-text border border-line-soft break-words text-left; }
 }
 :where(a, button, input, textarea, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-highlight); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }

@@ -4,7 +4,7 @@ import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
 import React, { useEffect, useState } from 'react';
-import { Settings, X, ChevronLeft } from 'lucide-react';
+import { Settings, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';

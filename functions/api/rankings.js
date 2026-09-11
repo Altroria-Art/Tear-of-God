@@ -584,6 +584,28 @@ export async function onRequest({ request, env, data: auth }) {
       return jsonResponse({ success: true, data: { id: rankingId, template_id: templateId, ...payload } }, 201);
     }
 
+    // 🟢 [DELETE] ลบ Ranking ของตัวเอง
+    if (request.method === 'DELETE') {
+      const payload = await request.json();
+      const targetId = payload.id;
+      if (!targetId) return jsonResponse({ success: false, error: 'Ranking ID is required' }, 400);
+      const currentUserId = auth.user?.id;
+      if (!currentUserId) return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
+
+      const ranking = await db.prepare('SELECT user_id FROM rankings WHERE id = ?').bind(targetId).first();
+      if (!ranking) return jsonResponse({ success: false, error: 'Not found' }, 404);
+      if (ranking.user_id !== currentUserId) return jsonResponse({ success: false, error: 'Forbidden' }, 403);
+
+      await db.batch([
+        db.prepare('DELETE FROM ranking_items WHERE ranking_id = ?').bind(targetId),
+        db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(targetId),
+        db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(targetId),
+        db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id = ?').bind(targetId),
+        db.prepare('DELETE FROM rankings WHERE id = ?').bind(targetId),
+      ]);
+      return jsonResponse({ success: true });
+    }
+
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
   } catch (err) {
     return jsonResponse({ success: false, error: err.message }, 500);

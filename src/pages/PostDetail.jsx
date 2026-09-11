@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { Download, Flag, X } from 'lucide-react'
+import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Download, Flag, X, Trash2 } from 'lucide-react'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import AboutTemplateCard from '../components/post/AboutTemplateCard'
@@ -13,13 +13,14 @@ import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
 
 // 📍 นำเข้า createComment มาใช้งาน
-import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost } from '../lib/api'
+import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, deleteRanking } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
 import { formatDbDate } from '../lib/format'
 import { useTranslation } from 'react-i18next'
 
 export default function PostDetail() {
   const { postId } = useParams()
+  const navigate = useNavigate()
   const { currentUser } = useUser()
   const toast = useToast()
   const { t } = useTranslation()
@@ -218,6 +219,21 @@ export default function PostDetail() {
     }
   }
 
+  // 📍 ลบโพสต์ของตัวเอง
+  const [isDeleting, setIsDeleting] = useState(false);
+  const handleDeletePost = async () => {
+    if (!window.confirm(t('post.confirmDelete', 'Are you sure you want to delete this post?'))) return;
+    setIsDeleting(true);
+    const res = await deleteRanking(postId);
+    setIsDeleting(false);
+    if (res.success) {
+      toast.success(t('post.deleteSuccess', 'Post deleted successfully'));
+      navigate('/');
+    } else {
+      toast.error(t('post.deleteFailed', { msg: res.error || t('common.error') }));
+    }
+  }
+
   if (isLoading) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
@@ -264,17 +280,33 @@ export default function PostDetail() {
                 </div>
               </Link>
 
-              {/* 📍 บนขวา: รายงานโพสต์ */}
-              <button
-                type="button"
-                onClick={() => { setReportReason(''); setReportOpen(true) }}
-                className="flex shrink-0 items-center gap-2 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
-                aria-label={t('post.report')}
-                title={t('post.report')}
-              >
-                <Flag size={14} />
-                <span>{t('post.report')}</span>
-              </button>
+              {/* 📍 บนขวา: เมนูจัดการโพสต์ (รายงาน / ลบ) */}
+              <div className="flex shrink-0 items-center gap-2">
+                {currentUser?.id === authorId && (
+                  <button
+                    type="button"
+                    onClick={handleDeletePost}
+                    disabled={isDeleting}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97] disabled:opacity-50"
+                    aria-label={t('common.delete')}
+                    title={t('common.delete')}
+                  >
+                    <Trash2 size={14} />
+                    <span>{isDeleting ? t('common.deleting') : t('common.delete')}</span>
+                  </button>
+                )}
+                
+                <button
+                  type="button"
+                  onClick={() => { setReportReason(''); setReportOpen(true) }}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
+                  aria-label={t('post.report')}
+                  title={t('post.report')}
+                >
+                  <Flag size={14} />
+                  <span>{t('post.report')}</span>
+                </button>
+              </div>
             </div>
 
             <p className="mt-4 inline-block rounded-md bg-surface-glass border border-line-soft px-2 py-1 text-[10px] font-bold tracking-wider text-ink-soft uppercase">
