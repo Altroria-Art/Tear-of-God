@@ -1,5 +1,3 @@
-import { getSessionUser } from './_auth.js';
-
 // 📍 โปรไฟล์สาธารณะของผู้ใช้ — ใช้โดยหน้า /profile/:userId ตอนดูโปรไฟล์คนอื่น
 // ส่งกลับเฉพาะฟิลด์ที่ปลอดภัย (ไม่มี email/password เด็ดขาด)
 export async function onRequest({ request, env, data: auth }) {
@@ -14,11 +12,7 @@ export async function onRequest({ request, env, data: auth }) {
     const id = new URL(request.url).searchParams.get('id');
     if (!id) return jsonResponse({ success: false, error: 'Missing id' }, 400);
 
-
     const viewerId = auth.user?.id || null;
-
-    const viewerId = (await getSessionUser(request, env))?.id || null;
-
 
     const { results } = await db.prepare(`
       SELECT p.*,
