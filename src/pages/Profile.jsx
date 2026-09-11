@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Crown } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
@@ -283,12 +283,19 @@ export default function Profile() {
           {/* Left Sidebar: User Profile Info */}
           <div className="lg:col-span-1 space-y-6">
             <div className="glass p-6 rounded-2xl shadow-sm text-center text-ink">
-              <div className="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden bg-surface border-2 border-line">
-                {displayUser?.avatar_url ? (
-                  <img src={displayUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-brand">
-                    {displayUser?.username ? displayUser.username.charAt(0).toUpperCase() : 'U'}
+              <div className="w-24 h-24 mx-auto mb-4 relative">
+                <div className="w-full h-full rounded-full overflow-hidden bg-surface border-2 border-line">
+                  {displayUser?.avatar_url ? (
+                    <img src={displayUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-brand">
+                      {displayUser?.username ? displayUser.username.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                </div>
+                {displayUser?.role === 'admin' && (
+                  <div className="absolute -top-3 -right-2 text-amber-400 drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] rotate-[15deg]">
+                    <Crown size={32} fill="currentColor" strokeWidth={1.5} />
                   </div>
                 )}
               </div>
@@ -641,12 +648,19 @@ export default function Profile() {
                       navigate(`/profile/${user.id}`);
                     }}
                   >
-                    <div className="w-12 h-12 rounded-full bg-surface overflow-hidden flex-shrink-0">
-                      {user.avatar_url ? (
-                        <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-lg text-brand">
-                          {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-surface overflow-hidden">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center font-bold text-lg text-brand">
+                            {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                        )}
+                      </div>
+                      {user.role === 'admin' && (
+                        <div className="absolute -top-2 -right-1 text-amber-400 drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] rotate-[15deg]">
+                          <Crown size={16} fill="currentColor" strokeWidth={1.5} />
                         </div>
                       )}
                     </div>

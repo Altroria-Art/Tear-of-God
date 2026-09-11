@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, LogOut, Sun, Moon, Languages, Menu, X } from 'lucide-react';
+import { Search, User, LogOut, Sun, Moon, Languages, Menu, X, Crown } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
@@ -133,16 +133,23 @@ const Navbar = () => {
           {currentUser ? (
             <>
               {/* ปุ่มรูปโปรไฟล์ */}
-              <button 
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
-              >
-                {currentUser?.avatar_url ? (
-                  <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <User size={18} strokeWidth={2.5} />
+              <div className="relative">
+                <button 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
+                >
+                  {currentUser?.avatar_url ? (
+                    <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={18} strokeWidth={2.5} />
+                  )}
+                </button>
+                {currentUser.role === 'admin' && (
+                  <div className="absolute -top-3 -right-2.5 text-amber-400 drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] rotate-[15deg] pointer-events-none z-10">
+                    <Crown size={22} fill="currentColor" strokeWidth={1.5} />
+                  </div>
                 )}
-              </button>
+              </div>
 
               {/* Dropdown เมนู */}
               {isDropdownOpen && (
