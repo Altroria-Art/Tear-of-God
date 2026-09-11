@@ -3,10 +3,27 @@ import i18n from '../i18n';
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
 const API_URL = '';
 
+
 async function apiFetch(url, options = {}) {
   const response = await fetch(url, { credentials: 'same-origin', ...options });
   if (response.status === 401 && !url.startsWith('/api/auth')) window.dispatchEvent(new Event('tog-session-expired'));
   return response;
+
+function getSessionToken() {
+  try {
+    const saved = localStorage.getItem('tier_user');
+    return saved ? JSON.parse(saved)?.token || null : null;
+  } catch {
+    return null;
+  }
+}
+
+function apiFetch(url, options = {}) {
+  const headers = new Headers(options.headers);
+  const token = getSessionToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(url, { ...options, headers });
+
 }
 
 // 📍 In-flight GET dedup — ดู docs/row-read-optimization-plan.md §4/§8: จาก trace จริงพบว่า
@@ -16,7 +33,12 @@ async function apiFetch(url, options = {}) {
 const inFlightGET = new Map();
 
 async function getJSON(url) {
+
   if (inFlightGET.has(url)) return inFlightGET.get(url);
+=======
+  const key = `${url}::${getSessionToken() || ''}`;
+  if (inFlightGET.has(key)) return inFlightGET.get(key);
+
   const promise = apiFetch(url)
     .then(async (res) => {
       const ct = res.headers.get('content-type') || '';
@@ -30,8 +52,8 @@ async function getJSON(url) {
       }
       return json;
     })
-    .finally(() => inFlightGET.delete(url));
-  inFlightGET.set(url, promise);
+    .finally(() => inFlightGET.delete(key));
+  inFlightGET.set(key, promise);
   return promise;
 }
 
@@ -113,12 +135,12 @@ export async function syncGoogleUser(userData) {
 }
 
 // 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปเดตโปรไฟล์
-export async function updateProfile(userId, profileData) {
+export async function updateProfile(_userId, profileData) {
   try {
     const response = await apiFetch(`${API_URL}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'update_profile', user_id: userId, ...profileData })
+      body: JSON.stringify({ action: 'update_profile', ...profileData })
     });
     if (response.status === 401) window.dispatchEvent(new Event('tog-session-expired'));
     return await response.json();
@@ -128,10 +150,11 @@ export async function updateProfile(userId, profileData) {
 }
 
 // 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปโหลดไฟล์รูปภาพไป R2
-export async function uploadImage(file, userId) {
+export async function uploadImage(file, _userId) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+
     if (userId) formData.append('user_id', userId);
     
     const response = await apiFetch(`${API_URL}/api/upload`, {
@@ -153,7 +176,7 @@ export async function fetchRankings(categoryParam) {
     let url = `${API_URL}/api/rankings`;
     
     if (typeof categoryParam === 'object' && categoryParam !== null) {
-      const { category, hashtag, userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin } = categoryParam;
+      const { category, hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin } = categoryParam;
       const params = new URLSearchParams();
 
       if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
@@ -164,7 +187,6 @@ export async function fetchRankings(categoryParam) {
       if (pin) params.append('pin', pin);
       if (days != null) params.append('days', days);
       if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
-      if (userId) params.append('user_id', userId);
       // authorId = กรองเฉพาะโพสต์ของผู้ใช้คนนี้ (ใช้ตอนดูโปรไฟล์คนอื่น)
       if (authorId) params.append('author_id', authorId);
       if (templateId) params.append('template_id', templateId);
@@ -186,10 +208,9 @@ export async function fetchRankings(categoryParam) {
   }
 }
 
-export async function fetchRanking(postId, userId) {
+export async function fetchRanking(postId, _userId) {
   try {
-    let url = `${API_URL}/api/rankings?id=${postId}`;
-    if (userId) url += `&user_id=${userId}`;
+    const url = `${API_URL}/api/rankings?id=${postId}`;
     return await getJSON(url);
   } catch {
     return { data: null, error: i18n.t('errors.fetchFailed') };
@@ -197,9 +218,9 @@ export async function fetchRanking(postId, userId) {
 }
 
 // 📍 ดึงโปรไฟล์สาธารณะของผู้ใช้ (ใช้ตอนเปิดดูโปรไฟล์คนอื่นจากหน้าฟีด/โพสต์)
-export async function fetchUserProfile(userId, viewerId = null) {
+export async function fetchUserProfile(userId, _viewerId = null) {
   try {
-    const url = `${API_URL}/api/users?id=${encodeURIComponent(userId)}${viewerId ? `&viewer_id=${encodeURIComponent(viewerId)}` : ''}`;
+    const url = `${API_URL}/api/users?id=${encodeURIComponent(userId)}`;
     return await getJSON(url);
   } catch (error) {
     console.error("fetchUserProfile error:", error);
@@ -207,12 +228,12 @@ export async function fetchUserProfile(userId, viewerId = null) {
   }
 }
 
-export async function toggleFollow(followerId, followingId, isFollowing) {
+export async function toggleFollow(_followerId, followingId, isFollowing) {
   try {
     const response = await apiFetch(`${API_URL}/api/follows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: isFollowing ? 'unfollow' : 'follow', follower_id: followerId, following_id: followingId })
+      body: JSON.stringify({ action: isFollowing ? 'unfollow' : 'follow', following_id: followingId })
     });
     return await response.json();
   } catch {
@@ -258,12 +279,12 @@ export async function createRanking(rankingData) {  try {
 // ส่วนที่ 3: ระบบโหวต และ คอมเมนต์ (Interactive)
 // ==========================================
 
-export async function voteRanking({ rankingId, userId, voteType }) {
+export async function voteRanking({ rankingId, userId: _userId, voteType }) {
   try {
     const response = await apiFetch(`${API_URL}/api/votes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rankingId, userId, voteType })
+      body: JSON.stringify({ rankingId, voteType })
     });
     return await response.json();
   } catch {
@@ -279,12 +300,12 @@ export async function fetchComments(rankingId) {
   }
 }
 
-export async function createComment({ ranking_id, user_id, content }) {
+export async function createComment({ ranking_id, user_id: _userId, content }) {
   try {
     const response = await apiFetch(`${API_URL}/api/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ranking_id, user_id, content })
+      body: JSON.stringify({ ranking_id, content })
     });
     return await response.json();
   } catch {
@@ -363,12 +384,12 @@ export async function fetchHashtags({ page, limit, sort, q } = {}) {
 }
 
 // นับ view ให้ template — ฝั่ง API จะนับให้แค่ครั้งแรกที่ user คนนี้เปิดดู template นี้เท่านั้น
-export async function recordTemplateView(templateId, userId) {
+export async function recordTemplateView(templateId, _userId) {
   try {
     const response = await apiFetch(`${API_URL}/api/templates`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_id: templateId, user_id: userId })
+      body: JSON.stringify({ template_id: templateId })
     });
     const json = await response.json();
     // จำเลข views ล่าสุดที่เพิ่งได้จาก server ไว้ ให้ fetchTemplates() หน้า Discover เอาไป
@@ -387,12 +408,11 @@ export async function recordTemplateView(templateId, userId) {
 // ==========================================
 
 // อ่านสถานะโหวตของผู้ใช้ + จำนวนรวมของ Community Average นี้ (ใช้ตอนเปิดหน้าเพื่อตั้งค่าเริ่มต้นการ์ด)
-export async function fetchTemplateReaction({ templateId, userId } = {}) {
+export async function fetchTemplateReaction({ templateId, userId: _userId } = {}) {
   try {
     if (!templateId) return { success: true, userVote: null, likes: 0, dislikes: 0 };
     const params = new URLSearchParams();
     params.append('template_id', templateId);
-    if (userId) params.append('user_id', userId);
     return await getJSON(`${API_URL}/api/template-votes?${params.toString()}`);
   } catch (error) {
     console.error("fetchTemplateReaction error:", error);
@@ -401,12 +421,12 @@ export async function fetchTemplateReaction({ templateId, userId } = {}) {
 }
 
 // โหวต/สลับ/ยกเลิก like | dislike ให้ Community Average (voteType = 'like' | 'dislike' | null)
-export async function voteTemplate({ templateId, userId, voteType }) {
+export async function voteTemplate({ templateId, userId: _userId, voteType }) {
   try {
     const response = await apiFetch(`${API_URL}/api/template-votes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_id: templateId, user_id: userId, voteType })
+      body: JSON.stringify({ template_id: templateId, voteType })
     });
     return await response.json();
   } catch {
@@ -435,12 +455,12 @@ export async function fetchTemplateParticipants(templateId) {
 }
 
 // สร้างคอมเมนต์ใหม่ให้ Community Average — คืน object ใหม่พร้อม username/avatar_url
-export async function createTemplateComment({ template_id, user_id, content }) {
+export async function createTemplateComment({ template_id, user_id: _userId, content }) {
   try {
     const response = await apiFetch(`${API_URL}/api/template-comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_id, user_id, content })
+      body: JSON.stringify({ template_id, content })
     });
     return await response.json();
   } catch {
@@ -454,9 +474,9 @@ export async function createTemplateComment({ template_id, user_id, content }) {
 
 // 📍 ดึงสถิติภาพรวมของระบบ (ใช้กับหน้า Dashboard ของแอดมิน) — ส่ง user_id ของแอดมินไปด้วย
 // ฝั่ง backend จะตรวจ role จาก DB ทุกครั้ง (functions/api/admin/_check.js) ถ้าไม่ใช่ admin คืน 403
-export async function fetchAdminStats(userId) {
+export async function fetchAdminStats(_userId) {
   try {
-    const url = `${API_URL}/api/admin?action=stats&user_id=${encodeURIComponent(userId)}`;
+    const url = `${API_URL}/api/admin?action=stats`;
     return await getJSON(url);
   } catch (error) {
     console.error("fetchAdminStats error:", error);
@@ -465,10 +485,9 @@ export async function fetchAdminStats(userId) {
 }
 
 // 📍 ดึงรายชื่อผู้ใช้สำหรับหน้าแอดมิน (ค้นหา + แบ่งหน้า)
-export async function fetchAdminUsers({ userId, q, page, limit } = {}) {
+export async function fetchAdminUsers({ userId: _userId, q, page, limit } = {}) {
   try {
     const params = new URLSearchParams();
-    params.append('user_id', userId);
     if (q) params.append('q', q);
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
@@ -480,12 +499,12 @@ export async function fetchAdminUsers({ userId, q, page, limit } = {}) {
 }
 
 // 📍 ตั้งบทบาท admin/user ให้ผู้ใช้
-export async function setUserRole({ userId, targetId, role }) {
+export async function setUserRole({ userId: _userId, targetId, role }) {
   try {
     const response = await apiFetch(`${API_URL}/api/admin/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'set_role', user_id: userId, target_id: targetId, role })
+      body: JSON.stringify({ action: 'set_role', target_id: targetId, role })
     });
     return await response.json();
   } catch {
@@ -494,12 +513,12 @@ export async function setUserRole({ userId, targetId, role }) {
 }
 
 // 📍 ลบผู้ใช้
-export async function deleteAdminUser({ userId, targetId }) {
+export async function deleteAdminUser({ userId: _userId, targetId }) {
   try {
     const response = await apiFetch(`${API_URL}/api/admin/users`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
+      body: JSON.stringify({ action: 'delete', target_id: targetId })
     });
     return await response.json();
   } catch {
@@ -508,10 +527,9 @@ export async function deleteAdminUser({ userId, targetId }) {
 }
 
 // 📍 ดึงรายการ ranking สำหรับหน้าแอดมิน (ค้นหา + แบ่งหน้า)
-export async function fetchAdminRankings({ userId, q, page, limit } = {}) {
+export async function fetchAdminRankings({ userId: _userId, q, page, limit } = {}) {
   try {
     const params = new URLSearchParams();
-    params.append('user_id', userId);
     if (q) params.append('q', q);
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
@@ -523,12 +541,12 @@ export async function fetchAdminRankings({ userId, q, page, limit } = {}) {
 }
 
 // 📍 ลบ ranking/โพสต์
-export async function deleteAdminRanking({ userId, targetId }) {
+export async function deleteAdminRanking({ userId: _userId, targetId }) {
   try {
     const response = await apiFetch(`${API_URL}/api/admin/rankings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
+      body: JSON.stringify({ action: 'delete', target_id: targetId })
     });
     return await response.json();
   } catch {
@@ -537,10 +555,9 @@ export async function deleteAdminRanking({ userId, targetId }) {
 }
 
 // 📍 ดึงรายการ template สำหรับหน้าแอดมิน (ค้นหา + แบ่งหน้า)
-export async function fetchAdminTemplates({ userId, q, page, limit } = {}) {
+export async function fetchAdminTemplates({ userId: _userId, q, page, limit } = {}) {
   try {
     const params = new URLSearchParams();
-    params.append('user_id', userId);
     if (q) params.append('q', q);
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
@@ -552,12 +569,12 @@ export async function fetchAdminTemplates({ userId, q, page, limit } = {}) {
 }
 
 // 📍 ลบ template
-export async function deleteAdminTemplate({ userId, targetId }) {
+export async function deleteAdminTemplate({ userId: _userId, targetId }) {
   try {
     const response = await apiFetch(`${API_URL}/api/admin/templates`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
+      body: JSON.stringify({ action: 'delete', target_id: targetId })
     });
     return await response.json();
   } catch {
@@ -570,12 +587,12 @@ export async function deleteAdminTemplate({ userId, targetId }) {
 // ==========================================
 
 // 📍 รายงาน template (ผู้ใช้ทั่วไป) — แจ้งแอดมินว่าเทมเพลตไม่เหมาะสม
-export async function reportTemplate({ templateId, reporterId, reason }) {
+export async function reportTemplate({ templateId, reporterId: _reporterId, reason }) {
   try {
     const response = await apiFetch(`${API_URL}/api/report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_id: templateId, reporter_id: reporterId, reason })
+      body: JSON.stringify({ template_id: templateId, reason })
     });
     return { status: response.status, ...(await response.json()) };
   } catch {
@@ -584,12 +601,12 @@ export async function reportTemplate({ templateId, reporterId, reason }) {
 }
 
 // 📍 รายงานโพสต์ (ranking) — แจ้งแอดมินว่าโพสต์/ranking นั้นไม่เหมาะสม
-export async function reportPost({ postId, reporterId, reason }) {
+export async function reportPost({ postId, reporterId: _reporterId, reason }) {
   try {
     const response = await apiFetch(`${API_URL}/api/report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ranking_id: postId, reporter_id: reporterId, reason })
+      body: JSON.stringify({ ranking_id: postId, reason })
     });
     return { status: response.status, ...(await response.json()) };
   } catch {
@@ -598,10 +615,9 @@ export async function reportPost({ postId, reporterId, reason }) {
 }
 
 // 📍 ดึงรายการรายงานสำหรับหน้าแอดมิน (กรองตามสถานะ + แบ่งหน้า)
-export async function fetchAdminReports({ userId, status, page, limit } = {}) {
+export async function fetchAdminReports({ userId: _userId, status, page, limit } = {}) {
   try {
     const params = new URLSearchParams();
-    params.append('user_id', userId);
     if (status) params.append('status', status);
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
@@ -613,12 +629,12 @@ export async function fetchAdminReports({ userId, status, page, limit } = {}) {
 }
 
 // 📍 ตั้งสถานะรายงาน (resolved/dismissed/pending)
-export async function setReportStatus({ userId, targetId, status }) {
+export async function setReportStatus({ userId: _userId, targetId, status }) {
   try {
     const response = await apiFetch(`${API_URL}/api/admin/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'set_status', user_id: userId, target_id: targetId, status })
+      body: JSON.stringify({ action: 'set_status', target_id: targetId, status })
     });
     return await response.json();
   } catch {
@@ -627,12 +643,12 @@ export async function setReportStatus({ userId, targetId, status }) {
 }
 
 // 📍 ลบรายงาน
-export async function deleteAdminReport({ userId, targetId }) {
+export async function deleteAdminReport({ userId: _userId, targetId }) {
   try {
     const response = await apiFetch(`${API_URL}/api/admin/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', user_id: userId, target_id: targetId })
+      body: JSON.stringify({ action: 'delete', target_id: targetId })
     });
     return await response.json();
   } catch {

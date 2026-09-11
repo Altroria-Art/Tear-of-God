@@ -19,10 +19,13 @@ export const signInWithGoogle = async () => {
     return {
       data: {
         idToken: await user.getIdToken(),
+
         id: user.uid,
         username: user.displayName,
         email: user.email,
         avatar_url: user.photoURL
+        username: user.displayName
+
       },
       error: null
     };

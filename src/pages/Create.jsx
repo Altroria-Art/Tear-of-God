@@ -12,14 +12,15 @@ import { markLastPublished } from '../lib/lastPublished';
 import useDragAutoScroll from '../lib/useDragAutoScroll';
 import { useToast } from '../components/ui/Toast';
 import TierLabel from '../components/tier/TierLabel';
+import Modal from '../components/ui/Modal';
 import { useTranslation, Trans } from 'react-i18next';
 
 const DEFAULT_TIERS = [
-  { id: 't1', label: 'S', color: '#ff7f7f' },
-  { id: 't2', label: 'A', color: '#ffbf7f' },
-  { id: 't3', label: 'B', color: '#ffff7f' },
-  { id: 't4', label: 'C', color: '#7fff7f' },
-  { id: 't5', label: 'D', color: '#7fbfff' },
+  { id: 't1', label: 'S', color: '#f87171' },
+  { id: 't2', label: 'A', color: '#fdba74' },
+  { id: 't3', label: 'B', color: '#fcd34d' },
+  { id: 't4', label: 'C', color: '#4ade80' },
+  { id: 't5', label: 'D', color: '#60a5fa' },
 ];
 
 const DEFAULT_HASHTAGS = ['#Gaming', '#Anime', '#Movie', '#Food', '#Sports', '#Music'];
@@ -85,11 +86,19 @@ const CreateTierList = () => {
 
   const [activeSettingsTier, setActiveSettingsTier] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // 📍 สีที่ยังไม่กด Save — preview เท่านั้น, ยืนยันที่ปุ่ม Save ถึงจะ commit
+  const [pendingColor, setPendingColor] = useState(null);
+  const closeSettings = () => {
+    setActiveSettingsTier(null);
+    setPendingColor(null);
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        setActiveSettingsTier(null);
+        closeSettings();
         setSelectedItem(null);
       }
     };
@@ -124,12 +133,15 @@ const CreateTierList = () => {
     });
   }, [title, description, tiers, items, selectedHashtags, hashtags]);
 
-  const availableColors = [
+  const BASE_COLORS = [
     '#f87171', '#fdba74', '#fcd34d', '#fde047',
     '#a3e635', '#4ade80', '#34d399', '#2dd4bf',
     '#22d3ee', '#60a5fa', '#818cf8', '#c084fc',
     '#e879f9', '#f472b6', '#9ca3af', '#e5e7eb'
   ];
+
+  // 📍 palette รวม BASE_COLORS + ทุกสีที่แถวใช้อยู่ (จาก draft/เทมเพลต) — ทุกสีที่แสดงต้องมี swatch ตรงตัวเสมอ
+  const palette = [...BASE_COLORS, ...tiers.map((tier) => tier.color)].filter((color, i, arr) => arr.findIndex((c) => c.toLowerCase() === color.toLowerCase()) === i);
 
   const handleGenerateCards = () => {
     if (!quickAddText.trim()) return;
@@ -145,15 +157,49 @@ const CreateTierList = () => {
   const handleDeleteItem = (idToRemove) => setItems(items.filter(item => item.id !== idToRemove));
   const updateTierData = (id, field, value) => setTiers(tiers.map(tier => tier.id === id ? { ...tier, [field]: value } : tier));
 
-  // 📍 ล้างทั้งกระดาน: items, ชื่อ, คำอธิบาย, แฮชแท็กที่เลือก, ข้อความ Quick Add
-  const handleResetAll = () => {
-    if (!window.confirm(t('create.confirmReset', 'Are you sure you want to reset everything?'))) return;
+  // 📍 Preview สีที่ยังไม่กด Save — ถ้าไม่มี pending ใช้ tiers เดิม
+  const effectiveTiers = (() => {
+    if (!activeSettingsTier || !pendingColor) return tiers;
+    const targetId = activeSettingsTier.id;
+    const target = tiers.find((tier) => tier.id === targetId);
+    if (!target || pendingColor.toLowerCase() === target.color.toLowerCase()) return tiers;
+    // มีแถวอื่นถือสีนี้อยู่ → preview แบบสลับสีกัน
+    const owner = tiers.find((tier) => tier.id !== targetId && tier.color.toLowerCase() === pendingColor.toLowerCase());
+    if (!owner) return tiers.map((tier) => tier.id === targetId ? { ...tier, color: pendingColor } : tier);
+    return tiers.map((tier) => {
+      if (tier.id === targetId) return { ...tier, color: pendingColor };
+      if (tier.id === owner.id) return { ...tier, color: target.color };
+      return tier;
+    });
+  })();
+
+  // 📍 เปิด settings — เริ่มด้วย preview ว่าง (ยังไม่เปลี่ยนสีจริง)
+  const openTierSettings = (tier) => {
+    setActiveSettingsTier(tier);
+    setPendingColor(null);
+  };
+
+  // 📍 กดเลือกสีในตัวเลือก → แค่ stage ไว้ preview ยังไม่ commit
+  const handlePickColor = (color) => setPendingColor(color);
+
+  // 📍 กด Save → commit สีที่ staged ลง tiers จริง แล้วปิด
+  const saveTierSettings = () => {
+    if (activeSettingsTier) setTiers(effectiveTiers);
+    closeSettings();
+  };
+
+  // 📍 เปิด dialog ยืนยันก่อนล้างทั้งกระดาน (แทน window.confirm ระบบ)
+  const handleResetAll = () => setShowResetConfirm(true);
+
+  // 📍 ล้างทั้งกระดานจริง: items, ชื่อ, คำอธิบาย, แฮชแท็กที่เลือก, ข้อความ Quick Add
+  const performResetAll = () => {
     setItems([]);
     setTitle('');
     setDescription('');
     setSelectedHashtags([]);
     setQuickAddText('');
     setTiers(DEFAULT_TIERS);
+    setShowResetConfirm(false);
   };
 
   // 📍 เด้ง item ที่จัดไว้ในตารางกลับลง Unranked Pool (ทุก tierId → null)
@@ -271,9 +317,51 @@ const CreateTierList = () => {
 
   const renderItemCard = item => {
     const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
+
     return <EditorItem key={item.id} item={item} position={mates.findIndex(i => i.id === item.id)} count={mates.length}
       onMove={() => setSelectedItem(item)} onShift={direction => shiftItem(item.id, direction)} onDelete={() => handleDeleteItem(item.id)}
       onDragStart={e => handleDragStart(e, item.id)} onDragEnd={endDrag} />;
+
+    const pos = mates.findIndex(i => i.id === item.id);
+
+    return (
+      <div
+        key={item.id}
+        data-item-id={item.id}
+        draggable
+        onDragStart={(e) => handleDragStart(e, item.id)}
+
+        onClick={() => item.tierId === null && setSelectedItem(item)}
+        className={`bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center px-2 pt-2 pb-4 text-center text-[10px] md:text-xs cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl hover:border-brand-accent transition-all z-10 ${item.tierId === null ? 'cursor-pointer' : ''}`}
+
+        onDragEnd={endDrag}
+
+      >
+        <span className="break-words line-clamp-3 leading-tight pointer-events-none drop-shadow-sm">{item.content}</span>
+
+        {/* 📍 [ใหม่]: ปุ่มย้ายซ้าย/ขวา — สลับลำดับภายใน tier เดียวกัน */}
+        <button
+          type="button"
+          onClick={() => shiftItem(item.id, -1)}
+          disabled={pos === 0}
+          aria-label={t('create.moveLeft')}
+          className="absolute bottom-1 left-1 rounded p-1 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
+        >
+          <ChevronLeft size={14} strokeWidth={3} />
+        </button>
+        <button
+          type="button"
+          onClick={() => shiftItem(item.id, 1)}
+          disabled={pos === mates.length - 1}
+          aria-label={t('create.moveRight')}
+          className="absolute bottom-1 right-1 rounded p-1 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
+        >
+          <ChevronRight size={14} strokeWidth={3} />
+        </button>
+
+        <button onClick={() => handleDeleteItem(item.id)} className="absolute -top-2 -right-2 bg-surface text-muted hover:text-status-error hover:scale-110 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-all z-20"><X size={12} strokeWidth={3} /></button>
+      </div>
+    );
   };
 
   const handlePublish = async () => {
@@ -345,32 +433,83 @@ const CreateTierList = () => {
   return (
     <div className="min-h-screen font-sans p-4 md:p-8 pb-28 relative">
       
-      {/* POPUP SETTINGS MODAL */}
+{/* POPUP SETTINGS MODAL */}
       {activeSettingsTier && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setActiveSettingsTier(null); }}>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) closeSettings(); }}>
           <div className="bg-surface border border-line text-ink w-full max-w-md rounded-lg shadow-2xl relative">
-            <button onClick={() => setActiveSettingsTier(null)} className="absolute top-4 right-4 text-muted hover:text-ink transition-colors"><X size={20} /></button>
+            <button onClick={closeSettings} className="absolute top-4 right-4 text-muted hover:text-ink transition-colors"><X size={20} /></button>
             <div className="p-8">
               <h3 className="text-center font-bold text-base mb-6">{t('create.chooseLabelBg')}</h3>
               <div className="flex flex-wrap justify-center gap-2.5 mb-8 px-4">
-                {availableColors.map(color => (
-                  <button key={color} onClick={() => updateTierData(activeSettingsTier.id, 'color', color)}
+                {palette.map(color => (
+                  <button key={color} onClick={() => handlePickColor(color)}
                     style={{ backgroundColor: color }}
-                    className={`w-8 h-8 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${tiers.find((tier) => tier.id === activeSettingsTier.id)?.color === color ? 'border-white scale-110' : 'border-transparent'}`}
-                  />
+                    className={`w-8 h-8 rounded-full cursor-pointer border-2 transition-transform hover:scale-110 ${(pendingColor ?? tiers.find((tier) => tier.id === activeSettingsTier.id)?.color) === color ? 'border-white scale-110' : 'border-transparent'}`}                  />
                 ))}
               </div>
               <h3 className="text-center font-bold text-base mb-4">{t('create.editLabelText')}</h3>
               <input type="text" value={tiers.find((tier) => tier.id === activeSettingsTier.id)?.label || ''} onChange={(e) => updateTierData(activeSettingsTier.id, 'label', e.target.value)} className="w-full bg-canvas text-ink p-3.5 rounded-md outline-none focus:ring-2 focus:ring-brand mb-6 font-medium shadow-inner" />
               <div className="flex justify-center">
-                <button onClick={() => setActiveSettingsTier(null)} className="bg-brand-accent hover:bg-surface text-canvas py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm">{t('common.save')}</button>
+                <button onClick={saveTierSettings} className="bg-brand-accent hover:bg-surface text-canvas py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm">{t('common.save')}</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
+
       <AssignTierModal item={selectedItem} tiers={tiers} onClose={() => setSelectedItem(null)} onAssign={tierId => { setItems(prev => repositionItem(prev, selectedItem.id, tierId, 9999)); setSelectedItem(null); }} />
+
+      {/* 📍 Reset All — dialog ยืนยันแบบ UI (แทน window.confirm) */}
+      <Modal
+        open={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        title={t('create.resetConfirmTitle')}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setShowResetConfirm(false)}
+              className="rounded-lg bg-surface-glass border border-line-soft px-4 py-2 text-sm font-semibold text-ink-soft transition-colors hover:bg-surface hover:text-ink"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={performResetAll}
+              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-400"
+            >
+              {t('create.resetAll')}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-ink-soft leading-relaxed">{t('create.resetConfirmMsg')}</p>
+      </Modal>
+
+      {selectedItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }}>
+          <div className="bg-surface border border-line rounded-xl p-6 max-w-xs w-full shadow-2xl relative">
+            <h3 className="font-bold text-center mb-4 text-ink">{t('create.assignTier', 'Assign to tier')}</h3>
+            <div className="flex flex-col gap-2">
+              {tiers.map(tier => (
+                <button
+                  key={tier.id}
+                  onClick={() => {
+                    setItems(prev => repositionItem(prev, selectedItem.id, tier.id, 9999));
+                    setSelectedItem(null);
+                  }}
+                  className="py-2 px-4 rounded-lg font-bold border border-line-soft hover:brightness-110 transition-all text-center text-tag shadow-sm"
+                  style={{ backgroundColor: tier.color }}
+                >
+                  {tier.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
@@ -480,18 +619,28 @@ const CreateTierList = () => {
           <div className="glass p-4 sm:p-6 rounded-2xl ">
 
             <div className="flex flex-col gap-3">
-              {tiers.map((tier) => (
+              {effectiveTiers.map((tier) => (
                 <div key={tier.id} className="flex min-h-[90px] bg-tag border border-line-soft rounded-2xl overflow-hidden">
                   <TierLabel
                     label={tier.label}
                     color={tier.color}
+
                     className={`w-14 sm:w-20 p-1.5 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
+
+                    style={{ boxShadow: 'inset -2px 0 10px rgba(0,0,0,0.2)' }}
+                    className={`w-24 p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
+
                   />
                   <div className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center bg-transparent" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
                     {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
                   </div>
+
                   <div className="w-9 sm:w-12 bg-tag flex items-center justify-center border-l border-line-soft/50 ">
                     <button onClick={() => setActiveSettingsTier(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
+
+                  <div className="w-14 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
+                    <button onClick={() => openTierSettings(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
+
                   </div>
                 </div>
               ))}

@@ -15,11 +15,11 @@ import TierLabel from '../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
 
 const DEFAULT_TIERS = [
-  { id: 't1', label: 'S', color: '#ff7f7f' },
-  { id: 't2', label: 'A', color: '#ffbf7f' },
-  { id: 't3', label: 'B', color: '#ffff7f' },
-  { id: 't4', label: 'C', color: '#7fff7f' },
-  { id: 't5', label: 'D', color: '#7fbfff' },
+  { id: 't1', label: 'S', color: '#f87171' },
+  { id: 't2', label: 'A', color: '#fdba74' },
+  { id: 't3', label: 'B', color: '#fcd34d' },
+  { id: 't4', label: 'C', color: '#4ade80' },
+  { id: 't5', label: 'D', color: '#60a5fa' },
 ];
 
 

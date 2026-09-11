@@ -1,4 +1,10 @@
+
 export async function onRequest({ request, env, data: auth }) {
+
+import { requireUser } from './_auth.js';
+
+export async function onRequest({ request, env }) {
+
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
   if (request.method !== 'POST') {
@@ -11,8 +17,12 @@ export async function onRequest({ request, env, data: auth }) {
       return jsonResponse({ error: 'R2 bucket binding (STORAGE) is not configured' }, 500);
     }
 
+    const user = await requireUser(request, env);
+    if (!user) return jsonResponse({ error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
+
     const formData = await request.formData();
     const file = formData.get('file');
+
     const user_id = auth.user.id;
 
     if (!user_id) {
@@ -22,6 +32,8 @@ export async function onRequest({ request, env, data: auth }) {
     if (!user) {
       return jsonResponse({ error: 'Unauthorized: invalid user' }, 403);
     }
+
+
 
     if (!file || !file.name) {
       return jsonResponse({ error: 'No file provided' }, 400);

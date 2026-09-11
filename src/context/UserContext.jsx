@@ -17,17 +17,29 @@ export function UserProvider({ children }) {
 
   const refresh = useCallback(async () => {
     try {
+
       const response = await fetch('/api/auth', { credentials: 'same-origin', cache: 'no-store' });
       if (!response.ok) throw new Error('Session unavailable');
       const result = await response.json();
       setCurrentUser(result.data || null);
       setSessionError(false);
+
+      const user = JSON.parse(saved);
+      // Legacy localStorage entries only contained a public user ID. Keeping
+      // one would make the UI look signed in while every protected request is
+      // correctly rejected by the server.
+      if (!user?.token) {
+        localStorage.removeItem('tier_user');
+        return null;
+      }
+      return user;
     } catch {
       setSessionError(true);
     } finally {
       setIsRestoring(false);
     }
   }, []);
+
 
   useEffect(() => {
     try { localStorage.removeItem('tier_user'); } catch { /* Legacy storage is optional. */ }
@@ -47,6 +59,20 @@ export function UserProvider({ children }) {
     setSessionError(false);
     notifyTabs();
   }, []);
+
+  const logout = useCallback(() => {
+    const token = currentUser?.token;
+    setCurrentUser(null);
+    localStorage.removeItem('tier_user');
+    if (token) {
+      void fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'logout' }),
+      });
+    }
+  }, [currentUser]);
+
 
   const logout = useCallback(async () => {
     try {
