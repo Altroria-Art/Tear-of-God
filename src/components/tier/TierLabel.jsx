@@ -1,4 +1,8 @@
+
+import { resolveTierColor, TIER_LABEL_INK } from '../../lib/tiers'
+
 import { resolveTierColor, tierGlowStyle, TIER_LABEL_INK } from '../../lib/tiers'
+
 
 // Shared tier badge. Color always comes from the tier's own `color` field
 // (resolved via resolveTierColor), never from its display label — a tier
@@ -20,19 +24,27 @@ import { resolveTierColor, tierGlowStyle, TIER_LABEL_INK } from '../../lib/tiers
 // own stylesheet order.
 export default function TierLabel({ label, color, index, className = '', fallbackClassName = 'bg-surface text-ink', style = {} }) {
   const bg = resolveTierColor(color, label, index)
+
+  const base = 'flex shrink-0 items-center justify-center break-words text-center leading-tight'
+
   const glow = tierGlowStyle(bg)
   const { boxShadow: callerShadow, ...restStyle } = style
   const base = 'flex shrink-0 items-center justify-center break-words text-center leading-tight drop-shadow-sm'
 
+
   if (bg) {
     return (
       <span
+
+        style={{ backgroundColor: bg, color: TIER_LABEL_INK }}
+
         style={{
           backgroundColor: bg,
           color: TIER_LABEL_INK,
           boxShadow: [callerShadow, glow].filter(Boolean).join(', ') || undefined,
           ...restStyle,
         }}
+
         className={`${base} ${className}`}
       >
         {label}

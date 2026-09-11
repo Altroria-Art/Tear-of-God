@@ -1,4 +1,4 @@
-import TierLabel from '../components/tier/TierLabel';
+import TierRow from '../components/feed/TierRow';
 import { buildTierRows } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -191,40 +191,8 @@ function HomeTierCard({ post }) {
         {post.title}
       </h2>
 
-      {/* Tier List Preview Blocks */}
-      <div className="space-y-2 mb-6">
-        {tierRows.map((row) => (
-          <div key={row.tier} className="flex bg-tag rounded-xl border border-line-soft overflow-hidden min-h-[52px] shadow-sm items-stretch">
-            <TierLabel label={row.tier} color={row.color} index={row.index} className="w-14 font-black text-lg" />
-            <div className="p-2.5 flex gap-2 overflow-hidden items-center flex-grow flex-wrap min-w-0">
-              {row.items.length > 0 ? (
-                row.items.map((ri, idx) => (
-                  <div
-                    key={ri.id ?? idx}
-                    className="group/item relative flex h-18 w-18 sm:h-20 sm:w-20 shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft/80 font-bold shadow-xs hover:shadow-md hover:-translate-y-0.5 rounded-xl p-2 text-center text-xs transition-all duration-200 select-none overflow-hidden"
-                    title={ri.item?.name || ri.item_id}
-                  >
-                    {ri.item?.image_url ? (
-                      <img
-                        src={ri.item.image_url}
-                        alt={ri.item?.name || 'item'}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <span className="w-full line-clamp-3 text-[11px] font-semibold leading-tight">
-                        {ri.item?.name || ri.item_id || t('common.unknownItem')}
-                      </span>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="flex items-center px-3 py-1 text-xs text-muted/50 italic font-medium select-none">
-                  {t('feed.emptyTier')}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+      <div className="space-y-1.5 mb-4">
+        {tierRows.map(row => <TierRow key={row.tier} tier={row.tier} color={row.color} index={row.index} items={row.items.map(ri => ({ id: ri.id, name: ri.item?.name || ri.item_id, image_url: ri.item?.image_url }))} />)}
       </div>
 
       {/* Action Bar */}
@@ -477,7 +445,7 @@ export default function HomeFeed() {
             </p>
           )}
 
-          {!isLoading && displayData.length === 0 && (
+          {!isLoading && !kindredLocked && displayData.length === 0 && (
             <div className="text-center py-16 bg-surface rounded-2xl border border-line-soft shadow-sm">
               <p className="text-muted font-medium">{t('feed.empty')}</p>
               <button onClick={() => navigate('/create')} className="mt-4 text-sm font-bold text-brand hover:underline">

@@ -50,7 +50,7 @@ function seededShuffle(list, seed) {
   return arr;
 }
 
-export async function onRequest({ request, env }) {
+export async function onRequest({ request, env, data: auth }) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const db = env.tear_of_god_db;
@@ -63,8 +63,13 @@ export async function onRequest({ request, env }) {
     // 🟢 [GET] ดึงข้อมูล
     if (request.method === 'GET') {
       if (id) {
+
+        // user_id ที่ส่งมาคือ "คนที่กำลังดู" (ไม่ใช่เจ้าของโพสต์) ใช้เพื่อรู้ว่าคนนี้เคยโหวตไว้ยังไง
+        const viewerId = auth.user?.id || null;
+
         // Viewer identity is derived from the bearer session, not a query string.
         const viewerId = (await getSessionUser(request, env))?.id || null;
+
         const { results: rankings } = await db.prepare(`
           SELECT r.*, p.username, p.avatar_url,
             ${viewerId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
@@ -123,6 +128,7 @@ export async function onRequest({ request, env }) {
       else {
         const category = url.searchParams.get('category');
         const hashtag = url.searchParams.get('hashtag');
+        const currentUserId = auth.user?.id || null;
         const currentUserId = (await getSessionUser(request, env))?.id || null;
         // author_id = "กรองเฉพาะโพสต์ของคนนี้" (หน้าโปรไฟล์) — ต่างจาก user_id ที่แปลว่า "คนกำลังดู"
         const authorId = url.searchParams.get('author_id');
@@ -479,10 +485,18 @@ export async function onRequest({ request, env }) {
 
     // 🟢 [POST] สร้าง Ranking ใหม่
     if (request.method === 'POST') {
+
+      const { payload, items, template } = await request.json();
+      if (!payload || typeof payload !== 'object' || !Array.isArray(items) || !items.length) {
+        return jsonResponse({ success: false, error: 'Ranking and ranked items are required' }, 400);
+      }
+      payload.user_id = auth.user.id;
+
       const actor = await requireUser(request, env);
       if (!actor) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
       const { payload = {}, items, template } = await request.json();
       if (!payload || typeof payload !== 'object') return jsonResponse({ success: false, error: 'ข้อมูลโพสต์ไม่ถูกต้อง' }, 400);
+
       const rankingId = crypto.randomUUID(); 
 
       // จำกัดขนาด field (payload + items) กัน abuse/bogus payload เขียนข้อมูลมโหฬาร
@@ -498,8 +512,8 @@ export async function onRequest({ request, env }) {
             return jsonResponse({ success: false, error: 'ชื่อไอเทมยาวเกินไป — จำกัด 100 ตัวอักษร' }, 400);
           }
         }
-      }
-      
+      }      
+
       const statements = [];
       let templateId = null;
 

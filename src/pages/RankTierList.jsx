@@ -1,5 +1,10 @@
+import useHistoryState from '../lib/useHistoryState';
+import EditorItem from '../components/tier/EditorItem';
+import AssignTierModal from '../components/tier/AssignTierModal';
+import EditorToolbar from '../components/tier/EditorToolbar';
+import { loginPath } from '../lib/navigation';
 import React, { useState, useEffect } from 'react';
-import { Share2, Shuffle, ArrowDownAZ, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Share2, Shuffle, ArrowDownAZ } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
@@ -17,18 +22,6 @@ const DEFAULT_TIERS = [
   { id: 't5', label: 'D', color: '#60a5fa' },
 ];
 
-const DEFAULT_ITEMS = [
-  { id: '1', content: 'The Witcher 3', tierId: null },
-  { id: '2', content: 'Skyrim', tierId: null },
-  { id: '3', content: 'Elden Ring', tierId: null },
-  { id: '4', content: "Baldur's Gate 3", tierId: null },
-  { id: '5', content: 'Mass Effect 2', tierId: null },
-  { id: '6', content: 'Persona 5', tierId: null },
-  { id: '7', content: 'Disco Elysium', tierId: null },
-  { id: '8', content: 'Dragon Age', tierId: null },
-  { id: '9', content: 'Cyberpunk 2077', tierId: null },
-  { id: '10', content: 'Final Fantasy VII Remake', tierId: null },
-];
 
 const STANDARD_HASHTAGS = ['#Gaming', '#Anime', '#Movie', '#Food', '#Sports', '#Music'];
 
@@ -41,10 +34,15 @@ const RankTierList = () => {
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
 
-  const [title, setTitle] = useState('My Ultimate RPG Rankings');
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tiers, setTiers] = useState(DEFAULT_TIERS);
-  const [items, setItems] = useState(DEFAULT_ITEMS);
+  const [items, setItems, itemHistory] = useHistoryState([]);
+  const resetItems = itemHistory.reset;
+  const [loadedKey, setLoadedKey] = useState(null);
+  const [templateError, setTemplateError] = useState('');
+  const [draftStatus, setDraftStatus] = useState('');
+  const draftKey = 'tog-rank-draft:' + (currentUser?.id || 'guest') + ':' + templateId;
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateId);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -55,52 +53,46 @@ const RankTierList = () => {
   const [suggestedTags, setSuggestedTags] = useState(STANDARD_HASHTAGS);
   const [tagInput, setTagInput] = useState('');
 
-  // 📍 รับข้อมูลจาก template (ถ้ามาจากปุ่ม Use บนหน้า Discover) — ไอเทมทั้งหมดลงกอง Unranked Pool เสมอ
   useEffect(() => {
-    if (!templateId) return;
-
-    async function loadTemplate() {
-      setIsLoadingTemplate(true);
+    if (!templateId) { navigate('/discover', { replace: true }); return; }
+    let cancelled = false;
+    setLoadedKey(null);
+    setIsLoadingTemplate(true);
+    setTemplateError('');
+    async function load() {
       const { data, error } = await fetchTemplate(templateId, { light: true });
-
-      if (data) {
-        setTitle(data.title || 'Untitled Ranking');
-        setDescription(data.description || '');
-
-        const templateTiers = Array.isArray(data.tiers) && data.tiers.length > 0
-          ? data.tiers.map((t, idx) => ({ id: `tier-${idx}`, label: t.label, color: t.color }))
-          : DEFAULT_TIERS;
-        setTiers(templateTiers);
-
-        const templateItems = (data.template_items || []).map((ti, idx) => ({
-          id: `ti-${idx}-${Date.now()}`,
-          item_id: ti.item_id || ti.item?.name || `custom-${idx}`,
-          content: ti.item?.name || ti.item_id,
-          image_url: ti.item?.image_url || null,
-          tierId: null
-        }));
-        setItems(templateItems);
-
-        // 📍 hashtag ของ template ต้นทาง = ตัวที่เจ้าของ template เลือกไว้ (templates.hashtags)
-        // — นำมาเป็น selectedHashtags เริ่มต้น (inherit) พร้อมเก็บไว้ใน suggested ด้วย เพื่อให้
-        // ผู้ใช้เพิ่ม/ลบได้เหมือนเดิม และไม่มีทางได้รับแท็กที่คนอื่นเพิ่มไว้บน ranking ที่เกิดจาก
-        // template นี้ (ดู docs/template-hashtag-inheritance-plan.md)
-        const fromTemplate = (data.hashtags || '')
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean)
-          .map((tag) => (tag.startsWith('#') ? tag : `#${tag}`));
-        const fromTemplateUnique = [...new Set(fromTemplate)];
-        setSelectedHashtags(fromTemplateUnique);
-        setSuggestedTags([...new Set([...fromTemplateUnique, ...STANDARD_HASHTAGS])]);
-      } else {
-        console.error('Failed to load template:', error);
-      }
+      if (cancelled) return;
+      if (!data) { setTemplateError(error || t('errors.templateFetchFailed')); setIsLoadingTemplate(false); return; }
+      const definitions = data.tiers?.length ? data.tiers.map((tier, index) => ({ ...tier, id: 'tier-' + index })) : DEFAULT_TIERS;
+      const pool = (data.template_items || []).map((ti, index) => ({ id: 'item-' + index, item_id: ti.item_id || ti.item?.name, content: ti.item?.name || ti.item_id, image_url: ti.item?.image_url || null, tierId: null }));
+      const signature = JSON.stringify([definitions, pool.map(item => item.item_id)]);
+      const inherited = [...new Set((data.hashtags || '').split(',').map(tag => tag.trim()).filter(Boolean).map(tag => tag.startsWith('#') ? tag : '#' + tag))];
+      let saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem(draftKey) || localStorage.getItem('tog-rank-draft:guest:' + templateId) || 'null');
+        const ids = new Set(pool.map(item => item.id));
+        if (saved?.signature !== signature || !Array.isArray(saved.items) || saved.items.length !== pool.length || new Set(saved.items.map(item => item.id)).size !== pool.length || saved.items.some(item => !ids.has(item.id))) saved = null;
+      } catch { saved = null; }
+      setTiers(definitions);
+      const byId = new Map(pool.map(item => [item.id, item]));
+      resetItems(saved ? saved.items.map(item => ({ ...byId.get(item.id), tierId: definitions.some(tier => tier.id === item.tierId) ? item.tierId : null })) : pool);
+      setTitle(typeof saved?.title === 'string' ? saved.title : data.title);
+      setDescription(typeof saved?.description === 'string' ? saved.description : data.description || '');
+      setSelectedHashtags(Array.isArray(saved?.hashtags) && saved.hashtags.every(tag => typeof tag === 'string') ? saved.hashtags : inherited);
+      setSuggestedTags([...new Set([...inherited, ...STANDARD_HASHTAGS])]);
+      setLoadedKey({ key: draftKey, signature });
+      setDraftStatus(saved ? 'editor.draftRestored' : '');
       setIsLoadingTemplate(false);
     }
+    load();
+    return () => { cancelled = true; };
+  }, [templateId, draftKey, navigate, resetItems, t]);
 
-    loadTemplate();
-  }, [templateId]);
+  useEffect(() => {
+    if (loadedKey?.key !== draftKey) return;
+    try { localStorage.setItem(draftKey, JSON.stringify({ signature: loadedKey.signature, title, description, items, hashtags: selectedHashtags })); }
+    catch { setDraftStatus('editor.draftUnavailable'); }
+  }, [loadedKey, draftKey, title, description, items, selectedHashtags]);
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
 
@@ -173,24 +165,6 @@ const RankTierList = () => {
     setItems(prev => repositionItem(prev, draggedItemId, targetTierId, insertIndex));
   };
 
-  const handleAddCustomItem = () => {
-    if (!customItem.trim()) return;
-
-    const newItems = customItem
-      .split(',')
-      .map((item, index) => ({
-        id: `custom-${Date.now()}-${index}`,
-        item_id: item.trim(),
-        content: item.trim(),
-        image_url: null,
-        tierId: null // ให้การ์ดใหม่ไปโผล่ที่กล่องข้างล่าง (Unranked Pool) เสมอ
-      }))
-      .filter((item) => item.content !== '');
-
-    setItems([...items, ...newItems]);
-    setCustomItem('');
-  };
-
   // 📍 [ใหม่]: ปุ่ม ◀ ▶ — สลับตำแหน่งกับเพื่อนบ้านใน tier เดียวกัน
   const shiftItem = (itemId, direction) => {
     setItems(prev => {
@@ -236,9 +210,11 @@ const RankTierList = () => {
   const handleSaveRanking = async () => {
     if (!currentUser) {
       toast.warning(t('rank.warnLoginSave'));
-      navigate('/login');
+      navigate(loginPath('/rank?template=' + encodeURIComponent(templateId)));
       return;
     }
+    if (isSaving || isLoadingTemplate || templateError) return;
+    if (!items.length) return toast.warning(t('create.errAddItem'));
     if (!title.trim()) return toast.warning(t('rank.warnTitle'));
     if (selectedHashtags.length === 0) return toast.warning(t('rank.warnHashtag'));
 
@@ -276,62 +252,24 @@ const RankTierList = () => {
       toast.error(t('rank.error', { msg: error }));
     } else {
       // 📍 จำโพสต์ที่เพิ่ง publish ไว้ ให้ Home Feed ดันขึ้นการ์ดแรก (transient — รีหน้าแล้วหาย)
+      setLoadedKey(null);
+      try { localStorage.removeItem(draftKey); localStorage.removeItem('tog-rank-draft:guest:' + templateId); } catch { /* Storage may be disabled. */ }
       markLastPublished(data?.id, currentUser.id);
       navigate('/');
     }
   };
 
-  const renderCard = (item) => {
+  const renderCard = item => {
     const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
-    const pos = mates.findIndex(i => i.id === item.id);
-
-    return (
-      <div
-        key={item.id}
-        data-item-id={item.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, item.id)}
-        onDragEnd={endDrag}
-        title={item.content}
-        className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-bold shadow-xs hover:shadow-md hover:-translate-y-0.5 rounded-xl w-18 h-18 sm:w-20 sm:h-20 aspect-square p-1.5 flex items-center justify-center text-center cursor-grab group relative active:cursor-grabbing transition-all overflow-hidden select-none"
-      >
-        {item.image_url ? (
-          <img src={item.image_url} alt={item.content} className="w-full h-full object-cover rounded-lg pointer-events-none" />
-        ) : (
-          <span className="w-full line-clamp-3 text-[11px] sm:text-xs font-semibold leading-tight pointer-events-none break-words drop-shadow-xs px-0.5">
-            {item.content}
-          </span>
-        )}
-
-        {/* 📍 [ใหม่]: ปุ่มย้ายซ้าย/ขวา — สลับลำดับภายใน tier เดียวกัน (พอร์ตจากหน้า Create) */}
-        <button
-          type="button"
-          onClick={() => shiftItem(item.id, -1)}
-          disabled={pos === 0}
-          aria-label={t('rank.moveLeft')}
-          className="absolute bottom-0.5 left-1 rounded p-0.5 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
-        >
-          <ChevronLeft size={14} strokeWidth={3} />
-        </button>
-        <button
-          type="button"
-          onClick={() => shiftItem(item.id, 1)}
-          disabled={pos === mates.length - 1}
-          aria-label={t('rank.moveRight')}
-          className="absolute bottom-0.5 right-1 rounded p-0.5 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
-        >
-          <ChevronRight size={14} strokeWidth={3} />
-        </button>
-      </div>
-    );
+    return <EditorItem key={item.id} item={item} position={mates.findIndex(i => i.id === item.id)} count={mates.length} onMove={() => handleItemClick(item)} onShift={direction => shiftItem(item.id, direction)} onDragStart={e => handleDragStart(e, item.id)} onDragEnd={endDrag} />;
   };
 
   return (
     <div className="min-h-screen font-sans text-ink flex flex-col">
-      <div className="max-w-6xl mx-auto w-full px-6 py-8 flex-1 flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-5 sm:py-8 pb-28 flex-1 flex flex-col gap-6">
 
         {/* Top Info Card */}
-        <div className="glass rounded-xl shadow-sm p-6 flex flex-col gap-4">
+        <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <input
               type="text"
@@ -340,21 +278,15 @@ const RankTierList = () => {
               placeholder={t('rank.titlePh')}
               className="flex-1 text-[28px] font-bold text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1"
             />
-            <div className="flex flex-col md:flex-row items-center gap-3 pt-1 shrink-0">
+            <div className="hidden sm:flex items-center gap-3 pt-1 shrink-0">
               <button onClick={handleShare} className="flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors px-2">
                 <Share2 size={16} /> {t('common.share')}
               </button>
-              <button
-                onClick={handleSaveRanking}
-                disabled={isSaving}
-                className="bg-brand hover:bg-brand-accent disabled:opacity-50 text-canvas text-sm font-bold py-2 px-6 rounded-md transition-colors shadow-sm"
-              >
-                {isSaving ? t('rank.saving') : t('rank.saveRanking')}
-              </button>
+
             </div>
           </div>
 
-          <div>
+          <details><summary className="cursor-pointer text-sm text-muted">{t('rank.description')}</summary><div className="mt-2">
             <label className="block text-xs font-semibold text-muted mb-1">{t('rank.description')} <span className="font-normal text-muted">({t('rank.optional')})</span></label>
             <textarea
               value={description}
@@ -363,11 +295,13 @@ const RankTierList = () => {
               rows={2}
               className="w-full bg-surface-glass border border-line-soft rounded-md p-3 text-sm outline-none focus:ring-1 focus:ring-brand resize-none"
             />
-          </div>
+          </div></details>
+          {draftStatus && <p role="status" className="text-xs text-muted">{t(draftStatus)}</p>}
+          {templateError && <p role="alert" className="text-status-error">{templateError}</p>}
         </div>
 
         {/* Search & Add Hashtags */}
-        <div className="glass rounded-xl shadow-sm p-6 flex flex-col gap-3">
+        <details className="glass rounded-2xl p-4 sm:p-6"><summary className="text-sm font-semibold cursor-pointer">{t('rank.searchAddHashtags')} · {selectedHashtags.join(' ')}</summary><div className="flex flex-col gap-3 mt-4">
           <label className="block text-sm font-semibold">{t('rank.searchAddHashtags')}</label>
 
           {selectedHashtags.length > 0 && (
@@ -405,7 +339,7 @@ const RankTierList = () => {
               ))}
             </div>
           </div>
-        </div>
+        </div></details>
 
         {/* Tier List Canvas */}
         <div className="bg-surface-glass rounded-xl overflow-hidden flex flex-col">
@@ -420,11 +354,11 @@ const RankTierList = () => {
                 <TierLabel
                   label={tier.label}
                   color={tier.color}
-                  className={`w-24 font-bold border-r border-line-soft px-2 ${tier.label.length > 2 ? 'text-sm' : 'text-xl'}`}
+                  className={`w-14 sm:w-20 font-bold border-r border-line-soft px-2 ${tier.label.length > 2 ? 'text-sm' : 'text-xl'}`}
                 />
 
                 <div
-                  className="flex-1 p-3 flex flex-wrap gap-3 items-center"
+                  className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center"
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, tier.id)}
                 >
@@ -440,7 +374,7 @@ const RankTierList = () => {
           <div className="flex gap-3 w-full md:w-auto">
             <button
               onClick={handleShuffle}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
+              className="flex-1 md:flex-none flex items-center justify-center whitespace-nowrap gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
             >
               <Shuffle size={16} /> {t('rank.shuffleItems')}
             </button>
@@ -454,10 +388,10 @@ const RankTierList = () => {
         </div>
 
         {/* Unranked Pool (กล่องเก็บไอเทมที่ยังไม่ได้จัดอันดับ) */}
-        <div className="bg-surface-glass rounded-xl p-6 border border-line">
+        <div className="bg-surface-glass rounded-xl p-4 border border-line">
           <h2 className="text-[17px] font-bold text-ink mb-4">{t('rank.unrankedPool')}</h2>
           <div
-            className="min-h-[120px] flex flex-wrap gap-4"
+            className="min-h-24 flex flex-wrap gap-3"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, null)}
           >
@@ -484,57 +418,8 @@ const RankTierList = () => {
 
       </div>
 
-      {/* Tap-to-assign modal (mobile friendly) */}
-      {selectedItemForModal && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setSelectedItemForModal(null)}
-        >
-          <div 
-            className="bg-surface border border-line-soft rounded-2xl p-6 w-full max-w-sm shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-ink mb-4 text-center">
-              {t('create.assignTierTo', { defaultValue: 'Assign to tier' })}
-            </h3>
-            
-            <div className="flex justify-center mb-6">
-              {renderCard(selectedItemForModal)}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => handleAssignTier(null)}
-                className="w-full py-2.5 rounded-lg border border-line-soft hover:bg-surface-glass text-ink-soft font-medium transition-colors"
-              >
-                {t('create.unrankedPool', { defaultValue: 'Unranked Pool' })}
-              </button>
-              
-              {tiers.map((tier) => (
-                <button
-                  key={tier.id}
-                  onClick={() => handleAssignTier(tier.id)}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface-glass transition-colors border border-transparent hover:border-line-soft"
-                >
-                  <TierLabel
-                    label={tier.label}
-                    color={tier.color}
-                    className="w-12 h-10 font-bold rounded-md"
-                  />
-                  <span className="font-semibold text-ink">{tier.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setSelectedItemForModal(null)}
-              className="mt-6 w-full py-2.5 bg-surface-glass hover:bg-surface rounded-xl text-ink-soft font-bold transition-colors"
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        </div>
-      )}
+      <AssignTierModal item={selectedItemForModal} tiers={tiers} onClose={() => setSelectedItemForModal(null)} onAssign={handleAssignTier} />
+      <EditorToolbar history={itemHistory} ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handleSaveRanking} saving={isSaving} disabled={isLoadingTemplate || !!templateError} />
     </div>
   );
 };

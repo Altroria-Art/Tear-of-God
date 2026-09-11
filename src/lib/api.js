@@ -3,6 +3,12 @@ import i18n from '../i18n';
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
 const API_URL = '';
 
+
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, { credentials: 'same-origin', ...options });
+  if (response.status === 401 && !url.startsWith('/api/auth')) window.dispatchEvent(new Event('tog-session-expired'));
+  return response;
+
 function getSessionToken() {
   try {
     const saved = localStorage.getItem('tier_user');
@@ -17,6 +23,7 @@ function apiFetch(url, options = {}) {
   const token = getSessionToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
   return fetch(url, { ...options, headers });
+
 }
 
 // 📍 In-flight GET dedup — ดู docs/row-read-optimization-plan.md §4/§8: จาก trace จริงพบว่า
@@ -26,8 +33,12 @@ function apiFetch(url, options = {}) {
 const inFlightGET = new Map();
 
 async function getJSON(url) {
+
+  if (inFlightGET.has(url)) return inFlightGET.get(url);
+=======
   const key = `${url}::${getSessionToken() || ''}`;
   if (inFlightGET.has(key)) return inFlightGET.get(key);
+
   const promise = apiFetch(url)
     .then(async (res) => {
       const ct = res.headers.get('content-type') || '';
@@ -115,7 +126,7 @@ export async function syncGoogleUser(userData) {
     const response = await apiFetch(`${API_URL}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'google_sync', ...userData })
+      body: JSON.stringify({ action: 'google_sync', idToken: userData.idToken })
     });
     return await response.json();
   } catch {
@@ -131,6 +142,7 @@ export async function updateProfile(_userId, profileData) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update_profile', ...profileData })
     });
+    if (response.status === 401) window.dispatchEvent(new Event('tog-session-expired'));
     return await response.json();
   } catch {
     return { data: null, error: i18n.t('errors.profileUpdateFailed') };
@@ -142,6 +154,9 @@ export async function uploadImage(file, _userId) {
   try {
     const formData = new FormData();
     formData.append('file', file);
+
+    if (userId) formData.append('user_id', userId);
+    
     const response = await apiFetch(`${API_URL}/api/upload`, {
       method: 'POST',
       body: formData // ไม่ต้องตั้ง Content-Type เอง fetch จะจัดการ multipart form boundary ให้
@@ -318,9 +333,11 @@ export async function fetchTemplate(templateId, { light = false, period = null }
   }
 }
 
-export async function fetchTemplates({ hashtag, category, limit, page, sort } = {}) {
+export async function fetchTemplates({ hashtag, category, limit, page, sort, q, saved } = {}) {
   try {
     const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (saved) params.set('saved', 'true');
     if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
     if (category) params.append('category', category.toLowerCase());
     if (limit) params.append('limit', limit);
@@ -637,4 +654,11 @@ export async function deleteAdminReport({ userId: _userId, targetId }) {
   } catch {
     return { success: false, error: i18n.t('errors.reportDeleteFailed') };
   }
+}
+
+export async function saveTemplate(templateId, saved) {
+  try {
+    const response = await apiFetch("/api/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template_id: templateId, saved }) });
+    return await response.json();
+  } catch { return { success: false, error: i18n.t("errors.serverUnreachable") }; }
 }

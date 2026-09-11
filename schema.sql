@@ -184,6 +184,34 @@ CREATE INDEX IF NOT EXISTS idx_templates_use_count   ON templates(use_count DESC
 CREATE INDEX IF NOT EXISTS idx_templates_view_count  ON templates(view_count DESC, use_count DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_template_items_tpl_position ON template_items(template_id, position);
 
+
+-- Additive migration. Existing accounts and password hashes are preserved.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_expiry ON auth_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
+CREATE TABLE IF NOT EXISTS auth_attempts (
+  key TEXT PRIMARY KEY,
+  attempts INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_attempts_expiry ON auth_attempts(expires_at);
+CREATE TABLE IF NOT EXISTS auth_identities (
+  provider TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  PRIMARY KEY(provider, subject)
+);
+
+CREATE TABLE IF NOT EXISTS template_bookmarks (
+  user_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  template_id TEXT NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, template_id)
+);
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,

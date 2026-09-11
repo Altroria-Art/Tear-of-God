@@ -1,9 +1,15 @@
 // like/dislike ให้กับ Community Average ของ template (เช่นเดียวกับ votes.js ของ ranking
 // แต่ผูกกับ template_id เพราะตาราง Community Average เป็นข้อมูลรวมของเทมเพลต)
+
+// - GET  /api/template-votes?template_id=..&user_id=..  → คืน user_vote + จำนวน like/dislike
+// - POST /api/template-votes  body: { template_id, user_id, voteType }  → โหวต/สลับ/ยกเลิก
+export async function onRequest({ request, env, data: auth }) {
+
 // User identity is derived from the verified bearer session, never from query/body.
 import { getSessionUser, requireUser } from './_auth.js';
 
 export async function onRequest({ request, env }) {
+
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -26,19 +32,30 @@ export async function onRequest({ request, env }) {
     // 🟢 [GET] อ่านสถานะโหวตของผู้ใช้ + จำนวนรวม (ใช้ตอนเปิดหน้าเพื่อ seed การ์ด)
     if (request.method === 'GET') {
       if (!templateId) return jsonResponse({ success: false, error: 'Missing template_id' }, 400);
+
+      const userId = auth.user?.id || null;
+
       const userId = (await getSessionUser(request, env))?.id || null;
+
       const counts = await fetchCounts(templateId, userId);
       return jsonResponse({ success: true, ...counts });
     }
 
     // 🟢 [POST] โหวต/สลับ/ยกเลิก
     if (request.method === 'POST') {
+
+      const { template_id, voteType } = await request.json();
+      const user_id = auth.user.id;
+      if (!template_id || !user_id) {
+        return jsonResponse({ success: false, error: 'Missing template_id or user_id' }, 400);
+
       const actor = await requireUser(request, env);
       if (!actor) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
       const { template_id, voteType } = await request.json();
       const user_id = actor.id;
       if (!template_id) {
         return jsonResponse({ success: false, error: 'Missing template_id' }, 400);
+
       }
 
       const { results: existing } = await db.prepare(

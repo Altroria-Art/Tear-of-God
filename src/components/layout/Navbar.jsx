@@ -16,12 +16,13 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef(null);
+  useEffect(() => { setSearchQuery(new URLSearchParams(location.search).get('q') || ''); setIsMobileMenuOpen(false); }, [location.pathname, location.search]);
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/discover?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -48,25 +49,27 @@ const Navbar = () => {
       : 'border-transparent text-ink-soft hover:text-highlight';
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    if (!await logout()) return;
     setIsDropdownOpen(false);
     navigate('/login');
   };
 
   return (
-    <nav className="glass-nav px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+    <nav className="glass-nav px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-50">
       
       {/* ฝั่งซ้าย: โลโก้ และ ลิงก์เมนู */}
-      <div className="flex items-center gap-10">
+      <div className="flex items-center gap-4 lg:gap-8 min-w-0">
         <div className="flex items-center gap-2">
           <button 
+            aria-label={t('nav.menu')}
+            aria-expanded={isMobileMenuOpen}
             className="md:hidden p-2 text-ink-soft hover:text-brand" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
-          <Link to="/" className="text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
+          <Link to="/" className="whitespace-nowrap text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
             Tear of God
           </Link>
         </div>
@@ -85,24 +88,25 @@ const Navbar = () => {
       </div>
 
       {/* ฝั่งขวา: ค้นหา และ โปรไฟล์ */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-1 sm:gap-3">
         
         {/* ช่อง Search */}
-        <form onSubmit={handleSearch} className="relative hidden sm:block">
+        <form onSubmit={handleSearch} className="relative hidden lg:block">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input 
             type="text" 
+            aria-label={t('discover.search')}
             placeholder={t('nav.searchPlaceholder')} 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-search border border-line-soft rounded-full py-2.5 pl-10 pr-4 text-sm w-56 lg:w-72 outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
+            className="bg-search border border-line-soft rounded-full py-2.5 pl-10 pr-4 text-sm w-48 xl:w-72 outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
           />
         </form>
 
         {/* ปุ่มเปลี่ยนภาษา */}
         <button
           onClick={toggleLanguage}
-          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft mr-1"
+          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft"
           aria-label={t('nav.toggleLanguage')}
           title={t('nav.toggleLanguage')}
         >
@@ -112,7 +116,7 @@ const Navbar = () => {
         {/* ปุ่มเปลี่ยนธีม Ultra-smooth */}
         <button
           onClick={toggleTheme}
-          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 active:scale-90 hover:scale-105 shadow-sm border border-line-soft mr-1 cursor-pointer select-none overflow-hidden"
+          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 active:scale-90 hover:scale-105 shadow-sm border border-line-soft cursor-pointer select-none overflow-hidden"
           aria-label={t('nav.toggleTheme')}
         >
           <div className="transform transition-transform duration-300">

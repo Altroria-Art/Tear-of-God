@@ -1,3 +1,5 @@
+
+export async function onRequest({ request, env, data: auth }) {
 import { requireUser } from './_auth.js';
 
 export async function onRequest({ request, env }) {
@@ -27,6 +29,8 @@ export async function onRequest({ request, env }) {
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
     if (request.method === 'POST') {
+      const { ranking_id, content } = await request.json();
+      const user_id = auth.user.id;
       const actor = await requireUser(request, env);
       if (!actor) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
       const { ranking_id, content } = await request.json();

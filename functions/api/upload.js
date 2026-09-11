@@ -1,6 +1,10 @@
+
+export async function onRequest({ request, env, data: auth }) {
+
 import { requireUser } from './_auth.js';
 
 export async function onRequest({ request, env }) {
+
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
   if (request.method !== 'POST') {
@@ -18,6 +22,18 @@ export async function onRequest({ request, env }) {
 
     const formData = await request.formData();
     const file = formData.get('file');
+
+    const user_id = auth.user.id;
+
+    if (!user_id) {
+      return jsonResponse({ error: 'Unauthorized: missing user_id' }, 401);
+    }
+    const user = await env.tear_of_god_db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
+    if (!user) {
+      return jsonResponse({ error: 'Unauthorized: invalid user' }, 403);
+    }
+
+
 
     if (!file || !file.name) {
       return jsonResponse({ error: 'No file provided' }, 400);

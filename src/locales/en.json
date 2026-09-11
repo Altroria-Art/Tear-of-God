@@ -27,7 +27,9 @@
     "hashtags": "hashtags",
     "close": "Close",
     "prev": "Prev",
-    "next": "Next"
+    "next": "Next",
+    "retry": "Try again",
+    "more": "More options"
   },
   "nav": {
     "home": "Home",
@@ -38,7 +40,9 @@
     "profile": "Profile",
     "admin": "Admin",
     "logout": "Log out",
-    "toggleLanguage": "Switch language"
+    "toggleLanguage": "Switch language",
+    "menu": "Open navigation",
+    "login": "Log in"
   },
   "auth": {
     "createAccountTitle": "Create an Account",
@@ -72,7 +76,14 @@
     "heroTitle1": "What will you",
     "heroTitleHighlight": "Rank",
     "heroTitle2": "today?",
-    "heroRotatingWords": ["Rank", "Rate", "Judge", "Crown", "Debate", "Tier"],
+    "heroRotatingWords": [
+      "Rank",
+      "Rate",
+      "Judge",
+      "Crown",
+      "Debate",
+      "Tier"
+    ],
     "heroSubtitle": "The social tier list platform where you rank, debate, and share what you love.",
     "badgeJoin": "Join Us",
     "badgeWelcome": "Welcome Back",
@@ -135,7 +146,7 @@
     "unrankedPool": "Unranked Items Pool",
     "backToPool": "Back to Pool",
     "resetAll": "Reset All",
-    "noItems": "No items yet. Generate them from the left panel.",
+    "noItems": "Add items above, then tap an item to choose its tier.",
     "publishing": "Publishing...",
     "publishList": "Publish List",
     "moveLeft": "Move left",
@@ -348,7 +359,25 @@
     "emptyTag": "No templates tagged with this yet",
     "sort": "Sort:",
     "filterTags": "Filter tags...",
-    "protectedLogin": "Please log in to use this feature!"
+    "protectedLogin": "Please log in to use this feature!",
+    "savedTemplates": "Saved templates",
+    "savedHelp": "Keep a collection to rank when you have time.",
+    "explore": "Explore templates",
+    "search": "Search titles, descriptions or hashtags",
+    "searchButton": "Search",
+    "searchResults": "{{count}} results for “{{q}}”",
+    "searchResults_one": "{{count}} result for “{{q}}”",
+    "searchResults_other": "{{count}} results for “{{q}}”",
+    "savedCount": "{{count}} saved templates",
+    "savedLogin": "Log in to see your saved templates.",
+    "noSaved": "No saved templates yet. Use the bookmark button on a template to keep it here.",
+    "noResults": "No matching templates. Try another title or hashtag.",
+    "save": "Save template for later",
+    "unsave": "Remove saved template",
+    "bookmarked": "Template saved for later",
+    "bookmarkRemoved": "Removed from saved templates",
+    "savedCount_one": "{{count}} saved template",
+    "savedCount_other": "{{count}} saved templates"
   },
   "category": {
     "empty": "No posts in this category yet",
@@ -590,5 +619,20 @@
     "downloadJson": "Download JSON",
     "generating": "Generating...",
     "download": "Download"
+  },
+  "editor": {
+    "tools": "Ranking tools",
+    "undo": "Undo item change",
+    "redo": "Redo item change",
+    "progress": "{{ranked}} / {{total}} ranked",
+    "publish": "Publish",
+    "moveItem": "Move item",
+    "moveTo": "Move to {{tier}}",
+    "moveNamedItem": "Move {{name}} to a tier",
+    "deleteItem": "Remove {{name}}",
+    "details": "Template details",
+    "draftRestored": "Your draft has been restored.",
+    "draftUnavailable": "Draft could not be saved on this device. Keep this page open.",
+    "tapHelp": "Tap any item to choose a tier. You can change your mind anytime."
   }
 }

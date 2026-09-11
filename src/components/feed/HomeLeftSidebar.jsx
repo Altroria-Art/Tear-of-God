@@ -1,46 +1,19 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Compass, Sparkles, PlusCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bookmark, Sparkles, PlusCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '../../context/UserContext';
 
-const NAV_LINKS = [
-  { icon: LayoutDashboard, labelKey: 'sidebar.home', path: '/' },
-  { icon: Compass, labelKey: 'sidebar.discover', path: '/discover' },
-  { icon: Sparkles, labelKey: 'sidebar.createTierList', path: '/create' },
-];
+
 
 export default function HomeLeftSidebar() {
   const { t } = useTranslation();
-  const location = useLocation();
+
   const { currentUser } = useUser();
 
   return (
     <div className="space-y-5 text-ink">
-      {/* Quick Nav */}
-      <div className="bg-surface border border-line-soft rounded-2xl p-3.5 shadow-sm">
-        <ul className="space-y-1">
-          {NAV_LINKS.map((item, idx) => {
-            const isActive = location.pathname === item.path;
-            const Icon = item.icon;
-            return (
-              <li key={idx}>
-                <Link
-                  to={item.path}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all font-semibold text-[14px] ${
-                    isActive
-                      ? 'bg-brand text-canvas font-bold shadow-xs'
-                      : 'text-ink-soft hover:bg-surface-glass hover:text-ink'
-                  }`}
-                >
-                  <Icon size={18} className={isActive ? 'text-canvas' : 'text-brand'} />
-                  <span>{t(item.labelKey)}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      <Link to="/discover?view=saved" className="flex items-center gap-3 p-4 rounded-xl border border-line-soft bg-surface text-sm font-semibold"><Bookmark size={18} />{t('discover.savedTemplates')}</Link>
 
       {/* User Card or Create CTA Card */}
       {currentUser ? (

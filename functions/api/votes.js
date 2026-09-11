@@ -1,7 +1,7 @@
 import { requireUser } from './_auth.js';
 
 export async function onRequest(context) {
-  const { request, env } = context;
+  const { request, env, data: auth } = context;
   const db = env.tear_of_god_db; // 📍 ใช้ชื่อ binding ให้ตรงกับ wrangler.toml
 
   const jsonResponse = (data, status = 200) => {
@@ -20,7 +20,11 @@ export async function onRequest(context) {
     if (!actor) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
     const body = await request.json();
     const rankingId = body.rankingId || body.ranking_id;
+
+    const userId = auth.user.id;
+
     const userId = actor.id;
+
     const voteType = body.voteType; // 'like', 'dislike', หรือ null (กรณียกเลิกโหวต)
 
     if (!rankingId) {
