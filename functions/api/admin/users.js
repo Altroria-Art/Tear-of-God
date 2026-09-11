@@ -13,10 +13,6 @@ export async function onRequest({ request, env, data: auth }) {
   const user_id = auth.user.id;
 
   if (!(await requireAdmin(env, user_id))) {
-=======
-  const admin = await requireAdmin(env, request);
-  if (!admin) {
-
     return jsonResponse({ success: false, error: 'ไม่มีสิทธิ์เข้าถึง (ต้องเป็นแอดมิน)' }, 403);
   }
 
@@ -79,7 +75,7 @@ export async function onRequest({ request, env, data: auth }) {
       if (!target_id) return jsonResponse({ success: false, error: 'Missing target_id' }, 400);
 
       // ⚠️ กันแอดมินลบตัวเองโดยไม่ตั้งใจ (จะได้ไม่มี admin เหลือในระบบ)
-      if (target_id === admin.id) {
+      if (target_id === user_id) {
         return jsonResponse({ success: false, error: 'ไม่สามารถจัดการบัญชีแอดมินของตัวเองได้' }, 400);
       }
 
@@ -108,7 +104,6 @@ export async function onRequest({ request, env, data: auth }) {
           db.prepare('DELETE FROM votes WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM comments WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM follows WHERE follower_id = ? OR following_id = ?').bind(target_id, target_id),
-          db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM profiles WHERE id = ?').bind(target_id)
         ]);
         return jsonResponse({ success: true, data: { id: target_id } });

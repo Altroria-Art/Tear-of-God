@@ -1,8 +1,4 @@
-
 export async function onRequest({ request, env, data: auth }) {
-import { requireUser } from './_auth.js';
-
-export async function onRequest({ request, env }) {
   const db = env.tear_of_god_db;
   const url = new URL(request.url);
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -48,11 +44,6 @@ export async function onRequest({ request, env }) {
       const { action, following_id } = await request.json();
       const follower_id = auth.user.id;
       if (!follower_id || !following_id) return jsonResponse({ error: 'Missing params' }, 400);
-      const actor = await requireUser(request, env);
-      if (!actor) return jsonResponse({ error: 'กรุณาเข้าสู่ระบบใหม่' }, 401);
-      const { action, following_id } = await request.json();
-      const follower_id = actor.id;
-      if (!following_id) return jsonResponse({ error: 'Missing params' }, 400);
 
       // กัน user follow ตัวเอง
       if (follower_id === following_id) {
