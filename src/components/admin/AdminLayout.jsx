@@ -4,7 +4,7 @@ import { LayoutDashboard, Users, ListOrdered, LayoutTemplate, Flag } from 'lucid
 import { useUser } from '../../context/UserContext';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../ui/Toast';
-import { fetchAdminReports } from '../../lib/api';
+import { fetchAdminPendingCount } from '../../lib/api';
 
 const NAV_ITEMS = [
   { to: '/admin', labelKey: 'admin.dashboard', icon: LayoutDashboard, end: true },
@@ -24,7 +24,7 @@ export default function AdminLayout() {
   const fetchPending = useCallback(async (isPolling = false) => {
     if (!currentUser?.id || currentUser.role !== 'admin') return;
     try {
-      const res = await fetchAdminReports({ userId: currentUser.id, status: 'pending', page: 1, limit: 1 });
+      const res = await fetchAdminPendingCount();
       if (res.success) {
         const newCount = res.pending_count ?? 0;
         if (isPolling && prevPendingRef.current !== null && newCount > prevPendingRef.current) {
@@ -40,13 +40,23 @@ export default function AdminLayout() {
   }, [currentUser?.id, currentUser?.role, toast, t]);
 
   useEffect(() => {
+    let interval;
+    const schedule = () => {
+      clearInterval(interval);
+      if (!document.hidden) interval = setInterval(() => fetchPending(true), 60000);
+    };
+    const handleVisibility = () => {
+      if (!document.hidden) fetchPending(true);
+      schedule();
+    };
+
     fetchPending(false);
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        fetchPending(true);
-      }
-    }, 30000);
-    return () => clearInterval(interval);
+    schedule();
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [fetchPending]);
 
   // กันไม่ให้คนที่ไม่ใช่ admin เข้าใช้หน้า /admin (UI-level; backend ยังตรวจ requireAdmin เสมอ)

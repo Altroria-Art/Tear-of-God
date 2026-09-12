@@ -623,6 +623,15 @@ export async function fetchAdminReports({ userId: _userId, status, page, limit }
   }
 }
 
+export async function fetchAdminPendingCount() {
+  try {
+    return await getJSON(`${API_URL}/api/admin/reports?count=pending`);
+  } catch (error) {
+    console.error("fetchAdminPendingCount error:", error);
+    return { success: false, pending_count: 0, error: i18n.t('errors.reportListFetchFailed') };
+  }
+}
+
 // 📍 ตั้งสถานะรายงาน (resolved/dismissed/pending)
 export async function setReportStatus({ userId: _userId, targetId, status }) {
   try {

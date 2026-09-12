@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
-import { registerUser, loginUser, syncGoogleUser, fetchTemplates, fetchRankings } from '../lib/api';
+import { registerUser, loginUser, syncGoogleUser } from '../lib/api';
 import { signInWithGoogle } from '../lib/firebase';
 import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
@@ -134,26 +134,8 @@ export default function Login() {
     setAnimClass('translate-y-0 opacity-100 scale-100');
   }, [lang]);
 
-  const [realTemplates, setRealTemplates] = useState(REAL_DEFAULT_TEMPLATES);
-  const [realRankings, setRealRankings] = useState(REAL_DEFAULT_RANKINGS);
-
-  // ดึงข้อมูลจริงจากเซิร์ฟเวอร์แบบ Real-time
-  useEffect(() => {
-    let mounted = true;
-    Promise.allSettled([
-      fetchTemplates({ limit: 6, sort: 'popular' }),
-      fetchRankings({ limit: 6, sort: 'top' })
-    ]).then(([tplRes, rankRes]) => {
-      if (!mounted) return;
-      if (tplRes.status === 'fulfilled' && tplRes.value?.data?.length > 0) {
-        setRealTemplates(tplRes.value.data);
-      }
-      if (rankRes.status === 'fulfilled' && rankRes.value?.data?.length > 0) {
-        setRealRankings(rankRes.value.data);
-      }
-    });
-    return () => { mounted = false; };
-  }, []);
+  const realTemplates = REAL_DEFAULT_TEMPLATES;
+  const realRankings = REAL_DEFAULT_RANKINGS;
 
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');

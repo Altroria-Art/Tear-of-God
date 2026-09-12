@@ -1,3 +1,5 @@
+import { assertId, assertString, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const url = new URL(request.url);
@@ -41,9 +43,13 @@ export async function onRequest({ request, env, data: auth }) {
 
   if (request.method === 'POST') {
     try {
-      const { action, following_id } = await request.json();
       const follower_id = auth.user.id;
-      if (!follower_id || !following_id) return jsonResponse({ error: 'Missing params' }, 400);
+      const gate = consumeMemoryRateLimit('follow-mutation', follower_id, { limit: 60, windowSeconds: 3600 });
+      if (!gate.allowed) return rateLimitResponse(gate);
+      const body = await readJsonBody(request);
+      if (!isPlainObject(body)) return jsonResponse({ error: 'Invalid request' }, 400);
+      const action = assertString(body.action, 'action', { min: 1, max: 16, trim: true });
+      const following_id = assertId(body.following_id, 'following_id');
 
       // กัน user follow ตัวเอง
       if (follower_id === following_id) {
@@ -59,7 +65,10 @@ export async function onRequest({ request, env, data: auth }) {
       }
       return jsonResponse({ error: 'Invalid action' }, 400);
     } catch (e) {
-      return jsonResponse({ error: e.message }, 500);
+      const invalid = requestErrorResponse(e);
+      if (invalid) return invalid;
+      console.error('Follow request failed:', e.message);
+      return jsonResponse({ error: 'Service temporarily unavailable' }, 500);
     }
   }
 

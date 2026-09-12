@@ -1,6 +1,7 @@
 import { UP_UNIVERSITY_NAME, getFacultyByName, isValidAdmissionYear } from '../../src/lib/university.js';
 import { firebaseConfig } from '../../src/lib/firebaseConfig.js';
 import { PROFILE_FIELDS, hashPassword, verifyPassword, allowAuthAttempt, createSession, sessionCookie, sessionToken, digest, randomToken } from '../lib/session.js';
+import { INPUT_LIMITS, assertString, clientAddress, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 
 const reply = (body, status = 200, headers = {}) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 const fail = (error, status = 400) => reply({ success: false, error }, status);
@@ -15,17 +16,30 @@ export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   if (request.method === 'GET') return reply({ success: true, data: auth.user });
   if (request.method !== 'POST') return fail('Method not allowed', 405);
+  const bodyGate = consumeMemoryRateLimit('auth-body', clientAddress(request), { limit: 60, windowSeconds: 60 });
+  if (!bodyGate.allowed) return rateLimitResponse(bodyGate);
   let payload;
-  try { payload = await request.json(); } catch { return fail('Invalid JSON'); }
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return fail('Invalid request');
+  try { payload = await readJsonBody(request, INPUT_LIMITS.authJson); } catch (error) { return requestErrorResponse(error) || fail('Invalid request'); }
+  if (!isPlainObject(payload)) return fail('Invalid request');
   const { action, password } = payload;
   const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
   try {
-    if (['register', 'login', 'google_sync'].includes(action)) {
-      const key = action === 'google_sync' ? 'google:' + (request.headers.get('CF-Connecting-IP') || 'local') : email;
-      if (!await allowAuthAttempt(request, db, key)) {
-        return reply({ success: false, error: 'ลองใหม่อีกครั้งใน 15 นาที / Please try again in 15 minutes' }, 429, { 'Retry-After': '900' });
-      }
+    const authPolicies = {
+      login: { limit: 10, windowSeconds: 900 },
+      register: { limit: 5, windowSeconds: 3600 },
+      google_sync: { limit: 20, windowSeconds: 900 },
+      forgot_password: { limit: 3, windowSeconds: 3600 },
+      reset_password: { limit: 5, windowSeconds: 900 },
+    };
+    const authPolicy = authPolicies[action];
+    if (authPolicy) {
+      const identity = action === 'google_sync'
+        ? clientAddress(request)
+        : action === 'reset_password'
+          ? (typeof payload.token === 'string' ? payload.token : clientAddress(request))
+          : (email || clientAddress(request));
+      const rate = await allowAuthAttempt(request, db, identity, { scope: action, ...authPolicy });
+      if (!rate.allowed) return rateLimitResponse(rate, 'ลองใหม่ภายหลัง / Please try again later');
     }
     if (action === 'register') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return fail('อีเมลไม่ถูกต้อง / Invalid email');
@@ -75,8 +89,7 @@ export async function onRequest({ request, env, data: auth }) {
       return reply({ success: true, data: profile }, 200, { 'Set-Cookie': await createSession(request, db, profile.id) });
     }
     if (action === 'forgot_password') {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('อีเมลไม่ถูกต้อง');
-      if (!await allowAuthAttempt(request, db, 'forgot:' + email)) return fail('กรุณารอสักครู่ก่อนทำรายการใหม่', 429);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return fail('อีเมลไม่ถูกต้อง');
       
       const user = await findByEmail(db, email);
       if (user) {
@@ -144,7 +157,7 @@ export async function onRequest({ request, env, data: auth }) {
     }
     if (action === 'reset_password') {
       const { token, password: newPassword } = payload;
-      if (typeof token !== 'string' || !token) return fail('ข้อมูลไม่ถูกต้อง');
+      if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return fail('ข้อมูลไม่ถูกต้อง');
       if (!validPassword(newPassword)) return fail('รหัสผ่านต้องมี 8–256 ตัวอักษร');
 
       const tokenHash = await digest(token);
@@ -174,6 +187,15 @@ export async function onRequest({ request, env, data: auth }) {
       if (!auth.user) return fail('กรุณาเข้าสู่ระบบ / Please log in', 401);
       const userId = auth.user.id;
       const { username, bio, avatar_url, university, faculty, major, year } = payload;
+      const profileGate = consumeMemoryRateLimit('profile-update', userId, { limit: 20, windowSeconds: 3600 });
+      if (!profileGate.allowed) return rateLimitResponse(profileGate);
+      if (username !== undefined) assertString(username, 'username', { min: 1, max: 50, trim: true });
+      if (bio != null) assertString(bio, 'bio', { max: 1000 });
+      if (avatar_url != null) assertString(avatar_url, 'avatar_url', { max: 2000 });
+      if (university != null) assertString(university, 'university', { max: 200 });
+      if (faculty != null) assertString(faculty, 'faculty', { max: 200 });
+      if (major != null) assertString(major, 'major', { max: 200 });
+      if (year != null && typeof year !== 'string' && typeof year !== 'number') return fail('ปีเข้าศึกษาไม่ถูกต้อง');
       const knownFaculty = getFacultyByName(faculty ?? auth.user.faculty);
       if (university && university !== UP_UNIVERSITY_NAME) return fail('มหาวิทยาลัยไม่ถูกต้อง');
       if (faculty && !knownFaculty) return fail('คณะไม่ถูกต้อง');
@@ -185,7 +207,8 @@ export async function onRequest({ request, env, data: auth }) {
       const fields = { username, bio, avatar_url, university, faculty, major, year };
       if (password !== undefined) {
         if (!validPassword(password) || typeof payload.currentPassword !== 'string' || payload.currentPassword.length > 256) return fail('กรุณาระบุรหัสผ่านปัจจุบันและรหัสใหม่อย่างน้อย 8 ตัวอักษร');
-        if (!await allowAuthAttempt(request, db, auth.user.email)) return fail('Please try again later', 429);
+        const passwordRate = await allowAuthAttempt(request, db, auth.user.email, { scope: 'change_password', limit: 5, windowSeconds: 900 });
+        if (!passwordRate.allowed) return rateLimitResponse(passwordRate, 'Please try again later');
         const stored = await db.prepare('SELECT password FROM profiles WHERE id = ?').bind(userId).first();
         if (!await verifyPassword(payload.currentPassword, stored.password)) return fail('รหัสผ่านปัจจุบันไม่ถูกต้อง / Incorrect current password', 403);
         fields.password = await hashPassword(password);
@@ -200,6 +223,8 @@ export async function onRequest({ request, env, data: auth }) {
     }
     return fail('Invalid action');
   } catch (error) {
+    const invalid = requestErrorResponse(error);
+    if (invalid) return invalid;
     console.error('Authentication failed:', error.message);
     return fail('ไม่สามารถดำเนินการได้ กรุณาลองใหม่ / Please try again', 503);
   }

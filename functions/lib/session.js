@@ -1,6 +1,10 @@
+import { clientAddress, consumeMemoryRateLimit } from './request-guard.js';
+
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 const COOKIE = 'tog_session';
 const encoder = new TextEncoder();
+
+let lastAttemptCleanup = 0;
 
 export const PROFILE_FIELDS = 'id, username, email, bio, avatar_url, university, faculty, major, year, role';
 
@@ -65,12 +69,31 @@ export async function verifyPassword(password, stored) {
   return !!match && equal(await hashPassword(password, match[2], parseInt(match[1], 10)), stored);
 }
 
-export async function allowAuthAttempt(request, db, email) {
-  const window = Math.floor(Date.now() / (15 * 60 * 1000));
-  const ip = request.headers.get('CF-Connecting-IP') || 'local';
-  const keys = await Promise.all([digest(`${ip}:${window}`), digest(`${email}:${window}`)]);
-  const counts = await db.batch(keys.map(key => db.prepare(`INSERT INTO auth_attempts (key, attempts, expires_at) VALUES (?, 1, ?)
-    ON CONFLICT(key) DO UPDATE SET attempts = attempts + 1 RETURNING attempts`).bind(key, (window + 1) * 15 * 60 * 1000)));
-  await db.prepare('DELETE FROM auth_attempts WHERE expires_at < ?').bind(Date.now()).run();
-  return counts.every(result => result.results[0].attempts <= 20);
+export async function allowAuthAttempt(request, db, identity, { scope = 'auth', limit = 20, windowSeconds = 900 } = {}) {
+  const now = Date.now();
+  const ipGate = consumeMemoryRateLimit(`auth-ip:${scope}`, clientAddress(request), {
+    limit: Math.max(limit * 4, 20),
+    windowSeconds,
+  });
+  if (!ipGate.allowed) return ipGate;
+
+  const windowMs = windowSeconds * 1000;
+  const window = Math.floor(now / windowMs);
+  const expiresAt = (window + 1) * windowMs;
+  const key = await digest(`${scope}:${identity}:${window}`);
+  const [result] = await db.batch([
+    db.prepare(`INSERT INTO auth_attempts (key, attempts, expires_at) VALUES (?, 1, ?)
+      ON CONFLICT(key) DO UPDATE SET attempts = attempts + 1 RETURNING attempts`).bind(key, expiresAt),
+  ]);
+
+  // Cleanup is best-effort and sampled so cold starts do not add a second D1 write to every auth request.
+  if (now - lastAttemptCleanup > 60 * 60 * 1000 && Math.random() < 0.01) {
+    lastAttemptCleanup = now;
+    await db.prepare('DELETE FROM auth_attempts WHERE expires_at < ?').bind(now).run();
+  }
+
+  return {
+    allowed: (result.results[0]?.attempts || 0) <= limit,
+    retryAfter: Math.max(1, Math.ceil((expiresAt - now) / 1000)),
+  };
 }
