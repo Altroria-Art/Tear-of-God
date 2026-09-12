@@ -96,7 +96,7 @@ export async function onRequest({ request, env, data: auth }) {
         await db.batch([
           db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM auth_identities WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(target_id),
+          db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM template_bookmarks WHERE user_id = ?').bind(target_id),
           db.prepare('DELETE FROM reports WHERE reporter_id = ?').bind(target_id),
           db.prepare('DELETE FROM template_reactions WHERE user_id = ?').bind(target_id),

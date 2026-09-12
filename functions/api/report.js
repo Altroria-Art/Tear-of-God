@@ -14,7 +14,8 @@ export async function onRequest({ request, env, data: auth }) {
     const { template_id, ranking_id, comment_id, template_comment_id, reason } = await request.json();
     const reporter_id = auth.user.id;
 
-    if (!template_id && !ranking_id && !comment_id && !template_comment_id) return jsonResponse({ success: false, error: 'Missing target ID' }, 400);
+    const targets = [template_id, ranking_id, comment_id, template_comment_id].filter(Boolean);
+    if (targets.length !== 1) return jsonResponse({ success: false, error: 'ต้องระบุเป้าหมายเพียงหนึ่งอย่างเท่านั้น' }, 400);
     if (!reporter_id) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบก่อนรายงาน' }, 401);
     if (!reason || !reason.trim()) return jsonResponse({ success: false, error: 'กรุณาระบุเหตุผลการรายงาน' }, 400);
 

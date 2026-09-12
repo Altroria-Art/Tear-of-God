@@ -18,7 +18,8 @@ import {
   voteTemplate,
   fetchTemplateComments,
   createTemplateComment,
-  fetchRankings
+  fetchRankings,
+  reportComment
 } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'

@@ -50,7 +50,7 @@ export default function TemplateCard({ template, onUse }) {
             </span>
             <div className="flex flex-wrap justify-center gap-1.5">
               {template.template_items.slice(0, 6).map((ti, idx) => (
-                <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft shadow-sm rounded-lg px-2 py-0.5 text-[10px] whitespace-nowrap">
+                <span key={ti.item_id || idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft shadow-sm rounded-lg px-2 py-0.5 text-[10px] whitespace-nowrap">
                   {ti.item?.name || ti.item_id}
                 </span>
               ))}
@@ -69,7 +69,7 @@ export default function TemplateCard({ template, onUse }) {
                 />
                 <div className="bg-surface min-w-0 flex-grow rounded-r opacity-80 flex items-center gap-2 px-2 overflow-hidden border-y border-r border-line-soft">
                   {items.slice(0, 2).map((item, idx) => (
-                    <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium rounded-lg px-2 py-1 text-xs truncate min-w-0">
+                    <span key={item || idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium rounded-lg px-2 py-1 text-xs truncate min-w-0">
                       {item}
                     </span>
                   ))}

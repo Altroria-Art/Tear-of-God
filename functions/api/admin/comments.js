@@ -18,14 +18,20 @@ export async function onRequest({ request, env, data: auth }) {
         if (!target_id) return jsonResponse({ success: false, error: 'Missing target_id' }, 400);
 
         if (is_template_comment) {
-          await db.prepare('DELETE FROM template_comments WHERE id = ?').bind(target_id).run();
+          await db.batch([
+            db.prepare('DELETE FROM template_comments WHERE parent_id = ?').bind(target_id),
+            db.prepare('DELETE FROM template_comments WHERE id = ?').bind(target_id)
+          ]);
         } else {
-          // decrement comments_count of the ranking
+          // count replies + the comment itself, then decrement comments_count accordingly
           const comment = await db.prepare('SELECT ranking_id FROM comments WHERE id = ?').bind(target_id).first();
           if (comment) {
+            const { count: replyCount } = await db.prepare('SELECT COUNT(*) as count FROM comments WHERE parent_id = ?').bind(target_id).first();
+            const totalDeleted = 1 + (replyCount || 0);
             await db.batch([
+              db.prepare('DELETE FROM comments WHERE parent_id = ?').bind(target_id),
               db.prepare('DELETE FROM comments WHERE id = ?').bind(target_id),
-              db.prepare('UPDATE rankings SET comments_count = MAX(0, comments_count - 1) WHERE id = ?').bind(comment.ranking_id)
+              db.prepare('UPDATE rankings SET comments_count = MAX(0, comments_count - ?) WHERE id = ?').bind(totalDeleted, comment.ranking_id)
             ]);
           }
         }

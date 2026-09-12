@@ -30,6 +30,10 @@ export async function onRequestGet(context) {
           FROM templates
          WHERE hashtags IS NOT NULL AND hashtags <> ''
         UNION ALL
+        SELECT '', hashtags || ',', id
+          FROM rankings
+         WHERE hashtags IS NOT NULL AND hashtags <> ''
+        UNION ALL
         SELECT trim(substr(rest, 1, instr(rest, ',') - 1)),
                substr(rest, instr(rest, ',') + 1),
                tid
