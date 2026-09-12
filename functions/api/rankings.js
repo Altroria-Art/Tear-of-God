@@ -603,14 +603,21 @@ export async function onRequest({ request, env, data: auth }) {
         // item pool ของ template = item ทุกชิ้นที่ user เพิ่มมา (tier ว่าง เพราะเป็นของ template ไม่ใช่คำตอบ)
         // dedupe ด้วยชื่อ กัน item ซ้ำชื่อเดียวกันโผล่สองการ์ดตอน remix
         const seenNames = new Set();
+        const templateItems = [];
         cleanTemplate.items.forEach((item) => {
           const name = item.name;
           if (!name || seenNames.has(name)) return;
           seenNames.add(name);
-          statements.push(db.prepare(
-            `INSERT INTO template_items (id, template_id, item_id, tier, position) VALUES (?1, ?2, ?3, NULL, ?4)`
-          ).bind(crypto.randomUUID(), templateId, name, item.position));
+          templateItems.push({ id: crypto.randomUUID(), item_id: name, position: item.position });
         });
+        if (templateItems.length > 0) {
+          statements.push(db.prepare(
+            `INSERT INTO template_items (id, template_id, item_id, tier, position)
+             SELECT json_extract(value, '$.id'), ?1, json_extract(value, '$.item_id'), NULL,
+                    CAST(json_extract(value, '$.position') AS INTEGER)
+             FROM json_each(?2)`
+          ).bind(templateId, JSON.stringify(templateItems)));
+        }
       }
 
       statements.push(db.prepare(
@@ -628,25 +635,49 @@ export async function onRequest({ request, env, data: auth }) {
 
       if (cleanItems.length > 0) {
         const effTemplateId = cleanPayload.template_id || templateId;
+        const rankingItems = [];
+        const scoreItems = [];
         cleanItems.forEach(item => {
-          statements.push(db.prepare(
-            `INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?1, ?2, ?3, ?4, ?5)`
-          ).bind(crypto.randomUUID(), rankingId, item.item_id, item.tier, item.position));
+          rankingItems.push({
+            id: crypto.randomUUID(),
+            item_id: item.item_id,
+            tier: item.tier,
+            position: item.position,
+          });
 
           // 📍 บันทึกสถิติความนิยม: เฉพาะ item ที่จัดลง tier ที่ตรงกับ template เท่านั้น
           // (item ใน pool ที่ยังไม่จัด = tier null → ไม่นับ) — freeze คะแนน ณ เวลาสร้าง
           const tierIdx = tierIndexByLabel[String(item.tier)];
           if (tierIdx !== undefined) {
-            statements.push(db.prepare(
-              `INSERT INTO ranking_item_scores (id, ranking_id, template_id, item_id, tier_index, score) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
-            ).bind(crypto.randomUUID(), rankingId, effTemplateId, item.item_id, tierIdx, tierCount - tierIdx));
+            scoreItems.push({
+              id: crypto.randomUUID(),
+              item_id: item.item_id,
+              tier_index: tierIdx,
+              score: tierCount - tierIdx,
+            });
           }
         });
+
+        statements.push(db.prepare(
+          `INSERT INTO ranking_items (id, ranking_id, item_id, tier, position)
+           SELECT json_extract(value, '$.id'), ?1, json_extract(value, '$.item_id'),
+                  json_extract(value, '$.tier'), CAST(json_extract(value, '$.position') AS INTEGER)
+           FROM json_each(?2)`
+        ).bind(rankingId, JSON.stringify(rankingItems)));
+
+        if (scoreItems.length > 0) {
+          statements.push(db.prepare(
+            `INSERT INTO ranking_item_scores (id, ranking_id, template_id, item_id, tier_index, score)
+             SELECT json_extract(value, '$.id'), ?1, ?2, json_extract(value, '$.item_id'),
+                    CAST(json_extract(value, '$.tier_index') AS INTEGER),
+                    CAST(json_extract(value, '$.score') AS INTEGER)
+             FROM json_each(?3)`
+          ).bind(rankingId, effTemplateId, JSON.stringify(scoreItems)));
+        }
       }
 
-      for (let i = 0; i < statements.length; i += 100) {
-        await db.batch(statements.slice(i, i + 100));
-      }
+      // D1 batch is a transaction: one failed statement rolls back the entire publish.
+      await db.batch(statements);
       return jsonResponse({ success: true, data: { ...cleanPayload, id: rankingId, template_id: cleanPayload.template_id || templateId } }, 201);
     }
 
