@@ -158,14 +158,10 @@ export async function onRequest({ request, env, data: auth }) {
     if (action === 'reset_password') {
       const { token, password: newPassword } = payload;
       
-      console.error("DEBUG reset_password START", { tokenPresent: !!token, tokenLength: token ? token.length : 0 });
-
       if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
-        console.error("DEBUG reset_password FAILED", { reason: "token missing or invalid format" });
         return fail('ข้อมูลไม่ถูกต้อง');
       }
       if (!validPassword(newPassword)) {
-        console.error("DEBUG reset_password FAILED", { reason: "invalid password format" });
         return fail('รหัสผ่านต้องมี 8–256 ตัวอักษร');
       }
 
@@ -173,16 +169,13 @@ export async function onRequest({ request, env, data: auth }) {
       const pr = await db.prepare('SELECT user_id, expires_at FROM password_resets WHERE token_hash = ?').bind(tokenHash).first();
       
       if (!pr) {
-        console.error("DEBUG reset_password FAILED", { reason: "tokenHash not found in DB" });
         return fail('ลิงก์ไม่ถูกต้องหรือถูกใช้งานไปแล้ว');
       }
       if (new Date(pr.expires_at).getTime() < Date.now()) {
-        console.error("DEBUG reset_password FAILED", { reason: "token expired", expires_at: pr.expires_at, now: new Date().toISOString() });
         await db.prepare('DELETE FROM password_resets WHERE token_hash = ?').bind(tokenHash).run();
         return fail('ลิงก์หมดอายุแล้ว กรุณาขอลิงก์ใหม่');
       }
 
-      console.error("DEBUG reset_password", { status: "updating password" });
       const hashedNew = await hashPassword(newPassword);
       try {
         await db.batch([
@@ -190,10 +183,9 @@ export async function onRequest({ request, env, data: auth }) {
           db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(pr.user_id),
           db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(pr.user_id)
         ]);
-        console.error("DEBUG reset_password SUCCESS");
         return reply({ success: true, message: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว' });
       } catch (err) {
-        console.error("DEBUG reset_password DB ERROR", { error: err.message });
+        console.error("Reset password DB error:", err.message);
         return fail('เกิดข้อผิดพลาดฐานข้อมูล');
       }
     }
@@ -244,14 +236,7 @@ export async function onRequest({ request, env, data: auth }) {
   } catch (error) {
     const invalid = requestErrorResponse(error);
     if (invalid) return invalid;
-    
-    // DEBUG: Log the exact error for debugging purposes
-    console.error('Authentication failed Error:', { 
-      message: error.message, 
-      stack: error.stack, 
-      action: typeof payload === 'object' && payload ? payload.action : 'unknown'
-    });
-    
+    console.error('Authentication failed:', error.message);
     return fail('ไม่สามารถดำเนินการได้ กรุณาลองใหม่ / Please try again', 503);
   }
 }
