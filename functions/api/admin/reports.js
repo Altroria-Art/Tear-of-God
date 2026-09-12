@@ -2,6 +2,8 @@
 // ทุก action เริ่มด้วย requireAdmin(env, user_id) — ตรวจสิทธิ์จาก DB ก่อนจึงทำงาน
 // (ดู functions/api/admin/_check.js)
 import { requireAdmin } from './_check.js';
+import { assertAllowedFields, assertEnum } from '../../lib/request-guard.js';
+import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -102,8 +104,7 @@ export async function onRequest({ request, env, data: auth }) {
         pending_count: pendingRows[0]?.n || 0,
       });
     } catch (err) {
-      console.error(err);
-      return jsonResponse({ success: false, error: err.message }, 500);
+      return adminRequestErrorResponse(err, 'Admin report list');
     }
   }
 
@@ -112,26 +113,27 @@ export async function onRequest({ request, env, data: auth }) {
   // body: { action: 'set_status'|'delete', target_id, status? }
   // =====================
   if (request.method === 'POST') {
+    const limited = adminMutationRateLimitResponse(user_id);
+    if (limited) return limited;
     try {
-      const { action, target_id, status } = await request.json();
-      if (!target_id) return jsonResponse({ success: false, error: 'Missing target_id' }, 400);
+      const { payload, action, targetId } = await readAdminMutation(request, ['set_status', 'delete']);
 
       if (action === 'set_status') {
-        const valid = ['pending', 'resolved', 'dismissed'];
-        if (!valid.includes(status)) return jsonResponse({ success: false, error: 'Invalid status' }, 400);
-        await db.prepare('UPDATE reports SET status = ? WHERE id = ?').bind(status, target_id).run();
-        return jsonResponse({ success: true, data: { id: target_id, status } });
+        assertAllowedFields(payload, ['action', 'target_id', 'status']);
+        const status = assertEnum(payload.status, 'status', ['pending', 'resolved', 'dismissed']);
+        await db.prepare('UPDATE reports SET status = ? WHERE id = ?').bind(status, targetId).run();
+        return jsonResponse({ success: true, data: { id: targetId, status } });
       }
 
       if (action === 'delete') {
-        await db.prepare('DELETE FROM reports WHERE id = ?').bind(target_id).run();
-        return jsonResponse({ success: true, data: { id: target_id } });
+        assertAllowedFields(payload, ['action', 'target_id']);
+        await db.prepare('DELETE FROM reports WHERE id = ?').bind(targetId).run();
+        return jsonResponse({ success: true, data: { id: targetId } });
       }
 
       return jsonResponse({ success: false, error: 'Invalid action' }, 400);
     } catch (err) {
-      console.error(err);
-      return jsonResponse({ success: false, error: err.message }, 500);
+      return adminRequestErrorResponse(err, 'Admin report mutation');
     }
   }
 

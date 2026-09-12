@@ -1,4 +1,6 @@
 import { requireAdmin } from './_check.js';
+import { assertAllowedFields, assertBoolean } from '../../lib/request-guard.js';
+import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -11,26 +13,28 @@ export async function onRequest({ request, env, data: auth }) {
   }
 
   if (request.method === 'POST') {
+    const limited = adminMutationRateLimitResponse(user_id);
+    if (limited) return limited;
     try {
-      const { action, target_id, is_template_comment } = await request.json();
+      const { payload, action, targetId } = await readAdminMutation(request, ['delete']);
+      assertAllowedFields(payload, ['action', 'target_id', 'is_template_comment']);
+      const isTemplateComment = assertBoolean(payload.is_template_comment, 'is_template_comment', { optional: true }) ?? false;
       
       if (action === 'delete') {
-        if (!target_id) return jsonResponse({ success: false, error: 'Missing target_id' }, 400);
-
-        if (is_template_comment) {
+        if (isTemplateComment) {
           await db.batch([
-            db.prepare('DELETE FROM template_comments WHERE parent_id = ?').bind(target_id),
-            db.prepare('DELETE FROM template_comments WHERE id = ?').bind(target_id)
+            db.prepare('DELETE FROM template_comments WHERE parent_id = ?').bind(targetId),
+            db.prepare('DELETE FROM template_comments WHERE id = ?').bind(targetId)
           ]);
         } else {
           // count replies + the comment itself, then decrement comments_count accordingly
-          const comment = await db.prepare('SELECT ranking_id FROM comments WHERE id = ?').bind(target_id).first();
+          const comment = await db.prepare('SELECT ranking_id FROM comments WHERE id = ?').bind(targetId).first();
           if (comment) {
-            const { count: replyCount } = await db.prepare('SELECT COUNT(*) as count FROM comments WHERE parent_id = ?').bind(target_id).first();
+            const { count: replyCount } = await db.prepare('SELECT COUNT(*) as count FROM comments WHERE parent_id = ?').bind(targetId).first();
             const totalDeleted = 1 + (replyCount || 0);
             await db.batch([
-              db.prepare('DELETE FROM comments WHERE parent_id = ?').bind(target_id),
-              db.prepare('DELETE FROM comments WHERE id = ?').bind(target_id),
+              db.prepare('DELETE FROM comments WHERE parent_id = ?').bind(targetId),
+              db.prepare('DELETE FROM comments WHERE id = ?').bind(targetId),
               db.prepare('UPDATE rankings SET comments_count = MAX(0, comments_count - ?) WHERE id = ?').bind(totalDeleted, comment.ranking_id)
             ]);
           }
@@ -40,8 +44,7 @@ export async function onRequest({ request, env, data: auth }) {
 
       return jsonResponse({ success: false, error: 'Invalid action' }, 400);
     } catch (err) {
-      console.error(err);
-      return jsonResponse({ success: false, error: err.message }, 500);
+      return adminRequestErrorResponse(err, 'Admin comment mutation');
     }
   }
 

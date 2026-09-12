@@ -1,3 +1,5 @@
+import { internalErrorResponse } from '../lib/request-guard.js';
+
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   try {
@@ -19,6 +21,7 @@ export async function onRequestGet({ request, env }) {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    console.error('Category query failed:', { name: error?.name, message: error?.message });
+    return internalErrorResponse();
   }
 }

@@ -2,6 +2,8 @@
 // ทุก action เริ่มด้วย requireAdmin(env, user_id) — ตรวจสิทธิ์จาก DB ก่อนจึงทำงาน
 // (ดู functions/api/admin/_check.js)
 import { requireAdmin } from './_check.js';
+import { assertAllowedFields, assertEnum } from '../../lib/request-guard.js';
+import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -65,8 +67,7 @@ export async function onRequest({ request, env, data: auth }) {
 
       return jsonResponse({ success: true, data, page, limit, total: totalRows[0]?.n || 0 });
     } catch (err) {
-      console.error(err);
-      return jsonResponse({ success: false, error: err.message }, 500);
+      return adminRequestErrorResponse(err, 'Admin user list');
     }
   }
 
@@ -75,51 +76,51 @@ export async function onRequest({ request, env, data: auth }) {
   // body: { action: 'set_role'|'delete', target_id, role? }
   // =====================
   if (request.method === 'POST') {
+    const limited = adminMutationRateLimitResponse(user_id);
+    if (limited) return limited;
     try {
-      const { action, target_id, role } = await request.json();
-      if (!target_id) return jsonResponse({ success: false, error: 'Missing target_id' }, 400);
+      const { payload, action, targetId } = await readAdminMutation(request, ['set_role', 'delete']);
 
       // ⚠️ กันแอดมินลบตัวเองโดยไม่ตั้งใจ (จะได้ไม่มี admin เหลือในระบบ)
-      if (target_id === user_id) {
+      if (targetId === user_id) {
         return jsonResponse({ success: false, error: 'ไม่สามารถจัดการบัญชีแอดมินของตัวเองได้' }, 400);
       }
 
       if (action === 'set_role') {
-        if (role !== 'admin' && role !== 'user') {
-          return jsonResponse({ success: false, error: 'role ต้องเป็น admin หรือ user' }, 400);
-        }
-        await db.prepare('UPDATE profiles SET role = ? WHERE id = ?').bind(role, target_id).run();
-        return jsonResponse({ success: true, data: { id: target_id, role } });
+        assertAllowedFields(payload, ['action', 'target_id', 'role']);
+        const role = assertEnum(payload.role, 'role', ['admin', 'user']);
+        await db.prepare('UPDATE profiles SET role = ? WHERE id = ?').bind(role, targetId).run();
+        return jsonResponse({ success: true, data: { id: targetId, role } });
       }
 
       if (action === 'delete') {
+        assertAllowedFields(payload, ['action', 'target_id']);
         await db.batch([
-          db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM auth_identities WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM template_bookmarks WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM reports WHERE reporter_id = ?').bind(target_id),
-          db.prepare('DELETE FROM template_reactions WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM template_comments WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM template_views WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM ranking_items WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(target_id),
-          db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(target_id),
-          db.prepare('DELETE FROM comments WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(target_id),
-          db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(target_id),
-          db.prepare('DELETE FROM rankings WHERE user_id = ?').bind(target_id),
-          db.prepare('UPDATE templates SET creator_id = NULL WHERE creator_id = ?').bind(target_id),
-          db.prepare('DELETE FROM votes WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM comments WHERE user_id = ?').bind(target_id),
-          db.prepare('DELETE FROM follows WHERE follower_id = ? OR following_id = ?').bind(target_id, target_id),
-          db.prepare('DELETE FROM profiles WHERE id = ?').bind(target_id)
+          db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM auth_identities WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM template_bookmarks WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM reports WHERE reporter_id = ?').bind(targetId),
+          db.prepare('DELETE FROM template_reactions WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM template_comments WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM template_views WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM ranking_items WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(targetId),
+          db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(targetId),
+          db.prepare('DELETE FROM comments WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(targetId),
+          db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(targetId),
+          db.prepare('DELETE FROM rankings WHERE user_id = ?').bind(targetId),
+          db.prepare('UPDATE templates SET creator_id = NULL WHERE creator_id = ?').bind(targetId),
+          db.prepare('DELETE FROM votes WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM comments WHERE user_id = ?').bind(targetId),
+          db.prepare('DELETE FROM follows WHERE follower_id = ? OR following_id = ?').bind(targetId, targetId),
+          db.prepare('DELETE FROM profiles WHERE id = ?').bind(targetId)
         ]);
-        return jsonResponse({ success: true, data: { id: target_id } });
+        return jsonResponse({ success: true, data: { id: targetId } });
       }
 
       return jsonResponse({ success: false, error: 'Invalid action' }, 400);
     } catch (err) {
-      console.error(err);
-      return jsonResponse({ success: false, error: err.message }, 500);
+      return adminRequestErrorResponse(err, 'Admin user mutation');
     }
   }
 

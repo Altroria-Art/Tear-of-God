@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { BASE_URL, setup, getSeedIds, checkOk } from '../config.js';
+import { BASE_URL, MUTATIONS_ENABLED, setup, getSeedIds, checkOk } from '../config.js';
 
 // Spike test: sudden burst of traffic then back to normal
 export const options = {
@@ -41,7 +41,7 @@ export default function (data) {
       const res = http.get(`${BASE_URL}/api/templates?sort=popular&limit=20`);
       checkOk(res, 'templates');
     });
-  } else if (roll < 0.85) {
+  } else if (roll < 0.85 && MUTATIONS_ENABLED) {
     if (rankingId) {
       group('vote: POST /api/votes', () => {
         const payload = JSON.stringify({

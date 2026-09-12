@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { BASE_URL, setup, getSeedIds, checkOk } from '../config.js';
+import { BASE_URL, MUTATIONS_ENABLED, setup, getSeedIds, checkOk } from '../config.js';
 
 // Soak test: sustained load over extended period to detect memory leaks and degradation
 // Full spec is 30m; shortened to 10m for interactive runs via DURATION env override:
@@ -46,7 +46,7 @@ export default function (data) {
         checkOk(res, 'detail');
       });
     }
-  } else if (roll < 0.80) {
+  } else if (roll < 0.80 && MUTATIONS_ENABLED) {
     if (rankingId) {
       group('vote: POST /api/votes', () => {
         const payload = JSON.stringify({

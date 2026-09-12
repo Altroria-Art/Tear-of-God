@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { BASE_URL, setup, getSeedIds, checkOk } from '../config.js';
+import { BASE_URL, MUTATIONS_ENABLED, setup, getSeedIds, checkOk } from '../config.js';
 
 // Stress test: ramp beyond expected capacity to find the breaking point
 export const options = {
@@ -48,7 +48,7 @@ export default function (data) {
         checkOk(res, 'detail');
       });
     }
-  } else if (roll < 0.85) {
+  } else if (roll < 0.85 && MUTATIONS_ENABLED) {
     if (rankingId) {
       group('vote: POST /api/votes', () => {
         const payload = JSON.stringify({

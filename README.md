@@ -131,10 +131,16 @@ npx wrangler d1 execute tear-of-god-db --remote --command "SELECT (SELECT COUNT(
 
 ## Load Testing
 
-k6 test scenarios in `tests/scenarios/` (smoke, load, stress, spike, soak). Run against a running local or remote instance:
+k6 test scenarios live in `tests/scenarios/` (smoke, load, stress, spike, soak). Mutation traffic is disabled by default, so ordinary runs are read-only:
 
 ```
 k6 run tests/scenarios/smoke.js
+```
+
+Mutation traffic requires an explicit opt-in and is accepted only for a loopback URL. Production, Pages branch aliases, and all other remote hosts fail closed:
+
+```
+k6 run -e BASE_URL=http://localhost:8788 -e ALLOW_MUTATIONS=true tests/scenarios/load.js
 ```
 
 HTML reports in `tests/reports/`. Helper script `scripts/generate-k6-summary.mjs` produces summary reports from raw k6 JSON output.

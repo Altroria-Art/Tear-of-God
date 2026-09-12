@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, group } from 'k6';
-import { BASE_URL, setup, getSeedIds, checkOk, vuUserIdStable } from '../config.js';
+import { BASE_URL, MUTATIONS_ENABLED, setup, getSeedIds, checkOk, vuUserIdStable } from '../config.js';
 
 // Weighted traffic mix — simulates real user browsing behavior
 // ~70% reads, 20% votes, 10% comments
@@ -59,7 +59,7 @@ export default function (data) {
         checkOk(res, 'post-detail');
       });
     }
-  } else if (roll < 0.80) {
+  } else if (roll < 0.80 && MUTATIONS_ENABLED) {
     // 15% — Vote on a post
     if (rid) {
       group('action: POST /api/votes (like)', () => {
