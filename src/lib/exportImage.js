@@ -1,9 +1,9 @@
 import { toPng } from 'html-to-image';
 
-export async function downloadTablePng(node, filename) {
+export async function downloadTablePng(node, filename, bgColor = '#fff') {
   if (!node) return false;
   try {
-    const dataUrl = await toPng(node, { pixelRatio: 2, backgroundColor: '#fff', cacheBust: true });
+    const dataUrl = await toPng(node, { pixelRatio: 2, backgroundColor: bgColor, cacheBust: true });
     const link = document.createElement('a');
     link.download = filename;
     link.href = dataUrl;

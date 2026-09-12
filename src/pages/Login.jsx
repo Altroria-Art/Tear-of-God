@@ -1,6 +1,6 @@
 import { returnPath } from '../lib/navigation';
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
@@ -648,6 +648,12 @@ export default function Login() {
                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
+                      </div>
+
+                      <div className="flex justify-end mt-1 mb-3">
+                        <Link to="/forgot-password" className="text-[13px] font-bold text-login-accent hover:text-login-accent/80 hover:underline transition-colors" tabIndex={!isRegister ? 0 : -1}>
+                          ลืมรหัสผ่าน?
+                        </Link>
                       </div>
 
                       {/* Submit Action Button for Login */}

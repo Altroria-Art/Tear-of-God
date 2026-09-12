@@ -1,6 +1,6 @@
 import { UP_UNIVERSITY_NAME, getFacultyByName, isValidAdmissionYear } from '../../src/lib/university.js';
 import { firebaseConfig } from '../../src/lib/firebaseConfig.js';
-import { PROFILE_FIELDS, hashPassword, verifyPassword, allowAuthAttempt, createSession, sessionCookie, sessionToken, digest } from '../lib/session.js';
+import { PROFILE_FIELDS, hashPassword, verifyPassword, allowAuthAttempt, createSession, sessionCookie, sessionToken, digest, randomToken } from '../lib/session.js';
 
 const reply = (body, status = 200, headers = {}) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 const fail = (error, status = 400) => reply({ success: false, error }, status);
@@ -73,6 +73,97 @@ export async function onRequest({ request, env, data: auth }) {
       const linked = await db.prepare("SELECT user_id FROM auth_identities WHERE provider = 'google' AND subject = ?").bind(account.localId).first();
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(linked.user_id).first();
       return reply({ success: true, data: profile }, 200, { 'Set-Cookie': await createSession(request, db, profile.id) });
+    }
+    if (action === 'forgot_password') {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('อีเมลไม่ถูกต้อง');
+      if (!await allowAuthAttempt(request, db, 'forgot:' + email)) return fail('กรุณารอสักครู่ก่อนทำรายการใหม่', 429);
+      
+      const user = await findByEmail(db, email);
+      if (user) {
+        const token = randomToken();
+        const tokenHash = await digest(token);
+        const expiresAt = new Date(Date.now() + 3600000).toISOString();
+        
+        await db.batch([
+          db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(user.id),
+          db.prepare('INSERT INTO password_resets (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)')
+            .bind('pr_' + crypto.randomUUID(), user.id, tokenHash, expiresAt)
+        ]);
+
+        const resetUrl = `${env.APP_URL || 'https://tear-of-god.pages.dev'}/reset-password?token=${token}`;
+        
+        if (env.RESEND_API_KEY) {
+          let emailSent = false;
+          try {
+            const res = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                from: env.RESEND_FROM_EMAIL || 'Tear of God <onboarding@resend.dev>',
+                to: user.email,
+                subject: 'รีเซ็ตรหัสผ่านของคุณ',
+                html: `
+                  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2>รีเซ็ตรหัสผ่านของคุณ</h2>
+                    <p>มีการร้องขอเปลี่ยนรหัสผ่านสำหรับบัญชีของคุณบน Tear of God</p>
+                    <p>กรุณากดปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่:</p>
+                    <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 16px 0;">ตั้งรหัสผ่านใหม่</a>
+                    <p style="color: #666; font-size: 14px;">ลิงก์นี้จะหมดอายุภายใน 1 ชั่วโมง</p>
+                    <p style="color: #666; font-size: 14px;">หากคุณไม่ได้เป็นคนร้องขอ สามารถละเว้นอีเมลนี้ได้</p>
+                  </div>
+                `
+              })
+            });
+            if (!res.ok) {
+              const errBody = await res.json().catch(() => ({}));
+              console.error('Resend send failed', { 
+                status: res.status, 
+                name: errBody.name, 
+                message: errBody.message 
+              });
+            } else {
+              emailSent = true;
+            }
+          } catch (e) {
+            console.error('Resend fetch failed', { error: e.message });
+          }
+
+          if (!emailSent) {
+            try {
+              await db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(user.id).run();
+            } catch (cleanupErr) {
+              console.error('Failed to cleanup reset token', { error: cleanupErr.message });
+            }
+          }
+        }
+      }
+      return reply({ success: true, message: 'หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งลิงก์สำหรับตั้งรหัสผ่านใหม่แล้ว' });
+    }
+    if (action === 'reset_password') {
+      const { token, password: newPassword } = payload;
+      if (typeof token !== 'string' || !token) return fail('ข้อมูลไม่ถูกต้อง');
+      if (!validPassword(newPassword)) return fail('รหัสผ่านต้องมี 8–256 ตัวอักษร');
+
+      const tokenHash = await digest(token);
+      const pr = await db.prepare('SELECT user_id, expires_at FROM password_resets WHERE token_hash = ?').bind(tokenHash).first();
+      
+      if (!pr) return fail('ลิงก์ไม่ถูกต้องหรือถูกใช้งานไปแล้ว');
+      if (new Date(pr.expires_at).getTime() < Date.now()) {
+        await db.prepare('DELETE FROM password_resets WHERE token_hash = ?').bind(tokenHash).run();
+        return fail('ลิงก์หมดอายุแล้ว กรุณาขอลิงก์ใหม่');
+      }
+
+      const hashedNew = await hashPassword(newPassword);
+      await db.batch([
+        db.prepare('UPDATE profiles SET password = ? WHERE id = ?').bind(hashedNew, pr.user_id),
+        db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(pr.user_id),
+        db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(pr.user_id)
+      ]);
+
+      return reply({ success: true, message: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว' });
     }
     if (action === 'logout') {
       const token = sessionToken(request);

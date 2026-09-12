@@ -82,11 +82,13 @@ export default function PostDetail() {
           const formattedComments = data.comments.map(c => ({
             id: c.id,
             author: {
+              id: c.user_id,
               name: c.username || t('common.unknownUser'),
               avatarUrl: c.avatar_url
             },
             createdAt: c.created_at,
-            body: c.content
+            body: c.content,
+            parentId: c.parent_id
           }))
           setComments(formattedComments)
         }
@@ -152,7 +154,7 @@ export default function PostDetail() {
   }
 
   // 📍 [แก้ไขแล้ว]: ใช้ createComment จาก api.js แทนการ fetch ดิบๆ
-  const handleAddComment = async (body) => {
+  const handleAddComment = async (body, parentId) => {
     if (!currentUser) {
       toast.warning(t('post.warnLoginComment'));
       return;
@@ -162,18 +164,21 @@ export default function PostDetail() {
     const { data, error } = await createComment({
       ranking_id: postId,
       user_id: currentUser.id,
-      content: body.trim()
+      content: body.trim(),
+      parentId
     });
 
     if (!error) {
       const newComment = {
         id: data?.id || `comm_${Date.now()}`,
         author: {
+          id: currentUser.id,
           name: currentUser.username || 'User',
           avatarUrl: currentUser.avatar_url
         },
         createdAt: data?.created_at ?? new Date().toISOString(),
-        body: body.trim()
+        body: body.trim(),
+        parentId: parentId || null
       }
       setComments(prev => [newComment, ...prev]);
       setPost(prev => ({
@@ -195,27 +200,40 @@ export default function PostDetail() {
     commentInputRef.current?.focus()
   }
 
-  // 📍 รายงานโพสต์ (ranking) — ส่งไปหาแอดมินว่าอันนี้ไม่เหมาะสม
-  const handleReportPost = async () => {
-    if (!currentUser) {
-      toast.warning(t('post.warnLoginReport'));
-      return;
-    }
-    if (!reportReason.trim()) {
-      toast.warning(t('post.warnReason'));
-      return;
-    }
+  // 📍 รายงานโพสต์ (ranking) หรือคอมเมนต์
+  const [reportTarget, setReportTarget] = useState(null) // null | { type: 'post' } | { type: 'comment', id: string }
+
+  const handleReportPost = () => {
+    if (!currentUser) return toast.warning(t('post.warnLoginReport'));
+    setReportTarget({ type: 'post' })
+    setReportOpen(true)
+  }
+
+  const handleReportComment = (commentId) => {
+    if (!currentUser) return toast.warning(t('post.warnLoginReport'));
+    setReportTarget({ type: 'comment', id: commentId })
+    setReportOpen(true)
+  }
+
+  const submitReport = async () => {
+    if (!reportReason.trim()) return toast.warning(t('post.warnReason'));
     setReporting(true);
-    const res = await reportPost({ postId, reporterId: currentUser.id, reason: reportReason.trim() });
+    let res;
+    if (reportTarget?.type === 'post') {
+      res = await reportPost({ postId, reporterId: currentUser.id, reason: reportReason.trim() });
+    } else if (reportTarget?.type === 'comment') {
+      res = await reportComment(reportTarget.id, false, reportReason.trim());
+    }
     setReporting(false);
-    if (res.success) {
+    if (res?.success) {
       toast.success(t('post.reportSuccess'));
       setReportOpen(false);
       setReportReason('');
-    } else if (res.status === 409) {
+      setReportTarget(null);
+    } else if (res?.status === 409) {
       toast.warning(t('post.reportDuplicate'));
     } else {
-      toast.error(t('post.reportFailed', { msg: res.error || t('common.error') }));
+      toast.error(t('post.reportFailed', { msg: res?.error || t('common.error') }));
     }
   }
 
@@ -298,7 +316,7 @@ export default function PostDetail() {
                 
                 <button
                   type="button"
-                  onClick={() => { setReportReason(''); setReportOpen(true) }}
+                  onClick={handleReportPost}
                   className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
                   aria-label={t('post.report')}
                   title={t('post.report')}
@@ -393,7 +411,12 @@ export default function PostDetail() {
             filename={`post-${postId}.png`}
           />
 
-          <CommentSection comments={comments} onSubmit={handleAddComment} inputRef={commentInputRef} />
+          <CommentSection 
+            comments={comments} 
+            onSubmit={handleAddComment} 
+            onReportComment={handleReportComment}
+            inputRef={commentInputRef} 
+          />
         </div>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
@@ -439,16 +462,15 @@ export default function PostDetail() {
             <div className="mt-4 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setReportOpen(false)}
-                disabled={reporting}
-                className="rounded-full px-4 py-2 text-sm font-bold text-muted transition-colors hover:bg-surface-glass"
+                onClick={() => { setReportOpen(false); setReportTarget(null); }}
+                className="rounded-full px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-canvas"
               >
                 {t('common.cancel')}
               </button>
               <button
                 type="button"
-                onClick={handleReportPost}
-                disabled={reporting}
+                onClick={submitReport}
+                disabled={reporting || !reportReason.trim()}
                 className="flex items-center gap-2 rounded-full bg-status-error px-5 py-2 text-sm font-bold text-white shadow-md transition-all hover:bg-red-700 disabled:opacity-60"
               >
                 <Flag size={16} />

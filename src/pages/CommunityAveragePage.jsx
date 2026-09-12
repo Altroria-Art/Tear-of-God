@@ -74,9 +74,10 @@ export default function CommunityAveragePage() {
       if (cancelled) return
       setComments((res.data || []).map((c) => ({
         id: c.id,
-        author: { name: c.username || unknownUser, avatarUrl: c.avatar_url },
+        author: { id: c.user_id, name: c.username || unknownUser, avatarUrl: c.avatar_url },
         createdAt: c.created_at,
-        body: c.content
+        body: c.content,
+        parentId: c.parent_id
       })))
     })
     return () => { cancelled = true }
@@ -120,20 +121,50 @@ export default function CommunityAveragePage() {
     }
   }
 
-  const handleAddComment = async (body) => {
+  // 📍 Report Comment
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null); // { id: string }
+  const [reportReason, setReportReason] = useState('');
+  const [reporting, setReporting] = useState(false);
+
+  const handleReportComment = (commentId) => {
+    if (!currentUser) return toast.warning(t('post.warnLoginReport'));
+    setReportTarget({ id: commentId });
+    setReportOpen(true);
+  }
+
+  const submitReport = async () => {
+    if (!reportReason.trim()) return toast.warning(t('post.warnReason'));
+    setReporting(true);
+    const res = await reportComment(reportTarget.id, true, reportReason.trim());
+    setReporting(false);
+    if (res?.success) {
+      toast.success(t('post.reportSuccess'));
+      setReportOpen(false);
+      setReportReason('');
+      setReportTarget(null);
+    } else if (res?.status === 409) {
+      toast.warning(t('post.reportDuplicate'));
+    } else {
+      toast.error(t('post.reportFailed', { msg: res?.error || t('common.error') }));
+    }
+  }
+
+  const handleAddComment = async (body, parentId) => {
     if (!currentUser) {
       toast.warning(t('post.warnLoginComment'))
       return
     }
     if (!body || !body.trim()) return
 
-    const res = await createTemplateComment({ template_id: templateId, user_id: currentUser.id, content: body.trim() })
+    const res = await createTemplateComment({ template_id: templateId, user_id: currentUser.id, content: body.trim(), parentId })
     if (res.data) {
       const newComment = {
         id: res.data.id,
-        author: { name: res.data.username || t('common.unknownUser'), avatarUrl: res.data.avatar_url || currentUser.avatar_url },
+        author: { id: currentUser.id, name: res.data.username || t('common.unknownUser'), avatarUrl: res.data.avatar_url || currentUser.avatar_url },
         createdAt: res.data.created_at ?? new Date().toISOString(),
-        body: body.trim()
+        body: body.trim(),
+        parentId: parentId || null
       }
       setComments((c) => [newComment, ...c])
       setCommentCount((n) => n + 1)
@@ -383,7 +414,12 @@ export default function CommunityAveragePage() {
             )}
           </section>
 
-          <CommentSection comments={comments} onSubmit={handleAddComment} inputRef={commentInputRef} />
+          <CommentSection 
+            comments={comments} 
+            onSubmit={handleAddComment} 
+            onReportComment={handleReportComment}
+            inputRef={commentInputRef} 
+          />
         </div>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
@@ -398,6 +434,30 @@ export default function CommunityAveragePage() {
           </div>
         </aside>
       </div>
+
+      {reportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-ink">{t('post.reportTitle', 'Report')}</h3>
+            <p className="mt-1 text-sm text-muted">{t('post.reportDesc', 'Please provide a reason.')}</p>
+            <textarea
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              placeholder={t('post.reportReasonPh', 'Reason for reporting...')}
+              rows={3}
+              className="mt-4 w-full resize-none rounded-xl border border-line-soft bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-status-error"
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => { setReportOpen(false); setReportTarget(null); }} className="rounded-full px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-canvas">
+                {t('common.cancel')}
+              </button>
+              <button onClick={submitReport} disabled={!reportReason.trim() || reporting} className="rounded-full bg-status-error px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+                {reporting ? t('common.loading') : t('common.submit')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

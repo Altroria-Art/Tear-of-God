@@ -12,6 +12,8 @@ import ErrorBoundary from './components/layout/ErrorBoundary';
 // 📍 Lazy-load ตามหน้า (code-splitting) — แยก bundle ใหญ่ (หน้าแรกที่ใช้บ่อยโหลดก่อน,
 // หน้าที่ไม่ใช่หน้าแรกค่อยโหลดเมื่อเข้า) ลดขนาด initial JS (ดู bundle warning จาก build)
 const HomeFeed = lazy(() => import('./pages/HomeFeed'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Discover = lazy(() => import('./pages/Discover'));
 const PopularTemplates = lazy(() => import('./pages/PopularTemplates'));
 const PopularHashtags = lazy(() => import('./pages/PopularHashtags'));
@@ -71,6 +73,8 @@ function App() {
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:userId" element={<Profile />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/admin" element={<AdminLayout />}>
                   <Route index element={<AdminDashboard />} />
                   <Route path="users" element={<AdminUsers />} />

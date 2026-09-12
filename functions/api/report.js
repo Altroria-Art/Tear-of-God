@@ -11,10 +11,10 @@ export async function onRequest({ request, env, data: auth }) {
   }
 
   try {
-    const { template_id, ranking_id, reason } = await request.json();
+    const { template_id, ranking_id, comment_id, template_comment_id, reason } = await request.json();
     const reporter_id = auth.user.id;
 
-    if (!template_id && !ranking_id) return jsonResponse({ success: false, error: 'Missing template_id or ranking_id' }, 400);
+    if (!template_id && !ranking_id && !comment_id && !template_comment_id) return jsonResponse({ success: false, error: 'Missing target ID' }, 400);
     if (!reporter_id) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบก่อนรายงาน' }, 401);
     if (!reason || !reason.trim()) return jsonResponse({ success: false, error: 'กรุณาระบุเหตุผลการรายงาน' }, 400);
 
@@ -24,7 +24,15 @@ export async function onRequest({ request, env, data: auth }) {
 
     // กันไม่ให้ user เดิมรายงาน item เดียวกันซ้ำถี่ยิบ — ตรวจว่ายังค้าง pending อยู่หรือไม่
     let existing;
-    if (template_id) {
+    if (template_comment_id) {
+      existing = await db.prepare(
+        `SELECT id FROM reports WHERE template_comment_id = ? AND reporter_id = ? AND status = 'pending'`
+      ).bind(template_comment_id, reporter_id).first();
+    } else if (comment_id) {
+      existing = await db.prepare(
+        `SELECT id FROM reports WHERE comment_id = ? AND reporter_id = ? AND status = 'pending'`
+      ).bind(comment_id, reporter_id).first();
+    } else if (template_id) {
       existing = await db.prepare(
         `SELECT id FROM reports WHERE template_id = ? AND reporter_id = ? AND status = 'pending'`
       ).bind(template_id, reporter_id).first();
@@ -39,7 +47,15 @@ export async function onRequest({ request, env, data: auth }) {
 
     // กัน self-report — user รายงานเนื้อหาของตัวเองไม่ได้
     let ownerId = null;
-    if (template_id) {
+    if (template_comment_id) {
+      const owner = await db.prepare('SELECT user_id as uid FROM template_comments WHERE id = ?').bind(template_comment_id).first();
+      if (!owner) return jsonResponse({ success: false, error: 'คอมเมนต์ไม่มีอยู่ในระบบ' }, 404);
+      ownerId = owner.uid ?? null;
+    } else if (comment_id) {
+      const owner = await db.prepare('SELECT user_id as uid FROM comments WHERE id = ?').bind(comment_id).first();
+      if (!owner) return jsonResponse({ success: false, error: 'คอมเมนต์ไม่มีอยู่ในระบบ' }, 404);
+      ownerId = owner.uid ?? null;
+    } else if (template_id) {
       const owner = await db.prepare('SELECT creator_id as uid FROM templates WHERE id = ?').bind(template_id).first();
       if (!owner) return jsonResponse({ success: false, error: 'เทมเพลตไม่มีอยู่ในระบบ' }, 404);
       ownerId = owner.uid ?? null;
@@ -54,8 +70,8 @@ export async function onRequest({ request, env, data: auth }) {
 
     const id = crypto.randomUUID();
     await db.prepare(
-      `INSERT INTO reports (id, template_id, ranking_id, reporter_id, reason) VALUES (?1, ?2, ?3, ?4, ?5)`
-    ).bind(id, template_id || null, ranking_id || null, reporter_id, reason.trim()).run();
+      `INSERT INTO reports (id, template_id, ranking_id, comment_id, template_comment_id, reporter_id, reason) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+    ).bind(id, template_id || null, ranking_id || null, comment_id || null, template_comment_id || null, reporter_id, reason.trim()).run();
 
     return jsonResponse({ success: true, data: { id } }, 201);
   } catch (err) {

@@ -46,8 +46,8 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div ref={dialog} tabIndex={-1} className={`relative w-full max-h-[85dvh] overflow-y-auto ${maxWidth} rounded-2xl border border-line-soft bg-surface shadow-2xl shadow-black/30`}>
-        <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
+      <div ref={dialog} tabIndex={-1} className={`relative flex flex-col w-full max-h-[85dvh] ${maxWidth} rounded-2xl border border-line-soft bg-surface shadow-2xl shadow-black/30`}>
+        <div className="flex shrink-0 items-center justify-between border-b border-line-soft px-5 py-4">
           <h3 className="text-lg font-bold text-ink">{title}</h3>
           <button
             type="button"
@@ -59,12 +59,12 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
           </button>
         </div>
 
-        <div className="px-5 py-4">
+        <div className="px-5 py-4 overflow-y-auto">
           {children}
         </div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-line-soft px-5 py-4">
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-line-soft px-5 py-4">
             {footer}
           </div>
         )}

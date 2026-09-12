@@ -36,10 +36,13 @@ export async function onRequest({ request, env, data: auth }) {
       const { results: reports } = await db.prepare(`
         SELECT rp.*, t.title AS template_title, t.category AS template_category,
           rk.title AS ranking_title, rk.category AS ranking_category,
+          c.content AS comment_content, tc.content AS template_comment_content,
           p.username AS reporter_username, p.email AS reporter_email
         FROM reports rp
         LEFT JOIN templates t ON rp.template_id = t.id
         LEFT JOIN rankings rk ON rp.ranking_id = rk.id
+        LEFT JOIN comments c ON rp.comment_id = c.id
+        LEFT JOIN template_comments tc ON rp.template_comment_id = tc.id
         LEFT JOIN profiles p ON rp.reporter_id = p.id
         ${whereSql}
         ORDER BY rp.created_at DESC, rp.id DESC
@@ -55,22 +58,33 @@ export async function onRequest({ request, env, data: auth }) {
         `SELECT COUNT(*) as n FROM reports WHERE status = 'pending'`
       ).all();
 
-      const data = reports.map(r => ({
-        id: r.id,
-        kind: r.ranking_id ? 'post' : 'template', // 'post' = รายงานโพสต์ (ranking), 'template' = รายงานเทมเพลต
-        template_id: r.template_id,
-        template_title: r.template_title,
-        template_category: r.template_category,
-        ranking_id: r.ranking_id,
-        ranking_title: r.ranking_title,
-        ranking_category: r.ranking_category,
-        reason: r.reason,
-        status: r.status,
-        reporter: r.reporter_id
-          ? { id: r.reporter_id, username: r.reporter_username, email: r.reporter_email }
-          : null,
-        created_at: r.created_at,
-      }));
+      const data = reports.map(r => {
+        let kind = 'template';
+        if (r.template_comment_id) kind = 'template_comment';
+        else if (r.comment_id) kind = 'comment';
+        else if (r.ranking_id) kind = 'post';
+
+        return {
+          id: r.id,
+          kind,
+          template_id: r.template_id,
+          template_title: r.template_title,
+          template_category: r.template_category,
+          ranking_id: r.ranking_id,
+          ranking_title: r.ranking_title,
+          ranking_category: r.ranking_category,
+          comment_id: r.comment_id,
+          template_comment_id: r.template_comment_id,
+          comment_content: r.comment_content,
+          template_comment_content: r.template_comment_content,
+          reason: r.reason,
+          status: r.status,
+          reporter: r.reporter_id
+            ? { id: r.reporter_id, username: r.reporter_username, email: r.reporter_email }
+            : null,
+          created_at: r.created_at,
+        };
+      });
 
       return jsonResponse({
         success: true,

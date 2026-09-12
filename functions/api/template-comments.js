@@ -27,7 +27,7 @@ export async function onRequest({ request, env, data: auth }) {
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
     if (request.method === 'POST') {
-      const { template_id, content } = await request.json();
+      const { template_id, content, parent_id } = await request.json();
       const user_id = auth.user.id;
 
       if (!template_id || !user_id || !content?.trim()) {
@@ -43,10 +43,15 @@ export async function onRequest({ request, env, data: auth }) {
       const template = await db.prepare('SELECT id FROM templates WHERE id = ?').bind(template_id).first();
       if (!template) return jsonResponse({ success: false, error: 'เทมเพลตไม่มีอยู่ในระบบ' }, 404);
 
+      if (parent_id) {
+        const parent = await db.prepare('SELECT id FROM template_comments WHERE id = ? AND template_id = ?').bind(parent_id, template_id).first();
+        if (!parent) return jsonResponse({ success: false, error: 'คอมเมนต์ที่ต้องการตอบกลับไม่มีอยู่จริง' }, 404);
+      }
+
       const commentId = crypto.randomUUID();
       await db.prepare(
-        'INSERT INTO template_comments (id, template_id, user_id, content) VALUES (?1, ?2, ?3, ?4)'
-      ).bind(commentId, template_id, user_id, content.trim()).run();
+        'INSERT INTO template_comments (id, template_id, user_id, content, parent_id) VALUES (?1, ?2, ?3, ?4, ?5)'
+      ).bind(commentId, template_id, user_id, content.trim(), parent_id || null).run();
 
       const { results } = await db.prepare(`
         SELECT c.*, p.username, p.avatar_url

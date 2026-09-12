@@ -68,10 +68,12 @@ CREATE TABLE IF NOT EXISTS comments (
   id TEXT PRIMARY KEY,
   ranking_id TEXT,
   user_id TEXT,
+  parent_id TEXT,
   content TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS templates (
@@ -145,10 +147,12 @@ CREATE TABLE IF NOT EXISTS template_comments (
   id TEXT PRIMARY KEY,
   template_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
+  parent_id TEXT,
   content TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
-  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id) REFERENCES template_comments(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_ris_ranking ON ranking_item_scores(ranking_id);
@@ -162,12 +166,16 @@ CREATE TABLE IF NOT EXISTS reports (
   id TEXT PRIMARY KEY,
   template_id TEXT,
   ranking_id TEXT,
+  comment_id TEXT,
+  template_comment_id TEXT,
   reporter_id TEXT,
   reason TEXT,
   status TEXT DEFAULT 'pending',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
   FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
+  FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+  FOREIGN KEY (template_comment_id) REFERENCES template_comments(id) ON DELETE CASCADE,
   FOREIGN KEY (reporter_id) REFERENCES profiles(id) ON DELETE SET NULL
 );
 
@@ -223,3 +231,15 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
+-- Password Resets
+CREATE TABLE IF NOT EXISTS password_resets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at DATETIME NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_token_hash ON password_resets(token_hash);
+CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_resets(user_id);
