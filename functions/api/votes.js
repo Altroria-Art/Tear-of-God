@@ -1,3 +1,5 @@
+import { assertId, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+
 export async function onRequest(context) {
   const { request, env, data: auth } = context;
   const db = env.tear_of_god_db; // 📍 ใช้ชื่อ binding ให้ตรงกับ wrangler.toml
@@ -14,13 +16,16 @@ export async function onRequest(context) {
   }
 
   try {
-    const body = await request.json();
-    const rankingId = body.rankingId || body.ranking_id;
     const userId = auth.user.id;
+    const gate = consumeMemoryRateLimit('ranking-vote', userId, { limit: 120, windowSeconds: 3600 });
+    if (!gate.allowed) return rateLimitResponse(gate);
+    const body = await readJsonBody(request);
+    if (!isPlainObject(body)) return jsonResponse({ success: false, error: 'Invalid request' }, 400);
+    const rankingId = assertId(body.rankingId || body.ranking_id, 'rankingId');
     const voteType = body.voteType; // 'like', 'dislike', หรือ null (กรณียกเลิกโหวต)
 
-    if (!rankingId || !userId) {
-      return jsonResponse({ success: false, error: 'Missing rankingId or userId' }, 400);
+    if (voteType !== null && voteType !== undefined && voteType !== 'like' && voteType !== 'dislike') {
+      return jsonResponse({ success: false, error: 'Invalid vote type' }, 400);
     }
 
     // 1. เช็คว่า User เคยโหวตโพสต์นี้ไปหรือยัง
@@ -91,6 +96,9 @@ export async function onRequest(context) {
       dislikes: fresh[0]?.dislikes ?? 0
     });
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    const invalid = requestErrorResponse(err);
+    if (invalid) return invalid;
+    console.error('Vote request failed:', err.message);
+    return jsonResponse({ success: false, error: 'Service temporarily unavailable' }, 500);
   }
 }

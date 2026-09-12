@@ -1,3 +1,5 @@
+import { assertId, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+
 function parseTiers(raw) {
   if (!raw) return null;
   try {
@@ -211,41 +213,6 @@ export async function onRequestGet(context) {
       // Community Average: อ่านจาก ranking_item_scores (บันทึกคะแนน freeze ตอนสร้าง) แล้ว
       // aggregate ตามช่วงเวลาที่ขอ — score เก็บค่า "แถวบนสุด = สูงสุด" อยู่แล้ว ไม่ต้อง map label ซ้ำ
 
-      // Self-heal: ถ้า template นี้มี rankings แต่ยังไม่มีคะแนนเลยใน ranking_item_scores
-      // (เช่น local state ถูก reset แล้ว rerun schema โดยไม่ได้ backfill — เหตุการณ์จริงที่ทำให้
-      // การ์ด Community Average หายทั้งใบ) ให้คำนวณคะแนนจาก ranking_items + tiers แล้ว insert
-      // ครั้งเดียว — logic เดียวกับ scripts/backfill-scores.mjs (ดู docs/community-average-backfill-plan.md)
-      const { results: scoreCountRows } = await db.prepare(
-        `SELECT COUNT(*) AS n FROM ranking_item_scores WHERE template_id = ?`
-      ).bind(templateId).all();
-      if (useCount > 0 && (scoreCountRows[0]?.n || 0) === 0) {
-        const { results: scoreSeedRows } = await db.prepare(
-          `SELECT ri.ranking_id, ri.item_id, ri.tier, r.created_at
-           FROM ranking_items ri
-           JOIN rankings r ON r.id = ri.ranking_id
-           WHERE r.template_id = ?`
-        ).bind(templateId).all();
-
-        const tierIndexByLabel = {};
-        tiersDef.forEach((t, i) => { tierIndexByLabel[String(t.label)] = i; });
-
-        const scoreInserts = [];
-        scoreSeedRows.forEach((row) => {
-          const tierIdx = tierIndexByLabel[String(row.tier)];
-          if (tierIdx === undefined) return; // item ยังไม่จัด / tier ไม่ตรง — ข้าม
-          scoreInserts.push(
-            db.prepare(
-              `INSERT OR IGNORE INTO ranking_item_scores (id, ranking_id, template_id, item_id, tier_index, score, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)`
-            ).bind(crypto.randomUUID(), row.ranking_id, templateId, row.item_id, tierIdx, tierCount - tierIdx, row.created_at || null)
-          );
-        });
-        // D1 batch จำกัด 100 statements ต่อครั้ง — ตัดเป็นชุด
-        for (let i = 0; i < scoreInserts.length; i += 100) {
-          await db.batch(scoreInserts.slice(i, i + 100));
-        }
-      }
-
       let whereSql = ` WHERE ris.template_id = ?`;
       const whereParams = [templateId];
       if (period?.from) { whereSql += ` AND ris.created_at >= ?`; whereParams.push(period.from); }
@@ -334,26 +301,24 @@ export async function onRequestPost(context) {
   const db = env.tear_of_god_db;
 
   try {
-    const { template_id } = await request.json();
     const user_id = context.data.user.id;
-    if (!template_id || !user_id) {
-      return Response.json({ success: false, error: 'Missing template_id or user_id' }, { status: 400 });
-    }
+    const gate = consumeMemoryRateLimit('template-view', user_id, { limit: 120, windowSeconds: 3600 });
+    if (!gate.allowed) return rateLimitResponse(gate);
+    const body = await readJsonBody(request);
+    if (!isPlainObject(body)) return Response.json({ success: false, error: 'Invalid request' }, { status: 400 });
+    const template_id = assertId(body.template_id, 'template_id');
 
-    // 📍 INSERT + UPDATE รวมเป็น db.batch() เดียว (atomic) — เดิมเป็น 2 .run() แยกกัน ถ้า worker
-    // ถูกตัดตอนระหว่างสองคำสั่งนี้ (network drop/CPU-time limit) แถว template_views จะถูกเขียน
-    // สำเร็จแต่ counter ไม่ถูกบวก ทำให้ view_count ค่อยๆ drift ออกจากข้อมูลจริงแบบไม่มีทาง
-    // self-heal (ดู docs/discover-template-uses-views-fix-plan.md — พบ drift จริงใน production)
-    // แก้โดย "คำนวณ view_count ใหม่จาก COUNT(*) ของ template_views" แทนการ +1 — ทำให้ทุกครั้งที่
-    // POST เข้ามา counter จะซิงค์กับข้อมูลจริงเสมอ ไม่ว่าจะเคย drift มาก่อนหรือไม่ (self-healing
-    // ไม่ต้องมี migration/backfill แยกต่างหาก)
-    const [insertResult] = await db.batch([
-      db.prepare(`INSERT OR IGNORE INTO template_views (template_id, user_id) VALUES (?, ?)`)
-        .bind(template_id, user_id),
-      db.prepare(
+    const insertResult = await db.prepare(
+      `INSERT OR IGNORE INTO template_views (template_id, user_id) VALUES (?, ?)`
+    ).bind(template_id, user_id).run();
+
+    // Viewer เดิมไม่ก่อ COUNT/UPDATE ซ้ำ; อ่าน mirror ที่ถูกซิงค์จากการ insert ครั้งแรกแทน
+    // ส่วน viewer ใหม่ยังคำนวณจาก source of truth เพื่อซ่อม counter ที่อาจ drift มาก่อนหน้านี้
+    if (insertResult.meta.changes > 0) {
+      await db.prepare(
         `UPDATE templates SET view_count = (SELECT COUNT(*) FROM template_views WHERE template_id = ?) WHERE id = ?`
-      ).bind(template_id, template_id)
-    ]);
+      ).bind(template_id, template_id).run();
+    }
 
     // ส่งเลข view_count ล่าสุดกลับไปด้วย — ฝั่ง client ต้องใช้ค่านี้แทนค่าที่ได้จาก GET
     // เพราะ GET (fetchTemplate) กับ POST (recordTemplateView) ยิงพร้อมกันตอน mount
@@ -367,6 +332,9 @@ export async function onRequestPost(context) {
     // IGNORE หรือไม่ก็ตาม
     return Response.json({ success: true, counted: insertResult.meta.changes > 0, views: results[0]?.view_count ?? 0 });
   } catch (error) {
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    const invalid = requestErrorResponse(error);
+    if (invalid) return invalid;
+    console.error('Template view request failed:', error.message);
+    return Response.json({ success: false, error: 'Service temporarily unavailable' }, { status: 500 });
   }
 }

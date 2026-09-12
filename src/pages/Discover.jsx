@@ -10,6 +10,8 @@ import HashtagPill from '../components/discover/HashtagPill';
 import Pagination from '../components/ui/Pagination';
 import { useTranslation } from 'react-i18next';
 
+const DISCOVER_PREVIEW_LIMIT = 16;
+
 export default function Discover() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
@@ -37,7 +39,7 @@ export default function Discover() {
       setLoadError('');
       if (saved && !viewerId) { setTemplates([]); setIsLoading(false); return; }
       const [tpl, tags] = await Promise.all([
-        fetchTemplates({ q, saved, page: browsingResults ? page : 1, limit: browsingResults ? 12 : 50 }),
+        fetchTemplates({ q, saved, page: browsingResults ? page : 1, limit: browsingResults ? 12 : DISCOVER_PREVIEW_LIMIT }),
         browsingResults ? Promise.resolve({ data: [] }) : fetchHashtags({ limit: 12, sort: 'used' }),
       ]);
       if (cancelled) return;

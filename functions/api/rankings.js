@@ -3,7 +3,19 @@
 // ส่ง tiers กลับมาเลย ทำให้ Home Feed / Feed Detailed โชว์ tier ไม่มีสี ต่างจาก Discover
 // Detailed ที่อ่านจาก /api/templates โดยตรง — parseTiers() คัดลอกมาจาก templates.js เพราะ
 // ยังไม่มี shared-helper module ในโปรเจกต์นี้ (ดู docs/tier-list-feed-debug-plan.md §7/§8)
-import { allowAuthAttempt } from '../lib/session.js';
+import {
+  INPUT_LIMITS,
+  RequestError,
+  assertHashtags,
+  assertId,
+  assertInteger,
+  assertString,
+  consumeMemoryRateLimit,
+  isPlainObject,
+  rateLimitResponse,
+  readJsonBody,
+  requestErrorResponse,
+} from '../lib/request-guard.js';
 
 function parseTiers(raw) {
   if (!raw) return null;
@@ -479,98 +491,144 @@ export async function onRequest({ request, env, data: auth }) {
 
     // 🟢 [POST] สร้าง Ranking ใหม่
     if (request.method === 'POST') {
-      let body;
-      try { body = await request.json(); } catch { return jsonResponse({ success: false, error: 'Invalid JSON body' }, 400); }
+      const createGate = consumeMemoryRateLimit('ranking-create', auth.user.id, { limit: 10, windowSeconds: 3600 });
+      if (!createGate.allowed) return rateLimitResponse(createGate, 'กรุณารอสักครู่ก่อนสร้างโพสต์ใหม่');
+
+      const body = await readJsonBody(request, INPUT_LIMITS.rankingJson);
+      if (!isPlainObject(body)) return jsonResponse({ success: false, error: 'Invalid request' }, 400);
       const { payload, items, template } = body;
-      if (!payload || typeof payload !== 'object' || Array.isArray(payload) || !Array.isArray(items) || !items.length) {
+      if (!isPlainObject(payload) || !Array.isArray(items) || !items.length) {
         return jsonResponse({ success: false, error: 'Ranking and ranked items are required' }, 400);
       }
-      // Rate limit: reuse allowAuthAttempt pattern — max 20 creations per 15min per user
-      if (!await allowAuthAttempt(request, db, 'create:' + auth.user.id)) {
-        return jsonResponse({ success: false, error: 'กรุณารอสักครู่ก่อนสร้างโพสต์ใหม่' }, 429);
+      if (items.length > INPUT_LIMITS.items) {
+        return jsonResponse({ success: false, error: `จำนวนไอเทมเกิน ${INPUT_LIMITS.items}` }, 400);
       }
-      payload.user_id = auth.user.id;
-      const rankingId = crypto.randomUUID(); 
 
-      // จำกัดขนาด field (payload + items) กัน abuse/bogus payload เขียนข้อมูลมโหฬาร
-      if (typeof payload.title === 'string' && payload.title.trim().length > 200) {
-        return jsonResponse({ success: false, error: 'ชื่อโพสต์ยาวเกินไป — จำกัด 200 ตัวอักษร' }, 400);
+      const cleanPayload = {
+        title: payload.title == null ? 'Untitled' : assertString(payload.title, 'payload.title', { min: 1, max: INPUT_LIMITS.title, trim: true }),
+        description: payload.description == null ? '' : assertString(payload.description, 'payload.description', { max: INPUT_LIMITS.description }),
+        category: payload.category == null ? 'general' : assertString(payload.category, 'payload.category', { min: 1, max: INPUT_LIMITS.category, trim: true }),
+        hashtags: payload.hashtags == null ? '' : assertString(payload.hashtags, 'payload.hashtags', { max: INPUT_LIMITS.hashtags * (INPUT_LIMITS.hashtag + 2) }),
+        template_id: assertId(payload.template_id, 'payload.template_id', { optional: true }) || null,
+        user_id: auth.user.id,
+      };
+      assertHashtags(cleanPayload.hashtags, 'payload.hashtags');
+
+      const cleanItems = items.map((item, index) => {
+        if (!isPlainObject(item)) throw new RequestError(`items[${index}] must be an object`);
+        return {
+          item_id: assertString(item.item_id, `items[${index}].item_id`, { min: 1, max: INPUT_LIMITS.itemName, trim: true }),
+          tier: assertString(item.tier, `items[${index}].tier`, { min: 1, max: INPUT_LIMITS.tierLabel, trim: true }),
+          position: assertInteger(item.position, `items[${index}].position`, { min: 0, max: INPUT_LIMITS.items - 1 }),
+        };
+      });
+      if (cleanItems.some((item, index) => cleanItems.findIndex(other => other.item_id === item.item_id) !== index)) {
+        return jsonResponse({ success: false, error: 'Ranking items must be unique' }, 400);
       }
-      if (Array.isArray(items) && items.length > 500) {
-        return jsonResponse({ success: false, error: 'จำนวนไอเทมเกิน 500' }, 400);
-      }
-      if (Array.isArray(items)) {
-        for (const item of items) {
-          if (typeof item?.item_id === 'string' && item.item_id.length > 100) {
-            return jsonResponse({ success: false, error: 'ชื่อไอเทมยาวเกินไป — จำกัด 100 ตัวอักษร' }, 400);
-          }
+
+      let cleanTemplate = null;
+      if (template !== undefined && template !== null) {
+        if (!isPlainObject(template)) return jsonResponse({ success: false, error: 'template must be an object' }, 400);
+        if (!Array.isArray(template.tiers) || !template.tiers.length || template.tiers.length > INPUT_LIMITS.tiers) {
+          return jsonResponse({ success: false, error: `template.tiers must contain 1-${INPUT_LIMITS.tiers} tiers` }, 400);
         }
+        if (!Array.isArray(template.items) || template.items.length > INPUT_LIMITS.items) {
+          return jsonResponse({ success: false, error: `template.items must contain at most ${INPUT_LIMITS.items} items` }, 400);
+        }
+        cleanTemplate = {
+          title: assertString(template.title, 'template.title', { min: 1, max: INPUT_LIMITS.title, trim: true }),
+          description: template.description == null ? '' : assertString(template.description, 'template.description', { max: INPUT_LIMITS.description }),
+          category: template.category == null ? 'general' : assertString(template.category, 'template.category', { min: 1, max: INPUT_LIMITS.category, trim: true }),
+          hashtags: template.hashtags == null ? '' : assertString(template.hashtags, 'template.hashtags', { max: INPUT_LIMITS.hashtags * (INPUT_LIMITS.hashtag + 2) }),
+          tiers: template.tiers.map((tier, index) => {
+            if (!isPlainObject(tier)) throw new RequestError(`template.tiers[${index}] must be an object`);
+            return {
+              id: tier.id == null ? undefined : assertString(tier.id, `template.tiers[${index}].id`, { min: 1, max: INPUT_LIMITS.id, trim: true }),
+              label: assertString(tier.label, `template.tiers[${index}].label`, { min: 1, max: INPUT_LIMITS.tierLabel, trim: true }),
+              color: assertString(tier.color, `template.tiers[${index}].color`, { min: 1, max: INPUT_LIMITS.tierColor, trim: true }),
+            };
+          }),
+          items: template.items.map((item, index) => {
+            if (!isPlainObject(item)) throw new RequestError(`template.items[${index}] must be an object`);
+            return {
+              name: assertString(item.name, `template.items[${index}].name`, { min: 1, max: INPUT_LIMITS.itemName, trim: true }),
+              position: item.position == null ? index : assertInteger(item.position, `template.items[${index}].position`, { min: 0, max: INPUT_LIMITS.items - 1 }),
+            };
+          }),
+        };
+        assertHashtags(cleanTemplate.hashtags, 'template.hashtags');
+        const tierLabels = cleanTemplate.tiers.map(tier => tier.label);
+        if (new Set(tierLabels).size !== tierLabels.length) return jsonResponse({ success: false, error: 'Tier labels must be unique' }, 400);
       }
-      
 
-      
+      const rankingId = crypto.randomUUID();
       const statements = [];
       let templateId = null;
 
       // tiers ปัจจุบันของ template (ตัวที่ใช้จัดอันดับ) — ใช้ map ชื่อ tier → index แล้วให้คะแนน
       // แถวบนสุดสูงสุด (score = tierCount - index) บันทึกลง ranking_item_scores ตอน publish
       let tiersDef = null;
-      if (template && Array.isArray(template.tiers) && template.tiers.length > 0) {
-        tiersDef = template.tiers;
-      } else if (payload.template_id) {
-        const tr = await db.prepare(`SELECT tiers FROM templates WHERE id = ?`).bind(payload.template_id).first();
-        tiersDef = parseTiers(tr?.tiers) || [];
+      if (cleanTemplate) {
+        tiersDef = cleanTemplate.tiers;
+      } else if (cleanPayload.template_id) {
+        const tr = await db.prepare(`SELECT tiers FROM templates WHERE id = ?`).bind(cleanPayload.template_id).first();
+        if (!tr) return jsonResponse({ success: false, error: 'Template not found' }, 404);
+        const storedTiers = parseTiers(tr.tiers);
+        tiersDef = Array.isArray(storedTiers) ? storedTiers.filter(tier => isPlainObject(tier) && typeof tier.label === 'string') : [];
       }
       const tierIndexByLabel = {};
       (tiersDef || []).forEach((t, i) => { tierIndexByLabel[String(t.label)] = i; });
       const tierCount = tiersDef?.length || 0;
+      if (tierCount && cleanItems.some(item => tierIndexByLabel[item.tier] === undefined)) {
+        return jsonResponse({ success: false, error: 'Ranking item references an unknown tier' }, 400);
+      }
 
       // 📍 [ใหม่]: publish จากหน้า Create จะส่ง `template` มาด้วย → สร้าง Template + template_items
       // ใน batch เดียวกับ ranking (atomic ตาม SDS §8.2/§9.2) ทำให้ template เข้าหน้า Discover
       // และ hashtag ที่เลือก/สร้างใหม่ถูกนับบน PopularHashtags (ซึ่งนับ tag จาก templates.hashtags)
-      if (template && typeof template.title === 'string' && template.title.trim()) {
+      if (cleanTemplate) {
         templateId = crypto.randomUUID();
         statements.push(db.prepare(
           `INSERT INTO templates (id, creator_id, title, description, category, hashtags, tiers) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
         ).bind(
           templateId,
-          payload.user_id || null,
-          template.title.trim(),
-          template.description || '',
-          template.category || 'general',
-          template.hashtags || '',
-          JSON.stringify(Array.isArray(template.tiers) ? template.tiers : [])
+          cleanPayload.user_id,
+          cleanTemplate.title,
+          cleanTemplate.description,
+          cleanTemplate.category,
+          cleanTemplate.hashtags,
+          JSON.stringify(cleanTemplate.tiers)
         ));
 
         // item pool ของ template = item ทุกชิ้นที่ user เพิ่มมา (tier ว่าง เพราะเป็นของ template ไม่ใช่คำตอบ)
         // dedupe ด้วยชื่อ กัน item ซ้ำชื่อเดียวกันโผล่สองการ์ดตอน remix
         const seenNames = new Set();
-        (Array.isArray(template.items) ? template.items : []).forEach((item, index) => {
-          const name = typeof item?.name === 'string' ? item.name.trim() : '';
+        cleanTemplate.items.forEach((item) => {
+          const name = item.name;
           if (!name || seenNames.has(name)) return;
           seenNames.add(name);
           statements.push(db.prepare(
             `INSERT INTO template_items (id, template_id, item_id, tier, position) VALUES (?1, ?2, ?3, NULL, ?4)`
-          ).bind(crypto.randomUUID(), templateId, name, item.position ?? index));
+          ).bind(crypto.randomUUID(), templateId, name, item.position));
         });
       }
 
       statements.push(db.prepare(
         `INSERT INTO rankings (id, template_id, title, description, category, hashtags, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
       ).bind(
-        rankingId, payload.template_id || templateId, payload.title || 'Untitled', payload.description || '', 
-        payload.category || 'general', payload.hashtags || '', payload.user_id
+        rankingId, cleanPayload.template_id || templateId, cleanPayload.title, cleanPayload.description,
+        cleanPayload.category, cleanPayload.hashtags, cleanPayload.user_id
       ));
 
-      if (payload.template_id || templateId) {
+      if (cleanPayload.template_id || templateId) {
         statements.push(db.prepare(
           `UPDATE templates SET use_count = use_count + 1 WHERE id = ?`
-        ).bind(payload.template_id || templateId));
+        ).bind(cleanPayload.template_id || templateId));
       }
 
-      if (items && items.length > 0) {
-        const effTemplateId = payload.template_id || templateId;
-        items.forEach(item => {
+      if (cleanItems.length > 0) {
+        const effTemplateId = cleanPayload.template_id || templateId;
+        cleanItems.forEach(item => {
           statements.push(db.prepare(
             `INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?1, ?2, ?3, ?4, ?5)`
           ).bind(crypto.randomUUID(), rankingId, item.item_id, item.tier, item.position));
@@ -589,16 +647,18 @@ export async function onRequest({ request, env, data: auth }) {
       for (let i = 0; i < statements.length; i += 100) {
         await db.batch(statements.slice(i, i + 100));
       }
-      return jsonResponse({ success: true, data: { id: rankingId, template_id: templateId, ...payload } }, 201);
+      return jsonResponse({ success: true, data: { ...cleanPayload, id: rankingId, template_id: cleanPayload.template_id || templateId } }, 201);
     }
 
     // 🟢 [DELETE] ลบ Ranking ของตัวเอง
     if (request.method === 'DELETE') {
-      const payload = await request.json();
-      const targetId = payload.id;
-      if (!targetId) return jsonResponse({ success: false, error: 'Ranking ID is required' }, 400);
       const currentUserId = auth.user?.id;
       if (!currentUserId) return jsonResponse({ success: false, error: 'Unauthorized' }, 401);
+      const deleteGate = consumeMemoryRateLimit('ranking-delete', currentUserId, { limit: 10, windowSeconds: 3600 });
+      if (!deleteGate.allowed) return rateLimitResponse(deleteGate);
+      const payload = await readJsonBody(request);
+      if (!isPlainObject(payload)) return jsonResponse({ success: false, error: 'Invalid request' }, 400);
+      const targetId = assertId(payload.id, 'id');
 
       const ranking = await db.prepare('SELECT user_id FROM rankings WHERE id = ?').bind(targetId).first();
       if (!ranking) return jsonResponse({ success: false, error: 'Not found' }, 404);
@@ -617,6 +677,9 @@ export async function onRequest({ request, env, data: auth }) {
 
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    const invalid = requestErrorResponse(err);
+    if (invalid) return invalid;
+    console.error('Ranking request failed:', err.message);
+    return jsonResponse({ success: false, error: 'Service temporarily unavailable' }, 500);
   }
 }

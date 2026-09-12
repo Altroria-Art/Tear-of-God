@@ -1,3 +1,5 @@
+import { INPUT_LIMITS, assertId, assertString, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -9,6 +11,7 @@ export async function onRequest({ request, env, data: auth }) {
     // 🟢 [GET] ดึงคอมเมนต์ทั้งหมดของโพสต์นั้น
     if (request.method === 'GET') {
       if (!rankingId) return jsonResponse({ success: false, error: 'Missing ranking_id' }, 400);
+      assertId(rankingId, 'ranking_id');
 
       // กัน unbounded growth (ดู docs/row-read-optimization-plan.md §4 hypothesis H4)
       const { results } = await db.prepare(`
@@ -25,15 +28,14 @@ export async function onRequest({ request, env, data: auth }) {
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
     if (request.method === 'POST') {
-      const { ranking_id, content, parent_id } = await request.json();
       const user_id = auth.user.id;
-
-      if (!ranking_id || !user_id || !content?.trim()) {
-        return jsonResponse({ success: false, error: 'ข้อมูลไม่ครบถ้วน' }, 400);
-      }
-      if (content.trim().length > 1000) {
-        return jsonResponse({ success: false, error: 'คอมเมนต์ยาวเกินไป — จำกัด 1000 ตัวอักษร' }, 400);
-      }
+      const gate = consumeMemoryRateLimit('comment-create', user_id, { limit: 10, windowSeconds: 3600 });
+      if (!gate.allowed) return rateLimitResponse(gate);
+      const body = await readJsonBody(request);
+      if (!isPlainObject(body)) return jsonResponse({ success: false, error: 'Invalid request' }, 400);
+      const ranking_id = assertId(body.ranking_id, 'ranking_id');
+      const parent_id = assertId(body.parent_id, 'parent_id', { optional: true }) || null;
+      const content = assertString(body.content, 'content', { min: 1, max: INPUT_LIMITS.comment, trim: true });
 
       // เช็คว่า user มีจริง และ ranking มีอยู่จริง
       const user = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
@@ -48,7 +50,7 @@ export async function onRequest({ request, env, data: auth }) {
 
       const commentId = crypto.randomUUID();
       await db.batch([
-        db.prepare('INSERT INTO comments (id, ranking_id, user_id, content, parent_id) VALUES (?1, ?2, ?3, ?4, ?5)').bind(commentId, ranking_id, user_id, content.trim(), parent_id || null),
+        db.prepare('INSERT INTO comments (id, ranking_id, user_id, content, parent_id) VALUES (?1, ?2, ?3, ?4, ?5)').bind(commentId, ranking_id, user_id, content, parent_id),
         db.prepare('UPDATE rankings SET comments_count = comments_count + 1 WHERE id = ?').bind(ranking_id)
       ]);
 
@@ -65,7 +67,9 @@ export async function onRequest({ request, env, data: auth }) {
 
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
   } catch (err) {
-    console.error(err);
-    return jsonResponse({ success: false, error: err.message }, 500);
+    const invalid = requestErrorResponse(err);
+    if (invalid) return invalid;
+    console.error('Comment request failed:', err.message);
+    return jsonResponse({ success: false, error: 'Service temporarily unavailable' }, 500);
   }
 }

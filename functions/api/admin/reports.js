@@ -21,6 +21,13 @@ export async function onRequest({ request, env, data: auth }) {
   // =====================
   if (request.method === 'GET') {
     try {
+      if (url.searchParams.get('count') === 'pending') {
+        const row = await db.prepare(
+          `SELECT COUNT(*) as n FROM reports WHERE status = 'pending'`
+        ).first();
+        return jsonResponse({ success: true, pending_count: row?.n || 0 });
+      }
+
       const status = url.searchParams.get('status'); // 'pending' | 'resolved' | 'dismissed'
       const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
       const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20), 100);
