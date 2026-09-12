@@ -12,4 +12,3 @@ binding = "STORAGE"
 bucket_name = "tear-of-god"
 [vars]
 APP_URL = "https://tear-of-god.pages.dev"
-RESEND_FROM_EMAIL = "Tear of God <onboarding@resend.dev>"
