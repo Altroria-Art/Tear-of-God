@@ -25,7 +25,7 @@ export async function onRequest({ request, env, data: auth }) {
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
     if (request.method === 'POST') {
-      const { ranking_id, content } = await request.json();
+      const { ranking_id, content, parent_id } = await request.json();
       const user_id = auth.user.id;
 
       if (!ranking_id || !user_id || !content?.trim()) {
@@ -35,15 +35,20 @@ export async function onRequest({ request, env, data: auth }) {
         return jsonResponse({ success: false, error: 'คอมเมนต์ยาวเกินไป — จำกัด 1000 ตัวอักษร' }, 400);
       }
 
-      // เช็คว่า user มีจริง และ ranking มีอยู่จริง (กัน insert กับ target ที่ไม่มีอยู่ → FK fail เงียบๆ)
+      // เช็คว่า user มีจริง และ ranking มีอยู่จริง
       const user = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
       if (!user) return jsonResponse({ success: false, error: 'ผู้ใช้ไม่มีอยู่ในระบบ' }, 400);
       const ranking = await db.prepare('SELECT id FROM rankings WHERE id = ?').bind(ranking_id).first();
       if (!ranking) return jsonResponse({ success: false, error: 'โพสต์ไม่มีอยู่ในระบบ' }, 404);
 
+      if (parent_id) {
+        const parent = await db.prepare('SELECT id FROM comments WHERE id = ? AND ranking_id = ?').bind(parent_id, ranking_id).first();
+        if (!parent) return jsonResponse({ success: false, error: 'คอมเมนต์ที่ต้องการตอบกลับไม่มีอยู่จริง' }, 404);
+      }
+
       const commentId = crypto.randomUUID();
       await db.batch([
-        db.prepare('INSERT INTO comments (id, ranking_id, user_id, content) VALUES (?1, ?2, ?3, ?4)').bind(commentId, ranking_id, user_id, content.trim()),
+        db.prepare('INSERT INTO comments (id, ranking_id, user_id, content, parent_id) VALUES (?1, ?2, ?3, ?4, ?5)').bind(commentId, ranking_id, user_id, content.trim(), parent_id || null),
         db.prepare('UPDATE rankings SET comments_count = comments_count + 1 WHERE id = ?').bind(ranking_id)
       ]);
 

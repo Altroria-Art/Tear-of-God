@@ -3,7 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { Trash2, Flag, ExternalLink } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
-import { fetchAdminReports, setReportStatus, deleteAdminReport } from '../../lib/api';
+import { fetchAdminReports, setReportStatus, deleteAdminReport, deleteAdminComment } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
 import { timeAgo } from '../../lib/format';
 import { useTranslation } from 'react-i18next';
@@ -82,6 +82,24 @@ export default function Reports() {
     }
   };
 
+  const handleDeleteContent = async (r) => {
+    if (!window.confirm('Are you sure you want to delete this reported CONTENT? This cannot be undone.')) return;
+    setBusy(r.id);
+    
+    let res;
+    if (r.kind === 'comment' || r.kind === 'template_comment') {
+      res = await deleteAdminComment(r.kind === 'comment' ? r.comment_id : r.template_comment_id, r.kind === 'template_comment');
+    }
+    
+    setBusy(null);
+    if (res?.success) {
+      toast.success('Content deleted successfully.');
+      handleStatus(r, 'resolved'); // Auto mark resolved after delete
+    } else {
+      toast.error('Failed to delete content.');
+    }
+  };
+
   const totalPages = Math.ceil(total / PAGE_LIMIT);
 
   return (
@@ -131,18 +149,44 @@ export default function Reports() {
               <tbody>
                 {reports.map((r) => {
                   const meta = STATUS_META[r.status] || STATUS_META.pending;
-                  const targetUrl = r.kind === 'post'
-                    ? (r.ranking_id ? `/post/${r.ranking_id}` : null)
-                    : (r.template_id ? `/template/${r.template_id}` : null);
-                  const titleText = (r.kind === 'post' ? r.ranking_title : r.template_title) || '—';
+                  
+                  let targetUrl = null;
+                  let titleText = '—';
+                  let categoryText = '';
+                  let labelText = '';
+                  let labelCls = '';
+
+                  if (r.kind === 'comment') {
+                    targetUrl = r.ranking_id ? `/post/${r.ranking_id}` : null;
+                    titleText = r.comment_content || '—';
+                    categoryText = r.ranking_title || '—';
+                    labelText = 'Comment (Post)';
+                    labelCls = 'bg-amber-500/10 text-amber-600';
+                  } else if (r.kind === 'template_comment') {
+                    targetUrl = r.template_id ? `/template/${r.template_id}` : null;
+                    titleText = r.template_comment_content || '—';
+                    categoryText = r.template_title || '—';
+                    labelText = 'Comment (Template)';
+                    labelCls = 'bg-amber-500/10 text-amber-600';
+                  } else if (r.kind === 'post') {
+                    targetUrl = r.ranking_id ? `/post/${r.ranking_id}` : null;
+                    titleText = r.ranking_title || '—';
+                    categoryText = r.ranking_category || '';
+                    labelText = t('admin.contentPost', 'Post');
+                    labelCls = 'bg-brand/10 text-brand-accent';
+                  } else {
+                    targetUrl = r.template_id ? `/template/${r.template_id}` : null;
+                    titleText = r.template_title || '—';
+                    categoryText = r.template_category || '';
+                    labelText = t('admin.contentTemplate', 'Template');
+                    labelCls = 'bg-surface-glass text-muted';
+                  }
 
                   return (
                     <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${
-                          r.kind === 'post' ? 'bg-brand/10 text-brand-accent' : 'bg-surface-glass text-muted'
-                        }`}>
-                          {r.kind === 'post' ? t('admin.contentPost') : t('admin.contentTemplate')}
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${labelCls}`}>
+                          {labelText}
                         </span>
                         <div className="mt-1 text-ink font-medium max-w-[220px]">
                           {targetUrl ? (
@@ -153,15 +197,15 @@ export default function Reports() {
                               className="hover:text-brand hover:underline inline-flex items-center gap-1 group max-w-full"
                               title={titleText}
                             >
-                              <span className="truncate">{titleText}</span>
+                              <span className="truncate block max-h-12 overflow-hidden">{titleText}</span>
                               <ExternalLink size={12} className="shrink-0 opacity-60 group-hover:opacity-100 transition-opacity text-brand" />
                             </Link>
                           ) : (
-                            <span className="truncate text-muted">{titleText}</span>
+                            <span className="truncate block max-h-12 overflow-hidden text-muted">{titleText}</span>
                           )}
                         </div>
-                        <div className="text-xs text-muted">
-                          {r.kind === 'post' ? r.ranking_category : r.template_category}
+                        <div className="text-xs text-muted truncate">
+                          {categoryText}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-ink-soft max-w-[220px]">{r.reason}</td>
@@ -218,11 +262,22 @@ export default function Reports() {
                         <button
                           onClick={() => handleDelete(r)}
                           disabled={busy === r.id}
-                          className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
+                          className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50 mt-1"
                         >
                           <Trash2 size={14} className="inline-block mr-1" />
-                          {t('common.delete')}
+                          {t('common.delete')} Report
                         </button>
+                        
+                        {(r.kind === 'comment' || r.kind === 'template_comment') && r.status !== 'resolved' && (
+                          <button
+                            onClick={() => handleDeleteContent(r)}
+                            disabled={busy === r.id}
+                            className="text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-lg px-2 py-1 disabled:opacity-50 mt-1 block w-full text-right"
+                          >
+                            <Trash2 size={14} className="inline-block mr-1" />
+                            Delete Content
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

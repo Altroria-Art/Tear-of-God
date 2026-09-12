@@ -6,7 +6,7 @@ import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFoll
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import { FACULTIES, UP_UNIVERSITY_NAME, getMajorsForFaculty, getAdmissionYears } from '../lib/university';
-import TierLabel from '../components/tier/TierLabel';
+import TierRow from '../components/feed/TierRow';
 import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
 
@@ -399,26 +399,22 @@ export default function Profile() {
                   <h3 className="text-lg font-bold text-ink mb-2">{post.title}</h3>
 
                   {/* Preview Tiers */}
-                  <div className="bg-canvas rounded-xl p-3 space-y-2 mb-4">
+                  <div className="space-y-1.5 mb-4">
                     {(() => {
                       const rows = buildTierRows(post.ranking_items, post.tiers);
                       const shown = rows.slice(0, 2);
                       return shown.map((row, rowIdx) => (
-                        <div key={row.tier + String(rowIdx)} className="flex glass rounded-lg overflow-hidden min-h-[38px]">
-                          <TierLabel
-                            label={row.tier}
-                            color={row.color}
-                            index={row.index}
-                            className={`w-12 text-xs font-bold ${row.tier.length > 2 ? 'text-[9px]' : 'text-sm'}`}
-                          />
-                          <div className="p-2 flex gap-2 overflow-x-auto items-center flex-grow">
-                            {(row.items || []).slice(0, 2).map((ri, idx) => (
-                              <span key={idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg px-3 py-1 text-xs whitespace-nowrap">
-                                {ri.item?.name || ri.item_name || ri.item_id}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
+                        <TierRow 
+                          key={row.tier + String(rowIdx)} 
+                          tier={row.tier} 
+                          color={row.color} 
+                          index={row.index} 
+                          items={row.items.slice(0, 6).map(ri => ({ 
+                            id: ri.id, 
+                            name: ri.item?.name || ri.item_id, 
+                            image_url: ri.item?.image_url 
+                          }))} 
+                        />
                       ));
                     })()}
                   </div>
@@ -506,7 +502,7 @@ export default function Profile() {
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand h-24"
+                  className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand h-24 resize-none"
                 ></textarea>
               </div>
 

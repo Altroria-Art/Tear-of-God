@@ -10,3 +10,6 @@ database_id = "69d366f1-55ba-43cf-a492-882e137786f4"
 [[r2_buckets]]
 binding = "STORAGE"
 bucket_name = "tear-of-god"
+[vars]
+APP_URL = "https://tear-of-god.pages.dev"
+RESEND_FROM_EMAIL = "Tear of God <onboarding@resend.dev>"

@@ -22,6 +22,7 @@ export async function onRequest({ request, env, data: auth }) {
   if (request.method === 'GET') {
     try {
       const q = url.searchParams.get('q');
+      const roleFilter = url.searchParams.get('role');
       const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
       const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20), 100);
       const offset = (page - 1) * limit;
@@ -31,6 +32,10 @@ export async function onRequest({ request, env, data: auth }) {
       if (q) {
         whereSql += ` AND (p.username LIKE ? OR p.email LIKE ?)`;
         whereParams.push(`%${q}%`, `%${q}%`);
+      }
+      if (roleFilter) {
+        whereSql += ` AND p.role = ?`;
+        whereParams.push(roleFilter);
       }
 
       const { results: users } = await db.prepare(`

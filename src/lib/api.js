@@ -294,16 +294,16 @@ export async function fetchComments(rankingId) {
   }
 }
 
-export async function createComment({ ranking_id, user_id: _userId, content }) {
+export async function createComment({ ranking_id, user_id, content, parentId }) {
   try {
     const response = await apiFetch(`${API_URL}/api/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ranking_id, content })
+      body: JSON.stringify({ ranking_id, user_id, content, parent_id: parentId })
     });
     return await response.json();
-  } catch {
-    return { data: null, error: i18n.t('errors.commentCreateFailed') };
+  } catch (error) {
+    return { success: false, error: i18n.t('errors.commentFailed') };
   }
 }
 
@@ -449,16 +449,16 @@ export async function fetchTemplateParticipants(templateId) {
 }
 
 // สร้างคอมเมนต์ใหม่ให้ Community Average — คืน object ใหม่พร้อม username/avatar_url
-export async function createTemplateComment({ template_id, user_id: _userId, content }) {
+export async function createTemplateComment({ template_id, user_id, content, parentId }) {
   try {
     const response = await apiFetch(`${API_URL}/api/template-comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_id, content })
+      body: JSON.stringify({ template_id, user_id, content, parent_id: parentId })
     });
     return await response.json();
   } catch {
-    return { data: null, error: i18n.t('errors.commentCreateFailed') };
+    return { success: false, error: i18n.t('errors.commentFailed') };
   }
 }
 
@@ -479,10 +479,11 @@ export async function fetchAdminStats(_userId) {
 }
 
 // 📍 ดึงรายชื่อผู้ใช้สำหรับหน้าแอดมิน (ค้นหา + แบ่งหน้า)
-export async function fetchAdminUsers({ userId: _userId, q, page, limit } = {}) {
+export async function fetchAdminUsers({ userId: _userId, q, role, page, limit } = {}) {
   try {
     const params = new URLSearchParams();
     if (q) params.append('q', q);
+    if (role) params.append('role', role);
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
     return await getJSON(`${API_URL}/api/admin/users?${params.toString()}`);
@@ -655,4 +656,65 @@ export async function saveTemplate(templateId, saved) {
     const response = await apiFetch("/api/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template_id: templateId, saved }) });
     return await response.json();
   } catch { return { success: false, error: i18n.t("errors.serverUnreachable") }; }
+}
+
+// 📍 รายงานคอมเมนต์ — แจ้งแอดมินว่าคอมเมนต์นั้นไม่เหมาะสม
+export async function reportComment(commentId, isTemplateComment, reason) {
+  try {
+    const body = isTemplateComment 
+      ? { template_comment_id: commentId, reason }
+      : { comment_id: commentId, reason };
+      
+    const response = await apiFetch(`${API_URL}/api/report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return { status: response.status, ...(await response.json()) };
+  } catch {
+    return { success: false, error: i18n.t('errors.reportFailed') };
+  }
+}
+
+// 📍 ลบคอมเมนต์ (ฝั่งแอดมิน)
+export async function deleteAdminComment(commentId, isTemplateComment) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/admin/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', target_id: commentId, is_template_comment: isTemplateComment })
+    });
+    return await response.json();
+  } catch {
+    return { success: false, error: i18n.t('errors.commentDeleteFailed') };
+  }
+}
+
+
+// 📍 ส่งอีเมลลืมรหัสผ่าน
+export async function forgotPassword(email) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'forgot_password', email })
+    });
+    return await response.json();
+  } catch {
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
+  }
+}
+
+// 📍 รีเซ็ตรหัสผ่านด้วย Token
+export async function resetPassword({ token, password }) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset_password', token, password })
+    });
+    return await response.json();
+  } catch {
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
+  }
 }
