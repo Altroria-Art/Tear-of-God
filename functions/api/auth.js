@@ -105,43 +105,43 @@ export async function onRequest({ request, env, data: auth }) {
 
         const resetUrl = `${env.APP_URL || 'https://tear-of-god.pages.dev'}/reset-password?token=${token}`;
         
-        if (env.RESEND_API_KEY) {
+        if (env.BREVO_API_KEY) {
           let emailSent = false;
           try {
-            const res = await fetch('https://api.resend.com/emails', {
+            const res = await fetch('https://api.brevo.com/v3/smtp/email', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${env.RESEND_API_KEY}`,
-                'Content-Type': 'application/json'
+                'accept': 'application/json',
+                'content-type': 'application/json',
+                'api-key': env.BREVO_API_KEY
               },
               body: JSON.stringify({
-                from: env.RESEND_FROM_EMAIL || 'Tear of God <onboarding@resend.dev>',
-                to: user.email,
-                subject: 'รีเซ็ตรหัสผ่านของคุณ',
-                html: `
+                sender: {
+                  name: env.BREVO_FROM_NAME || 'Tear of God',
+                  email: env.BREVO_FROM_EMAIL || 'pview5678fc@gmail.com'
+                },
+                to: [{ email: user.email }],
+                subject: 'รีเซ็ตรหัสผ่าน Tear of God',
+                htmlContent: `
                   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2>รีเซ็ตรหัสผ่านของคุณ</h2>
-                    <p>มีการร้องขอเปลี่ยนรหัสผ่านสำหรับบัญชีของคุณบน Tear of God</p>
-                    <p>กรุณากดปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่:</p>
+                    <h2>รีเซ็ตรหัสผ่านบัญชี Tear of God</h2>
+                    <p>เราได้รับคำขอให้ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ</p>
+                    <p>กรุณาคลิกปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่:</p>
                     <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 16px 0;">ตั้งรหัสผ่านใหม่</a>
-                    <p style="color: #666; font-size: 14px;">ลิงก์นี้จะหมดอายุภายใน 1 ชั่วโมง</p>
-                    <p style="color: #666; font-size: 14px;">หากคุณไม่ได้เป็นคนร้องขอ สามารถละเว้นอีเมลนี้ได้</p>
+                    <p style="color: #666; font-size: 14px;">ลิงก์นี้มีอายุการใช้งานตามที่ระบบกำหนด (1 ชั่วโมง)</p>
+                    <p style="color: #666; font-size: 14px;">หากคุณไม่ได้เป็นผู้ร้องขอให้เปลี่ยนรหัสผ่าน โปรดเพิกเฉยต่ออีเมลฉบับนี้</p>
                   </div>
                 `
               })
             });
             if (!res.ok) {
               const errBody = await res.json().catch(() => ({}));
-              console.error('Resend send failed', { 
-                status: res.status, 
-                name: errBody.name, 
-                message: errBody.message 
-              });
+              console.error('Brevo send failed', { status: res.status, code: errBody.code });
             } else {
               emailSent = true;
             }
           } catch (e) {
-            console.error('Resend fetch failed', { error: e.message });
+            console.error('Brevo fetch failed', { error: e.message });
           }
 
           if (!emailSent) {
@@ -157,26 +157,45 @@ export async function onRequest({ request, env, data: auth }) {
     }
     if (action === 'reset_password') {
       const { token, password: newPassword } = payload;
-      if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return fail('ข้อมูลไม่ถูกต้อง');
-      if (!validPassword(newPassword)) return fail('รหัสผ่านต้องมี 8–256 ตัวอักษร');
+      
+      console.error("DEBUG reset_password START", { tokenPresent: !!token, tokenLength: token ? token.length : 0 });
+
+      if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
+        console.error("DEBUG reset_password FAILED", { reason: "token missing or invalid format" });
+        return fail('ข้อมูลไม่ถูกต้อง');
+      }
+      if (!validPassword(newPassword)) {
+        console.error("DEBUG reset_password FAILED", { reason: "invalid password format" });
+        return fail('รหัสผ่านต้องมี 8–256 ตัวอักษร');
+      }
 
       const tokenHash = await digest(token);
       const pr = await db.prepare('SELECT user_id, expires_at FROM password_resets WHERE token_hash = ?').bind(tokenHash).first();
       
-      if (!pr) return fail('ลิงก์ไม่ถูกต้องหรือถูกใช้งานไปแล้ว');
+      if (!pr) {
+        console.error("DEBUG reset_password FAILED", { reason: "tokenHash not found in DB" });
+        return fail('ลิงก์ไม่ถูกต้องหรือถูกใช้งานไปแล้ว');
+      }
       if (new Date(pr.expires_at).getTime() < Date.now()) {
+        console.error("DEBUG reset_password FAILED", { reason: "token expired", expires_at: pr.expires_at, now: new Date().toISOString() });
         await db.prepare('DELETE FROM password_resets WHERE token_hash = ?').bind(tokenHash).run();
         return fail('ลิงก์หมดอายุแล้ว กรุณาขอลิงก์ใหม่');
       }
 
+      console.error("DEBUG reset_password", { status: "updating password" });
       const hashedNew = await hashPassword(newPassword);
-      await db.batch([
-        db.prepare('UPDATE profiles SET password = ? WHERE id = ?').bind(hashedNew, pr.user_id),
-        db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(pr.user_id),
-        db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(pr.user_id)
-      ]);
-
-      return reply({ success: true, message: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว' });
+      try {
+        await db.batch([
+          db.prepare('UPDATE profiles SET password = ? WHERE id = ?').bind(hashedNew, pr.user_id),
+          db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(pr.user_id),
+          db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(pr.user_id)
+        ]);
+        console.error("DEBUG reset_password SUCCESS");
+        return reply({ success: true, message: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว' });
+      } catch (err) {
+        console.error("DEBUG reset_password DB ERROR", { error: err.message });
+        return fail('เกิดข้อผิดพลาดฐานข้อมูล');
+      }
     }
     if (action === 'logout') {
       const token = sessionToken(request);
@@ -225,7 +244,14 @@ export async function onRequest({ request, env, data: auth }) {
   } catch (error) {
     const invalid = requestErrorResponse(error);
     if (invalid) return invalid;
-    console.error('Authentication failed:', error.message);
+    
+    // DEBUG: Log the exact error for debugging purposes
+    console.error('Authentication failed Error:', { 
+      message: error.message, 
+      stack: error.stack, 
+      action: typeof payload === 'object' && payload ? payload.action : 'unknown'
+    });
+    
     return fail('ไม่สามารถดำเนินการได้ กรุณาลองใหม่ / Please try again', 503);
   }
 }

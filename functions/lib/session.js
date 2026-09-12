@@ -47,7 +47,7 @@ export async function createSession(request, db, userId) {
   return sessionCookie(request, token);
 }
 
-export async function hashPassword(password, salt = randomToken().slice(0, 32), iterations = 600000) {
+export async function hashPassword(password, salt = randomToken().slice(0, 32), iterations = 100000) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
   // Workers Web Crypto supports PBKDF2 natively, without Node dependencies.
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: encoder.encode(salt), iterations }, key, 256);
