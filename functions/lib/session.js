@@ -43,12 +43,12 @@ export async function createSession(request, db, userId) {
   return sessionCookie(request, token);
 }
 
-export async function hashPassword(password, salt = randomToken().slice(0, 32)) {
+export async function hashPassword(password, salt = randomToken().slice(0, 32), iterations = 600000) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
   // Workers Web Crypto supports PBKDF2 natively, without Node dependencies.
-  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: encoder.encode(salt), iterations: 100000 }, key, 256);
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: encoder.encode(salt), iterations }, key, 256);
   const hash = Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, '0')).join('');
-  return `pbkdf2-sha256$100000$${salt}$${hash}`;
+  return `pbkdf2-sha256$${iterations}$${salt}$${hash}`;
 }
 
 function equal(a, b) {
@@ -61,8 +61,8 @@ function equal(a, b) {
 export async function verifyPassword(password, stored) {
   if (typeof stored !== 'string') return false;
   if (/^[a-f0-9]{64}$/.test(stored)) return equal(await digest(password), stored);
-  const match = /^pbkdf2-sha256\$100000\$([a-f0-9]{32})\$[a-f0-9]{64}$/.exec(stored);
-  return !!match && equal(await hashPassword(password, match[1]), stored);
+  const match = /^pbkdf2-sha256\$(\d+)\$([a-f0-9]{32})\$[a-f0-9]{64}$/.exec(stored);
+  return !!match && equal(await hashPassword(password, match[2], parseInt(match[1], 10)), stored);
 }
 
 export async function allowAuthAttempt(request, db, email) {

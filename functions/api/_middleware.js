@@ -27,7 +27,7 @@ export async function onRequest(context) {
     }
     return privateResponse;
   } catch (error) {
-    console.error('API request failed:', error);
+    console.error('API request failed:', { name: error.name, message: error.message });
     return Response.json({ success: false, error: 'Service temporarily unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
   }
 }

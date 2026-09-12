@@ -13,7 +13,7 @@ import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
 
 // 📍 นำเข้า createComment มาใช้งาน
-import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, deleteRanking } from '../lib/api'
+import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
 import { formatDbDate } from '../lib/format'
 import { useTranslation } from 'react-i18next'
@@ -340,7 +340,7 @@ export default function PostDetail() {
                   const cleanTag = tag.replace('#', '');
                   return (
                     <Link 
-                      key={idx} 
+                      key={cleanTag} 
                       to={`/discover/hashtag/${encodeURIComponent(cleanTag)}`}
                       className="px-3 py-1 rounded-md bg-surface border border-line-soft text-ink text-[11px] font-bold uppercase tracking-wider hover:border-line hover:shadow-sm transition-all flex items-center"
                     >

@@ -129,7 +129,7 @@ export async function updateProfile(_userId, profileData) {
 }
 
 // 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปโหลดไฟล์รูปภาพไป R2
-export async function uploadImage(file, _userId) {
+export async function uploadImage(file, userId) {
   try {
     const formData = new FormData();
     formData.append('file', file);

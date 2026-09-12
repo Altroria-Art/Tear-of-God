@@ -626,7 +626,9 @@ export default function Login() {
                           <label htmlFor="login-password" className="block text-[11px] font-bold text-ink-soft uppercase tracking-wider">
                             {t('auth.password')}
                           </label>
-                          <span className="text-muted text-xs cursor-not-allowed opacity-50">{t('auth.forgotPasswordComingSoon', 'Forgot password? (Coming soon)')}</span>
+                          <Link to="/forgot-password" className="text-[11px] font-bold text-login-accent hover:text-login-accent/80 hover:underline transition-colors" tabIndex={!isRegister ? 0 : -1}>
+                            ลืมรหัสผ่าน?
+                          </Link>
                         </div>
                         <div className="relative group">
                           <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-login-accent transition-colors pointer-events-none" />
@@ -648,12 +650,6 @@ export default function Login() {
                             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                           </button>
                         </div>
-                      </div>
-
-                      <div className="flex justify-end mt-1 mb-3">
-                        <Link to="/forgot-password" className="text-[13px] font-bold text-login-accent hover:text-login-accent/80 hover:underline transition-colors" tabIndex={!isRegister ? 0 : -1}>
-                          ลืมรหัสผ่าน?
-                        </Link>
                       </div>
 
                       {/* Submit Action Button for Login */}

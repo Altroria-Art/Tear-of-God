@@ -322,46 +322,6 @@ const CreateTierList = () => {
       onMove={() => setSelectedItem(item)} onShift={direction => shiftItem(item.id, direction)} onDelete={() => handleDeleteItem(item.id)}
       onDragStart={e => handleDragStart(e, item.id)} onDragEnd={endDrag} />;
 
-    const pos = mates.findIndex(i => i.id === item.id);
-
-    return (
-      <div
-        key={item.id}
-        data-item-id={item.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, item.id)}
-
-        onClick={() => item.tierId === null && setSelectedItem(item)}
-        className={`bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium shadow-md rounded-lg group relative w-20 h-20 md:w-24 md:h-24 flex items-center justify-center px-2 pt-2 pb-4 text-center text-[10px] md:text-xs cursor-grab active:cursor-grabbing hover:scale-105 hover:shadow-xl hover:border-brand-accent transition-all z-10 ${item.tierId === null ? 'cursor-pointer' : ''}`}
-
-        onDragEnd={endDrag}
-
-      >
-        <span className="break-words line-clamp-3 leading-tight pointer-events-none drop-shadow-sm">{item.content}</span>
-
-        {/* 📍 [ใหม่]: ปุ่มย้ายซ้าย/ขวา — สลับลำดับภายใน tier เดียวกัน */}
-        <button
-          type="button"
-          onClick={() => shiftItem(item.id, -1)}
-          disabled={pos === 0}
-          aria-label={t('create.moveLeft')}
-          className="absolute bottom-1 left-1 rounded p-1 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
-        >
-          <ChevronLeft size={14} strokeWidth={3} />
-        </button>
-        <button
-          type="button"
-          onClick={() => shiftItem(item.id, 1)}
-          disabled={pos === mates.length - 1}
-          aria-label={t('create.moveRight')}
-          className="absolute bottom-1 right-1 rounded p-1 text-muted hover:text-highlight hover:bg-surface-glass disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted opacity-0 group-hover:opacity-100 transition-all"
-        >
-          <ChevronRight size={14} strokeWidth={3} />
-        </button>
-
-        <button onClick={() => handleDeleteItem(item.id)} className="absolute -top-2 -right-2 bg-surface text-muted hover:text-status-error hover:scale-110 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-all z-20"><X size={12} strokeWidth={3} /></button>
-      </div>
-    );
   };
 
   const handlePublish = async () => {
@@ -543,8 +503,8 @@ const CreateTierList = () => {
               )}
 
               <div className="flex flex-wrap gap-1.5 mb-3">
-                {hashtags.filter((tag) => !selectedHashtags.includes(tag)).map((tag, idx) => (
-                  <button key={idx} type="button" onClick={() => handleToggleHashtag(tag)} className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-surface text-ink-soft hover:bg-surface-glass hover:text-brand">
+                {hashtags.filter((tag) => !selectedHashtags.includes(tag)).map((tag) => (
+                  <button key={tag} type="button" onClick={() => handleToggleHashtag(tag)} className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-surface text-ink-soft hover:bg-surface-glass hover:text-brand">
                     + {tag}
                   </button>
                 ))}

@@ -3,6 +3,8 @@
 // ส่ง tiers กลับมาเลย ทำให้ Home Feed / Feed Detailed โชว์ tier ไม่มีสี ต่างจาก Discover
 // Detailed ที่อ่านจาก /api/templates โดยตรง — parseTiers() คัดลอกมาจาก templates.js เพราะ
 // ยังไม่มี shared-helper module ในโปรเจกต์นี้ (ดู docs/tier-list-feed-debug-plan.md §7/§8)
+import { allowAuthAttempt } from '../lib/session.js';
+
 function parseTiers(raw) {
   if (!raw) return null;
   try {
@@ -127,7 +129,7 @@ export async function onRequest({ request, env, data: auth }) {
         const templateId = url.searchParams.get('template_id');
         const sort = url.searchParams.get('sort'); // 'recent' | 'liked'
         const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
-        const limit = Math.min(parseInt(url.searchParams.get('limit')) || 12, 50);
+        const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit')) || 12), 50);
         const offset = (page - 1) * limit;
         // 🟡 [ใหม่]: Home feed mode — 'general' | 'kindred' (มีแค่หน้า Home ส่งมา; จุดเรียกอื่น
         // ไม่มี feed_type จึงไม่เข้ากระแสนี้ ไม่กระทบ behavior เดิม — ดู docs/row-read-optimization-plan.md §14.7 #11)
@@ -477,9 +479,15 @@ export async function onRequest({ request, env, data: auth }) {
 
     // 🟢 [POST] สร้าง Ranking ใหม่
     if (request.method === 'POST') {
-      const { payload, items, template } = await request.json();
-      if (!payload || typeof payload !== 'object' || !Array.isArray(items) || !items.length) {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ success: false, error: 'Invalid JSON body' }, 400); }
+      const { payload, items, template } = body;
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload) || !Array.isArray(items) || !items.length) {
         return jsonResponse({ success: false, error: 'Ranking and ranked items are required' }, 400);
+      }
+      // Rate limit: reuse allowAuthAttempt pattern — max 20 creations per 15min per user
+      if (!await allowAuthAttempt(request, db, 'create:' + auth.user.id)) {
+        return jsonResponse({ success: false, error: 'กรุณารอสักครู่ก่อนสร้างโพสต์ใหม่' }, 429);
       }
       payload.user_id = auth.user.id;
       const rankingId = crypto.randomUUID(); 
@@ -601,6 +609,7 @@ export async function onRequest({ request, env, data: auth }) {
         db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id = ?').bind(targetId),
+        db.prepare('DELETE FROM reports WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM rankings WHERE id = ?').bind(targetId),
       ]);
       return jsonResponse({ success: true });

@@ -464,7 +464,7 @@ export default function TemplateDetailPage() {
           <div className="bg-surface rounded-xl border border-line-soft p-4">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
               {(template.template_items || []).map((ti, i) => (
-                <div key={i} className="flex flex-col items-center gap-1.5 p-2 bg-surface-glass rounded-lg border border-line-soft">
+                <div key={ti.item_id || i} className="flex flex-col items-center gap-1.5 p-2 bg-surface-glass rounded-lg border border-line-soft">
                   {ti.item?.image_url ? (
                     <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-surface">
                       <img src={ti.item.image_url} alt={ti.item?.name || ti.item_id} className="w-full h-full object-cover" />

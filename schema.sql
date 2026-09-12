@@ -179,6 +179,13 @@ CREATE TABLE IF NOT EXISTS reports (
   FOREIGN KEY (reporter_id) REFERENCES profiles(id) ON DELETE SET NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_reports_comment_id ON reports(comment_id);
+CREATE INDEX IF NOT EXISTS idx_reports_template_comment_id ON reports(template_comment_id);
+CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_id);
+CREATE INDEX IF NOT EXISTS idx_template_comments_parent_id ON template_comments(parent_id);
+CREATE INDEX IF NOT EXISTS idx_template_bookmarks_template_id ON template_bookmarks(template_id);
+
 CREATE INDEX IF NOT EXISTS idx_reports_template ON reports(template_id);
 CREATE INDEX IF NOT EXISTS idx_reports_ranking ON reports(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
@@ -221,16 +228,7 @@ CREATE TABLE IF NOT EXISTS template_bookmarks (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, template_id)
 );
-CREATE TABLE IF NOT EXISTS sessions (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  token_hash TEXT NOT NULL UNIQUE,
-  expires_at DATETIME NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
 
 -- Password Resets
 CREATE TABLE IF NOT EXISTS password_resets (
