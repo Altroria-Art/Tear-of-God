@@ -50,10 +50,7 @@ export async function onRequestGet(context) {
       return Response.json({ success: true, data: [], total: 0 });
     }
 
-    // 3. Get ranking items for all rankings in this batch
-    const rankingIds = rankings.map(r => r.ranking_id);
-    const placeholders = rankingIds.map(() => '?').join(',');
-
+    // 3. Get ranking items through the template relation without binding one ID per ranking.
     const { results: items } = await db.prepare(`
       SELECT
         ri.ranking_id,
@@ -62,10 +59,11 @@ export async function onRequestGet(context) {
         ri.position,
         i.name as item_name
       FROM ranking_items ri
+      INNER JOIN rankings r ON r.id = ri.ranking_id
       LEFT JOIN items i ON ri.item_id = i.id
-      WHERE ri.ranking_id IN (${placeholders})
+      WHERE r.template_id = ?
       ORDER BY ri.ranking_id, ri.position ASC
-    `).bind(...rankingIds).all();
+    `).bind(templateId).all();
 
     // 4. Group items by ranking_id
     const itemsByRanking = {};
