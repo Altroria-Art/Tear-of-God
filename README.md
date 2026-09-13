@@ -115,7 +115,7 @@ All endpoints live under `functions/api/`. Each file exports `onRequest` (or met
 
 ## Deploying
 
-Deploys are manual — there is no CI and pushing to a branch does not auto-deploy. The Cloudflare Pages production branch has not been safely confirmed, so verify it in the Pages project before using any deploy script; do not infer it from `package.json`.
+Deploys are manual — there is no CI and pushing to a branch does not auto-deploy. The `tear-of-god` Cloudflare Pages project uses Direct Upload, with `master` as its Pages Production branch label; `main` and other labels create Preview deployments. Wrangler's `--branch` option selects the Pages deployment environment by label — it does not check out or otherwise select a local Git branch. The deploy script therefore intentionally uses `--branch=master`.
 
 **Production D1 has real registered users and their real tier lists — never destroy that data.** Before any schema change, verify against remote first:
 
