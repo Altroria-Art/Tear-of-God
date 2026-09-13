@@ -1,0 +1,9 @@
+# LOCAL-ONLY Phase 3D rehearsal config. Never pass --remote.
+name = "tear-of-god-phase3d-rehearsal"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tear-of-god-phase3d-rehearsal"
+database_id = "00000000-0000-4000-8000-00000000003d"
+migrations_dir = "migrations-active"
