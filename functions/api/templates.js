@@ -41,10 +41,12 @@ export async function onRequestGet(context) {
       if (savedOnly) { whereSql += ' AND EXISTS (SELECT 1 FROM template_bookmarks b WHERE b.template_id = t.id AND b.user_id = ?)'; whereParams.push(viewerId); }
       if (category && category !== 'null') { whereSql += ` AND t.category = ?`; whereParams.push(category); }
       if (hashtag) {
-        // แมตช์แท็กแบบเป๊ะ (ไม่ใช่ substring) — ห่อทั้งสองฝั่งด้วย ',' แล้วค้นหา ',#tag,'
-        // ป้องกันปัญหา LIKE '%tag%' ที่ 'Pop' จะไปแมตช์ '#TPop' ด้วย (ดู docs/feature-discover-view-all-pages.md §4)
-        whereSql += ` AND instr(',' || lower(t.hashtags) || ',', lower(?)) > 0`;
-        whereParams.push(`,#${hashtag.replace(/^#/, '')},`);
+        // แมตช์แท็กแบบเป๊ะ (ไม่ใช่ substring) — ลบ '#' ออกจากทั้งสองฝั่ง (ข้อมูลเก่าเก็บ '#anime'
+        // ข้อมูลที่เขียนมาใหม่อาจเก็บ 'anime' ได้) แล้วห่อทั้งสองฝั่งด้วย ',' ค้นหา ',tag,' — กัน
+        // ปัญหา LIKE '%tag%' ที่ 'Pop' จะไปแมตช์ '#TPop' ด้วย (ดู docs/feature-discover-view-all-pages.md §4)
+        // และทำให้ count จาก /api/hashtags กับ list นี้ใช้ source/filter เดียวกันเสมอ
+        whereSql += ` AND instr(',' || lower(replace(t.hashtags, '#', '')) || ',', ',' || lower(replace(?, '#', '')) || ',') > 0`;
+        whereParams.push(hashtag);
       }
 
       // เรียงตามเลขจริง (live_uses/live_views) ไม่ใช่คอลัมน์ที่ seed ไว้ — ไม่งั้นลำดับการ์ด

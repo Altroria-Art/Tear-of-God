@@ -26,6 +26,26 @@ function parseTiers(raw) {
   }
 }
 
+// จัดรูปแบบ hashtag CSV ที่เพิ่งสร้างให้เป็น "token เริ่มต้นด้วย #" เสมอ (#anime,ไม่ใช่ anime)
+// + ตัดช่องว่าง/แท็กซ้ำ (เคส insensitive) — เพื่อให้ข้อมูลที่เก็บเป็น canonical เดียวกันกับ
+// seed และฝั่ง matcher ของ /api/templates?hashtag กับ /api/hashtags (count) ตรงกันเสมอ
+function canonicalizeHashtags(raw) {
+  if (!raw) return '';
+  const seen = new Set();
+  return raw
+    .split(',')
+    .map((tag) => tag.trim().replace(/^#/, ''))
+    .filter(Boolean)
+    .filter((tag) => {
+      const key = tag.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .map((tag) => `#${tag}`)
+    .join(',');
+}
+
 // FNV-1a 32-bit hash — ใช้ประกอบ seed ของ Home Feed (ดูทรงด้านล่าง: ลำดับสุ่มต้อง
 // deterministic บน Workers runtime, SQLite/D1 ไม่มี seeded-random ให้ใช้)
 function fnv1a(str) {
@@ -180,7 +200,7 @@ export async function onRequest({ request, env, data: auth }) {
         let pageWhere = `WHERE 1=1`;
         const pageWhereParams = [];
         if (category && category !== 'null') { pageWhere += ` AND r.category = ?`; pageWhereParams.push(category); }
-        if (hashtag) { pageWhere += ` AND instr(',' || lower(r.hashtags) || ',', lower(?)) > 0`; pageWhereParams.push(`,#${hashtag.replace(/^#/, '')},`); }
+        if (hashtag) { pageWhere += ` AND instr(',' || lower(replace(r.hashtags, '#', '')) || ',', ',' || lower(replace(?, '#', '')) || ',') > 0`; pageWhereParams.push(hashtag); }
         if (authorId) { pageWhere += ` AND r.user_id = ?`; pageWhereParams.push(authorId); }
         if (templateId) { pageWhere += ` AND r.template_id = ?`; pageWhereParams.push(templateId); }
 
@@ -231,7 +251,7 @@ export async function onRequest({ request, env, data: auth }) {
               //   2) r.template_id ตรงกับ template ที่เคยจัด/เคยไลก์
               //   3) มีแฮชแท็กที่เคยใช้อยู่ด้วย
               const tagCond = myTags.length > 0
-                ? `(${myTags.map(() => `instr(',' || lower(r.hashtags) || ',', ?) > 0`).join(' OR ')})`
+                ? `(${myTags.map(() => `instr(',' || lower(replace(r.hashtags, '#', '')) || ',', ?) > 0`).join(' OR ')})`
                 : '0';
               const scoreExpr = `
                 CASE WHEN r.category IN (
@@ -253,7 +273,7 @@ export async function onRequest({ request, env, data: auth }) {
 
               poolWhere += `\n              AND (${scoreExpr}) >= 2`;
               // ลำดับ "?": pageWhere -> category(2) -> template_id(2) -> tags
-              poolParams.push(currentUserId, currentUserId, currentUserId, currentUserId, ...myTags.map((tg) => `,#${tg.toLowerCase()},`));
+              poolParams.push(currentUserId, currentUserId, currentUserId, currentUserId, ...myTags.map((tg) => `,${tg.toLowerCase()},`));
             }
 
             if (days) {
@@ -513,6 +533,7 @@ export async function onRequest({ request, env, data: auth }) {
         user_id: auth.user.id,
       };
       assertHashtags(cleanPayload.hashtags, 'payload.hashtags');
+      cleanPayload.hashtags = canonicalizeHashtags(cleanPayload.hashtags);
 
       const cleanItems = items.map((item, index) => {
         if (!isPlainObject(item)) throw new RequestError(`items[${index}] must be an object`);
@@ -557,6 +578,7 @@ export async function onRequest({ request, env, data: auth }) {
           }),
         };
         assertHashtags(cleanTemplate.hashtags, 'template.hashtags');
+        cleanTemplate.hashtags = canonicalizeHashtags(cleanTemplate.hashtags);
         const tierLabels = cleanTemplate.tiers.map(tier => tier.label);
         if (new Set(tierLabels).size !== tierLabels.length) return jsonResponse({ success: false, error: 'Tier labels must be unique' }, 400);
       }

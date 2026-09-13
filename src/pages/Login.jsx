@@ -4,14 +4,14 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
-import { registerUser, loginUser, syncGoogleUser } from '../lib/api';
+import { registerUser, loginUser, syncGoogleUser, fetchTemplates, fetchRankings } from '../lib/api';
 import { signInWithGoogle } from '../lib/firebase';
 import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
 import TierLabel from '../components/tier/TierLabel';
 import { formatCount } from '../lib/format';
 
-// ข้อมูลจริงจากฐานข้อมูล D1 (ใช้เป็นค่าเริ่มต้นและ fallback)
+// ข้อมูลตัวอย่าง static สำหรับตกแต่ง hero (ไม่ดึงจาก DB — ตัวเลขเป็นค่าจำลอง)
 const REAL_DEFAULT_TEMPLATES = [
   {
     id: 'tmpl_053',
@@ -134,8 +134,25 @@ export default function Login() {
     setAnimClass('translate-y-0 opacity-100 scale-100');
   }, [lang]);
 
-  const realTemplates = REAL_DEFAULT_TEMPLATES;
-  const realRankings = REAL_DEFAULT_RANKINGS;
+  const [realTemplates, setRealTemplates] = useState(REAL_DEFAULT_TEMPLATES);
+  const [realRankings, setRealRankings] = useState(REAL_DEFAULT_RANKINGS);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTemplates({ limit: 3, sort: 'popular' })
+      .then((res) => {
+        if (cancelled || !Array.isArray(res.data) || res.data.length === 0) return;
+        setRealTemplates(res.data);
+      })
+      .catch(() => {});
+    fetchRankings({ limit: 5, sort: 'recent' })
+      .then((res) => {
+        if (cancelled || !Array.isArray(res.data) || res.data.length === 0) return;
+        setRealRankings(res.data);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
@@ -418,7 +435,7 @@ export default function Login() {
                                   </span>
                                 ))
                               ) : (
-                                <span className="text-[9px] text-muted italic">ไม่มีไอเทม</span>
+                                <span className="text-[9px] text-muted italic">{t('feed.emptyTier')}</span>
                               )}
                             </div>
                           </div>
@@ -459,7 +476,7 @@ export default function Login() {
                         />
                         <div className="text-left overflow-hidden">
                           <div className="text-xs font-black text-ink truncate">{topSNames}</div>
-                          <div className="text-[10px] text-muted truncate">Top S-Tier ในคอมมูนิตี้</div>
+                          <div className="text-[10px] text-muted truncate">{t('auth.topSTierCommunity')}</div>
                         </div>
                       </div>
                     </div>
@@ -469,7 +486,7 @@ export default function Login() {
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-1" />
                       <div className="text-left overflow-hidden">
                         <div className="text-[11px] font-bold text-ink truncate">{realRankings[0]?.title || 'จัดอันดับอนิเมะในดวงใจ ปี 2026'}</div>
-                        <div className="text-[9px] text-muted">อันดับล่าสุดที่เพิ่งสร้างในระบบ</div>
+                        <div className="text-[9px] text-muted">{t('auth.latestRankingActivity')}</div>
                       </div>
                       <span className="ml-auto text-xs shrink-0">✨</span>
                     </div>
@@ -609,7 +626,7 @@ export default function Login() {
                             {t('auth.password')}
                           </label>
                           <Link to="/forgot-password" className="text-[11px] font-bold text-login-accent hover:text-login-accent/80 hover:underline transition-colors" tabIndex={!isRegister ? 0 : -1}>
-                            ลืมรหัสผ่าน?
+                            {t('auth.forgotPassword')}
                           </Link>
                         </div>
                         <div className="relative group">
