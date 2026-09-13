@@ -227,8 +227,9 @@ export default function TemplateDetailPage() {
   }, [template])
 
   // ดึงสถานะโหวตของผู้ใช้ + จำนวนล่าสุดของ Community Average นี้
+  const loadedTemplateId = template?.id
   useEffect(() => {
-    if (!templateId || !template) return
+    if (!templateId || !loadedTemplateId) return
     let cancelled = false
     fetchTemplateReaction({ templateId, userId: currentUser?.id }).then((r) => {
       if (cancelled) return
@@ -239,7 +240,7 @@ export default function TemplateDetailPage() {
       }))
     })
     return () => { cancelled = true }
-  }, [templateId, template, currentUser])
+  }, [templateId, loadedTemplateId, currentUser?.id])
 
   useEffect(() => {
     let cancelled = false
