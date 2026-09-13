@@ -25,6 +25,7 @@ export default function Discover() {
   const [query, setQuery] = useState(q);
   const [templates, setTemplates] = useState([]);
   const [hashtags, setHashtags] = useState([]);
+  const [hashtagSections, setHashtagSections] = useState([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -38,15 +39,38 @@ export default function Discover() {
       setIsLoading(true);
       setLoadError('');
       if (saved && !viewerId) { setTemplates([]); setIsLoading(false); return; }
-      const [tpl, tags] = await Promise.all([
-        fetchTemplates({ q, saved, page: browsingResults ? page : 1, limit: browsingResults ? 12 : DISCOVER_PREVIEW_LIMIT }),
-        browsingResults ? Promise.resolve({ data: [] }) : fetchHashtags({ limit: 12, sort: 'used' }),
-      ]);
-      if (cancelled) return;
-      setTemplates(tpl.data || []);
-      setHashtags(tags.data || []);
-      setTotal(tpl.total || 0);
-      setLoadError(tpl.error || tags.error || '');
+      
+      if (browsingResults) {
+        const tpl = await fetchTemplates({ q, saved, page, limit: 12 });
+        if (cancelled) return;
+        setTemplates(tpl.data || []);
+        setTotal(tpl.total || 0);
+        setLoadError(tpl.error || '');
+      } else {
+        const [tpl, tags] = await Promise.all([
+          fetchTemplates({ limit: 4 }),
+          fetchHashtags({ limit: 18, sort: 'used' }),
+        ]);
+        if (cancelled) return;
+        
+        setTemplates(tpl.data || []);
+        setHashtags(tags.data || []);
+        setTotal(tpl.total || 0);
+        
+        const top3 = (tags.data || []).slice(0, 3);
+        const sectionsData = await Promise.all(
+          top3.map(h => fetchTemplates({ hashtag: h.tag, limit: 4 }))
+        );
+        if (cancelled) return;
+        
+        const newSections = top3.map((h, i) => ({
+          tag: h.tag,
+          items: sectionsData[i].data || []
+        })).filter(section => section.items.length);
+        
+        setHashtagSections(newSections);
+        setLoadError(tpl.error || tags.error || '');
+      }
       setIsLoading(false);
     }
     load();
@@ -64,10 +88,6 @@ export default function Discover() {
     if (!currentUser) { toast.warning(t('discover.protectedLogin')); navigate(loginPath(next)); return; }
     navigate(next);
   };
-  const sections = useMemo(() => hashtags.slice(0, 3).map(h => ({
-    tag: h.tag,
-    items: templates.filter(tpl => (tpl.hashtags || '').split(',').some(tag => tag.trim().replace(/^#/, '').toLowerCase() === h.tag.replace(/^#/, '').toLowerCase())).slice(0, 4),
-  })).filter(section => section.items.length), [hashtags, templates]);
   const search = event => {
     event.preventDefault();
     const next = new URLSearchParams();
@@ -110,8 +130,15 @@ export default function Discover() {
           <div className="flex justify-between items-center gap-4 mb-4"><h2 className="text-xl font-bold">{t('discover.popularHashtags')}</h2><Link className="text-sm" to="/discover/hashtags">{t('discover.viewAll')}</Link></div>
           <div className="flex flex-wrap gap-2">{hashtags.map(h => <HashtagPill key={h.tag} tag={h.tag} count={h.content_count} />)}</div>
         </section>
-        {sections.map(({ tag, items }) => <section key={tag} className="mb-10">
-          <div className="flex justify-between items-center gap-4 mb-5"><h2 className="text-xl font-bold">{tag}</h2><Link className="text-sm" to={'/discover/hashtag/' + encodeURIComponent(tag.replace(/^#/, ''))}>{t('discover.viewAll')}</Link></div>
+        {hashtagSections.map(({ tag, items }) => <section key={tag} className="mb-10">
+          <div className="flex justify-between items-center gap-4 mb-5">
+            <h2 className="text-xl font-bold">
+              <Link to={'/discover/hashtag/' + encodeURIComponent(tag.replace(/^#/, ''))} className="hover:underline hover:text-brand transition-colors">
+                {tag}
+              </Link>
+            </h2>
+            <Link className="text-sm" to={'/discover/hashtag/' + encodeURIComponent(tag.replace(/^#/, ''))}>{t('discover.viewAll')}</Link>
+          </div>
           {grid(items)}
         </section>)}
       </>}

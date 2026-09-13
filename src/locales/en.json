@@ -302,6 +302,7 @@
     "periodDays": "Last {{days}} days",
     "communityNotFound": "Community Average not found",
     "backToTemplate": "Back to template",
+    "itemsInTemplate": "Items in this Template",
     "about": "About this template",
     "viewTemplate": "View template",
     "openRankingPost": "Open post",
@@ -419,6 +420,7 @@
     "recent": "Recent",
     "mostViewed": "Most Viewed",
     "mostUsed": "Most Used",
+    "mostLiked": "Most Liked",
     "az": "A – Z"
   },
   "sidebar": {

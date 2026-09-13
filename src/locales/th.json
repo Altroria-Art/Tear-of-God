@@ -302,6 +302,7 @@
     "periodDays": "{{days}} วันที่ผ่านมา",
     "communityNotFound": "ไม่พบข้อมูล Community Average",
     "backToTemplate": "กลับสู่หน้าเทมเพลต",
+    "itemsInTemplate": "ไอเทมในเทมเพลตนี้",
     "about": "เกี่ยวกับเทมเพลตนี้",
     "viewTemplate": "ดูเทมเพลต",
     "openRankingPost": "เปิดโพสต์",
@@ -415,6 +416,7 @@
     "recent": "ล่าสุด",
     "mostViewed": "เข้าชมมากสุด",
     "mostUsed": "ใช้มากสุด",
+    "mostLiked": "ไลก์มากสุด",
     "az": "ก – ฮ"
   },
   "sidebar": {
