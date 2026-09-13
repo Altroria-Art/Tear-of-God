@@ -336,7 +336,7 @@ export default function PostDetail() {
             
             {post.hashtags && (
               <div className="mt-3 flex flex-wrap gap-2">
-                {post.hashtags.split(',').map((t) => t.trim()).filter(Boolean).map((tag, idx) => {
+                {post.hashtags.split(',').map((t) => t.trim()).filter(Boolean).map((tag) => {
                   const cleanTag = tag.replace('#', '');
                   return (
                     <Link 

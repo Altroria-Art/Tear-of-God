@@ -1,6 +1,8 @@
 import http from 'k6/http';
-import { check, group } from 'k6';
-import { BASE_URL, MUTATIONS_ENABLED, setup, getSeedIds, checkOk } from '../config.js';
+import { group } from 'k6';
+import { BASE_URL, MUTATIONS_ENABLED, getSeedIds, checkOk, getMutationSession } from '../config.js';
+
+export { setup } from '../config.js';
 
 // Spike test: sudden burst of traffic then back to normal
 export const options = {
@@ -29,7 +31,6 @@ export const options = {
 export default function (data) {
   const { rankingId } = getSeedIds(data);
   const roll = Math.random();
-  const userId = `${__VU}${__ITER}`;
 
   if (roll < 0.50) {
     group('feed: GET /api/rankings', () => {
@@ -46,11 +47,12 @@ export default function (data) {
       group('vote: POST /api/votes', () => {
         const payload = JSON.stringify({
           ranking_id: rankingId,
-          user_id: userId,
           voteType: 'like',
         });
+        const session = getMutationSession(data);
         const res = http.post(`${BASE_URL}/api/votes`, payload, {
           headers: { 'Content-Type': 'application/json' },
+          cookies: session.cookies,
         });
         checkOk(res, 'vote');
       });

@@ -11,6 +11,8 @@ import { fetchTemplateParticipants, fetchTemplate } from '../lib/api'
 import { FACULTIES, getMajorsForFaculty, getAdmissionYears } from '../lib/university'
 import { ArrowLeftIcon, AlertTriangleIcon } from '../components/ui/Icons'
 
+const EMPTY_TIERS = []
+
 // คำนวณค่าเฉลี่ย Community Average จาก rankings ที่ filter แล้ว
 // คืนค่า [{ label, color, index, items: [{ name, avg, votes }] }]
 function calculateCommunityAverage(filteredRankings, tiersDef) {
@@ -115,7 +117,7 @@ export default function CommunityParticipants() {
     return () => { cancelled = true }
   }, [templateId])
 
-  const tiersDef = template?.tiers || []
+  const tiersDef = template?.tiers || EMPTY_TIERS
 
   // 1. Filter rankings ตาม Faculty/Major/Year (ไม่ใช่ filter คน → filter ว่าจะเอาข้อมูลใครมาคำนวณ)
   const filteredRankings = useMemo(() => {

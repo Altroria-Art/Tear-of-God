@@ -37,6 +37,51 @@ if (mutationFlag === 'true' && !isLoopbackHostname) {
 // Mutation traffic is opt-in and local-only. The default test mix remains read-only.
 export const MUTATIONS_ENABLED = mutationFlag === 'true';
 
+function authPayload(body) {
+  return JSON.stringify(body);
+}
+
+function createLocalAuthSessions(runId) {
+  const requestedPoolSize = Number.parseInt(__ENV.AUTH_POOL_SIZE || '5', 10);
+  if (!Number.isInteger(requestedPoolSize) || requestedPoolSize < 1 || requestedPoolSize > 10) {
+    throw new Error('AUTH_POOL_SIZE must be an integer from 1 to 10');
+  }
+
+  const sessions = [];
+  for (let index = 0; index < requestedPoolSize; index += 1) {
+    const email = `k6-${runId}-${index}@example.test`;
+    const password = `K6!Local-${runId}-${index}`;
+    const register = http.post(`${BASE_URL}/api/auth`, authPayload({
+      action: 'register',
+      email,
+      password,
+      username: `k6-${runId}-${index}`.slice(0, 50),
+    }), { headers: { 'Content-Type': 'application/json' } });
+    const registered = check(register, {
+      'local test account registered or already exists': (response) => response.status === 201 || response.status === 409,
+    });
+    if (!registered) throw new Error(`Unable to register isolated local test account ${index}`);
+
+    const login = http.post(`${BASE_URL}/api/auth`, authPayload({ action: 'login', email, password }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const token = login.cookies.tog_session?.[0]?.value;
+    const loggedIn = check(login, {
+      'local test account login succeeds': (response) => response.status === 200 && response.json().success === true,
+      'login returns tog_session cookie': () => typeof token === 'string' && /^[a-f0-9]{64}$/.test(token),
+    });
+    if (!loggedIn) throw new Error(`Unable to create authenticated local test session ${index}`);
+
+    const restored = http.get(`${BASE_URL}/api/auth`, { cookies: { tog_session: token } });
+    const sessionRestored = check(restored, {
+      'local test session restores': (response) => response.status === 200 && response.json().data?.email === email,
+    });
+    if (!sessionRestored) throw new Error(`Unable to restore authenticated local test session ${index}`);
+    sessions.push(token);
+  }
+  return sessions;
+}
+
 function parseRows(body, key, fallback) {
   try {
     const parsed = typeof body === 'string' ? JSON.parse(body) : body;
@@ -47,7 +92,10 @@ function parseRows(body, key, fallback) {
 }
 
 export function setup() {
-  const results = { rankingId: null, templateId: null, userId: null };
+  const rawRunId = String(__ENV.TEST_RUN_ID || Date.now());
+  const runId = rawRunId.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 32);
+  if (!runId) throw new Error('TEST_RUN_ID must contain at least one letter, number, underscore, or hyphen');
+  const results = { rankingId: null, templateId: null, userId: null, runId, authSessions: [] };
 
   const res = http.get(`${BASE_URL}/api/rankings?sort=newest&limit=3`);
   if (res.status === 200) {
@@ -65,6 +113,8 @@ export function setup() {
       results.templateId = rows[0].id;
     }
   }
+
+  if (MUTATIONS_ENABLED) results.authSessions = createLocalAuthSessions(runId);
 
   return results;
 }
@@ -96,11 +146,14 @@ export function checkOk(res, label) {
   });
 }
 
-// ── Unique user ID per VU for write operations ──
-export function vuUserId() {
-  return `loadtest-vu-${__VU}-${__ITER}`;
-}
-
-export function vuUserIdStable() {
-  return `loadtest-vu-${__VU}`;
+// ── Authenticated local mutation helper ──
+export function getMutationSession(data) {
+  if (!MUTATIONS_ENABLED) throw new Error('Mutation session requested without ALLOW_MUTATIONS=true');
+  const sessions = data?.authSessions;
+  if (!Array.isArray(sessions) || sessions.length === 0) {
+    throw new Error('Mutation tests require exported setup() and authenticated local sessions');
+  }
+  const token = sessions[(__VU - 1) % sessions.length];
+  if (!/^[a-f0-9]{64}$/.test(token || '')) throw new Error('Invalid local mutation session');
+  return { cookies: { tog_session: token } };
 }
