@@ -7,6 +7,9 @@ const BASIC_SECURITY_HEADERS = {
   'X-Frame-Options': 'SAMEORIGIN',
 };
 
+const MAINTENANCE_READ_ONLY_VALUE = '1';
+const MAINTENANCE_RETRY_AFTER_SECONDS = 300;
+
 function withSecurityHeaders(response) {
   const securedResponse = new Response(response.body, response);
   for (const [name, value] of Object.entries(BASIC_SECURITY_HEADERS)) {
@@ -17,8 +20,25 @@ function withSecurityHeaders(response) {
 
 export async function onRequest(context) {
   const { request, env } = context;
-  const path = new URL(request.url).pathname.replace(/\/$/, '');
   const mutation = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
+  if (env.MAINTENANCE_READ_ONLY === MAINTENANCE_READ_ONLY_VALUE && mutation) {
+    return withSecurityHeaders(Response.json(
+      {
+        success: false,
+        error: 'Service temporarily read-only',
+        code: 'MAINTENANCE_READ_ONLY',
+      },
+      {
+        status: 503,
+        headers: {
+          'Cache-Control': 'no-store',
+          'Retry-After': String(MAINTENANCE_RETRY_AFTER_SECONDS),
+        },
+      },
+    ));
+  }
+
+  const path = new URL(request.url).pathname.replace(/\/$/, '');
   if (mutation) {
     const origin = request.headers.get('Origin');
     if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
