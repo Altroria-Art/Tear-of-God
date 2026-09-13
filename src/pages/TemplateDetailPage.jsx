@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, ChevronDown } from 'lucide-react'
 import Avatar from '../components/ui/Avatar'
 import Pagination from '../components/ui/Pagination'
 import SortDropdown from '../components/ui/SortDropdown'
@@ -19,8 +19,8 @@ import { useTranslation } from 'react-i18next'
 
 const PAGE_SIZE = 5
 const SORT_OPTIONS = [
-  { value: 'liked', label: 'Most Liked' },
-  { value: 'recent', label: 'Recent' },
+  { value: 'liked', labelKey: 'sort.mostLiked' },
+  { value: 'recent', labelKey: 'sort.recent' },
 ]
 
 // tier ที่เป็น NULL (ยังไม่ถูกจัด) ไม่นับเป็นแถวไอเทม — แต่ทุกแถว tier ของ template ยังคงแสดงเสมอ
@@ -114,7 +114,7 @@ function RankingCard({ ranking, tiersDef }) {
     <div className="mb-6">
       <div className="rounded-lg glass shadow-sm overflow-hidden">
       <UserTopBar
-        username={ranking.profile?.username || 'User'}
+        username={ranking.profile?.username || t('common.unknownUser')}
         avatarUrl={ranking.profile?.avatar_url}
         timeLabel={timeAgo(ranking.created_at)}
       />
@@ -198,6 +198,7 @@ export default function TemplateDetailPage() {
   const { currentUser } = useUser()
   const toast = useToast()
   const { t } = useTranslation()
+  const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))
   const avgTableRef = useRef(null)
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
   const [reportOpen, setReportOpen] = useState(false)
@@ -461,25 +462,37 @@ export default function TemplateDetailPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-4 text-xl font-bold text-ink">{t('template.itemsInTemplate', { defaultValue: 'Items in this Template' })}</h2>
-          <div className="bg-surface rounded-xl border border-line-soft p-4">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-              {(template.template_items || []).map((ti, i) => (
-                <div key={ti.item_id || i} className="flex flex-col items-center gap-1.5 p-2 bg-surface-glass rounded-lg border border-line-soft">
-                  {ti.item?.image_url ? (
-                    <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-surface">
-                      <img src={ti.item.image_url} alt={ti.item?.name || ti.item_id} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    null
-                  )}
-                  <span className="text-xs font-medium text-ink text-center w-full leading-relaxed break-words">
-                    {ti.item?.name || ti.item_id}
-                  </span>
-                </div>
-              ))}
+          <details className="group bg-surface rounded-xl border border-line-soft overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+            <summary className="cursor-pointer px-5 py-4 font-bold text-ink flex items-center justify-between hover:bg-surface-glass transition-colors list-none">
+              <span className="flex items-center gap-2">
+                <span className="text-xl">{t('template.itemsInTemplate', { defaultValue: 'Items in this Template' })}</span>
+                <span className="bg-surface-glass border border-line-soft rounded-full px-2 py-0.5 text-xs text-muted font-medium">
+                  {template.template_items?.length || 0}
+                </span>
+              </span>
+              <span className="text-muted transition-transform duration-200 group-open:rotate-180">
+                <ChevronDown size={20} />
+              </span>
+            </summary>
+            <div className="p-5 pt-2 border-t border-line-soft/30">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                {(template.template_items || []).map((ti, i) => (
+                  <div key={ti.item_id || i} className="flex flex-col items-center gap-1.5 p-2 bg-surface-glass rounded-lg border border-line-soft">
+                    {ti.item?.image_url ? (
+                      <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-surface">
+                        <img src={ti.item.image_url} alt={ti.item?.name || ti.item_id} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      null
+                    )}
+                    <span className="text-xs font-medium text-ink text-center w-full leading-relaxed break-words">
+                      {ti.item?.name || ti.item_id}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          </details>
         </section>
 
         <section>
@@ -487,8 +500,9 @@ export default function TemplateDetailPage() {
             <h2 className="text-2xl font-bold text-ink">{t('template.communityRankings')}</h2>
             <SortDropdown
               value={sort}
-              options={SORT_OPTIONS}
+              options={sortOptions}
               onChange={(nextSort) => { setSort(nextSort); setPage(1) }}
+              label={t('discover.sort')}
             />
           </div>
 
