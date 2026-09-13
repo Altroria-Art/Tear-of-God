@@ -25,25 +25,22 @@ export async function onRequest({ request, env, data: auth }) {
   if (action === 'stats') {
     try {
       const [
-        users,
-        rankings,
-        templates,
-        votes,
-        comments,
-        follows,
-        pendingReportsRow,
+        counts,
         recentPostsRows,
         recentReportsRows,
         topCategoriesRows,
         topTemplatesRows
       ] = await Promise.all([
-        db.prepare('SELECT COUNT(*) as n FROM profiles').first(),
-        db.prepare('SELECT COUNT(*) as n FROM rankings').first(),
-        db.prepare('SELECT COUNT(*) as n FROM templates').first(),
-        db.prepare('SELECT COUNT(*) as n FROM votes').first(),
-        db.prepare('SELECT COUNT(*) as n FROM comments').first(),
-        db.prepare('SELECT COUNT(*) as n FROM follows').first(),
-        db.prepare("SELECT COUNT(*) as n FROM reports WHERE status = 'pending'").first(),
+        db.prepare(`
+          SELECT
+            (SELECT COUNT(*) FROM profiles) AS users,
+            (SELECT COUNT(*) FROM rankings) AS rankings,
+            (SELECT COUNT(*) FROM templates) AS templates,
+            (SELECT COUNT(*) FROM votes) AS votes,
+            (SELECT COUNT(*) FROM comments) AS comments,
+            (SELECT COUNT(*) FROM follows) AS follows,
+            (SELECT COUNT(*) FROM reports WHERE status = 'pending') AS pending_reports
+        `).first(),
         db.prepare(`
           SELECT r.id, r.title, r.category, r.created_at,
                  p.id as author_id, p.username as author_name, p.avatar_url as author_avatar
@@ -85,13 +82,13 @@ export async function onRequest({ request, env, data: auth }) {
       ]);
 
       const stats = {
-        users: users?.n || 0,
-        rankings: rankings?.n || 0,
-        templates: templates?.n || 0,
-        votes: votes?.n || 0,
-        comments: comments?.n || 0,
-        follows: follows?.n || 0,
-        pending_reports: pendingReportsRow?.n || 0,
+        users: counts?.users || 0,
+        rankings: counts?.rankings || 0,
+        templates: counts?.templates || 0,
+        votes: counts?.votes || 0,
+        comments: counts?.comments || 0,
+        follows: counts?.follows || 0,
+        pending_reports: counts?.pending_reports || 0,
         recent_posts: (recentPostsRows?.results || []).map(r => ({
           id: r.id,
           title: r.title,
