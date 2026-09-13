@@ -23,10 +23,6 @@ export async function onRequest({ request, env, data: auth }) {
 
     const formData = await readFormDataBody(request);
     const file = formData.get('file');
-    const user = await env.tear_of_god_db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
-    if (!user) {
-      return jsonResponse({ error: 'Unauthorized: invalid user' }, 403);
-    }
 
     if (!file || typeof file.arrayBuffer !== 'function' || typeof file.stream !== 'function') {
       return jsonResponse({ error: 'No file provided' }, 400);

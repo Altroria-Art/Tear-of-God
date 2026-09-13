@@ -37,9 +37,7 @@ export async function onRequest({ request, env, data: auth }) {
       const parent_id = assertId(body.parent_id, 'parent_id', { optional: true }) || null;
       const content = assertString(body.content, 'content', { min: 1, max: INPUT_LIMITS.comment, trim: true });
 
-      // เช็คว่า user มีจริง และ ranking มีอยู่จริง
-      const user = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
-      if (!user) return jsonResponse({ success: false, error: 'ผู้ใช้ไม่มีอยู่ในระบบ' }, 400);
+      // Middleware already verified the session and loaded this profile from D1.
       const ranking = await db.prepare('SELECT id FROM rankings WHERE id = ?').bind(ranking_id).first();
       if (!ranking) return jsonResponse({ success: false, error: 'โพสต์ไม่มีอยู่ในระบบ' }, 404);
 
