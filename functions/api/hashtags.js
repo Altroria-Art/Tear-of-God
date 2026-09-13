@@ -39,10 +39,10 @@ export async function onRequestGet(context) {
          WHERE rest <> ''
       ),
       tags AS (
-        SELECT lower(tag) AS tag, COUNT(DISTINCT tid) AS content_count
+        SELECT lower('#' || replace(tag, '#', '')) AS tag, COUNT(DISTINCT tid) AS content_count
           FROM split
          WHERE tag <> ''
-         GROUP BY lower(tag)
+         GROUP BY lower('#' || replace(tag, '#', ''))
       )
     `;
 

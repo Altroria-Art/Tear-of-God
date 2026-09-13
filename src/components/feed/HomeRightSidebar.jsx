@@ -35,7 +35,7 @@ export default function HomeRightSidebar() {
             {hashtags.map((tag) => (
               <div 
                 key={tag.tag} 
-                onClick={() => navigate(`/discover/hashtag/${encodeURIComponent(tag.tag)}`)}
+                onClick={() => navigate(`/discover/hashtag/${encodeURIComponent(tag.tag.replace(/^#/, ''))}`)}
                 className="group cursor-pointer flex items-center justify-between py-0.5"
               >
                 <div className="text-[14px] font-bold text-ink-soft group-hover:text-highlight transition-colors">
