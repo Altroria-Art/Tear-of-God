@@ -27,10 +27,6 @@ export async function onRequest({ request, env, data: auth }) {
     const targets = [template_id, ranking_id, comment_id, template_comment_id].filter(Boolean);
     if (targets.length !== 1) return jsonResponse({ success: false, error: 'ต้องระบุเป้าหมายเพียงหนึ่งอย่างเท่านั้น' }, 400);
 
-    // เช็คว่า reporter มีอยู่จริงในระบบ (กัน FK constraint ปลอมๆ → 500)
-    const reporter = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(reporter_id).first();
-    if (!reporter) return jsonResponse({ success: false, error: 'ผู้ใช้ไม่มีอยู่ในระบบ' }, 401);
-
     // กันไม่ให้ user เดิมรายงาน item เดียวกันซ้ำถี่ยิบ — ตรวจว่ายังค้าง pending อยู่หรือไม่
     let existing;
     if (template_comment_id) {

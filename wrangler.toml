@@ -10,5 +10,36 @@ database_id = "69d366f1-55ba-43cf-a492-882e137786f4"
 [[r2_buckets]]
 binding = "STORAGE"
 bucket_name = "tear-of-god"
+
+# Top-level values are used by local Pages development. Wrangler keeps D1/R2
+# local unless explicitly run against remote resources.
 [vars]
+APP_ENV = "local"
+APP_URL = "http://localhost:8788"
+
+[[env.preview.d1_databases]]
+binding = "tear_of_god_db"
+database_name = "tear-of-god-preview"
+database_id = "4be4342e-f7e4-4d1b-9cbf-35f222b77f24"
+
+[[env.preview.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "tear-of-god-preview"
+
+[env.preview.vars]
+APP_ENV = "preview"
+APP_URL = "https://new-v18.tear-of-god.pages.dev"
+PREVIEW_UPLOADS_ENABLED = "false"
+
+[[env.production.d1_databases]]
+binding = "tear_of_god_db"
+database_name = "tear-of-god-db"
+database_id = "69d366f1-55ba-43cf-a492-882e137786f4"
+
+[[env.production.r2_buckets]]
+binding = "STORAGE"
+bucket_name = "tear-of-god"
+
+[env.production.vars]
+APP_ENV = "production"
 APP_URL = "https://tear-of-god.pages.dev"

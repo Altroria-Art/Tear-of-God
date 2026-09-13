@@ -12,6 +12,10 @@ export async function onRequest({ request, env, data: auth }) {
     const gate = consumeMemoryRateLimit('image-upload', user_id, { limit: 5, windowSeconds: 900 });
     if (!gate.allowed) return rateLimitResponse(gate);
 
+    if (env.APP_ENV === 'preview' && env.PREVIEW_UPLOADS_ENABLED !== 'true') {
+      return jsonResponse({ error: 'Uploads are disabled in Preview' }, 503);
+    }
+
     // Check if the STORAGE binding exists (configured in wrangler.toml)
     if (!env.STORAGE) {
       return jsonResponse({ error: 'Service temporarily unavailable' }, 500);
@@ -19,10 +23,6 @@ export async function onRequest({ request, env, data: auth }) {
 
     const formData = await readFormDataBody(request);
     const file = formData.get('file');
-    const user = await env.tear_of_god_db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
-    if (!user) {
-      return jsonResponse({ error: 'Unauthorized: invalid user' }, 403);
-    }
 
     if (!file || typeof file.arrayBuffer !== 'function' || typeof file.stream !== 'function') {
       return jsonResponse({ error: 'No file provided' }, 400);

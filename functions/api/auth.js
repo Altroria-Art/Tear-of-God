@@ -6,14 +6,16 @@ import { INPUT_LIMITS, assertString, clientAddress, consumeMemoryRateLimit, isPl
 const reply = (body, status = 200, headers = {}) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 const fail = (error, status = 400) => reply({ success: false, error }, status);
 const validPassword = value => typeof value === 'string' && value.length >= 8 && value.length <= 256;
+const normalizeEmail = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
 
 async function findByEmail(db, email) {
-  const { results } = await db.prepare('SELECT * FROM profiles WHERE lower(email) = ? LIMIT 2').bind(email).all();
+  const { results } = await db.prepare('SELECT * FROM profiles WHERE email = ? LIMIT 2').bind(normalizeEmail(email)).all();
   return results.length === 1 ? results[0] : null;
 }
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
+  const isPreview = env.APP_ENV === 'preview';
   if (request.method === 'GET') return reply({ success: true, data: auth.user });
   if (request.method !== 'POST') return fail('Method not allowed', 405);
   const bodyGate = consumeMemoryRateLimit('auth-body', clientAddress(request), { limit: 60, windowSeconds: 60 });
@@ -22,8 +24,14 @@ export async function onRequest({ request, env, data: auth }) {
   try { payload = await readJsonBody(request, INPUT_LIMITS.authJson); } catch (error) { return requestErrorResponse(error) || fail('Invalid request'); }
   if (!isPlainObject(payload)) return fail('Invalid request');
   const { action, password } = payload;
-  const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
+  const email = normalizeEmail(payload.email);
   try {
+    if (isPreview && action === 'google_sync') {
+      return fail('Google sign-in is disabled in Preview', 403);
+    }
+    if (isPreview && ['register', 'forgot_password'].includes(action) && !email.endsWith('@example.test')) {
+      return fail('Preview accepts synthetic test accounts only', 403);
+    }
     const authPolicies = {
       login: { limit: 10, windowSeconds: 900 },
       register: { limit: 5, windowSeconds: 3600 },
@@ -46,7 +54,7 @@ export async function onRequest({ request, env, data: auth }) {
       if (!validPassword(password)) return fail('รหัสผ่านต้องมี 8–256 ตัวอักษร / Use 8–256 characters');
       const name = typeof payload.username === 'string' ? payload.username.trim() : '';
       if (!name || name.length > 50) return fail('ชื่อต้องมี 1–50 ตัวอักษร / Use 1–50 characters for your name');
-      if (await db.prepare('SELECT id FROM profiles WHERE lower(email) = ?').bind(email).first()) return fail('อีเมลนี้ถูกใช้งานแล้ว / Email already registered', 409);
+      if (await db.prepare('SELECT id FROM profiles WHERE email = ?').bind(email).first()) return fail('อีเมลนี้ถูกใช้งานแล้ว / Email already registered', 409);
       const userId = 'user_' + crypto.randomUUID();
       const avatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + encodeURIComponent(name);
       await db.prepare('INSERT INTO profiles (id, username, email, password, avatar_url) VALUES (?, ?, ?, ?, ?)')
@@ -75,12 +83,13 @@ export async function onRequest({ request, env, data: auth }) {
       if (!response.ok || !account?.localId || !account.emailVerified || account.disabled || !account.providerUserInfo?.some(p => p.providerId === 'google.com')) {
         return fail('ยืนยันบัญชี Google ไม่สำเร็จ / Google verification failed', 401);
       }
+      const googleEmail = normalizeEmail(account.email);
       const identity = await db.prepare("SELECT user_id FROM auth_identities WHERE provider = 'google' AND subject = ?").bind(account.localId).first();
-      let user = identity ? await db.prepare('SELECT * FROM profiles WHERE id = ?').bind(identity.user_id).first() : await findByEmail(db, account.email.toLowerCase());
+      let user = identity ? await db.prepare('SELECT * FROM profiles WHERE id = ?').bind(identity.user_id).first() : await findByEmail(db, googleEmail);
       if (!user) {
         const id = 'user_' + crypto.randomUUID();
         await db.prepare('INSERT INTO profiles (id, username, email, avatar_url) VALUES (?, ?, ?, ?)')
-          .bind(id, (account.displayName || account.email.split('@')[0]).slice(0, 50), account.email.toLowerCase(), account.photoUrl || null).run();
+          .bind(id, (account.displayName || googleEmail.split('@')[0]).slice(0, 50), googleEmail, account.photoUrl || null).run();
         user = { id };
       }
       await db.prepare("INSERT OR IGNORE INTO auth_identities (provider, subject, user_id) VALUES ('google', ?, ?)").bind(account.localId, user.id).run();
@@ -105,7 +114,7 @@ export async function onRequest({ request, env, data: auth }) {
 
         const resetUrl = `${env.APP_URL || 'https://tear-of-god.pages.dev'}/reset-password?token=${token}`;
         
-        if (env.BREVO_API_KEY) {
+        if (!isPreview && env.BREVO_API_KEY) {
           let emailSent = false;
           try {
             const res = await fetch('https://api.brevo.com/v3/smtp/email', {

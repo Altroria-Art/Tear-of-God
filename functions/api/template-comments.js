@@ -39,9 +39,7 @@ export async function onRequest({ request, env, data: auth }) {
       const parent_id = assertId(body.parent_id, 'parent_id', { optional: true }) || null;
       const content = assertString(body.content, 'content', { min: 1, max: INPUT_LIMITS.comment, trim: true });
 
-      // เช็คว่า user มีจริง และ template มีอยู่จริง (กัน insert กับ target ที่ไม่มีอยู่)
-      const user = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(user_id).first();
-      if (!user) return jsonResponse({ success: false, error: 'ผู้ใช้ไม่มีอยู่ในระบบ' }, 400);
+      // Middleware already verified the session and loaded this profile from D1.
       const template = await db.prepare('SELECT id FROM templates WHERE id = ?').bind(template_id).first();
       if (!template) return jsonResponse({ success: false, error: 'เทมเพลตไม่มีอยู่ในระบบ' }, 404);
 

@@ -58,18 +58,25 @@ function sessionCookie(response) {
 
 const { mf, db } = await createLocalD1();
 try {
-  const email = 'phase5a-auth@local.test';
+  const submittedEmail = 'Phase5A-Auth@Local.Test';
+  const email = submittedEmail.toLowerCase();
   const originalPassword = 'Original!Password123';
   const newPassword = 'Replacement!Password456';
 
   const registered = await callAuth(db, {
-    body: { action: 'register', email, password: originalPassword, username: 'Phase 5A User' },
+    body: { action: 'register', email: submittedEmail, password: originalPassword, username: 'Phase 5A User' },
   });
   assert.equal(registered.response.status, 201);
   assert.deepEqual(registered.body, { success: true });
   const profile = await db.prepare('SELECT id, password FROM profiles WHERE email = ?').bind(email).first();
   assert.ok(profile.id);
   assert.match(profile.password, /^pbkdf2-sha256\$100000\$/);
+
+  const duplicateDifferentCase = await callAuth(db, {
+    body: { action: 'register', email: email.toUpperCase(), password: originalPassword, username: 'Duplicate User' },
+  });
+  assert.equal(duplicateDifferentCase.response.status, 409);
+  assert.equal(duplicateDifferentCase.body.success, false);
 
   const invalidPassword = await callAuth(db, {
     body: { action: 'login', email, password: 'Incorrect!Password' },
@@ -79,7 +86,7 @@ try {
   assert.equal(invalidPassword.response.headers.has('Set-Cookie'), false);
 
   const loggedIn = await callAuth(db, {
-    body: { action: 'login', email, password: originalPassword },
+    body: { action: 'login', email: `  ${email.toUpperCase()}  `, password: originalPassword },
   });
   assert.equal(loggedIn.response.status, 200);
   assert.equal(loggedIn.body.data.id, profile.id);
@@ -115,7 +122,7 @@ try {
   assert.equal(secondLogin.response.status, 200);
   const secondCookie = sessionCookie(secondLogin.response);
 
-  const forgotExisting = await callAuth(db, { body: { action: 'forgot_password', email } });
+  const forgotExisting = await callAuth(db, { body: { action: 'forgot_password', email: email.toUpperCase() } });
   const forgotMissing = await callAuth(db, {
     body: { action: 'forgot_password', email: 'missing-phase5a@local.test' },
   });
@@ -169,6 +176,28 @@ try {
   });
   assert.equal(newPasswordLogin.response.status, 200);
   sessionCookie(newPasswordLogin.response);
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({
+    users: [{
+      localId: 'preview-google-subject-001',
+      email: '  Google.Mixed@Example.Test  ',
+      emailVerified: true,
+      disabled: false,
+      displayName: 'Synthetic Google User',
+      photoUrl: null,
+      providerUserInfo: [{ providerId: 'google.com' }],
+    }],
+  });
+  try {
+    const googleSync = await callAuth(db, { body: { action: 'google_sync', idToken: 'synthetic-local-token' } });
+    assert.equal(googleSync.response.status, 200);
+    assert.equal(googleSync.body.success, true);
+    const googleProfile = await db.prepare('SELECT email FROM profiles WHERE id = ?').bind(googleSync.body.data.id).first();
+    assert.equal(googleProfile.email, 'google.mixed@example.test');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 
   console.log('Authentication regression checks passed against local Miniflare D1 without sending email.');
 } finally {

@@ -111,7 +111,7 @@ export default function CommunityParticipants() {
       setError(null)
 
       const [tplRes, participantsRes] = await Promise.all([
-        fetchTemplate(templateId),
+        fetchTemplate(templateId, { light: true }),
         fetchTemplateParticipants(templateId),
       ])
 
