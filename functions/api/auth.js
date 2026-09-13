@@ -14,6 +14,7 @@ async function findByEmail(db, email) {
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
+  const isPreview = env.APP_ENV === 'preview';
   if (request.method === 'GET') return reply({ success: true, data: auth.user });
   if (request.method !== 'POST') return fail('Method not allowed', 405);
   const bodyGate = consumeMemoryRateLimit('auth-body', clientAddress(request), { limit: 60, windowSeconds: 60 });
@@ -24,6 +25,12 @@ export async function onRequest({ request, env, data: auth }) {
   const { action, password } = payload;
   const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
   try {
+    if (isPreview && action === 'google_sync') {
+      return fail('Google sign-in is disabled in Preview', 403);
+    }
+    if (isPreview && ['register', 'forgot_password'].includes(action) && !email.endsWith('@example.test')) {
+      return fail('Preview accepts synthetic test accounts only', 403);
+    }
     const authPolicies = {
       login: { limit: 10, windowSeconds: 900 },
       register: { limit: 5, windowSeconds: 3600 },
@@ -105,7 +112,7 @@ export async function onRequest({ request, env, data: auth }) {
 
         const resetUrl = `${env.APP_URL || 'https://tear-of-god.pages.dev'}/reset-password?token=${token}`;
         
-        if (env.BREVO_API_KEY) {
+        if (!isPreview && env.BREVO_API_KEY) {
           let emailSent = false;
           try {
             const res = await fetch('https://api.brevo.com/v3/smtp/email', {
