@@ -8,7 +8,7 @@ import TierLabel from '../components/tier/TierLabel'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPreview'
 import { fetchTemplateParticipants, fetchTemplate } from '../lib/api'
-import { FACULTIES, getMajorsForFaculty, getAdmissionYears } from '../lib/university'
+import { FACULTIES, getMajorsForFaculty, getAdmissionYears, getFacultyByName, isValidAdmissionYear } from '../lib/university'
 import { ArrowLeftIcon, AlertTriangleIcon } from '../components/ui/Icons'
 
 // คำนวณค่าเฉลี่ย Community Average จาก rankings ที่ filter แล้ว
@@ -72,6 +72,7 @@ export default function CommunityParticipants() {
 
   // Filter states
   const [selectedTiers, setSelectedTiers] = useState([]) // tiers ที่ต้องการแสดง (display filter)
+  const [participantFilter, setParticipantFilter] = useState('') // user_id ที่เลือก ('' = ทุกคน)
   const [facultyFilter, setFacultyFilter] = useState('')
   const [majorFilter, setMajorFilter] = useState('')
   const [yearFilter, setYearFilter] = useState('')
@@ -84,6 +85,19 @@ export default function CommunityParticipants() {
   const availableMajors = useMemo(() => {
     return facultyFilter ? getMajorsForFaculty(facultyFilter) : []
   }, [facultyFilter])
+
+  // รายชื่อคนที่เข้าร่วม (dedupe ด้วย user_id จาก participants ที่โหลดมาแล้ว)
+  // participants เป็น 1 แถวต่อ 1 ranking — คนเดียวอาจมีหลาย ranking จึงต้องรวมแค่คนเดียว
+  const participantOptions = useMemo(() => {
+    const seen = new Map()
+    participants.forEach(p => {
+      if (!p.user_id || seen.has(p.user_id)) return
+      seen.set(p.user_id, p)
+    })
+    return [...seen.values()].sort((a, b) =>
+      String(a.username || '').localeCompare(String(b.username || ''))
+    )
+  }, [participants])
 
   // โหลดข้อมูล
   useEffect(() => {
@@ -117,15 +131,16 @@ export default function CommunityParticipants() {
 
   const tiersDef = template?.tiers || []
 
-  // 1. Filter rankings ตาม Faculty/Major/Year (ไม่ใช่ filter คน → filter ว่าจะเอาข้อมูลใครมาคำนวณ)
+  // 1. Filter rankings ตาม Participant + Faculty/Major/Year (ไม่ใช่ filter คน → filter ว่าจะเอาข้อมูลใครมาคำนวณ)
   const filteredRankings = useMemo(() => {
     return participants.filter(p => {
+      if (participantFilter && p.user_id !== participantFilter) return false
       if (facultyFilter && p.faculty !== facultyFilter) return false
       if (majorFilter && p.major !== majorFilter) return false
-      if (yearFilter && p.year !== yearFilter) return false
+      if (yearFilter && String(p.year) !== yearFilter) return false
       return true
     })
-  }, [participants, facultyFilter, majorFilter, yearFilter])
+  }, [participants, participantFilter, facultyFilter, majorFilter, yearFilter])
 
   // 2. คำนวณค่าเฉลี่ยจาก filtered rankings
   const calculatedAverage = useMemo(() => {
@@ -144,14 +159,48 @@ export default function CommunityParticipants() {
     )
   }, [])
 
+  // เลือกผู้เข้าร่วม → auto-populate Faculty/Major/Year จากโปรไฟล์ของคนนั้น
+  // ค่าที่ไม่มี/ไม่ถูกต้องในโปรไฟล์จะปล่อยเป็น All — ไม่เดาหรือเติมข้อมูล
+  const applyParticipantSelection = useCallback((userId) => {
+    setParticipantFilter(userId)
+    if (!userId) return
+
+    const participant = participantOptions.find(p => p.user_id === userId)
+    if (!participant) return
+
+    const faculty = getFacultyByName(participant.faculty)
+    setFacultyFilter(faculty ? participant.faculty : '')
+    setMajorFilter(faculty && participant.major && faculty.majors.includes(participant.major) ? participant.major : '')
+    setYearFilter(isValidAdmissionYear(participant.year) ? String(participant.year) : '')
+  }, [participantOptions])
+
+  // สลับ filter profile ด้วยมือ → รีเซ็ต participant กลับเป็น All
+  // (auto-populate ผ่าน applyParticipantSelection จึงไม่ชนกัน)
+  const handleFacultyChange = useCallback((value) => {
+    setFacultyFilter(value)
+    setMajorFilter('')
+    setParticipantFilter('')
+  }, [])
+
+  const handleMajorChange = useCallback((value) => {
+    setMajorFilter(value)
+    setParticipantFilter('')
+  }, [])
+
+  const handleYearChange = useCallback((value) => {
+    setYearFilter(value)
+    setParticipantFilter('')
+  }, [])
+
   const clearAllFilters = useCallback(() => {
     setSelectedTiers([])
+    setParticipantFilter('')
     setFacultyFilter('')
     setMajorFilter('')
     setYearFilter('')
   }, [])
 
-  const hasActiveFilters = selectedTiers.length > 0 || facultyFilter || majorFilter || yearFilter
+  const hasActiveFilters = selectedTiers.length > 0 || participantFilter || facultyFilter || majorFilter || yearFilter
   const hasData = filteredRankings.length > 0
 
   // ── Export: Image ──
@@ -312,13 +361,28 @@ export default function CommunityParticipants() {
           </div>
         )}
 
+        {/* Participant — กรองตามผู้ใช้คนเดียวที่สร้าง tier list */}
+        <div className="mb-3">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{t('participants.participant')}</label>
+          <select
+            value={participantFilter}
+            onChange={(e) => applyParticipantSelection(e.target.value)}
+            className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand"
+          >
+            <option value="">{t('participants.all')}</option>
+            {participantOptions.map(p => (
+              <option key={p.user_id} value={p.user_id}>{p.username}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Faculty / Major / Year — filter ว่าจะเอาข้อมูลใครมาคำนวณ */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{t('participants.faculty')}</label>
             <select
               value={facultyFilter}
-              onChange={(e) => { setFacultyFilter(e.target.value); setMajorFilter('') }}
+              onChange={(e) => handleFacultyChange(e.target.value)}
               className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand"
             >
               <option value="">{t('participants.all')}</option>
@@ -332,7 +396,7 @@ export default function CommunityParticipants() {
             <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{t('participants.major')}</label>
             <select
               value={majorFilter}
-              onChange={(e) => setMajorFilter(e.target.value)}
+              onChange={(e) => handleMajorChange(e.target.value)}
               disabled={!facultyFilter}
               className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -347,7 +411,7 @@ export default function CommunityParticipants() {
             <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{t('participants.year')}</label>
             <select
               value={yearFilter}
-              onChange={(e) => setYearFilter(e.target.value)}
+              onChange={(e) => handleYearChange(e.target.value)}
               className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand"
             >
               <option value="">{t('participants.all')}</option>
