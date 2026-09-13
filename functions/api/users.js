@@ -1,5 +1,7 @@
 // 📍 โปรไฟล์สาธารณะของผู้ใช้ — ใช้โดยหน้า /profile/:userId ตอนดูโปรไฟล์คนอื่น
 // ส่งกลับเฉพาะฟิลด์ที่ปลอดภัย (ไม่มี email/password เด็ดขาด)
+import { internalErrorResponse } from '../lib/request-guard.js';
+
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -48,6 +50,7 @@ export async function onRequest({ request, env, data: auth }) {
       },
     });
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    console.error('User profile query failed:', { name: err?.name, message: err?.message });
+    return internalErrorResponse();
   }
 }

@@ -1,9 +1,11 @@
 import http from 'k6/http';
-import { check, group } from 'k6';
-import { BASE_URL, setup, getSeedIds, checkOk, vuUserIdStable } from '../config.js';
+import { group } from 'k6';
+import { BASE_URL, MUTATIONS_ENABLED, getSeedIds, checkOk, getMutationSession } from '../config.js';
 
-// Weighted traffic mix — simulates real user browsing behavior
-// ~70% reads, 20% votes, 10% comments
+export { setup } from '../config.js';
+
+// Weighted traffic mix — 15% authenticated votes when explicitly enabled;
+// otherwise every branch remains read-only.
 const scenarios = {
   ramp_up: {
     executor: 'ramping-vus',
@@ -35,7 +37,6 @@ function pickRankingId(data) {
 
 export default function (data) {
   const roll = Math.random();
-  const userId = vuUserIdStable();
   const rid = pickRankingId(data);
 
   if (roll < 0.35) {
@@ -59,17 +60,18 @@ export default function (data) {
         checkOk(res, 'post-detail');
       });
     }
-  } else if (roll < 0.80) {
+  } else if (roll < 0.80 && MUTATIONS_ENABLED) {
     // 15% — Vote on a post
     if (rid) {
       group('action: POST /api/votes (like)', () => {
         const payload = JSON.stringify({
           ranking_id: rid,
-          user_id: userId,
           voteType: Math.random() > 0.3 ? 'like' : 'dislike',
         });
+        const session = getMutationSession(data);
         const res = http.post(`${BASE_URL}/api/votes`, payload, {
           headers: { 'Content-Type': 'application/json' },
+          cookies: session.cookies,
         });
         checkOk(res, 'vote');
       });

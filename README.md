@@ -88,9 +88,9 @@ All endpoints live under `functions/api/`. Each file exports `onRequest` (or met
 
 | Endpoint | Methods | Purpose |
 |----------|---------|---------|
-| `/api/auth` | POST | Register, login, Google sync, update profile |
+| `/api/auth` | GET, POST | Restore session; register, login, logout, forgot/reset password, Google sync, update profile |
 | `/api/rankings` | GET, POST | List/feed rankings (pagination, filtering, sorting), create ranking |
-| `/api/templates` | GET, POST | List templates, create template, record views |
+| `/api/templates` | GET, POST | List/read templates and record a deduplicated authenticated view |
 | `/api/users` | GET | Public user profile |
 | `/api/follows` | GET, POST | Followers/following, follow/unfollow |
 | `/api/votes` | POST | Like/dislike ranking |
@@ -115,13 +115,7 @@ All endpoints live under `functions/api/`. Each file exports `onRequest` (or met
 
 ## Deploying
 
-Deploys are manual — there is no CI and pushing to a branch does not auto-deploy.
-
-```
-npm run deploy      # build + wrangler pages deploy dist --branch=master
-```
-
-This ships `functions/api/*` and the built frontend to https://tear-of-god.pages.dev/. Requires `npx wrangler login` once per machine.
+Deploys are manual — there is no CI and pushing to a branch does not auto-deploy. The `tear-of-god` Cloudflare Pages project uses Direct Upload, with `master` as its Pages Production branch label; `main` and other labels create Preview deployments. Wrangler's `--branch` option selects the Pages deployment environment by label — it does not check out or otherwise select a local Git branch. The deploy script therefore intentionally uses `--branch=master`.
 
 **Production D1 has real registered users and their real tier lists — never destroy that data.** Before any schema change, verify against remote first:
 
@@ -131,17 +125,32 @@ npx wrangler d1 execute tear-of-god-db --remote --command "SELECT (SELECT COUNT(
 
 ## Load Testing
 
-k6 test scenarios in `tests/scenarios/` (smoke, load, stress, spike, soak). Run against a running local or remote instance:
+k6 test scenarios live in `tests/scenarios/` (smoke, load, stress, spike, soak). Mutation traffic is disabled by default, so ordinary runs are read-only:
 
 ```
 k6 run tests/scenarios/smoke.js
 ```
 
+Mutation traffic requires an explicit opt-in and is accepted only for a loopback URL. Production, Pages branch aliases, and all other remote hosts fail closed. When enabled, exported k6 `setup()` creates a small pool of run-isolated local accounts through `/api/auth`, logs them in, verifies session restore, and supplies the server-issued `tog_session` cookie to mutation requests. Mutation payloads do not send an authorization `user_id`:
+
+```
+k6 run -e BASE_URL=http://localhost:8788 -e ALLOW_MUTATIONS=true tests/scenarios/load.js
+```
+
 HTML reports in `tests/reports/`. Helper script `scripts/generate-k6-summary.mjs` produces summary reports from raw k6 JSON output.
+
+Local auth and k6 safety regressions run without a production connection:
+
+```
+node tests/local/auth-regression.mjs
+node tests/local/k6-auth-safety.mjs
+```
 
 ## Architecture Notes
 
-- **Auth model** — `/api/_middleware.js` verifies a 7-day HttpOnly cookie against hashed sessions in D1. Mutations use the session owner, and admin endpoints verify the current database role. Legacy SHA-256 passwords upgrade to PBKDF2 on successful login. Firebase public config is shared in `src/lib/firebaseConfig.js`; Google tokens are verified by Firebase on the server. Apply migrations `0012` and `0013` before deploying this version; see [session and UI rollout notes](docs/session-and-ui-improvements.md).
+- **Auth model** — `/api/_middleware.js` verifies a 7-day HttpOnly cookie against hashed sessions in D1. Mutations use the session owner, and admin endpoints verify the current database role. New passwords use salted PBKDF2-SHA-256; legacy unsalted SHA-256 hashes upgrade on successful login. Forgot/reset password uses one-hour, single-use hashed tokens and Brevo for transactional email when configured; a successful reset revokes old sessions. Firebase public config is shared in `src/lib/firebaseConfig.js`; Google tokens are verified by Firebase on the server. Production D1 schema state must be verified separately before deployment.
+- **Ranking publish integrity** — Creating a new template with its first ranking, or publishing from an existing template, submits all template/ranking/item/score/counter writes in one D1 transaction through a single `db.batch()` call.
+- **Pages SPA routing** — Static deep links rely on Cloudflare Pages' SPA fallback when no top-level `404.html` exists. `/api/*` remains handled by Pages Functions, and static assets are served directly; no catch-all `_redirects` rule is required.
 - **Home feed** — Seeded-shuffled (FNV-1a hash + mulberry32 PRNG + Fisher-Yates) for deterministic-random ordering stable within a session. "General" tab shows all posts; "Kindred" tab shows personalized content (requires 2+ matching signals from category, template, or hashtags).
 - **Community Average** — Aggregated tier rankings per template, computed from frozen `ranking_item_scores` (score = tier position at time of publish). Supports time-period filtering. Includes self-healing backfill if scores are missing for older rankings.
 - **Timestamps** — D1 returns `created_at`/`updated_at` as `"YYYY-MM-DD HH:MM:SS"` in UTC with no timezone marker. Always parse through `parseDbDate()` / `formatDbDate()` in `src/lib/format.js` — never pass raw D1 timestamps to `new Date()`.
@@ -149,7 +158,5 @@ HTML reports in `tests/reports/`. Helper script `scripts/generate-k6-summary.mjs
 
 ## Known Gaps
 
-- Password recovery by email is not implemented.
-- k6 mutation scenarios that only send `user_id` now need authenticated cookie sessions.
-- No formal test suite (only k6 load tests for the API)
-- No CI/CD pipeline — deploys are manual via `npm run deploy`
+- There is no unified test-runner script or CI/CD pipeline; local regression scripts under `tests/local/` are run individually and deploys remain manual.
+- k6 mutation runs intentionally leave their isolated accounts and votes in local D1 until the local database is reset.

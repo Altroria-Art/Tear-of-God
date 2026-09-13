@@ -302,7 +302,7 @@ export async function createComment({ ranking_id, user_id, content, parentId }) 
       body: JSON.stringify({ ranking_id, user_id, content, parent_id: parentId })
     });
     return await response.json();
-  } catch (error) {
+  } catch {
     return { success: false, error: i18n.t('errors.commentFailed') };
   }
 }

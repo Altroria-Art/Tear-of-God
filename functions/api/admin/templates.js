@@ -2,6 +2,8 @@
 // ทุก action เริ่มด้วย requireAdmin(env, user_id) — ตรวจสิทธิ์จาก DB ก่อนจึงทำงาน
 // (ดู functions/api/admin/_check.js)
 import { requireAdmin } from './_check.js';
+import { assertAllowedFields } from '../../lib/request-guard.js';
+import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
 
 function parseTiers(raw) {
   if (!raw) return null;
@@ -71,8 +73,7 @@ export async function onRequest({ request, env, data: auth }) {
 
       return jsonResponse({ success: true, data, page, limit, total: totalRows[0]?.n || 0 });
     } catch (err) {
-      console.error(err);
-      return jsonResponse({ success: false, error: err.message }, 500);
+      return adminRequestErrorResponse(err, 'Admin template list');
     }
   }
 
@@ -81,32 +82,33 @@ export async function onRequest({ request, env, data: auth }) {
   // body: { action: 'delete', target_id }
   // =====================
   if (request.method === 'POST') {
+    const limited = adminMutationRateLimitResponse(user_id);
+    if (limited) return limited;
     try {
-      const { action, target_id } = await request.json();
-      if (!target_id) return jsonResponse({ success: false, error: 'Missing target_id' }, 400);
+      const { payload, action, targetId } = await readAdminMutation(request, ['delete']);
+      assertAllowedFields(payload, ['action', 'target_id']);
 
       if (action === 'delete') {
         await db.batch([
-          db.prepare('DELETE FROM template_items WHERE template_id = ?').bind(target_id),
-          db.prepare('DELETE FROM template_views WHERE template_id = ?').bind(target_id),
-          db.prepare('DELETE FROM template_reactions WHERE template_id = ?').bind(target_id),
-          db.prepare('DELETE FROM template_comments WHERE template_id = ?').bind(target_id),
-          db.prepare('DELETE FROM template_bookmarks WHERE template_id = ?').bind(target_id),
-          db.prepare('DELETE FROM reports WHERE template_id = ?').bind(target_id),
-          db.prepare('DELETE FROM ranking_item_scores WHERE template_id = ?').bind(target_id),
-          db.prepare('DELETE FROM ranking_items WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(target_id),
-          db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(target_id),
-          db.prepare('DELETE FROM comments WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(target_id),
-          db.prepare('DELETE FROM rankings WHERE template_id = ?').bind(target_id),
-          db.prepare('DELETE FROM templates WHERE id = ?').bind(target_id),
+          db.prepare('DELETE FROM template_items WHERE template_id = ?').bind(targetId),
+          db.prepare('DELETE FROM template_views WHERE template_id = ?').bind(targetId),
+          db.prepare('DELETE FROM template_reactions WHERE template_id = ?').bind(targetId),
+          db.prepare('DELETE FROM template_comments WHERE template_id = ?').bind(targetId),
+          db.prepare('DELETE FROM template_bookmarks WHERE template_id = ?').bind(targetId),
+          db.prepare('DELETE FROM reports WHERE template_id = ?').bind(targetId),
+          db.prepare('DELETE FROM ranking_item_scores WHERE template_id = ?').bind(targetId),
+          db.prepare('DELETE FROM ranking_items WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(targetId),
+          db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(targetId),
+          db.prepare('DELETE FROM comments WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(targetId),
+          db.prepare('DELETE FROM rankings WHERE template_id = ?').bind(targetId),
+          db.prepare('DELETE FROM templates WHERE id = ?').bind(targetId),
         ]);
-        return jsonResponse({ success: true, data: { id: target_id } });
+        return jsonResponse({ success: true, data: { id: targetId } });
       }
 
       return jsonResponse({ success: false, error: 'Invalid action' }, 400);
     } catch (err) {
-      console.error(err);
-      return jsonResponse({ success: false, error: err.message }, 500);
+      return adminRequestErrorResponse(err, 'Admin template mutation');
     }
   }
 

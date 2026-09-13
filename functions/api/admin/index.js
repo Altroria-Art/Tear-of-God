@@ -3,6 +3,7 @@
 // ทุก action เริ่มด้วย requireAdmin(env, user_id) — ตรวจสิทธิ์จาก DB ก่อนจึงทำงาน
 // (ดู functions/api/admin/_check.js)
 import { requireAdmin } from './_check.js';
+import { adminRequestErrorResponse } from './_request.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -124,8 +125,7 @@ export async function onRequest({ request, env, data: auth }) {
 
       return jsonResponse({ success: true, data: stats });
     } catch (err) {
-      console.error(err);
-      return jsonResponse({ success: false, error: err.message }, 500);
+      return adminRequestErrorResponse(err, 'Admin dashboard');
     }
   }
 

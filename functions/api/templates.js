@@ -1,4 +1,4 @@
-import { assertId, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+import { assertId, consumeMemoryRateLimit, internalErrorResponse, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 
 function parseTiers(raw) {
   if (!raw) return null;
@@ -288,7 +288,8 @@ export async function onRequestGet(context) {
     );
 
   } catch (error) {
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    console.error('Template query failed:', { name: error?.name, message: error?.message });
+    return internalErrorResponse();
   }
 }
 

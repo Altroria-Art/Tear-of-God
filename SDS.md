@@ -52,14 +52,14 @@ Tear of God เป็นระบบแบบ **feed-based social app** (คล�
 ### 2.3 Operating Environment
 Responsive web application รันบน browser สมัยใหม่ (Chrome/Edge/Safari ล่าสุด) ไม่มีการระบุแอปมือถือแยกใน proposal — ถือว่า responsive design ครอบคลุม mobile web ตาม wireframe ที่ออกแบบใน Google Stitch
 
-**Deployment & Backend — สภาพจริงปัจจุบัน:** React 19 + Vite (ESM, `.jsx`) SPA รันบน Cloudflare Pages ฝั่ง backend เป็น serverless Pages Functions ในโฟลเดอร์ `functions/api/` (Workers runtime — ไม่มี Node-only package ใช้ได้) เชื่อม Cloudflare D1 ผ่าน binding `tear_of_god_db` เขียน SQL ด้วยมือทั้งหมด ไม่มี ORM และไม่ได้พึ่ง Supabase/BaaS อีกต่อไป (เดิมแพลนไว้ตาม Section 9 ข้อ 1) เส้นทาง API หลัก:
+**Deployment & Backend — สภาพจริงปัจจุบัน:** React 19 + Vite (ESM, `.jsx`) SPA รันบน Cloudflare Pages ฝั่ง backend เป็น serverless Pages Functions ในโฟลเดอร์ `functions/api/` (Workers runtime — ไม่มี Node-only package ใช้ได้) เชื่อม Cloudflare D1 ผ่าน binding `tear_of_god_db` เขียน SQL ด้วยมือทั้งหมด ไม่มี ORM และไม่ได้พึ่ง Supabase/BaaS อีกต่อไป (เดิมแพลนไว้ตาม Section 9 ข้อ 1) Static deep links ใช้ SPA fallback ของ Pages โดยไม่มี catch-all `_redirects`; `/api/*` ยังคงเข้า Pages Functions และ asset ที่มีอยู่ถูก serve โดยตรง เส้นทาง API หลัก:
 
 | Route | หน้าที่ |
 |---|---|
-| `/api/auth` | register / login (email + password) / google_sync / update_profile |
+| `/api/auth` | restore session / register / login / logout / forgot_password / reset_password / google_sync / update_profile |
 | `/api/rankings` | GET feed (แบ่งหน้า + filter category/hashtag/author/user/template/sort/feed_type) · POST สร้าง/ลบ ranking |
 | `/api/votes`, `/api/comments` | like/dislike + คอมเมนต์ของ ranking |
-| `/api/templates` | GET (template + item pool + community average ตามช่วง popularity ผ่าน `days`/`from`/`to`) · POST (สร้าง template + บันทึก view) |
+| `/api/templates` | GET (template + item pool + community average ตามช่วง popularity ผ่าน `days`/`from`/`to`) · POST (บันทึก view แบบ dedup สำหรับผู้ใช้ที่ล็อกอิน) |
 | `/api/template-votes`, `/api/template-comments` | like/dislike + คอมเมนต์ของ Community Average (ผูก template_id) |
 | `/api/users`, `/api/follows` | โปรไฟล์สาธารณะ + ระบบติดตาม |
 | `/api/categories`, `/api/hashtags` | หมวดหมู่ + hashtag สำหรับ Discover |
@@ -98,11 +98,11 @@ Responsive web application รันบน browser สมัยใหม่ (Chr
 | ID | Category | Requirement |
 |---|---|---|
 | NFR-1 | Performance | Home Feed ใช้ cursor-based pagination (ไม่ใช้ large `OFFSET`) เพื่อรองรับ Infinite Scroll โดยไม่หน่วง |
-| NFR-2 | Security | D1 (SQLite) ไม่มี Row Level Security ในตัวแบบ Postgres — enforce สิทธิ์ที่ชั้น API แทน: แต่ละ `functions/api/*` handler เช็คว่า `user_id` ที่แก้ไข/ลบตรงกับเจ้าของ record ก่อนอนุญาต, เฉพาะ `role = admin` เท่านั้นที่ข้ามเงื่อนไขนี้ได้ (ดู open issue เรื่อง session/token ใน NFR-6) |
+| NFR-2 | Security | D1 (SQLite) ไม่มี Row Level Security ในตัวแบบ Postgres — enforce สิทธิ์ที่ชั้น API แทน: middleware อ่านเจ้าของ session จาก D1, mutation ไม่เชื่อ `user_id` จาก client และ admin API ตรวจ `profiles.role` จาก D1 ทุก request |
 | NFR-3 | Data Integrity | Tier labels เป็นข้อมูลที่กำหนดเองได้จาก `templates.tiers` (JSON) — คะแนนของแต่ละ ranking ถูก freeze ณ เวลาสร้างผ่านตาราง `ranking_item_scores` (จับ `tier_index` + `score` ไว้) เพื่อให้ Community Average ย้อนหลังตามช่วงเวลาได้ถูกต้องแม้ template จะถูกแก้ไข tier ทีหลัง |
 | NFR-4 | Usability | Responsive layout ให้ตรงกับ wireframe ที่ออกแบบใน Google Stitch ทั้ง desktop และ mobile web |
 | NFR-5 | Scalability | Query สำหรับ trending/personalized feed ออกแบบให้ปรับเป็น materialized view ได้ภายหลังหากจำนวนผู้ใช้เพิ่มขึ้นมาก |
-| NFR-6 | Reliability | Session handling: `functions/api/auth.js` ควรออก signed token (เช่น HMAC ผ่าน Web Crypto `crypto.subtle`, ใช้ `jsonwebtoken` ไม่ได้เพราะเป็น Node-only package) ให้ client เก็บและแนบมาทุก request แทนการส่ง `user_id` ตรงๆ ใน body — **ยังไม่ implement ในโค้ดปัจจุบัน (gap ด้าน security ที่ต้องแก้ก่อน production)** |
+| NFR-6 | Reliability | Session handling ใช้ opaque token อายุ 7 วันใน cookie `HttpOnly; SameSite=Lax`; D1 เก็บเฉพาะ SHA-256 digest ใน `auth_sessions` และ `/api/_middleware.js` โหลด profile เจ้าของ session ก่อนส่งต่อ request การ logout/password reset ลบ session ฝั่ง server |
 
 ---
 
@@ -159,6 +159,7 @@ flowchart TB
 | Database | Cloudflare D1 (SQLite) |
 | Storage | Cloudflare R2 (อัปโหลดผ่าน `/api/upload`) |
 | Auth | Custom email/password (D1) + Google Sign-In via Firebase Auth |
+| Transactional Email | Brevo API สำหรับ forgot/reset password เมื่อ runtime binding ถูกตั้งค่า |
 | UX/UI Design | Google Stitch |
 
 ---
@@ -310,7 +311,9 @@ erDiagram
 ```
 
 ### 6.2 Table Descriptions
-- **profiles** — ตารางผู้ใช้หลักของระบบเอง (ไม่ได้ต่อยอดจาก Supabase `auth.users` อีกต่อไป) เก็บ `password` เป็น hash SHA-256 ผ่าน Web Crypto (`crypto.subtle`) ที่ `functions/api/auth.js` — **ยังไม่มี salt (open issue ด้านความปลอดภัย ดู NFR-6)**; คอลัมน์ `role` (`user`/`admin`) ใช้แยกสิทธิ์ฝั่ง backend ตาม FR-11–13; ส่วน `university/faculty/major/year/bio` เป็นข้อมูลโปรไฟล์เสริม
+- **profiles** — ตารางผู้ใช้หลักของระบบเอง (ไม่ได้ต่อยอดจาก Supabase `auth.users` อีกต่อไป) รหัสผ่านใหม่เก็บเป็น salted PBKDF2-SHA-256 ผ่าน Workers Web Crypto; legacy SHA-256 hash จะ upgrade หลัง login สำเร็จ คอลัมน์ `role` (`user`/`admin`) ใช้แยกสิทธิ์ฝั่ง backend ตาม FR-11–13; ส่วน `university/faculty/major/year/bio` เป็นข้อมูลโปรไฟล์เสริม
+- **auth_sessions / auth_attempts / auth_identities** — เก็บ digest ของ opaque session token พร้อม expiry, rate-limit counters ของ auth และการผูก Firebase Google identity ตามลำดับ; raw session token อยู่เฉพาะใน HttpOnly cookie
+- **password_resets** — เก็บ digest ของ reset token อายุหนึ่งชั่วโมง Token ใช้ได้ครั้งเดียว และการตั้งรหัสผ่านใหม่สำเร็จจะลบ reset tokens กับ sessions เดิมของ user
 - **follows** — ตารางติดตาม แบบ composite PK `(follower_id, following_id)` กันซ้ำ; มี index ทั้งสองทิศทาง (`idx_follows_follower`, `idx_follows_following`) สำหรับหน้าโปรไฟล์/นับ follower
 - **templates** — item pool ต้นแบบ; `tiers` เป็น JSON เก็บชุด `{label, color}` ของแต่ละ Template (กำหนดเองได้ รวมภาษาไทย — ไม่ใช่ค่าคงที่ S/A/B/C/D); `hashtags` เป็น CSV; `use_count`/`view_count` ถูก **ไม่ใช่เลขที่เชื่อถือได้** — ตอนอ่านโค้ดจะคำนวณ `live_uses`/`live_views` ใหม่ด้วย `COUNT(*)` จาก `rankings`/`template_views` (ดู `functions/api/templates.js`)
 - **template_items** — bridge table ระหว่าง `templates` กับ `items` กลาง พร้อม `tier`/`position` กำกับว่า item นั้นอยู่แถวไหนใน pool เริ่มต้นของ template (ต่างจากดราฟต์แรกที่ให้ `template_items.label`/`image_url` ของตัวเอง) — item ตัวเดียวกันใช้ซ้ำข้าม template ได้โดยไม่ต้อง insert ซ้ำใน `items`
@@ -325,7 +328,7 @@ erDiagram
 
 ### 6.3 Business Rule Constraints
 - **Tier labels มาจาก data ไม่ใช่ค่าคงที่**: `ranking_items.tier` เก็บชื่อ tier ตามที่ผู้สร้าง template กำหนดเอง (รวมชื่อไทย) — ไม่มี `CHECK` constraint เพราะชุดค่าเปิดกว้าง; ความถูกต้องของคะแนนอยู่ที่ freeze ลง `ranking_item_scores` (จับ `tier_index` + `score`) ณ เวลา publish แล้ว (NFR-3)
-- **Remix ห้ามแก้ item pool ที่มีอยู่**: item ใน `template_items` แก้/ลบ/ย้ายออกจาก template เดิมไม่ได้ เพิ่มได้เฉพาะ item ใหม่ (Section 9 ข้อ 2) — enforce ทั้ง frontend และ API: `functions/api/rankings.js` แทรก items ใหม่ + template_items + ranking_items ใน `db.batch` เดียว
+- **Remix ห้ามแก้ item pool ที่มีอยู่**: item ใน `template_items` แก้/ลบ/ย้ายออกจาก template เดิมไม่ได้ เพิ่มได้เฉพาะ item ใหม่ (Section 9 ข้อ 2) — enforce ทั้ง frontend และ API: `functions/api/rankings.js` รวม template/ranking/items/scores/counter ที่เกี่ยวข้องกับการ publish หนึ่งครั้งไว้ใน transaction เดียวผ่าน `db.batch()`
 - **อ่านเลข live แทนคอลัมน์ frozen**: `templates.use_count`/`view_count` เป็นค่า seed/legacy ที่ drift ตามเวลา — การเรียงฟีดและรายการ admin ใช้ `COUNT(*)` จาก `rankings` / `template_views` คำนวณใหม่ (`live_uses`/`live_views` ใน `functions/api/templates.js`); เขียน `view_count` เป็น mirror ที่ refresh จาก count จริงหลังบันทึก view
 - **โหวตกันซ้ำ**: `votes` มี `UNIQUE(ranking_id, user_id)` + `CHECK(vote_type IN ('like', 'dislike'))` — โหวต type เดิมซ้ำ = API ทำ UPDATE (เปลี่ยนใจ/ยกเลิก) ไม่ใช่แทรกแถวซ้ำ
 - **โหวตของ Community Average กันซ้ำ**: `template_reactions` บังคับ `UNIQUE(template_id, user_id)` + `CHECK` เหมือนกัน (คนละตารางกับ `votes` เพราะผูก template ไม่ใช่ ranking)
@@ -382,16 +385,10 @@ sequenceDiagram
     FE->>FE: parse text เป็น item cards
     U->>FE: ลาก item ลง tier S/A/B/C/D
     U->>FE: กด "Publish List"
-    FE->>FN: POST /api/templates { title, category, description }
-    FN->>D1: INSERT templates
-    D1-->>FN: template_id
-    FN->>D1: INSERT items + template_items (bulk)
-    D1-->>FN: item_ids
-    FN->>D1: INSERT rankings (template_id, user_id)
-    D1-->>FN: ranking_id
-    FN->>D1: INSERT ranking_items (ranking_id, item_id, tier)
-    D1-->>FN: success
-    FN-->>FE: { ranking_id, template_id }
+    FE->>FN: POST /api/rankings { payload, template, items } + session cookie
+    FN->>D1: db.batch: template + template_items + ranking + ranking_items + frozen scores
+    D1-->>FN: commit ทุก statement หรือ rollback ทั้ง operation
+    FN-->>FE: { success, data: { id, template_id, ... } }
     FE->>U: redirect ไป Home feed, แสดง post ใหม่
 ```
 
@@ -415,13 +412,10 @@ sequenceDiagram
         FE->>FN: item ใหม่ส่งไปพร้อม payload ตอน publish
     end
     U->>FE: กด "Save Ranking"
-    FE->>FN: POST /api/rankings { template_id, user_id, items }
-    FN->>D1: INSERT rankings (template_id, user_id) [batch]
-    FN->>D1: INSERT items ใหม่ (ถ้ามี) + template_items ใหม่ [batch]
-    FN->>D1: INSERT ranking_items (bulk) [batch]
-    FN->>D1: UPDATE templates SET use_count = use_count + 1 [batch เดียวกัน]
-    D1-->>FN: success
-    FN-->>FE: { ranking_id }
+    FE->>FN: POST /api/rankings { payload: { template_id }, items } + session cookie
+    FN->>D1: db.batch: ranking + item ใหม่ + template_items + ranking_items + frozen scores + use_count
+    D1-->>FN: commit ทุก statement หรือ rollback ทั้ง operation
+    FN-->>FE: { success, data: { id, template_id, ... } }
     FE->>U: แสดง ranking ที่เพิ่ง publish
 ```
 
@@ -438,7 +432,7 @@ Proposal ไม่ได้ลงรายละเอียดระดับ i
 5. **ตัดโหมด Top 10 ออกจาก Scope** — ทีมตัดสินใจตัดโหมด Top 10 ออก เพื่อโฟกัสที่การจัดอันดับ Tier List แบบยืดหยุ่น (Custom Tiers) และการวิเคราะห์ Community Average ได้อย่างสมบูรณ์และชัดเจนที่สุด
 6. **Template / Community Average — ✅ implement แล้ว** (เดิม §9 ข้อนี้เขียนตอนยังเป็น mock data):
    - `schema.sql` มีตาราง `templates`, `template_items`, `template_views`, `ranking_item_scores`, `template_reactions`, `template_comments` ครบ (ดู §6)
-   - `functions/api/templates.js` รองรับ `GET /api/templates?id=` (template + item pool + community average ตามช่วง popularity ผ่าน `days`/`from`/`to`) และ `POST` (สร้าง template + นับ view แบบ dedup ต่อ user ผ่าน `template_views`)
+   - `functions/api/templates.js` รองรับ `GET /api/templates?id=` (template + item pool + community average ตามช่วง popularity ผ่าน `days`/`from`/`to`) และ `POST` สำหรับนับ view แบบ dedup ต่อ authenticated user ผ่าน `template_views`; การสร้าง template แรกเกิดพร้อม ranking ผ่าน `POST /api/rankings`
    - ปุ่ม "Use Template" / "View Community Average" ใน sidebar เชื่อมกับหน้า `TemplateDetailPage.jsx` / `CommunityAveragePage.jsx` จริงแล้ว (ไม่ได้ค้างบน mock)
    - "Community Average" คำนวณจาก `ranking_item_scores` (คะแนน freeze ตอน publish) แสดง tier ที่ถูกเลือกบ่อยที่สุดต่อ item พร้อมตัวกรองช่วงเวลา
 7. **FK บน `rankings.template_id`** — `rankings.template_id` อ้างอิง templates ด้วย text id แต่ไม่มี FK constraint (ลบ template จึงต้องไล่ลบ ranking เอง — ทำแล้วใน admin delete ผ่าน `db.batch` ป้องกัน orphan)

@@ -5,6 +5,8 @@
 // ใช้ bound params ตายตัว 3 ตัว (q, limit, offset) ไม่ว่าจะมี template/ranking กี่แถวก็ตาม
 // (ดู docs/feature-discover-view-all-pages.md §6 เรื่องลิมิต 100 bound params ของ D1)
 // ==========================================
+import { internalErrorResponse } from '../lib/request-guard.js';
+
 export async function onRequestGet(context) {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -82,6 +84,7 @@ export async function onRequestGet(context) {
       { headers: { 'Cache-Control': 'public, max-age=30' } }
     );
   } catch (error) {
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    console.error('Hashtag query failed:', { name: error?.name, message: error?.message });
+    return internalErrorResponse();
   }
 }

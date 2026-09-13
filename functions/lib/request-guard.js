@@ -1,5 +1,6 @@
 export const INPUT_LIMITS = Object.freeze({
   json: 16 * 1024,
+  adminJson: 2 * 1024,
   authJson: 32 * 1024,
   rankingJson: 512 * 1024,
   uploadBytes: 5 * 1024 * 1024,
@@ -29,6 +30,15 @@ export class RequestError extends Error {
 
 export function isPlainObject(value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function assertAllowedFields(value, allowedFields, field = 'Request body') {
+  if (!isPlainObject(value)) throw new RequestError(`${field} must be an object`);
+  const allowed = new Set(allowedFields);
+  if (Object.keys(value).some(key => !allowed.has(key))) {
+    throw new RequestError(`${field} contains unexpected fields`);
+  }
+  return value;
 }
 
 async function readBodyBytes(request, maxBytes) {
@@ -100,6 +110,18 @@ export function assertId(value, field = 'id', { optional = false } = {}) {
   return checked;
 }
 
+export function assertEnum(value, field, allowedValues) {
+  const checked = assertString(value, field, { min: 1, max: 64, trim: true });
+  if (!allowedValues.includes(checked)) throw new RequestError(`${field} is invalid`);
+  return checked;
+}
+
+export function assertBoolean(value, field, { optional = false } = {}) {
+  if (optional && value === undefined) return value;
+  if (typeof value !== 'boolean') throw new RequestError(`${field} must be a boolean`);
+  return value;
+}
+
 export function assertInteger(value, field, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
   if (!Number.isInteger(value) || value < min || value > max) {
     throw new RequestError(`${field} must be an integer between ${min} and ${max}`);
@@ -169,6 +191,13 @@ export function requestErrorResponse(error) {
   return Response.json(
     { success: false, error: error.message },
     { status: error.status, headers: { 'Cache-Control': 'no-store' } }
+  );
+}
+
+export function internalErrorResponse() {
+  return Response.json(
+    { success: false, error: 'Service temporarily unavailable', code: 'INTERNAL_ERROR' },
+    { status: 500, headers: { 'Cache-Control': 'no-store' } }
   );
 }
 

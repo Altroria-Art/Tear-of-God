@@ -1,6 +1,8 @@
 import http from 'k6/http';
-import { check, group } from 'k6';
-import { BASE_URL, setup, getSeedIds, checkOk } from '../config.js';
+import { group } from 'k6';
+import { BASE_URL, MUTATIONS_ENABLED, getSeedIds, checkOk, getMutationSession } from '../config.js';
+
+export { setup } from '../config.js';
 
 // Stress test: ramp beyond expected capacity to find the breaking point
 export const options = {
@@ -27,9 +29,8 @@ export const options = {
 };
 
 export default function (data) {
-  const { rankingId, userId: seedUserId } = getSeedIds(data);
+  const { rankingId } = getSeedIds(data);
   const roll = Math.random();
-  const userId = `${__VU}${__ITER}`;
 
   if (roll < 0.40) {
     group('feed: GET /api/rankings', () => {
@@ -48,16 +49,17 @@ export default function (data) {
         checkOk(res, 'detail');
       });
     }
-  } else if (roll < 0.85) {
+  } else if (roll < 0.85 && MUTATIONS_ENABLED) {
     if (rankingId) {
       group('vote: POST /api/votes', () => {
         const payload = JSON.stringify({
           ranking_id: rankingId,
-          user_id: userId,
           voteType: 'like',
         });
+        const session = getMutationSession(data);
         const res = http.post(`${BASE_URL}/api/votes`, payload, {
           headers: { 'Content-Type': 'application/json' },
+          cookies: session.cookies,
         });
         checkOk(res, 'vote');
       });

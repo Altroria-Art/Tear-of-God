@@ -1,6 +1,8 @@
 import http from 'k6/http';
-import { check, group } from 'k6';
-import { BASE_URL, setup, getSeedIds, checkOk } from '../config.js';
+import { group } from 'k6';
+import { BASE_URL, getSeedIds, checkOk } from '../config.js';
+
+export { setup } from '../config.js';
 
 export const options = {
   vus: 1,
