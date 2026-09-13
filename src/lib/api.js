@@ -1,4 +1,5 @@
 import i18n from '../i18n';
+import { createTemplateViewSessionGuard } from './templateViewSession';
 
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
 const API_URL = '';
@@ -46,6 +47,7 @@ async function getJSON(url) {
 // permanently wrong number, and the map cannot grow unbounded. In-memory only, per tab, never
 // persisted.
 const freshViewCounts = new Map(); // template_id -> view_count observed from our own POST
+const recordTemplateViewForSession = createTemplateViewSessionGuard();
 
 function rememberViewCount(templateId, viewCount) {
   if (templateId == null || viewCount == null) return;
@@ -378,14 +380,20 @@ export async function fetchHashtags({ page, limit, sort, q } = {}) {
 }
 
 // นับ view ให้ template — ฝั่ง API จะนับให้แค่ครั้งแรกที่ user คนนี้เปิดดู template นี้เท่านั้น
-export async function recordTemplateView(templateId, _userId) {
+export async function recordTemplateView(templateId, userId) {
   try {
-    const response = await apiFetch(`${API_URL}/api/templates`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_id: templateId })
+    const json = await recordTemplateViewForSession({
+      templateId,
+      userId,
+      record: async () => {
+        const response = await apiFetch(`${API_URL}/api/templates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ template_id: templateId })
+        });
+        return response.json();
+      },
     });
-    const json = await response.json();
     // จำเลข views ล่าสุดที่เพิ่งได้จาก server ไว้ ให้ fetchTemplates() หน้า Discover เอาไป
     // merge ทับ response ที่อาจโดน browser cache ค้าง (ดู
     // docs/discover-template-view-refresh-and-tracking-plan.md)
