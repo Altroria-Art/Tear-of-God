@@ -17,9 +17,12 @@ import {
   X,
   Bell,
   Check,
+  BarChart3,
+  Activity,
+  Repeat2,
 } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
-import { fetchAdminStats, fetchAdminReports, setReportStatus } from '../../lib/api';
+import { fetchAdminStats, fetchAdminAnalytics, fetchAdminReports, setReportStatus } from '../../lib/api';
 import { useToast } from '../../components/ui/Toast';
 import Avatar from '../../components/ui/Avatar';
 import { timeAgo } from '../../lib/format';
@@ -32,6 +35,7 @@ export default function Dashboard() {
   const { refreshPending } = useOutletContext() || {};
 
   const [stats, setStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -46,12 +50,16 @@ export default function Dashboard() {
       setLoading(false);
       return;
     }
-    const res = await fetchAdminStats(currentUser.id);
+    const [res, analyticsRes] = await Promise.all([
+      fetchAdminStats(currentUser.id),
+      fetchAdminAnalytics(7),
+    ]);
     if (!res.success || !res.data) {
       setError(res.error || t('admin.errLoadStats'));
     } else {
       setStats(res.data);
     }
+    if (analyticsRes.success && analyticsRes.data) setAnalytics(analyticsRes.data);
     setLoading(false);
   }, [currentUser?.id, t]);
 
@@ -101,6 +109,9 @@ export default function Dashboard() {
   const recentReports = stats?.recent_reports || [];
   const topCategories = stats?.top_categories || [];
   const topTemplates = stats?.top_templates || [];
+  const funnel = analytics?.funnel || [];
+  const dailyActivity = analytics?.daily_activity || [];
+  const maxDailySessions = Math.max(1, ...dailyActivity.map((day) => day.sessions));
 
   return (
     <div className="space-y-6">
@@ -220,6 +231,112 @@ export default function Dashboard() {
               );
             })}
           </div>
+
+          {analytics && (
+            <section className="glass rounded-2xl p-5 sm:p-6" aria-labelledby="analytics-funnel-title">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 id="analytics-funnel-title" className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-ink">
+                    <BarChart3 size={17} className="text-brand" />
+                    {t('admin.analyticsTitle')}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted">{t('admin.analyticsSubtitle')}</p>
+                </div>
+                <span className="w-fit rounded-full border border-line-soft bg-surface-glass px-3 py-1 text-[11px] font-bold text-muted">
+                  {t('admin.lastDays', { count: analytics.period_days })}
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+                <div>
+                  {funnel[0]?.sessions > 0 ? (
+                    <div className="space-y-3">
+                      {funnel.map((stage, index) => (
+                        <div key={stage.key}>
+                          <div className="mb-1.5 flex items-end justify-between gap-3 text-xs">
+                            <div className="min-w-0">
+                              <span className="font-bold text-ink">{t(`admin.funnel.${stage.key}`)}</span>
+                              {index > 0 && (
+                                <span className="ml-2 text-[10px] font-semibold text-muted">
+                                  {t('admin.fromPrevious', { percent: stage.from_previous })}
+                                </span>
+                              )}
+                            </div>
+                            <span className="shrink-0 font-black text-ink">
+                              {t('admin.sessionCount', { count: stage.sessions })}
+                            </span>
+                          </div>
+                          <div className="h-2.5 overflow-hidden rounded-full border border-line-soft bg-surface-glass">
+                            <div
+                              className="h-full rounded-full bg-brand transition-[width] duration-500"
+                              style={{ width: `${stage.from_feed}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="grid min-h-52 place-items-center rounded-xl border border-dashed border-line-soft bg-surface/40 p-6 text-center">
+                      <div>
+                        <Activity className="mx-auto text-muted" size={28} />
+                        <p className="mt-2 text-sm font-bold text-ink">{t('admin.noAnalyticsTitle')}</p>
+                        <p className="mt-1 text-xs text-muted">{t('admin.noAnalyticsDesc')}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="rounded-xl border border-line-soft bg-surface/60 p-3">
+                      <Activity size={15} className="text-aurora-blue" />
+                      <p className="mt-2 text-xl font-black text-ink">{analytics.activity.active_sessions}</p>
+                      <p className="text-[11px] font-semibold text-muted">{t('admin.activeSessions')}</p>
+                    </div>
+                    <div className="rounded-xl border border-line-soft bg-surface/60 p-3">
+                      <Users size={15} className="text-aurora-purple" />
+                      <p className="mt-2 text-xl font-black text-ink">{analytics.activity.active_users}</p>
+                      <p className="text-[11px] font-semibold text-muted">{t('admin.activeUsers')}</p>
+                    </div>
+                    <div className="rounded-xl border border-line-soft bg-surface/60 p-3">
+                      <Repeat2 size={15} className="text-status-success" />
+                      <p className="mt-2 text-xl font-black text-ink">{analytics.activity.returning_users}</p>
+                      <p className="text-[11px] font-semibold text-muted">{t('admin.returningUsers')}</p>
+                    </div>
+                    <div className="rounded-xl border border-line-soft bg-surface/60 p-3">
+                      <TrendingUp size={15} className="text-highlight" />
+                      <p className="mt-2 text-xl font-black text-ink">{analytics.activity.return_rate}%</p>
+                      <p className="text-[11px] font-semibold text-muted">{t('admin.returnRate')}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-line-soft bg-surface/60 p-3">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted">{t('admin.dailyActivity')}</p>
+                      <p className="text-[10px] text-muted">{t('admin.bangkokTime')}</p>
+                    </div>
+                    <div className="flex h-20 items-end gap-1.5">
+                      {dailyActivity.map((day) => (
+                        <div key={day.day} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={t('admin.daySessions', { day: day.day, count: day.sessions })}>
+                          <div
+                            className="w-full min-h-1 rounded-t bg-brand/75"
+                            style={{ height: `${Math.max(5, Math.round((day.sessions / maxDailySessions) * 100))}%` }}
+                          />
+                          <span className="text-[8px] font-semibold text-muted">{day.day.slice(5).replace('-', '/')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 divide-x divide-line-soft rounded-xl border border-line-soft bg-surface/60 py-2 text-center">
+                    <div><p className="text-sm font-black text-ink">{analytics.challenge.starts}</p><p className="text-[9px] font-semibold text-muted">{t('admin.challengeStarts')}</p></div>
+                    <div><p className="text-sm font-black text-ink">{analytics.challenge.completions}</p><p className="text-[9px] font-semibold text-muted">{t('admin.challengeCompletes')}</p></div>
+                    <div><p className="text-sm font-black text-ink">{analytics.challenge.shares}</p><p className="text-[9px] font-semibold text-muted">{t('admin.challengeShares')}</p></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Activity Section: Recent Posts & Recent Reports */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

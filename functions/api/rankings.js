@@ -163,9 +163,14 @@ export async function onRequest({ request, env, data: auth }) {
         const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
         const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit')) || 12), 50);
         const offset = (page - 1) * limit;
-        // 🟡 [ใหม่]: Home feed mode — 'general' | 'kindred' (มีแค่หน้า Home ส่งมา; จุดเรียกอื่น
-        // ไม่มี feed_type จึงไม่เข้ากระแสนี้ ไม่กระทบ behavior เดิม — ดู docs/row-read-optimization-plan.md §14.7 #11)
-        const feedType = ['general', 'kindred'].includes(url.searchParams.get('feed_type')) ? url.searchParams.get('feed_type') : null;
+        // Home feed mode. Keep the old names as aliases so frontend/backend rollouts do not
+        // briefly break one another, but expose only the clearer names in the current UI.
+        const requestedFeedType = url.searchParams.get('feed_type');
+        const feedTypeAliases = { general: 'trending', kindred: 'for_you' };
+        const normalizedFeedType = feedTypeAliases[requestedFeedType] || requestedFeedType;
+        const feedType = ['trending', 'for_you', 'following'].includes(normalizedFeedType)
+          ? normalizedFeedType
+          : null;
         // seed สุ่มจาก client (ใหม่ทุก mount) → ลำดับเปลี่ยนทุก reload แต่คงที่ใน session.
         // อันเป็น 0 = deterministic เหมือนเดิม (default)
         const seed = Math.max(0, parseInt(url.searchParams.get('seed') || '0', 10) || 0) >>> 0;
@@ -204,33 +209,36 @@ export async function onRequest({ request, env, data: auth }) {
         if (authorId) { pageWhere += ` AND r.user_id = ?`; pageWhereParams.push(authorId); }
         if (templateId) { pageWhere += ` AND r.template_id = ?`; pageWhereParams.push(templateId); }
 
-        // 🟡 [ใหม่] Home Feed (feedType != null) — สร้าง "ordered id list" แล้ว slice เป็นหน้า
-        // (เลื่อนใน JS ไม่ใช่ OFFSET ของ SQL ทั้งตาราง — สอดคล้อง NFR-1):
-        //   general: สุ่ม seeded ทั้ง pool (ทุกยุค) — สับทั้ง pool ตั้งแต่หน้าแรก; seed ใหม่
-        //            ต่อ mount (จาก client) → ทุกรีโหลดลำดับเปลี่ยน เห็นผล random ทันที;
-        //            seed เดียวใน session → เลื่อนหน้าไม่ซ้ำ/ไม่ข้าม (ดู §14.7 #11)
-        //   kindred: pool = โพสต์ที่ "เกี่ยวข้องกับฉัน" จริงๆ — ต้องตรง ≥ 2 สัญญาณจาก:
-        //            (1) หมวดที่เคยสร้าง/เคยไลก์, (2) template ที่เคยจัด/เคยไลก์,
-        //            (3) แฮชแท็กที่เคยใช้ → pool เล็กลง เห็นต่างกับ General ชัดเจน
-        //            guest (!currentUserId) → kindredLocked (ชวนล็อกอิน) แทน fallback เงียบๆ
-        //            ล็อกอินแล้วแต่ pool ว่าง (ยังไม่มีสัญญาณ) → fallback เป็น general
+        // Home Feed (feedType != null) builds one ordered id pool, then slices it per page:
+        //   trending: freshness + likes/comments/dislikes, with a stable tiebreaker
+        //   for_you: posts matching at least 2 of category/template/hashtag signals
+        //   following: newest posts from accounts the viewer follows
+        // Guests may browse Trending; the other two feeds intentionally require login.
         // rows-read: pool อ่านแค่ id (≤ HOME_POOL_CAP) ต่อหน้าใหม่; หน้าถัดๆ ไปอ่านแต่ detail ของ 1 หน้า
         // (HomeFeed cache ผลต่อ tab+user ไว้ที่ client → pool scan เกิดขึ้นครั้งเดียวต่อครั้ง mount)
         const HOME_POOL_CAP = 600;    // เพดาน pool ที่จะนำมาสับ — กัน pool โตเกินเหตุ
 
         let homePoolIds = null;       // null = ไม่ใช่ home path
-        let kindredLocked = false;    // true = kindred แต่ไม่ล็อกอิน → หน้าบ้านชวนเข้าสู่ระบบ
-        if (feedType === 'general' || feedType === 'kindred') {
-          if (feedType === 'kindred' && !currentUserId) {
-            kindredLocked = true;
+        let feedLocked = false;
+        let personalizationFallback = false;
+        if (feedType) {
+          if (feedType !== 'trending' && !currentUserId) {
+            feedLocked = true;
             homePoolIds = [];
           } else {
             let poolWhere = pageWhere;
             const poolParams = [...pageWhereParams];
 
-            if (feedType === 'kindred' && currentUserId) {
+            if (feedType === 'for_you' && currentUserId) {
+              const { results: followedTopicRows } = await db.prepare(`
+                SELECT topic_type, topic_key
+                FROM topic_follows
+                WHERE user_id = ?
+                LIMIT 500
+              `).bind(currentUserId).all();
+              const hasFollowedTopics = (followedTopicRows || []).length > 0;
               // normalize แฮชแท็กจากโพสต์ที่ฉันสร้าง ∪ โพสต์ที่ฉันไลก์ (ตัด '#')
-              // — ใช้เป็นสัญญาณที่ (3) ของเกณฑ์ "ตรง ≥ 2"
+              // — ใช้เป็นสัญญาณที่ (3) ของเกณฑ์ความเกี่ยวข้อง
               const tagRows = await db.prepare(`
                 SELECT r.hashtags FROM rankings r WHERE r.user_id = ?
                 UNION
@@ -249,16 +257,19 @@ export async function onRequest({ request, env, data: auth }) {
               // 3 สัญญาณ แต่ละอัน (CASE) ให้ 1 แต้ม — คงเฉพาะโพสต์ที่ผลรวม >= 2:
               //   1) r.category ตรงกับหมวดที่เคยสร้าง/เคยไลก์
               //   2) r.template_id ตรงกับ template ที่เคยจัด/เคยไลก์
-              //   3) มีแฮชแท็กที่เคยใช้อยู่ด้วย
+              //   3) มีแฮชแท็กที่เคยใช้อยู่ด้วย หรือหัวข้อที่กดติดตาม
               const tagCond = myTags.length > 0
-                ? `(${myTags.map(() => `instr(',' || lower(replace(r.hashtags, '#', '')) || ',', ?) > 0`).join(' OR ')})`
+                ? `(${myTags.map(() => `instr(',' || replace(lower(replace(r.hashtags, '#', '')), ' ', '') || ',', ?) > 0`).join(' OR ')})`
                 : '0';
               const scoreExpr = `
-                CASE WHEN r.category IN (
-                  SELECT category FROM rankings WHERE user_id = ?
+                CASE WHEN lower(r.category) IN (
+                  SELECT lower(category) FROM rankings WHERE user_id = ?
                   UNION
-                  SELECT fav.category FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
+                  SELECT lower(fav.category) FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
                   WHERE v.user_id = ? AND v.vote_type = 'like'
+                  UNION
+                  SELECT topic_key FROM topic_follows
+                  WHERE user_id = ? AND topic_type = 'category'
                 ) THEN 1 ELSE 0 END
                 +
                 CASE WHEN r.template_id IS NOT NULL AND r.template_id IN (
@@ -266,14 +277,36 @@ export async function onRequest({ request, env, data: auth }) {
                   UNION
                   SELECT fav.template_id FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
                   WHERE v.user_id = ? AND v.vote_type = 'like' AND fav.template_id IS NOT NULL
+                  UNION
+                  SELECT topic_key FROM topic_follows
+                  WHERE user_id = ? AND topic_type = 'template'
                 ) THEN 1 ELSE 0 END
                 +
-                CASE WHEN ${tagCond} THEN 1 ELSE 0 END
+                CASE WHEN ${tagCond}
+                  OR EXISTS (
+                    SELECT 1 FROM topic_follows tf
+                    WHERE tf.user_id = ? AND tf.topic_type = 'hashtag'
+                      AND instr(',' || replace(lower(replace(r.hashtags, '#', '')), ' ', '') || ',', ',' || lower(tf.topic_key) || ',') > 0
+                  ) THEN 1 ELSE 0 END
               `;
 
-              poolWhere += `\n              AND (${scoreExpr}) >= 2`;
-              // ลำดับ "?": pageWhere -> category(2) -> template_id(2) -> tags
-              poolParams.push(currentUserId, currentUserId, currentUserId, currentUserId, ...myTags.map((tg) => `,${tg.toLowerCase()},`));
+              // การติดตามหัวข้อเป็นสัญญาณที่ผู้ใช้เลือกเอง จึงเพียงสัญญาณเดียวก็พอโพสต์เข้า For You
+              // ได้; บัญชีที่ยังไม่ติดตามหัวข้อใช้เกณฑ์เดิมที่ต้องตรงอย่างน้อย 2 สัญญาณ
+              poolWhere += `\n              AND (${scoreExpr}) >= ${hasFollowedTopics ? 1 : 2}`;
+              // ลำดับ "?": pageWhere -> category(3) -> template_id(3) -> tags -> followed hashtag
+              poolParams.push(
+                currentUserId, currentUserId, currentUserId,
+                currentUserId, currentUserId, currentUserId,
+                ...myTags.map((tg) => `,${tg.toLowerCase()},`),
+                currentUserId,
+              );
+            }
+
+            if (feedType === 'following' && currentUserId) {
+              poolWhere += `\n              AND r.user_id IN (
+                SELECT following_id FROM follows WHERE follower_id = ?
+              )`;
+              poolParams.push(currentUserId);
             }
 
             if (days) {
@@ -281,45 +314,63 @@ export async function onRequest({ request, env, data: auth }) {
               poolParams.push(String(days));
             }
 
+            const trendingOrder = `(
+              CASE
+                WHEN r.created_at >= datetime('now', '-7 days') THEN 30
+                WHEN r.created_at >= datetime('now', '-30 days') THEN 12
+                WHEN r.created_at >= datetime('now', '-90 days') THEN 3
+                ELSE 0
+              END
+              + COALESCE(r.likes_count, 0) * 3
+              + COALESCE(r.comments_count, 0) * 2
+              - COALESCE(r.dislikes_count, 0)
+            ) DESC, r.created_at DESC, r.id DESC`;
+            const poolOrder = feedType === 'trending'
+              ? trendingOrder
+              : `r.created_at DESC, r.id DESC`;
             const { results: poolRows } = await db.prepare(`
               SELECT r.id FROM rankings r
               ${poolWhere}
-              ORDER BY r.created_at DESC, r.id DESC
+              ORDER BY ${poolOrder}
               LIMIT ?
             `).bind(...poolParams, HOME_POOL_CAP).all();
             let poolIds = (poolRows || []).map((row) => row.id);
 
-            // kindred: pool ว่างจริงๆ (ล็อกอินแล้วแต่ยังไม่มีสัญญาณครบ 2) → fallback
-            // เป็น general อย่างเดิม (guest ไม่เข้าเงื่อนไขนี้ — ถูกตัดที่ kindredLocked แล้ว)
-            if (feedType === 'kindred' && poolIds.length === 0) {
+            // A new account has no useful interest signals yet. Show Trending until its
+            // category/template/hashtag history is strong enough; Following stays empty.
+            if (feedType === 'for_you' && poolIds.length === 0) {
+              personalizationFallback = true;
               let fbWhere = pageWhere;
               const fbParams = [...pageWhereParams];
               if (days) { fbWhere += ` AND r.created_at >= datetime('now', '-' || ? || ' days')`; fbParams.push(String(days)); }
               const { results: fbRows } = await db.prepare(`
                 SELECT r.id FROM rankings r
                 ${fbWhere}
-                ORDER BY r.created_at DESC, r.id DESC
+                ORDER BY ${trendingOrder}
                 LIMIT ?
               `).bind(...fbParams, HOME_POOL_CAP).all();
               poolIds = (fbRows || []).map((row) => row.id);
             }
 
-            // สุ่มทั้งหมดแบบ seeded — ทุกรีโหลด (seed ใหม่จาก client) ลำดับเปลี่ยนตั้งแต่หน้าแรก
-            // 🟡 [ใหม่]: pin (เฉพาะ general) — Ranking ที่เพิ่ง publish ของ currentUser ขึ้นอันแรก
-            // เอา pin ออกจาก pool ก่อนสับ → ใช้ shuffle ชุดเดียวกัน deterministic ตลอด seed+feedType
-            // เดียว (client ส่ง pin ต่อทุกหน้า) → เลื่อนหน้าไม่ซ้ำ/ไม่ข้าม เหมือนแบบไม่ pin; ตรวจ
-            // เจ้าของจริงก่อน (กัน url /api/rankings?pin=<id ของคนอื่น> ไปยัดการ์ดขึ้นบนสุด)
+            // For You keeps a seeded mix within its relevant pool. Trending and Following
+            // already have meaningful, stable orders and must stay stable across pages.
+            const orderedIds = feedType === 'for_you' && !personalizationFallback
+              ? seededShuffle(poolIds, seed ^ fnv1a(feedType))
+              : poolIds;
+
+            // A freshly published ranking is pinned once at the top of Trending. Ownership
+            // is checked server-side so an arbitrary URL cannot pin somebody else's post.
             let pinnedId = null;
-            if (feedType === 'general' && runPin && currentUserId) {
+            if (feedType === 'trending' && runPin && currentUserId) {
               const { results: owned } = await db.prepare(
                 `SELECT id FROM rankings WHERE id = ? AND user_id = ? LIMIT 1`
               ).bind(runPin, currentUserId).all();
               if (owned.length > 0) pinnedId = owned[0].id;
             }
             if (pinnedId) {
-              homePoolIds = [pinnedId, ...seededShuffle(poolIds.filter((id) => id !== pinnedId), seed ^ fnv1a(feedType))];
+              homePoolIds = [pinnedId, ...orderedIds.filter((id) => id !== pinnedId)];
             } else {
-              homePoolIds = seededShuffle(poolIds, seed ^ fnv1a(feedType));
+              homePoolIds = orderedIds;
             }
           }
         }
@@ -462,7 +513,7 @@ export async function onRequest({ request, env, data: auth }) {
           // หน้านี้เท่านั้น (≤ limit แถว ไม่ใช่ทุก template ในระบบ) ยิงคู่กับ ranking_items ด้วย
           // Promise.all ลด round-trip แทนที่จะรอทีละ query
           const templateIds = [...new Set(rankings.map(r => r.template_id).filter(Boolean))];
-          const [{ results: allItems }, tplRows] = await Promise.all([
+          const [{ results: allItems }, tplRows, { results: templateUseRows }, { results: communityHistogram }] = await Promise.all([
             db.prepare(`
               SELECT ri.*, i.name as item_name, i.image_url as item_image
               FROM ranking_items ri
@@ -475,6 +526,27 @@ export async function onRequest({ request, env, data: auth }) {
                   `SELECT id, tiers FROM templates WHERE id IN (${templateIds.map(() => '?').join(',')})`
                 ).bind(...templateIds).all().then(res => res.results)
               : Promise.resolve([]),
+            templateIds.length > 0
+              ? db.prepare(`
+                  SELECT template_id, COUNT(*) AS uses
+                  FROM rankings
+                  WHERE template_id IN (${templateIds.map(() => '?').join(',')})
+                  GROUP BY template_id
+                `).bind(...templateIds).all()
+              : Promise.resolve({ results: [] }),
+            // Aggregate all published placements once per template/item. This works for
+            // legacy rankings too (many old rows predate ranking_item_scores), while
+            // keeping the response query bounded to the templates visible on this page.
+            templateIds.length > 0
+              ? db.prepare(`
+                  SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements
+                  FROM ranking_items ri
+                  JOIN rankings r ON r.id = ri.ranking_id
+                  WHERE r.template_id IN (${templateIds.map(() => '?').join(',')})
+                    AND ri.tier IS NOT NULL
+                  GROUP BY r.template_id, ri.item_id, ri.tier
+                `).bind(...templateIds).all()
+              : Promise.resolve({ results: [] }),
           ]);
 
           const itemsMap = {};
@@ -489,10 +561,56 @@ export async function onRequest({ request, env, data: auth }) {
           const tiersByTemplateId = {};
           tplRows.forEach(t => { tiersByTemplateId[t.id] = parseTiers(t.tiers); });
 
+          const usesByTemplateId = {};
+          (templateUseRows || []).forEach((row) => {
+            usesByTemplateId[row.template_id] = Number(row.uses) || 0;
+          });
+
+          // Community disagreement is the average distance between an item's tier
+          // and the community's average tier for that item, normalized to 0–100.
+          // 0 = follows the community average; 100 = maximally different.
+          const communityByItem = {};
+          (communityHistogram || []).forEach((row) => {
+            const tierDefinitions = tiersByTemplateId[row.template_id] || [];
+            const tierIndex = tierDefinitions.findIndex((tier) => String(tier.label) === String(row.tier));
+            if (tierIndex < 0) return;
+            const key = `${row.template_id}:${row.item_id}`;
+            if (!communityByItem[key]) communityByItem[key] = { sum: 0, count: 0 };
+            const placements = Number(row.placements) || 0;
+            communityByItem[key].sum += tierIndex * placements;
+            communityByItem[key].count += placements;
+          });
+
+          const disagreementByRankingId = {};
+          rankings.forEach((ranking) => {
+            const tierDefinitions = tiersByTemplateId[ranking.template_id] || [];
+            const divisor = Math.max(1, tierDefinitions.length - 1);
+            const placementRows = itemsMap[ranking.id] || [];
+            let totalDistance = 0;
+            let samples = 0;
+            placementRows.forEach((placement) => {
+              const ownIndex = tierDefinitions.findIndex((tier) => String(tier.label) === String(placement.tier));
+              const aggregate = communityByItem[`${ranking.template_id}:${placement.item_id}`];
+              if (ownIndex < 0 || !aggregate?.count) return;
+              const averageIndex = aggregate.sum / aggregate.count;
+              totalDistance += Math.abs(ownIndex - averageIndex) / divisor;
+              samples += 1;
+            });
+            disagreementByRankingId[ranking.id] = samples > 0
+              ? Math.round((totalDistance / samples) * 100)
+              : null;
+          });
+
           formattedRankings = rankings.map(r => ({
              ...r,
              profile: { id: r.user_id, username: r.username || 'Unknown', avatar_url: r.avatar_url },
-             stats: { likes: r.likes_count, dislikes: r.dislikes_count, comments: r.comments_count },
+             stats: {
+               likes: r.likes_count,
+               dislikes: r.dislikes_count,
+               comments: r.comments_count,
+               templateUses: r.template_id ? (usesByTemplateId[r.template_id] || 0) : 0,
+               communityDisagreement: disagreementByRankingId[r.id],
+             },
              user_vote: r.user_vote ?? null,
              tiers: r.template_id ? (tiersByTemplateId[r.template_id] ?? null) : null,
              ranking_items: itemsMap[r.id] || []
@@ -505,7 +623,20 @@ export async function onRequest({ request, env, data: auth }) {
         const cacheHeaders = currentUserId
           ? { 'Cache-Control': 'private, no-store' }
           : { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=120' };
-        return jsonResponse({ success: true, data: formattedRankings, page, limit, total, ...(homePoolIds !== null ? { kindredLocked } : {}) }, 200, cacheHeaders);
+        return jsonResponse({
+          success: true,
+          data: formattedRankings,
+          page,
+          limit,
+          total,
+          ...(homePoolIds !== null ? {
+            feedType,
+            feedLocked,
+            personalizationFallback,
+            // Temporary compatibility for a frontend deployed before this rename.
+            kindredLocked: requestedFeedType === 'kindred' && feedLocked,
+          } : {}),
+        }, 200, cacheHeaders);
       }
     }
 
@@ -534,6 +665,16 @@ export async function onRequest({ request, env, data: auth }) {
       };
       assertHashtags(cleanPayload.hashtags, 'payload.hashtags');
       cleanPayload.hashtags = canonicalizeHashtags(cleanPayload.hashtags);
+      const challengeSourceId = assertId(body.challenge_source_id, 'challenge_source_id', { optional: true }) || null;
+      let challengeSource = null;
+      if (challengeSourceId) {
+        challengeSource = await db.prepare(`
+          SELECT id, user_id, template_id FROM rankings WHERE id = ?
+        `).bind(challengeSourceId).first();
+        if (!challengeSource || !cleanPayload.template_id || challengeSource.template_id !== cleanPayload.template_id) {
+          return jsonResponse({ success: false, error: 'Invalid challenge source' }, 400);
+        }
+      }
 
       const cleanItems = items.map((item, index) => {
         if (!isPlainObject(item)) throw new RequestError(`items[${index}] must be an object`);
@@ -590,11 +731,13 @@ export async function onRequest({ request, env, data: auth }) {
       // tiers ปัจจุบันของ template (ตัวที่ใช้จัดอันดับ) — ใช้ map ชื่อ tier → index แล้วให้คะแนน
       // แถวบนสุดสูงสุด (score = tierCount - index) บันทึกลง ranking_item_scores ตอน publish
       let tiersDef = null;
+      let existingTemplateCreatorId = null;
       if (cleanTemplate) {
         tiersDef = cleanTemplate.tiers;
       } else if (cleanPayload.template_id) {
-        const tr = await db.prepare(`SELECT tiers FROM templates WHERE id = ?`).bind(cleanPayload.template_id).first();
+        const tr = await db.prepare(`SELECT tiers, creator_id FROM templates WHERE id = ?`).bind(cleanPayload.template_id).first();
         if (!tr) return jsonResponse({ success: false, error: 'Template not found' }, 404);
+        existingTemplateCreatorId = tr.creator_id || null;
         const storedTiers = parseTiers(tr.tiers);
         tiersDef = Array.isArray(storedTiers) ? storedTiers.filter(tier => isPlainObject(tier) && typeof tier.label === 'string') : [];
       }
@@ -649,10 +792,86 @@ export async function onRequest({ request, env, data: auth }) {
         cleanPayload.category, cleanPayload.hashtags, cleanPayload.user_id
       ));
 
-      if (cleanPayload.template_id || templateId) {
+      const effectiveTemplateId = cleanPayload.template_id || templateId;
+
+      // แจ้งคนที่ติดตามเจ้าของโพสต์หรือหัวข้อที่เกี่ยวข้องเมื่อมี Ranking ใหม่
+      // (ใช้ UNION รวมผู้รับซ้ำ และ INSERT OR IGNORE กันการยิงซ้ำจาก retry)
+      statements.push(db.prepare(`
+        INSERT OR IGNORE INTO notifications
+          (id, user_id, actor_id, type, ranking_id)
+        SELECT lower(hex(randomblob(16))), recipient_id, ?, 'following_rank', ?
+        FROM (
+          SELECT f.follower_id AS recipient_id
+          FROM follows f
+          WHERE f.following_id = ?
+          UNION
+          SELECT tf.user_id AS recipient_id
+          FROM topic_follows tf
+          WHERE tf.topic_type = 'category' AND tf.topic_key = lower(?)
+          UNION
+          SELECT tf.user_id AS recipient_id
+          FROM topic_follows tf
+          WHERE tf.topic_type = 'template' AND tf.topic_key = ?
+          UNION
+          SELECT tf.user_id AS recipient_id
+          FROM topic_follows tf
+          WHERE tf.topic_type = 'hashtag'
+            AND instr(',' || replace(lower(replace(?, '#', '')), ' ', '') || ',', ',' || lower(tf.topic_key) || ',') > 0
+        ) recipients
+        WHERE recipient_id != ?
+      `).bind(
+        cleanPayload.user_id, rankingId,
+        cleanPayload.user_id, cleanPayload.category, effectiveTemplateId,
+        cleanPayload.hashtags, cleanPayload.user_id
+      ));
+
+      if (effectiveTemplateId) {
+        // เจ้าของ Template จะรู้ว่ามีคนหยิบไปจัดใหม่
+        if (existingTemplateCreatorId && existingTemplateCreatorId !== cleanPayload.user_id) {
+          statements.push(db.prepare(`
+            INSERT OR IGNORE INTO notifications
+              (id, user_id, actor_id, type, ranking_id, template_id)
+            VALUES (?, ?, ?, 'template_use', ?, ?)
+          `).bind(
+            crypto.randomUUID(), existingTemplateCreatorId, cleanPayload.user_id, rankingId, effectiveTemplateId
+          ));
+        }
+
+        // ผู้สร้าง Template และผู้ที่ติดตาม Template จะได้รับแจ้งว่า Community Average เปลี่ยน
+        statements.push(db.prepare(`
+          INSERT OR IGNORE INTO notifications
+            (id, user_id, actor_id, type, ranking_id, template_id)
+          SELECT lower(hex(randomblob(16))), recipient_id, ?, 'community_average', ?, ?
+          FROM (
+            SELECT creator_id AS recipient_id
+            FROM templates
+            WHERE id = ? AND creator_id IS NOT NULL
+            UNION
+            SELECT user_id AS recipient_id
+            FROM topic_follows
+            WHERE topic_type = 'template' AND topic_key = ?
+          ) recipients
+          WHERE recipient_id != ?
+        `).bind(
+          cleanPayload.user_id, rankingId, effectiveTemplateId,
+          effectiveTemplateId, effectiveTemplateId, cleanPayload.user_id
+        ));
+      }
+
+      if (challengeSource?.user_id && challengeSource.user_id !== cleanPayload.user_id) {
+        statements.push(db.prepare(`
+          INSERT OR IGNORE INTO notifications
+            (id, user_id, actor_id, type, ranking_id, source_ranking_id)
+          VALUES (?, ?, ?, 'challenge', ?, ?)
+        `).bind(
+          crypto.randomUUID(), challengeSource.user_id, cleanPayload.user_id, rankingId, challengeSource.id
+        ));
+      }
+
+      if (effectiveTemplateId) {
         statements.push(db.prepare(
           `UPDATE templates SET use_count = use_count + 1 WHERE id = ?`
-        ).bind(cleanPayload.template_id || templateId));
+        ).bind(effectiveTemplateId));
       }
 
       if (cleanItems.length > 0) {

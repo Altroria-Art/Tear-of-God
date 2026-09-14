@@ -5,6 +5,8 @@ import { useUser } from '../../context/UserContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { switchLanguage } from '../../i18n';
+import NotificationMenu from './NotificationMenu';
+import { loginPath } from '../../lib/navigation';
 
 const Navbar = () => {
   const location = useLocation();
@@ -21,9 +23,14 @@ const Navbar = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/discover?q=${encodeURIComponent(searchQuery.trim())}`);
+      const next = `/discover?q=${encodeURIComponent(searchQuery.trim())}`;
+      navigate(currentUser ? next : loginPath(next));
       setIsMobileMenuOpen(false);
     }
+  };
+
+  const gateGuestSearch = () => {
+    if (!currentUser) navigate(loginPath('/discover'));
   };
 
   const toggleLanguage = () => {
@@ -99,6 +106,8 @@ const Navbar = () => {
             placeholder={t('nav.searchPlaceholder')} 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={gateGuestSearch}
+            readOnly={!currentUser}
             className="bg-search border border-line-soft rounded-full py-2.5 pl-10 pr-4 text-sm w-48 xl:w-72 outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
           />
         </form>
@@ -127,6 +136,8 @@ const Navbar = () => {
             )}
           </div>
         </button>
+
+        {currentUser && <NotificationMenu userId={currentUser.id} />}
 
         {/* ปุ่มโปรไฟล์ / ล็อกอิน */}
         <div className="relative" ref={dropdownRef}>
@@ -201,6 +212,8 @@ const Navbar = () => {
               placeholder={t('nav.searchPlaceholder')} 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={gateGuestSearch}
+              readOnly={!currentUser}
               className="bg-search border border-line-soft rounded-full py-2 pl-10 pr-4 text-sm w-full outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
             />
           </form>

@@ -1,7 +1,20 @@
 import Avatar from './Avatar';
 import TierLabel from '../tier/TierLabel';
+import ShareQr from './ShareQr';
 
-export default function ExportCard({ title, authorName, authorAvatar, postedAt, category, tiers = [], theme = 'light' }) {
+export default function ExportCard({
+  title,
+  authorName,
+  authorAvatar,
+  postedAt,
+  category,
+  tiers = [],
+  theme = 'light',
+  shareLink = null,
+  shareFormat = 'landscape',
+  shareCta = 'Rank it and compare your taste',
+  shareQrHint = 'Scan to open this list',
+}) {
   const totalItems = tiers.reduce((acc, row) => acc + (row.items?.length || 0), 0);
   const isDark = theme === 'dark';
 
@@ -24,9 +37,14 @@ export default function ExportCard({ title, authorName, authorAvatar, postedAt, 
   const clsEmptyText = isDark ? 'text-gray-500' : 'text-gray-400';
   const clsFooterBorder = isDark ? 'border-gray-800 text-gray-500' : 'border-gray-100 text-gray-400';
   const clsFooterBrand = isDark ? 'text-gray-400' : 'text-gray-500';
+  const isShareCard = Boolean(shareLink);
+  const qrSize = shareFormat === 'story' ? 78 : shareFormat === 'square' ? 68 : 56;
+  const shareFrameClass = isShareCard
+    ? shareFormat === 'story' ? 'min-h-[640px]' : shareFormat === 'square' ? 'min-h-[540px]' : ''
+    : '';
 
   return (
-    <div className={clsContainer} style={{ background: containerBg }}>
+    <div className={`${clsContainer} ${shareFrameClass}`} style={{ background: containerBg }}>
       {/* Header: Author + Title */}
       <div className={`mb-4 flex flex-col gap-2 border-b pb-4 ${clsHeaderBorder}`}>
         <div className="flex items-center justify-between">
@@ -101,6 +119,16 @@ export default function ExportCard({ title, authorName, authorAvatar, postedAt, 
           );
         })}
       </div>
+
+      {isShareCard && (
+        <div className={`mt-4 flex items-center justify-between gap-3 rounded-xl border p-3 ${isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
+          <div className="min-w-0">
+            <p className={`text-sm font-black leading-snug ${clsTitle}`}>{shareCta}</p>
+            <p className={`mt-1 text-[10px] font-semibold ${clsTextDate}`}>{shareQrHint}</p>
+          </div>
+          <ShareQr value={shareLink} size={qrSize} />
+        </div>
+      )}
 
       {/* Footer: Watermark */}
       <div className={`mt-4 pt-3 flex items-center justify-between border-t text-[11px] font-medium ${clsFooterBorder}`}>

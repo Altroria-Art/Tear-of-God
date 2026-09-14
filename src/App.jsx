@@ -8,6 +8,9 @@ import { UserProvider } from './context/UserContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ScrollToTop from './components/layout/ScrollToTop';
 import ErrorBoundary from './components/layout/ErrorBoundary';
+import MobileBottomNav from './components/layout/MobileBottomNav';
+import AnalyticsTracker from './components/analytics/AnalyticsTracker';
+import RequireAuth from './components/auth/RequireAuth';
 
 // 📍 Lazy-load ตามหน้า (code-splitting) — แยก bundle ใหญ่ (หน้าแรกที่ใช้บ่อยโหลดก่อน,
 // หน้าที่ไม่ใช่หน้าแรกค่อยโหลดเมื่อเข้า) ลดขนาด initial JS (ดู bundle warning จาก build)
@@ -23,6 +26,7 @@ const TemplateDetailPage = lazy(() => import('./pages/TemplateDetailPage'));
 const CommunityAveragePage = lazy(() => import('./pages/CommunityAveragePage'));
 const CommunityParticipants = lazy(() => import('./pages/CommunityParticipants'));
 const PostDetail = lazy(() => import('./pages/PostDetail'));
+const ChallengeCompare = lazy(() => import('./pages/ChallengeCompare'));
 const Create = lazy(() => import('./pages/Create'));
 const RankTierList = lazy(() => import('./pages/RankTierList'));
 const Profile = lazy(() => import('./pages/Profile'));
@@ -50,6 +54,7 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
+      <AnalyticsTracker />
       <ToastProvider>
         <ThemeProvider>
           <UserProvider>
@@ -59,33 +64,39 @@ function App() {
               <Suspense fallback={<PageLoader />}>
                 <Routes>
                 <Route path="/" element={<HomeFeed />} />
-                <Route path="/create" element={<Create />} />
-                <Route path="/discover" element={<Discover />} />
-                <Route path="/discover/templates" element={<PopularTemplates />} />
-                <Route path="/discover/hashtags" element={<PopularHashtags />} />
-                <Route path="/discover/hashtag/:tag" element={<HashtagDetail />} />
-                <Route path="/rank" element={<RankTierList />} />
-                <Route path="/category/:categoryId" element={<CategoryPage />} />
-                <Route path="/template/:templateId" element={<TemplateDetailPage />} />
-                <Route path="/template/:templateId/community" element={<CommunityAveragePage />} />
-                <Route path="/template/:templateId/participants" element={<CommunityParticipants />} />
-                <Route path="/post/:postId" element={<PostDetail />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/profile/:userId" element={<Profile />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<AdminDashboard />} />
-                  <Route path="users" element={<AdminUsers />} />
-                  <Route path="rankings" element={<AdminRankings />} />
-                  <Route path="templates" element={<AdminTemplates />} />
-                  <Route path="reports" element={<AdminReports />} />
+                {/* Create is intentionally guest-first: visitors can build a draft,
+                    while Create.jsx gates the Publish action when authentication is needed. */}
+                <Route path="/create" element={<Create />} />
+                <Route element={<RequireAuth />}>
+                  <Route path="/discover" element={<Discover />} />
+                  <Route path="/discover/templates" element={<PopularTemplates />} />
+                  <Route path="/discover/hashtags" element={<PopularHashtags />} />
+                  <Route path="/discover/hashtag/:tag" element={<HashtagDetail />} />
+                  <Route path="/rank" element={<RankTierList />} />
+                  <Route path="/category/:categoryId" element={<CategoryPage />} />
+                  <Route path="/template/:templateId" element={<TemplateDetailPage />} />
+                  <Route path="/template/:templateId/community" element={<CommunityAveragePage />} />
+                  <Route path="/template/:templateId/participants" element={<CommunityParticipants />} />
+                  <Route path="/post/:postId" element={<PostDetail />} />
+                  <Route path="/compare/:sourceId/:responseId" element={<ChallengeCompare />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/profile/:userId" element={<Profile />} />
+                  <Route path="/admin" element={<AdminLayout />}>
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="users" element={<AdminUsers />} />
+                    <Route path="rankings" element={<AdminRankings />} />
+                    <Route path="templates" element={<AdminTemplates />} />
+                    <Route path="reports" element={<AdminReports />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
                 </Route>
-                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
             </ErrorBoundary>
+            <MobileBottomNav />
           </UserProvider>
         </ThemeProvider>
       </ToastProvider>

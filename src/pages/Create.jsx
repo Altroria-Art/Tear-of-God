@@ -3,8 +3,8 @@ import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
-import React, { useEffect, useState } from 'react';
-import { Settings, X, ChevronLeft } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeftRight, Check, Settings, X, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
@@ -68,7 +68,9 @@ const CreateTierList = () => {
   const [draft] = useState(loadDraft);
 
   const [quickAddText, setQuickAddText] = useState('');
-  const [detailsOpen, setDetailsOpen] = useState(!draft?.title);
+  const [detailsOpen, setDetailsOpen] = useState(Boolean(draft?.title));
+  const [createMode, setCreateMode] = useState('drag');
+  const [pairState, setPairState] = useState({ list: [], cursor: 0, swapped: false, pass: 1, done: false });
 
   const [title, setTitle] = useState(draft?.title ?? '');
   const [description, setDescription] = useState(draft?.description ?? '');
@@ -122,16 +124,39 @@ const CreateTierList = () => {
 
   // 📍 [ใหม่]: autosave ทุกครั้งที่ข้อมูลที่ต้องจำเปลี่ยน (title/description/hashtags/items/tiers)
   useEffect(() => {
-    saveDraft({
-      version: DRAFT_VERSION,
-      title,
-      description,
-      tiers,
-      items,
-      selectedHashtags,
-      customHashtags: hashtags.filter((tag) => !DEFAULT_HASHTAGS.includes(tag)),
-    });
+    // Keep typing and large Generate batches responsive; persist shortly after
+    // the last change instead of serializing the whole board on every keystroke.
+    const timer = setTimeout(() => {
+      saveDraft({
+        version: DRAFT_VERSION,
+        title,
+        description,
+        tiers,
+        items,
+        selectedHashtags,
+        customHashtags: hashtags.filter((tag) => !DEFAULT_HASHTAGS.includes(tag)),
+      });
+    }, 180);
+    return () => clearTimeout(timer);
   }, [title, description, tiers, items, selectedHashtags, hashtags]);
+
+  const itemGroups = useMemo(() => {
+    const byTier = new Map(tiers.map((tier) => [tier.id, []]));
+    const unranked = [];
+
+    items.forEach((item) => {
+      const bucket = byTier.get(item.tierId);
+      if (bucket) bucket.push(item);
+      else unranked.push(item);
+    });
+
+    const positionById = new Map();
+    for (const list of [...byTier.values(), unranked]) {
+      list.forEach((item, index) => positionById.set(item.id, { position: index, count: list.length }));
+    }
+
+    return { byTier, unranked, positionById };
+  }, [items, tiers]);
 
   const BASE_COLORS = [
     '#f87171', '#fdba74', '#fcd34d', '#fde047',
@@ -145,6 +170,9 @@ const CreateTierList = () => {
 
   const handleGenerateCards = () => {
     if (!quickAddText.trim()) return;
+    // Generating a new batch invalidates any in-progress pair comparison.
+    // Return to the normal editor so the freshly-created cards are immediately usable.
+    if (createMode === 'pair') stopPairMode();
     const newItems = quickAddText.split(/[,\n]+/).map(s => s.trim()).filter(Boolean).map((item, index) => ({
         id: `item-${Date.now()}-${index}`,
         content: item,
@@ -206,6 +234,61 @@ const CreateTierList = () => {
   const handleReturnToPool = () => {
     setItems(items.map(item => ({ ...item, tierId: null })));
   };
+
+  const startPairMode = () => {
+    if (items.length < 2) {
+      toast.warning(t('create.pairNeedItems'));
+      return;
+    }
+    const tierIndex = new Map(tiers.map((tier, index) => [tier.id, index]));
+    const orderedIds = [...items]
+      .sort((left, right) => (tierIndex.get(left.tierId) ?? tiers.length) - (tierIndex.get(right.tierId) ?? tiers.length))
+      .map((item) => item.id);
+    setPairState({ list: orderedIds, cursor: 0, swapped: false, pass: 1, done: false });
+    setCreateMode('pair');
+  };
+
+  const stopPairMode = () => {
+    setCreateMode('drag');
+    setPairState({ list: [], cursor: 0, swapped: false, pass: 1, done: false });
+  };
+
+  const choosePairWinner = (winnerId) => {
+    setPairState((previous) => {
+      if (previous.done || previous.list.length < 2) return previous;
+      const nextList = [...previous.list];
+      const leftId = nextList[previous.cursor];
+      const rightId = nextList[previous.cursor + 1];
+      let swapped = previous.swapped;
+      if (winnerId === rightId) {
+        nextList[previous.cursor] = rightId;
+        nextList[previous.cursor + 1] = leftId;
+        swapped = true;
+      }
+
+      const passComplete = previous.cursor >= nextList.length - 2;
+      if (passComplete && !swapped) {
+        return { ...previous, list: nextList, done: true };
+      }
+      return passComplete
+        ? { list: nextList, cursor: 0, swapped: false, pass: previous.pass + 1, done: false }
+        : { ...previous, list: nextList, cursor: previous.cursor + 1, swapped, done: false };
+    });
+  };
+
+  useEffect(() => {
+    if (!pairState.done || pairState.list.length === 0) return;
+    const tierCount = Math.max(1, tiers.length);
+    const order = new Map(pairState.list.map((id, index) => [id, index]));
+    setItems((previous) => previous.map((item) => {
+      const rank = order.get(item.id);
+      if (rank == null) return item;
+      const tierIndex = Math.min(tierCount - 1, Math.floor((rank * tierCount) / pairState.list.length));
+      return { ...item, tierId: tiers[tierIndex]?.id ?? null };
+    }));
+    toast.success(t('create.pairComplete'));
+    stopPairMode();
+  }, [pairState.done, pairState.list, tiers, setItems, toast, t]);
 
   // ฟังก์ชัน Hashtag
   const handleToggleHashtag = (tag) => selectedHashtags.includes(tag) ? setSelectedHashtags(selectedHashtags.filter((x) => x !== tag)) : setSelectedHashtags([...selectedHashtags, tag]);
@@ -316,9 +399,9 @@ const CreateTierList = () => {
   };
 
   const renderItemCard = item => {
-    const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
+    const meta = itemGroups.positionById.get(item.id) || { position: 0, count: 1 };
 
-    return <EditorItem key={item.id} item={item} position={mates.findIndex(i => i.id === item.id)} count={mates.length}
+    return <EditorItem key={item.id} item={item} position={meta.position} count={meta.count}
       onMove={() => setSelectedItem(item)} onShift={direction => shiftItem(item.id, direction)} onDelete={() => handleDeleteItem(item.id)}
       onDragStart={e => handleDragStart(e, item.id)} onDragEnd={endDrag} />;
 
@@ -386,7 +469,7 @@ const CreateTierList = () => {
       toast.success(t('create.successPublish'));
       // 📍 จำโพสต์ที่เพิ่ง publish ไว้ ให้ Home Feed ดันขึ้นการ์ดแรก (transient — รีหน้าแล้วหาย)
       markLastPublished(data?.id, currentUser.id);
-      navigate('/');
+      navigate(data?.id ? `/post/${encodeURIComponent(data.id)}?published=1` : '/');
     }
   };
 
@@ -473,15 +556,23 @@ const CreateTierList = () => {
 
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8">
-        <h1 className="text-3xl font-black mb-2 text-brand">{t('create.title')}</h1>
-        <p className="text-muted font-medium">{t('create.subtitle')}</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-black text-brand">{t('create.title')}</h1>
+          {!currentUser && (
+            <span className="rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
+              {t('create.guestStart')}
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-muted font-medium">{t('create.subtitle')}</p>
+        <p className="mt-1 text-xs font-semibold text-muted">{t('create.detailsLater')}</p>
       </div>
 
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
         
         {/* LEFT SIDEBAR */}
         <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          <details open={detailsOpen} onToggle={e => setDetailsOpen(e.currentTarget.open)} className="glass p-4 sm:p-6 rounded-2xl"><summary className="font-bold cursor-pointer">{t('editor.details')}</summary><div className="flex flex-col gap-5 mt-4">
+          <details open={detailsOpen} onToggle={e => setDetailsOpen(e.currentTarget.open)} className="order-1 glass p-4 sm:p-6 rounded-2xl"><summary className="font-bold cursor-pointer">{t('editor.details')}</summary><div className="flex flex-col gap-5 mt-4">
             <div>
               <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.templateName')}</label>
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('create.templateNamePh')} className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
@@ -562,7 +653,7 @@ const CreateTierList = () => {
             </div>
           </div></details>
 
-          <div className="glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4">
+          <div className="order-2 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4">
             <h3 className="font-black text-brand mb-1 flex items-center gap-2"><span className="text-xl">✨</span> {t('create.quickAdd')}</h3>
             <p className="text-xs text-muted mb-2 font-medium">{t('create.quickAddHelp')}</p>
             <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
@@ -571,11 +662,78 @@ const CreateTierList = () => {
                 <span className="text-lg leading-none">⊕</span> {t('create.generate')}
               </button>
             </div>
+
+            <div className="border-t border-line-soft/60 pt-4">
+              <div className="flex items-center gap-2 text-sm font-black text-ink">
+                <ArrowLeftRight size={16} className="text-brand" />
+                {t('create.modeTitle')}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => createMode === 'pair' ? stopPairMode() : setCreateMode('drag')}
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${createMode === 'drag' ? 'border-brand bg-brand/10 text-brand' : 'border-line-soft text-muted hover:bg-surface-glass hover:text-ink'}`}
+                >
+                  {t('create.dragMode')}
+                </button>
+                <button
+                  type="button"
+                  onClick={startPairMode}
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${createMode === 'pair' ? 'border-brand bg-brand/10 text-brand' : 'border-line-soft text-muted hover:bg-surface-glass hover:text-ink'}`}
+                >
+                  {t('create.pairMode')}
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted">
+                {createMode === 'pair' ? t('create.pairProgress', { pass: pairState.pass }) : t('create.modeHelp')}
+              </p>
+            </div>
           </div>
         </div>
 
         {/* RIGHT CANVAS */}
         <div className="w-full lg:w-2/3 flex flex-col gap-6">
+          {createMode === 'pair' ? (
+            <div className="glass p-4 sm:p-6 rounded-2xl">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">{t('create.pairEyebrow')}</p>
+                  <h2 className="mt-1 text-xl font-black text-ink">{t('create.pairTitle')}</h2>
+                  <p className="mt-1 text-sm font-medium text-muted">{t('create.pairHelp')}</p>
+                </div>
+                <button type="button" onClick={stopPairMode} className="rounded-lg border border-line-soft px-3 py-1.5 text-xs font-bold text-muted hover:bg-surface-glass hover:text-ink">
+                  {t('create.exitPair')}
+                </button>
+              </div>
+
+              {pairState.list.length >= 2 && (
+                <div className="mt-8">
+                  <div className="mb-3 text-center text-xs font-bold text-muted">
+                    {t('create.pairStep', { current: Math.min(pairState.cursor + 1, pairState.list.length - 1), total: pairState.list.length - 1 })}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[pairState.list[pairState.cursor], pairState.list[pairState.cursor + 1]].map((id, index) => {
+                      const item = items.find((candidate) => candidate.id === id);
+                      if (!item) return null;
+                      return (
+                        <button
+                          type="button"
+                          key={id}
+                          onClick={() => choosePairWinner(id)}
+                          className="group min-h-32 rounded-2xl border border-line-soft bg-surface p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-md active:scale-[0.98]"
+                        >
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted">{index === 0 ? 'A' : 'B'}</span>
+                          <span className="mt-2 block text-lg font-black leading-tight text-ink group-hover:text-brand">{item.content}</span>
+                          <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-brand"><Check size={14} /> {t('create.chooseThis')}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-5 text-center text-xs font-medium text-muted">{t('create.pairHint')}</p>
+                </div>
+              )}
+            </div>
+          ) : (
           <div className="glass p-4 sm:p-6 rounded-2xl ">
 
             <div className="flex flex-col gap-3">
@@ -588,7 +746,7 @@ const CreateTierList = () => {
                     className={`w-24 p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
                   />
                   <div className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center bg-transparent" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
-                    {items.filter(item => item.tierId === tier.id).map(renderItemCard)}
+                    {(itemGroups.byTier.get(tier.id) ?? []).map(renderItemCard)}
                   </div>
 
                   <div className="w-14 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
@@ -624,17 +782,17 @@ const CreateTierList = () => {
                 </div>
               </div>
               <div className="bg-surface-glass border border-line-soft min-h-24 rounded-xl p-3 flex flex-wrap gap-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
-                {items.filter(item => item.tierId === null).length === 0 ? (
+                {itemGroups.unranked.length === 0 ? (
                   <span className="text-muted text-sm italic font-medium w-full text-center my-5 pointer-events-none">{t('create.noItems')}</span>
                 ) : (
-                  items.filter(item => item.tierId === null).map(renderItemCard)
+                  itemGroups.unranked.map(renderItemCard)
                 )}
               </div>
             </div>
 
 
           </div>
-          
+          )}
         </div>
       </div>
       <EditorToolbar history={itemHistory} ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handlePublish} saving={isPublishing} />

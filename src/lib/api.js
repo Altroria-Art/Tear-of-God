@@ -209,6 +209,27 @@ export async function fetchUserProfile(userId, _viewerId = null) {
   }
 }
 
+// Pin one of the current user's published rankings to their Taste Identity.
+// The server derives the user from the session cookie; userId is intentionally
+// not sent so a client cannot pin on behalf of another account.
+export async function setProfilePin(rankingId, pinned, position = 0) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/profile-pins`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: pinned ? 'pin' : 'unpin',
+        ranking_id: rankingId,
+        position,
+      }),
+    });
+    if (response.status === 401) window.dispatchEvent(new Event('tog-session-expired'));
+    return await response.json();
+  } catch {
+    return { error: i18n.t('errors.actionFailed') };
+  }
+}
+
 export async function toggleFollow(_followerId, followingId, isFollowing) {
   try {
     const response = await apiFetch(`${API_URL}/api/follows`, {
@@ -229,6 +250,78 @@ export async function fetchFollowList(userId, type) {
   } catch (error) {
     console.error("fetchFollowList error:", error);
     return { data: [], error: i18n.t('errors.fetchFailed') };
+  }
+}
+
+// ติดตามหัวข้อ (แฮชแท็ก / หมวดหมู่ / เทมเพลต) — สถานะนี้เป็นของผู้ชมปัจจุบัน
+export async function fetchTopicFollow(topicType, topicKey) {
+  try {
+    const params = new URLSearchParams({ topic_type: topicType, topic_key: topicKey });
+    return await getJSON(`${API_URL}/api/topic-follows?${params.toString()}`);
+  } catch (error) {
+    console.error('fetchTopicFollow error:', error);
+    return { success: false, isFollowing: false, followerCount: 0, error: i18n.t('errors.fetchFailed') };
+  }
+}
+
+export async function fetchMyTopicFollows() {
+  try {
+    return await getJSON(`${API_URL}/api/topic-follows?mine=1`);
+  } catch (error) {
+    console.error('fetchMyTopicFollows error:', error);
+    return { success: false, data: [], error: i18n.t('errors.fetchFailed') };
+  }
+}
+
+export async function toggleTopicFollow(topicType, topicKey, isFollowing) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/topic-follows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: isFollowing ? 'unfollow' : 'follow',
+        topic_type: topicType,
+        topic_key: topicKey,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) result.success = false;
+    return result;
+  } catch {
+    return { success: false, error: i18n.t('errors.actionFailed') };
+  }
+}
+
+export async function fetchNotifications(limit = 20) {
+  try {
+    return await getJSON(`${API_URL}/api/notifications?limit=${encodeURIComponent(limit)}`);
+  } catch (error) {
+    console.error('fetchNotifications error:', error);
+    return { success: false, data: [], unreadCount: 0, error: i18n.t('errors.fetchFailed') };
+  }
+}
+
+// กิจกรรมจากบัญชีที่ผู้ใช้กำลังติดตาม — เป็นข้อมูลเฉพาะผู้ชม จึงให้ API
+// ตรวจ session เองและไม่ cache ข้ามผู้ใช้
+export async function fetchFollowingActivity(limit = 20) {
+  try {
+    return await getJSON(`${API_URL}/api/activity?limit=${encodeURIComponent(limit)}`);
+  } catch (error) {
+    console.error('fetchFollowingActivity error:', error);
+    return { success: false, data: [], error: i18n.t('errors.fetchFailed') };
+  }
+}
+
+export async function markNotificationRead(id) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/notifications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(id ? { action: 'read', id } : { action: 'read_all' }),
+    });
+    return await response.json();
+  } catch {
+    return { success: false, error: i18n.t('errors.actionFailed') };
   }
 }
 
@@ -346,6 +439,16 @@ export async function fetchTemplates({ hashtag, category, limit, page, sort, q, 
   } catch (error) {
     console.error("fetchTemplates error:", error);
     return { data: [], error: i18n.t('errors.templateFetchFailed') };
+  }
+}
+
+export async function fetchSpotlights(refreshKey = null) {
+  try {
+    const suffix = refreshKey == null ? '' : `?cycle=${encodeURIComponent(refreshKey)}`;
+    return await getJSON(`${API_URL}/api/spotlights${suffix}`);
+  } catch (error) {
+    console.error("fetchSpotlights error:", error);
+    return { data: null, error: i18n.t('errors.spotlightFetchFailed') };
   }
 }
 
@@ -482,6 +585,15 @@ export async function fetchAdminStats(_userId) {
     return await getJSON(url);
   } catch (error) {
     console.error("fetchAdminStats error:", error);
+    return { data: null, error: i18n.t('errors.statsFetchFailed') };
+  }
+}
+
+export async function fetchAdminAnalytics(days = 7) {
+  try {
+    return await getJSON(`${API_URL}/api/admin?action=analytics&days=${encodeURIComponent(days)}`);
+  } catch (error) {
+    console.error("fetchAdminAnalytics error:", error);
     return { data: null, error: i18n.t('errors.statsFetchFailed') };
   }
 }

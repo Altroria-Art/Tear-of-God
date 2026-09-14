@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
-import { Download, Flag, X, Trash2 } from 'lucide-react'
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { CheckCircle2, Download, Flag, X, Trash2, Swords } from 'lucide-react'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import AboutTemplateCard from '../components/post/AboutTemplateCard'
@@ -16,11 +16,13 @@ import ExportCard from '../components/ui/ExportCard'
 import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
 import { formatDbDate } from '../lib/format'
+import { challengeUrl, shareUrl } from '../lib/share'
 import { useTranslation } from 'react-i18next'
 
 export default function PostDetail() {
   const { postId } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { currentUser } = useUser()
   const toast = useToast()
   const { t } = useTranslation()
@@ -273,6 +275,7 @@ export default function PostDetail() {
 
   const { author, authorId, postedAt, category, title, description, tiers, stats } = post
   const itemCount = tiers.reduce((n, { items }) => n + items.length, 0)
+  const justPublished = searchParams.get('published') === '1' && currentUser?.id === authorId
   // ใช้เฉพาะ template ที่ตรงกับโพสต์ปัจจุบัน — กัน metadata ของ template เก่าค้างจอตอนสลับโพสต์
   const tpl = template?.id === post.templateId ? template : null
 
@@ -283,6 +286,38 @@ export default function PostDetail() {
           <Link to="/" className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
+
+          {justPublished && post.templateId && (
+            <section className="mt-4 overflow-hidden rounded-2xl border border-highlight/40 bg-highlight/10 p-5 shadow-sm sm:p-6" aria-labelledby="post-publish-challenge-title">
+              <div className="flex items-start gap-3">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-status-success text-canvas shadow-sm">
+                  <CheckCircle2 size={25} strokeWidth={2.5} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h1 id="post-publish-challenge-title" className="text-xl font-black text-ink">{t('challenge.publishedTitle')}</h1>
+                  <p className="mt-1 text-sm leading-6 text-muted">{t('challenge.publishedHint')}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModal('share')}
+                className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-highlight px-5 py-3 text-base font-black text-canvas shadow-md transition-all hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg active:scale-[0.98]"
+              >
+                <Swords size={22} strokeWidth={2.5} /> {t('challenge.challengeFriend')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams)
+                  next.delete('published')
+                  setSearchParams(next, { replace: true })
+                }}
+                className="mt-3 w-full text-center text-xs font-bold text-muted hover:text-ink"
+              >
+                {t('challenge.maybeLater')}
+              </button>
+            </section>
+          )}
 
           <article className="mt-4 rounded-2xl border border-line-soft glass p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
@@ -379,6 +414,9 @@ export default function PostDetail() {
                 <ActionButton icon={CommentIcon} count={stats.comments} label={t('post.comments')} onClick={handleCommentClick} />
               </div>
               <div className="ml-auto flex items-center gap-3">
+                {post.templateId && (
+                  <ActionButton icon={Swords} label={t('challenge.action')} onClick={() => setModal('share')} activeClass="hover:text-highlight" />
+                )}
                 <ActionButton icon={Download} label={t('common.export')} onClick={handleExport} activeClass="hover:text-highlight" />
                 <ActionButton
                   icon={ShareIcon}
@@ -393,7 +431,8 @@ export default function PostDetail() {
             open={modal !== null}
             mode={modal}
             onClose={() => setModal(null)}
-            link={window.location.href}
+            link={shareUrl(`/post/${postId}`)}
+            challengeLink={post.templateId ? challengeUrl(post.templateId, postId) : null}
             preview={
               <ExportCard
                 title={title}

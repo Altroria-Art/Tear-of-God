@@ -51,7 +51,8 @@ export async function onRequest(context) {
   }
   try {
     context.data.user = await readSession(request, env.tear_of_god_db);
-    if (((mutation && path !== '/api/auth') || path === '/api/admin' || path.startsWith('/api/admin/')) && !context.data.user) {
+    const guestMutation = path === '/api/auth' || path === '/api/analytics';
+    if (((mutation && !guestMutation) || path === '/api/admin' || path.startsWith('/api/admin/')) && !context.data.user) {
       return withSecurityHeaders(Response.json({ success: false, error: 'กรุณาเข้าสู่ระบบอีกครั้ง / Please log in again' }, { status: 401, headers: { 'Cache-Control': 'no-store' } }));
     }
     const response = await context.next();

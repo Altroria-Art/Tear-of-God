@@ -1,4 +1,5 @@
 import { assertId, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+import { maybeNotifyTrending, recordLikeDigest } from '../lib/notifications.js';
 
 export async function onRequest(context) {
   const { request, env, data: auth } = context;
@@ -32,6 +33,7 @@ export async function onRequest(context) {
     const { results: existing } = await db.prepare(
       `SELECT * FROM votes WHERE ranking_id = ? AND user_id = ?`
     ).bind(rankingId, userId).all();
+    let likedTransition = false;
 
     // 2. ถ้า voteType เป็น null แปลว่าผู้ใช้กดย้ำเพื่อ "ยกเลิกไลก์/ดิสไลก์"
     if (!voteType) {
@@ -56,6 +58,7 @@ export async function onRequest(context) {
       if (existing.length > 0) {
         const oldVote = existing[0].vote_type;
         if (oldVote !== voteType) {
+          likedTransition = voteType === 'like';
           const statements = [
             db.prepare(`UPDATE votes SET vote_type = ? WHERE ranking_id = ? AND user_id = ?`).bind(voteType, rankingId, userId)
           ];
@@ -73,6 +76,7 @@ export async function onRequest(context) {
           db.prepare(`INSERT INTO votes (id, ranking_id, user_id, vote_type) VALUES (?, ?, ?, ?)`).bind(voteId, rankingId, userId, voteType)
         ];
         if (voteType === 'like') {
+          likedTransition = true;
           statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1 WHERE id = ?`).bind(rankingId));
         } else {
           statements.push(db.prepare(`UPDATE rankings SET dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
@@ -80,6 +84,9 @@ export async function onRequest(context) {
         await db.batch(statements);
       }
     }
+
+    await maybeNotifyTrending(db, rankingId, userId);
+    if (likedTransition) await recordLikeDigest(db, rankingId, userId);
 
     // 4. อ่านค่าจริงหลังเขียนเสร็จแล้วส่งกลับไป — ฝั่ง client จะได้ไม่ต้องเดาด้วยการ +1/-1 เอง
     //    (ดู docs/feature-like-dislike-voting.md §8 เรื่องเลขที่บวกเองแล้วเพี้ยนสะสม)

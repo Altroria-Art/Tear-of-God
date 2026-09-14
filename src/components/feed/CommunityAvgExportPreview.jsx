@@ -1,15 +1,27 @@
 import TierLabel from '../tier/TierLabel'
-import { useTranslation } from 'react-i18next'
+import ShareQr from '../ui/ShareQr'
 
 // Export preview สำหรับ Community Average — ใช้ capture เป็น PNG (ภาพตารางสะอาด)
 // แสดงชื่อ item ต่อ tier ตามที่เห็นบนหน้า ไม่มีป้ายคะแนน/โหวตยิบย่อยปนในภาพ
 // สำหรับจุด export ของ Community Average ใน TemplateDetailPage และ CommunityAveragePage
-export default function CommunityAvgExportPreview({ title, category, updatedText, tiers = [] }) {
-  const { t } = useTranslation()
+export default function CommunityAvgExportPreview({
+  title,
+  category,
+  updatedText,
+  tiers = [],
+  shareLink = null,
+  shareFormat = 'landscape',
+  shareCta = 'Rank it and compare your taste',
+  shareQrHint = 'Scan to open this list',
+}) {
   const totalItems = tiers.reduce((acc, row) => acc + (row.items?.length || 0), 0)
+  const qrSize = shareFormat === 'story' ? 78 : shareFormat === 'square' ? 68 : 56;
+  const shareFrameClass = shareLink
+    ? shareFormat === 'story' ? 'min-h-[640px]' : shareFormat === 'square' ? 'min-h-[540px]' : ''
+    : '';
 
   return (
-    <div className="w-full rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm text-gray-900" style={{ background: '#ffffff' }}>
+    <div className={`w-full rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm text-gray-900 ${shareFrameClass}`} style={{ background: '#ffffff' }}>
       {/* Header: Infographic style */}
       <div className="mb-4 flex flex-col gap-1.5 border-b border-gray-100 pb-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -82,6 +94,16 @@ export default function CommunityAvgExportPreview({ title, category, updatedText
         })}
       </div>
 
+      {shareLink && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+          <div className="min-w-0">
+            <p className="text-sm font-black leading-snug text-gray-900">{shareCta}</p>
+            <p className="mt-1 text-[10px] font-semibold text-gray-500">{shareQrHint}</p>
+          </div>
+          <ShareQr value={shareLink} size={qrSize} />
+        </div>
+      )}
+
       {/* Footer: Watermark */}
       <div className="mt-4 pt-3 flex items-center justify-between border-t border-gray-100 text-[11px] text-gray-400 font-medium">
         <span>Tear of God Community Ranking</span>
@@ -89,4 +111,4 @@ export default function CommunityAvgExportPreview({ title, category, updatedText
       </div>
     </div>
   )
-}
+}

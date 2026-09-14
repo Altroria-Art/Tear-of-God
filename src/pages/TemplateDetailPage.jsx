@@ -15,6 +15,7 @@ import { shareUrl } from '../lib/share'
 import TierRow from '../components/feed/TierRow'
 import HashtagList from '../components/template/HashtagList'
 import BookmarkButton from '../components/template/BookmarkButton'
+import TopicFollowButton from '../components/topic/TopicFollowButton'
 import { useTranslation } from 'react-i18next'
 
 const PAGE_SIZE = 5
@@ -445,6 +446,12 @@ export default function TemplateDetailPage() {
               <BookmarkButton 
                 template={template} 
                 className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97]" 
+              />
+              <TopicFollowButton
+                topicType="template"
+                topicKey={template.id}
+                showCount={false}
+                className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] disabled:cursor-wait disabled:opacity-60"
               />
               <button
                 type="button"
