@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Bookmark, PlusCircle, Home, Compass } from 'lucide-react';
+import { Bookmark, PlusCircle, Home, Compass, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 
@@ -19,6 +19,9 @@ export default function HomeLeftSidebar() {
         </Link>
         <Link to="/discover" className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-glass text-[15px] font-bold transition-colors">
           <Compass size={20} /> {t('nav.discover')}
+        </Link>
+        <Link to="/profile" className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-glass text-[15px] font-bold transition-colors">
+          <User size={20} /> {t('nav.profile')}
         </Link>
         <Link to="/discover?view=saved" className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-glass text-[15px] font-bold transition-colors mt-2 border-t border-line-soft pt-4">
           <Bookmark size={20} /> {t('discover.savedTemplates')}

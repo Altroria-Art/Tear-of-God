@@ -3,7 +3,7 @@ import { buildTierRows } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, fetchFollowingActivity, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
+import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
 import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Sparkles, Users, BarChart3 } from 'lucide-react';
 import { challengeUrl, shareUrl } from '../lib/share';
 import ShareExportModal from '../components/ui/ShareExportModal';
@@ -16,7 +16,6 @@ import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
 import HomeRightSidebar from '../components/feed/HomeRightSidebar';
 import FeaturedPrompts from '../components/feed/FeaturedPrompts';
 import FreshnessHub from '../components/feed/FreshnessHub';
-import ActivityFeed from '../components/feed/ActivityFeed';
 import GuestAuthPrompt from '../components/auth/GuestAuthPrompt';
 import { useTranslation } from 'react-i18next';
 
@@ -335,8 +334,6 @@ export default function HomeFeed() {
   const { currentUser } = useUser();
   const { t } = useTranslation();
   const [posts, setPosts] = useState([]);
-  const [activity, setActivity] = useState([]);
-  const [activityLoading, setActivityLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true) // หน้าแรกเท่านั้น — กันจอกระพริบตอน append หน้าถัดไป
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -384,6 +381,7 @@ export default function HomeFeed() {
   // matching, or authors followed by the signed-in viewer.
   const feedType = activeTab;
   const feedLocked = activeTab !== 'trending' && !currentUser;
+  const resolvedFeedTypeRef = useRef(feedType);
   const seedRef = useRef(Math.floor(Math.random() * 1e9));
   // 📍 [ใหม่]: ranking ที่เพิ่ง publish ของฉัน — ขึ้นการ์ดแรกหน้า Home แค่ mount แรกหลัง publish
   // (ได้จาก src/lib/lastPublished.js; F5/เข้าหน้าใหม่ = module reset → null → สับสุ่มตามเดิม)
@@ -417,7 +415,8 @@ export default function HomeFeed() {
       loadingRef.current = true
       // consume pin ครั้งเดียวตอน mount (ครั้งถัดไป/เข้าหน้าใหม่ = ไม่มีอีก → กลับสุ่ม)
       pinnedIdRef.current = takeLastPublished(currentUser?.id)
-      const { data } = await fetchRankings({
+      resolvedFeedTypeRef.current = feedType;
+      let result = await fetchRankings({
         userId: currentUser?.id,
         feedType,
         seed: seedRef.current,
@@ -425,6 +424,21 @@ export default function HomeFeed() {
         page: 1,
         limit: PAGE_SIZE
       })
+      // For You must always be useful. The API normally falls back to Trending
+      // for accounts without enough taste signals; keep the same guarantee in
+      // the client if an older database/schema or a transient API error returns
+      // an empty personalized result.
+      if (feedType === 'for_you' && currentUser?.id && (!result.data?.length || result.error)) {
+        result = await fetchRankings({
+          userId: currentUser.id,
+          feedType: 'trending',
+          seed: seedRef.current,
+          page: 1,
+          limit: PAGE_SIZE
+        })
+        resolvedFeedTypeRef.current = 'trending';
+      }
+      const data = result.data;
       if (cancelled) return
       const nextHasMore = (data?.length || 0) === PAGE_SIZE
       setPosts(data || [])
@@ -436,25 +450,6 @@ export default function HomeFeed() {
     loadFirstPage()
     return () => { cancelled = true }
   }, [currentUser, activeTab, cacheKey, feedType, feedLocked]);
-
-  // Following has two complementary surfaces: new rankings from followed
-  // authors and their recent actions (likes / template participation).
-  useEffect(() => {
-    let cancelled = false;
-    if (activeTab !== 'following' || !currentUser?.id) {
-      setActivity([]);
-      setActivityLoading(false);
-      return () => { cancelled = true; };
-    }
-
-    setActivityLoading(true);
-    fetchFollowingActivity(12).then(({ data }) => {
-      if (cancelled) return;
-      setActivity(Array.isArray(data) ? data : []);
-      setActivityLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [activeTab, currentUser?.id]);
 
   // ไม่มี total จาก API สำหรับฟีดทั่วไป (เฉพาะ template_id เท่านั้นที่ API คำนวณ total ให้ —
   // ดู functions/api/rankings.js) เลยเช็คจบฟีดจากจำนวนที่ได้กลับมาน้อยกว่า PAGE_SIZE แทน
@@ -468,7 +463,7 @@ export default function HomeFeed() {
     setIsLoadingMore(true)
     const { data } = await fetchRankings({
       userId: currentUser?.id,
-      feedType,
+      feedType: resolvedFeedTypeRef.current,
       seed: seedRef.current,
       pin: pinnedIdRef.current || undefined,
       page: nextPage,
@@ -485,7 +480,7 @@ export default function HomeFeed() {
     setHasMore((data?.length || 0) === PAGE_SIZE)
     setIsLoadingMore(false)
     loadingRef.current = false
-  }, [hasMore, currentUser, cacheKey, feedType, feedLocked]);
+  }, [hasMore, currentUser, cacheKey, feedLocked]);
 
   // callback ref แทน useRef+useEffect — React เรียก callback นี้เองทันทีที่ DOM node
   // ของ sentinel ถูกสร้าง/ถอดออกจริงๆ (ตอน commit) ไม่ต้องเดาว่า effect จะ rerun
@@ -506,11 +501,9 @@ export default function HomeFeed() {
 
   const displayData = posts;
   const followingEmpty = !isLoading
-    && !activityLoading
     && !feedLocked
     && activeTab === 'following'
-    && displayData.length === 0
-    && activity.length === 0;
+    && displayData.length === 0;
   const LockedIcon = activeTab === 'following' ? Users : Sparkles;
 
   const gateGuestInteraction = useCallback((event) => {
@@ -631,10 +624,6 @@ export default function HomeFeed() {
                 {t('feed.followingEmptyCta')}
               </button>
             </div>
-          )}
-
-          {activeTab === 'following' && currentUser && !isLoading && (
-            <ActivityFeed events={activity} loading={activityLoading} />
           )}
 
           {!isLoading && displayData.map((post) => (
