@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Avatar from '../components/ui/Avatar'
 import TierLabel from '../components/tier/TierLabel'
+import TopicFollowButton from '../components/topic/TopicFollowButton'
 import { fetchRankings } from '../lib/api' // 📍 นำเข้า API
 import { useTranslation } from 'react-i18next'
 
@@ -103,10 +104,11 @@ export default function CategoryPage() {
       <header className="mb-8 flex items-center gap-4">
         <Link to="/discover" className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"><ArrowLeftIcon className="h-5 w-5" /></Link>
         <div className={`flex h-16 w-16 items-center justify-center rounded-xl text-4xl ${meta.bg}`}><span aria-hidden="true">{meta.icon}</span></div>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold text-ink">{metaTitle}</h1>
           <p className="mt-1 text-ink-soft">{metaSubtitle}</p>
         </div>
+        <TopicFollowButton topicType="category" topicKey={categoryId} />
       </header>
 
       {isLoading ? (

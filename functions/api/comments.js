@@ -1,4 +1,5 @@
 import { INPUT_LIMITS, assertId, assertString, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+import { maybeNotifyTrending } from '../lib/notifications.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -38,19 +39,32 @@ export async function onRequest({ request, env, data: auth }) {
       const content = assertString(body.content, 'content', { min: 1, max: INPUT_LIMITS.comment, trim: true });
 
       // Middleware already verified the session and loaded this profile from D1.
-      const ranking = await db.prepare('SELECT id FROM rankings WHERE id = ?').bind(ranking_id).first();
+      const ranking = await db.prepare('SELECT id, user_id FROM rankings WHERE id = ?').bind(ranking_id).first();
       if (!ranking) return jsonResponse({ success: false, error: 'โพสต์ไม่มีอยู่ในระบบ' }, 404);
 
+      let parentComment = null;
       if (parent_id) {
-        const parent = await db.prepare('SELECT id FROM comments WHERE id = ? AND ranking_id = ?').bind(parent_id, ranking_id).first();
-        if (!parent) return jsonResponse({ success: false, error: 'คอมเมนต์ที่ต้องการตอบกลับไม่มีอยู่จริง' }, 404);
+        parentComment = await db.prepare('SELECT id, user_id FROM comments WHERE id = ? AND ranking_id = ?').bind(parent_id, ranking_id).first();
+        if (!parentComment) return jsonResponse({ success: false, error: 'คอมเมนต์ที่ต้องการตอบกลับไม่มีอยู่จริง' }, 404);
       }
 
       const commentId = crypto.randomUUID();
-      await db.batch([
+      const statements = [
         db.prepare('INSERT INTO comments (id, ranking_id, user_id, content, parent_id) VALUES (?1, ?2, ?3, ?4, ?5)').bind(commentId, ranking_id, user_id, content, parent_id),
         db.prepare('UPDATE rankings SET comments_count = comments_count + 1 WHERE id = ?').bind(ranking_id)
-      ]);
+      ];
+      const recipients = new Set();
+      if (ranking.user_id && ranking.user_id !== user_id) recipients.add(ranking.user_id);
+      if (parentComment?.user_id && parentComment.user_id !== user_id) recipients.add(parentComment.user_id);
+      for (const recipientId of recipients) {
+        statements.push(db.prepare(`
+          INSERT OR IGNORE INTO notifications
+            (id, user_id, actor_id, type, ranking_id, comment_id)
+          VALUES (?, ?, ?, 'comment', ?, ?)
+        `).bind(crypto.randomUUID(), recipientId, user_id, ranking_id, commentId));
+      }
+      await db.batch(statements);
+      await maybeNotifyTrending(db, ranking_id, user_id);
 
       // ดึงข้อมูลที่เพิ่งสร้างส่งกลับไปให้หน้าเว็บแสดงผลทันที
       const { results } = await db.prepare(`

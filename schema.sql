@@ -22,6 +22,22 @@ CREATE TABLE IF NOT EXISTS follows (
   FOREIGN KEY (following_id) REFERENCES profiles(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+
+-- ผู้ใช้สามารถติดตามหัวข้อเพื่อปรับ For You ให้ตรงความสนใจยิ่งขึ้น
+-- topic_key: hashtag (ไม่รวม # และเก็บเป็น lowercase), category (lowercase), หรือ template id
+CREATE TABLE IF NOT EXISTS topic_follows (
+  user_id TEXT NOT NULL,
+  topic_type TEXT NOT NULL CHECK(topic_type IN ('hashtag', 'category', 'template')),
+  topic_key TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, topic_type, topic_key),
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_topic_follows_user_created
+  ON topic_follows(user_id, topic_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_topic_follows_topic
+  ON topic_follows(topic_type, topic_key, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS rankings (
   id TEXT PRIMARY KEY,
   title TEXT,
@@ -75,6 +91,41 @@ CREATE TABLE IF NOT EXISTS comments (
   FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
   FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  actor_id TEXT,
+  type TEXT NOT NULL CHECK(type IN ('comment', 'follow', 'challenge', 'template_use', 'following_rank', 'trending', 'community_average', 'like_digest')),
+  ranking_id TEXT,
+  source_ranking_id TEXT,
+  comment_id TEXT,
+  template_id TEXT,
+  aggregate_count INTEGER NOT NULL DEFAULT 1 CHECK(aggregate_count > 0),
+  digest_key TEXT UNIQUE,
+  is_read INTEGER NOT NULL DEFAULT 0 CHECK(is_read IN (0, 1)),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES profiles(id) ON DELETE SET NULL,
+  FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
+  FOREIGN KEY (source_ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
+  FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread_created
+  ON notifications(user_id, is_read, created_at DESC, id DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_follow_unique
+  ON notifications(user_id, actor_id) WHERE type = 'follow';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_comment_unique
+  ON notifications(user_id, comment_id) WHERE type = 'comment';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_challenge_unique
+  ON notifications(ranking_id) WHERE type = 'challenge';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_template_use_unique
+  ON notifications(user_id, ranking_id) WHERE type = 'template_use';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_following_rank_unique
+  ON notifications(user_id, ranking_id) WHERE type = 'following_rank';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_trending_unique
+  ON notifications(ranking_id) WHERE type = 'trending';
 
 CREATE TABLE IF NOT EXISTS templates (
   id TEXT PRIMARY KEY,
@@ -130,6 +181,22 @@ CREATE INDEX IF NOT EXISTS idx_comments_ranking_id ON comments(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
 CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category);
 CREATE INDEX IF NOT EXISTS idx_template_items_template_id ON template_items(template_id);
+
+-- ผู้ใช้เลือก Tier List ที่สะท้อนรสนิยมของตัวเองไว้บนโปรไฟล์ได้สูงสุด 3 รายการ
+-- position ใช้สำหรับเรียงลำดับการแสดงผล (ไม่บังคับให้แต่ละรายการมี position ไม่ซ้ำกัน
+-- เพื่อให้การกด pin พร้อมกันสองแท็บยังปลอดภัยและไม่ทำให้ transaction ล้ม)
+CREATE TABLE IF NOT EXISTS profile_pins (
+  user_id TEXT NOT NULL,
+  ranking_id TEXT NOT NULL,
+  position INTEGER NOT NULL DEFAULT 0 CHECK(position BETWEEN 0 AND 2),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, ranking_id),
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_profile_pins_user_position
+  ON profile_pins(user_id, position ASC, created_at DESC);
+
 -- like/dislike/comment เป็นของ "Community Average" ของ template — ไม่ใช่ ranking เดียว
 -- เพราะตาราง Community Average เป็นข้อมูลรวมของเทมเพลต จึงผูกกับ template_id โดยตรง
 CREATE TABLE IF NOT EXISTS template_reactions (
@@ -228,6 +295,26 @@ CREATE TABLE IF NOT EXISTS template_bookmarks (
   PRIMARY KEY (user_id, template_id)
 );
 CREATE INDEX IF NOT EXISTS idx_template_bookmarks_template_id ON template_bookmarks(template_id);
+
+-- First-party product analytics. Store only the event taxonomy and anonymous
+-- session/entity identifiers needed for funnel analysis; no IP, user agent,
+-- free-form text, or form values are persisted.
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id TEXT PRIMARY KEY,
+  event_name TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  user_id TEXT,
+  entity_type TEXT,
+  entity_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_analytics_event_created
+  ON analytics_events(event_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_session_created
+  ON analytics_events(session_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_user_created
+  ON analytics_events(user_id, created_at DESC);
 
 
 -- Password Resets

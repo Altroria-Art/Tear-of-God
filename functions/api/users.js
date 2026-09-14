@@ -1,54 +1,286 @@
-// 📍 โปรไฟล์สาธารณะของผู้ใช้ — ใช้โดยหน้า /profile/:userId ตอนดูโปรไฟล์คนอื่น
-// ส่งกลับเฉพาะฟิลด์ที่ปลอดภัย (ไม่มี email/password เด็ดขาด)
+// Public profile endpoint. The response intentionally contains no email/password,
+// and now includes a small, query-time Taste Identity built from real activity.
 import { internalErrorResponse } from '../lib/request-guard.js';
+
+const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
+  status,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+function toNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+function parseTags(value) {
+  if (Array.isArray(value)) return value;
+  return String(value || '')
+    .split(',')
+    .map((tag) => tag.trim().replace(/^#/, '').toLowerCase())
+    .filter(Boolean);
+}
+
+function jaccard(left, right) {
+  if (!left.size && !right.size) return 0;
+  const intersection = [...left].filter((value) => right.has(value)).length;
+  const union = new Set([...left, ...right]).size;
+  return union ? intersection / union : 0;
+}
+
+async function collectTaste(db, userId) {
+  const [{ results: categoryRows }, { results: templateRows }, { results: tagRows }] = await Promise.all([
+    db.prepare(`
+      SELECT lower(trim(COALESCE(NULLIF(category, ''), 'general'))) AS category
+      FROM rankings
+      WHERE user_id = ?
+    `).bind(userId).all(),
+    db.prepare(`
+      SELECT DISTINCT template_id
+      FROM rankings
+      WHERE user_id = ? AND template_id IS NOT NULL AND template_id != ''
+    `).bind(userId).all(),
+    db.prepare(`
+      SELECT hashtags FROM rankings WHERE user_id = ?
+      UNION ALL
+      SELECT hashtags FROM templates WHERE creator_id = ?
+    `).bind(userId, userId).all(),
+  ]);
+
+  return {
+    categories: new Set((categoryRows || []).map((row) => String(row.category || 'general').toLowerCase())),
+    templates: new Set((templateRows || []).map((row) => String(row.template_id || '')).filter(Boolean)),
+    hashtags: new Set((tagRows || []).flatMap((row) => parseTags(row.hashtags))),
+  };
+}
+
+async function findSimilarUsers(db, userId, targetTaste) {
+  const categoryKeys = [...targetTaste.categories].slice(0, 12);
+  if (categoryKeys.length === 0) return [];
+
+  const placeholders = categoryKeys.map(() => '?').join(',');
+  const { results: candidateRows } = await db.prepare(`
+    SELECT DISTINCT p.id, p.username, p.avatar_url
+    FROM profiles p
+    JOIN rankings r ON r.user_id = p.id
+    WHERE p.id != ?
+      AND lower(trim(COALESCE(NULLIF(r.category, ''), 'general'))) IN (${placeholders})
+    GROUP BY p.id, p.username, p.avatar_url
+    ORDER BY COUNT(*) DESC, p.username ASC
+    LIMIT 60
+  `).bind(userId, ...categoryKeys).all();
+  if (!candidateRows?.length) return [];
+
+  const candidateIds = candidateRows.map((row) => row.id);
+  const candidatePlaceholders = candidateIds.map(() => '?').join(',');
+  const [categoryResult, templateResult, tagResult] = await Promise.all([
+    db.prepare(`
+      SELECT user_id, lower(trim(COALESCE(NULLIF(category, ''), 'general'))) AS category
+      FROM rankings
+      WHERE user_id IN (${candidatePlaceholders})
+    `).bind(...candidateIds).all(),
+    db.prepare(`
+      SELECT DISTINCT user_id, template_id
+      FROM rankings
+      WHERE user_id IN (${candidatePlaceholders}) AND template_id IS NOT NULL AND template_id != ''
+    `).bind(...candidateIds).all(),
+    db.prepare(`
+      SELECT user_id, hashtags FROM rankings WHERE user_id IN (${candidatePlaceholders})
+      UNION ALL
+      SELECT creator_id AS user_id, hashtags FROM templates WHERE creator_id IN (${candidatePlaceholders})
+    `).bind(...candidateIds, ...candidateIds).all(),
+  ]);
+
+  const tastes = new Map(candidateIds.map((id) => [id, {
+    categories: new Set(),
+    templates: new Set(),
+    hashtags: new Set(),
+  }]));
+  (categoryResult.results || []).forEach((row) => tastes.get(row.user_id)?.categories.add(String(row.category || 'general')));
+  (templateResult.results || []).forEach((row) => {
+    if (row.template_id) tastes.get(row.user_id)?.templates.add(String(row.template_id));
+  });
+  (tagResult.results || []).forEach((row) => {
+    parseTags(row.hashtags).forEach((tag) => tastes.get(row.user_id)?.hashtags.add(tag));
+  });
+
+  return candidateRows.map((candidate) => {
+    const taste = tastes.get(candidate.id);
+    const categoryScore = jaccard(targetTaste.categories, taste.categories);
+    const templateScore = jaccard(targetTaste.templates, taste.templates);
+    const hashtagScore = jaccard(targetTaste.hashtags, taste.hashtags);
+    return {
+      id: candidate.id,
+      username: candidate.username || 'Unknown',
+      avatar_url: candidate.avatar_url || null,
+      score: Math.round((categoryScore * 0.5 + templateScore * 0.3 + hashtagScore * 0.2) * 100),
+      shared_categories: [...targetTaste.categories].filter((value) => taste.categories.has(value)).slice(0, 3),
+    };
+  }).sort((left, right) => right.score - left.score || left.username.localeCompare(right.username)).slice(0, 3);
+}
+
+async function buildTasteIdentity(db, userId, viewerId, baseUser) {
+  const [categoryResult, topScoreResult, pinnedResult, templateStats, targetTaste] = await Promise.all([
+    db.prepare(`
+      SELECT lower(trim(COALESCE(NULLIF(category, ''), 'general'))) AS category, COUNT(*) AS count
+      FROM rankings
+      WHERE user_id = ?
+      GROUP BY lower(trim(COALESCE(NULLIF(category, ''), 'general')))
+      ORDER BY count DESC, category ASC
+    `).bind(userId).all(),
+    db.prepare(`
+      SELECT ris.item_id, COALESCE(i.name, ris.item_id) AS name, COUNT(*) AS count
+      FROM ranking_item_scores ris
+      JOIN rankings r ON r.id = ris.ranking_id
+      LEFT JOIN items i ON (i.id = ris.item_id OR i.name = ris.item_id)
+      WHERE r.user_id = ? AND ris.tier_index = 0
+      GROUP BY ris.item_id, COALESCE(i.name, ris.item_id)
+      ORDER BY count DESC, name ASC
+      LIMIT 8
+    `).bind(userId).all(),
+    db.prepare(`
+      SELECT p.ranking_id, p.position, p.created_at,
+             r.title, r.description, r.category, r.hashtags, r.template_id,
+             r.likes_count, r.dislikes_count, r.comments_count, r.created_at AS ranking_created_at
+      FROM profile_pins p
+      JOIN rankings r ON r.id = p.ranking_id
+      WHERE p.user_id = ?
+      ORDER BY p.position ASC, p.created_at DESC
+      LIMIT 3
+    `).bind(userId).all(),
+    db.prepare(`
+      SELECT COUNT(*) AS template_count, COALESCE(MAX(use_count), 0) AS max_template_uses
+      FROM templates
+      WHERE creator_id = ?
+    `).bind(userId).first(),
+    collectTaste(db, userId),
+  ]);
+
+  let topItemRows = topScoreResult?.results || [];
+  // Older rankings may predate ranking_item_scores. Fall back to the first tier
+  // defined by the template so those users still get a useful identity card.
+  if (topItemRows.length === 0) {
+    const fallback = await db.prepare(`
+      SELECT ri.item_id, COALESCE(i.name, ri.item_id) AS name, COUNT(*) AS count
+      FROM ranking_items ri
+      JOIN rankings r ON r.id = ri.ranking_id
+      LEFT JOIN templates t ON t.id = r.template_id
+      LEFT JOIN items i ON (i.id = ri.item_id OR i.name = ri.item_id)
+      WHERE r.user_id = ?
+        AND lower(ri.tier) = lower(CASE
+          WHEN json_valid(t.tiers) = 1 THEN COALESCE(json_extract(t.tiers, '$[0].label'), 'S')
+          ELSE 'S'
+        END)
+      GROUP BY ri.item_id, COALESCE(i.name, ri.item_id)
+      ORDER BY count DESC, name ASC
+      LIMIT 8
+    `).bind(userId).all();
+    topItemRows = fallback?.results || [];
+  }
+
+  const categories = (categoryResult?.results || []).map((row) => ({
+    category: row.category || 'general',
+    count: toNumber(row.count),
+  }));
+  const totalCategoryRanks = categories.reduce((sum, row) => sum + row.count, 0);
+  const categoryDistribution = categories.map((row) => ({
+    ...row,
+    percentage: totalCategoryRanks ? Math.round((row.count / totalCategoryRanks) * 100) : 0,
+  }));
+
+  const rankingCount = toNumber(baseUser.posts_count);
+  const followerCount = toNumber(baseUser.followers_count);
+  const templateCount = toNumber(templateStats?.template_count);
+  const maxTemplateUses = toNumber(templateStats?.max_template_uses);
+  const badges = [];
+  if (rankingCount >= 1) badges.push({ id: 'first_rank', value: rankingCount });
+  if (rankingCount >= 10) badges.push({ id: 'ranker_10', value: rankingCount });
+  if (templateCount >= 1) badges.push({ id: 'template_creator', value: templateCount });
+  if (followerCount >= 5) badges.push({ id: 'community_voice', value: followerCount });
+  if (maxTemplateUses >= 25) badges.push({ id: 'template_hit', value: maxTemplateUses });
+
+  const similarUsers = await findSimilarUsers(db, userId, targetTaste);
+  let tasteMatch = null;
+  if (viewerId && viewerId !== userId) {
+    const viewerTaste = await collectTaste(db, viewerId);
+    const categoryScore = jaccard(targetTaste.categories, viewerTaste.categories);
+    const templateScore = jaccard(targetTaste.templates, viewerTaste.templates);
+    const hashtagScore = jaccard(targetTaste.hashtags, viewerTaste.hashtags);
+    tasteMatch = {
+      score: Math.round((categoryScore * 0.5 + templateScore * 0.3 + hashtagScore * 0.2) * 100),
+      shared_categories: [...targetTaste.categories].filter((value) => viewerTaste.categories.has(value)).slice(0, 5),
+      shared_templates: [...targetTaste.templates].filter((value) => viewerTaste.templates.has(value)).length,
+      shared_hashtags: [...targetTaste.hashtags].filter((value) => viewerTaste.hashtags.has(value)).slice(0, 5),
+    };
+  }
+
+  return {
+    category_distribution: categoryDistribution,
+    top_items: topItemRows.map((row) => ({
+      id: row.item_id,
+      name: row.name || row.item_id,
+      count: toNumber(row.count),
+    })),
+    pinned_rankings: (pinnedResult?.results || []).map((row) => ({
+      id: row.ranking_id,
+      ranking_id: row.ranking_id,
+      position: toNumber(row.position),
+      title: row.title || 'Untitled ranking',
+      description: row.description || null,
+      category: row.category || 'general',
+      hashtags: row.hashtags || '',
+      template_id: row.template_id || null,
+      stats: {
+        likes: toNumber(row.likes_count),
+        dislikes: toNumber(row.dislikes_count),
+        comments: toNumber(row.comments_count),
+      },
+      created_at: row.ranking_created_at || row.created_at || null,
+    })),
+    badges,
+    taste_match: tasteMatch,
+    similar_users: similarUsers,
+  };
+}
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
-  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
-
-  if (request.method !== 'GET') {
-    return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
-  }
+  if (request.method !== 'GET') return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
 
   try {
     const id = new URL(request.url).searchParams.get('id');
     if (!id) return jsonResponse({ success: false, error: 'Missing id' }, 400);
 
-    const viewerId = auth.user?.id || null;
-
+    const viewerId = auth?.user?.id || null;
     const { results } = await db.prepare(`
       SELECT p.*,
         (SELECT COUNT(*) FROM rankings r WHERE r.user_id = p.id) as posts_count,
         (SELECT COUNT(*) FROM follows f WHERE f.following_id = p.id) as followers_count,
         (SELECT COUNT(*) FROM follows f WHERE f.follower_id = p.id) as following_count,
-        ${viewerId ? `(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = p.id)` : 'NULL'} as is_following
+        ${viewerId ? '(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = p.id)' : 'NULL'} as is_following
       FROM profiles p
       WHERE p.id = ?
     `).bind(...(viewerId ? [viewerId, id] : [id])).all();
 
-    if (results.length === 0) {
-      return jsonResponse({ success: false, error: 'ไม่พบผู้ใช้นี้' }, 404);
-    }
+    if (results.length === 0) return jsonResponse({ success: false, error: 'ไม่พบผู้ใช้นี้' }, 404);
 
     const user = results[0];
-    return jsonResponse({
-      success: true,
-      data: {
-        id: user.id,
-        username: user.username || 'Unknown',
-        avatar_url: user.avatar_url || null,
-        bio: user.bio || null,
-        university: user.university || null,
-        faculty: user.faculty || null,
-        major: user.major || null,
-        year: user.year || null,
-        created_at: user.created_at || null,
-        posts_count: user.posts_count || 0,
-        followers_count: user.followers_count || 0,
-        following_count: user.following_count || 0,
-        is_following: !!user.is_following,
-      },
-    });
+    const publicUser = {
+      id: user.id,
+      username: user.username || 'Unknown',
+      avatar_url: user.avatar_url || null,
+      bio: user.bio || null,
+      university: user.university || null,
+      faculty: user.faculty || null,
+      major: user.major || null,
+      year: user.year || null,
+      created_at: user.created_at || null,
+      posts_count: toNumber(user.posts_count),
+      followers_count: toNumber(user.followers_count),
+      following_count: toNumber(user.following_count),
+      is_following: !!user.is_following,
+    };
+
+    const taste_identity = await buildTasteIdentity(db, id, viewerId, publicUser);
+    return jsonResponse({ success: true, data: { ...publicUser, taste_identity } });
   } catch (err) {
     console.error('User profile query failed:', { name: err?.name, message: err?.message });
     return internalErrorResponse();

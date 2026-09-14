@@ -126,5 +126,156 @@ export async function onRequest({ request, env, data: auth }) {
     }
   }
 
+  if (action === 'analytics') {
+    const parsedDays = parseInt(url.searchParams.get('days') || '7', 10);
+    const days = Math.min(Math.max(Number.isNaN(parsedDays) ? 7 : parsedDays, 1), 30);
+    const periodModifier = `-${days} days`;
+    const previousModifier = `-${days * 2} days`;
+    const dailyStartModifier = `-${days - 1} days`;
+
+    try {
+      const [funnel, activity, dailyRows, challenge] = await Promise.all([
+        db.prepare(`
+          WITH feed_step AS (
+            SELECT session_id, MIN(created_at) AS reached_at
+            FROM analytics_events
+            WHERE event_name = 'feed_view' AND created_at >= datetime('now', ?)
+            GROUP BY session_id
+          ),
+          template_step AS (
+            SELECT e.session_id, MIN(e.created_at) AS reached_at
+            FROM analytics_events e
+            INNER JOIN feed_step prior ON prior.session_id = e.session_id
+            WHERE e.event_name = 'template_view'
+              AND e.created_at >= prior.reached_at
+            GROUP BY e.session_id
+          ),
+          start_step AS (
+            SELECT e.session_id, MIN(e.created_at) AS reached_at
+            FROM analytics_events e
+            INNER JOIN template_step prior ON prior.session_id = e.session_id
+            WHERE e.event_name = 'ranking_start'
+              AND e.created_at >= prior.reached_at
+            GROUP BY e.session_id
+          ),
+          publish_step AS (
+            SELECT e.session_id, MIN(e.created_at) AS reached_at
+            FROM analytics_events e
+            INNER JOIN start_step prior ON prior.session_id = e.session_id
+            WHERE e.event_name = 'ranking_publish'
+              AND e.created_at >= prior.reached_at
+            GROUP BY e.session_id
+          ),
+          share_step AS (
+            SELECT e.session_id, MIN(e.created_at) AS reached_at
+            FROM analytics_events e
+            INNER JOIN publish_step prior ON prior.session_id = e.session_id
+            WHERE e.event_name = 'share_complete'
+              AND e.created_at >= prior.reached_at
+            GROUP BY e.session_id
+          )
+          SELECT
+            (SELECT COUNT(*) FROM feed_step) AS feed_view,
+            (SELECT COUNT(*) FROM template_step) AS template_view,
+            (SELECT COUNT(*) FROM start_step) AS ranking_start,
+            (SELECT COUNT(*) FROM publish_step) AS ranking_publish,
+            (SELECT COUNT(*) FROM share_step) AS share_complete
+        `).bind(periodModifier).first(),
+        db.prepare(`
+          WITH current_users AS (
+            SELECT DISTINCT user_id
+            FROM analytics_events
+            WHERE user_id IS NOT NULL AND created_at >= datetime('now', ?)
+          ),
+          previous_users AS (
+            SELECT DISTINCT user_id
+            FROM analytics_events
+            WHERE user_id IS NOT NULL
+              AND created_at >= datetime('now', ?)
+              AND created_at < datetime('now', ?)
+          )
+          SELECT
+            (SELECT COUNT(*) FROM current_users) AS active_users,
+            (SELECT COUNT(*) FROM previous_users) AS previous_users,
+            (SELECT COUNT(*) FROM current_users cu
+             INNER JOIN previous_users pu ON pu.user_id = cu.user_id) AS returning_users,
+            (SELECT COUNT(DISTINCT session_id) FROM analytics_events
+             WHERE created_at >= datetime('now', ?)) AS active_sessions
+        `).bind(periodModifier, previousModifier, periodModifier, periodModifier).first(),
+        db.prepare(`
+          WITH RECURSIVE dates(day) AS (
+            SELECT date('now', '+7 hours', ?)
+            UNION ALL
+            SELECT date(day, '+1 day') FROM dates
+            WHERE day < date('now', '+7 hours')
+          )
+          SELECT dates.day,
+            COUNT(DISTINCT events.session_id) AS sessions,
+            COUNT(DISTINCT events.user_id) AS users
+          FROM dates
+          LEFT JOIN analytics_events events
+            ON date(events.created_at, '+7 hours') = dates.day
+          GROUP BY dates.day
+          ORDER BY dates.day ASC
+        `).bind(dailyStartModifier).all(),
+        db.prepare(`
+          SELECT
+            COUNT(DISTINCT CASE WHEN event_name = 'challenge_start' THEN session_id END) AS starts,
+            COUNT(DISTINCT CASE WHEN event_name = 'challenge_complete' THEN session_id END) AS completions,
+            COUNT(DISTINCT CASE WHEN event_name = 'challenge_share' THEN session_id END) AS shares
+          FROM analytics_events
+          WHERE created_at >= datetime('now', ?)
+        `).bind(periodModifier).first(),
+      ]);
+
+      const stageDefinitions = [
+        ['feed_view', 'feed'],
+        ['template_view', 'template'],
+        ['ranking_start', 'start'],
+        ['ranking_publish', 'publish'],
+        ['share_complete', 'share'],
+      ];
+      const firstCount = Number(funnel?.feed_view) || 0;
+      let previousCount = firstCount;
+      const stages = stageDefinitions.map(([eventName, key], index) => {
+        const count = Number(funnel?.[eventName]) || 0;
+        const fromPrevious = index === 0 ? 100 : (previousCount > 0 ? Math.round((count / previousCount) * 100) : 0);
+        const fromFeed = firstCount > 0 ? Math.round((count / firstCount) * 100) : 0;
+        previousCount = count;
+        return { key, event_name: eventName, sessions: count, from_previous: fromPrevious, from_feed: fromFeed };
+      });
+
+      const previousUsers = Number(activity?.previous_users) || 0;
+      const returningUsers = Number(activity?.returning_users) || 0;
+      return jsonResponse({
+        success: true,
+        data: {
+          period_days: days,
+          timezone: 'Asia/Bangkok',
+          funnel: stages,
+          activity: {
+            active_sessions: Number(activity?.active_sessions) || 0,
+            active_users: Number(activity?.active_users) || 0,
+            previous_users: previousUsers,
+            returning_users: returningUsers,
+            return_rate: previousUsers > 0 ? Math.round((returningUsers / previousUsers) * 100) : 0,
+          },
+          challenge: {
+            starts: Number(challenge?.starts) || 0,
+            completions: Number(challenge?.completions) || 0,
+            shares: Number(challenge?.shares) || 0,
+          },
+          daily_activity: (dailyRows?.results || []).map((row) => ({
+            day: row.day,
+            sessions: Number(row.sessions) || 0,
+            users: Number(row.users) || 0,
+          })),
+        }
+      });
+    } catch (err) {
+      return adminRequestErrorResponse(err, 'Admin analytics');
+    }
+  }
+
   return jsonResponse({ success: false, error: 'Invalid action' }, 400);
 }

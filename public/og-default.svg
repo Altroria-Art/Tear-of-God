@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B071A"/>
+      <stop offset="0.52" stop-color="#1A103B"/>
+      <stop offset="1" stop-color="#081A2C"/>
+    </linearGradient>
+    <radialGradient id="purple" cx="0" cy="0" r="1" gradientTransform="translate(310 80) rotate(45) scale(430 360)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6F00FF" stop-opacity="0.58"/>
+      <stop offset="1" stop-color="#6F00FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="blue" cx="0" cy="0" r="1" gradientTransform="translate(1010 550) rotate(-145) scale(440 330)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00D4FF" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#00D4FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000000" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#bg)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#purple)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#blue)"/>
+  <g opacity="0.18" stroke="#FFFFFF">
+    <path d="M0 112H1200"/>
+    <path d="M0 518H1200"/>
+    <path d="M122 0V630"/>
+    <path d="M1078 0V630"/>
+  </g>
+  <g transform="translate(120 136)" filter="url(#shadow)">
+    <rect width="132" height="132" rx="35" fill="#FFFFFF"/>
+    <path d="M76 22c3.4-4.4 10.5-1.9 10.5 3.7v30.6c0 6.7 5.4 12.1 12.1 12.1h25.9c5 0 7.8 5.7 4.7 9.7L69.7 153c-3.6 4.6-11 2-11-3.8v-33c0-6.7-5.4-12.1-12.1-12.1H19.4c-5 0-7.9-5.7-5-9.8L76 22Z" fill="#6F00FF" transform="translate(-5 -18) scale(.96)"/>
+  </g>
+  <text x="286" y="210" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="76" font-weight="800" letter-spacing="-3">Tear of God</text>
+  <text x="124" y="355" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="54" font-weight="750">Community Tier Lists</text>
+  <text x="126" y="414" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="28" font-weight="500" letter-spacing="4">RANK  •  SHARE  •  DEBATE</text>
+  <g transform="translate(124 494)">
+    <rect width="104" height="54" rx="14" fill="#FF7F7F"/><text x="52" y="37" text-anchor="middle" fill="#151025" font-family="Arial, sans-serif" font-size="30" font-weight="800">S</text>
+    <rect x="116" width="104" height="54" rx="14" fill="#FFBF7F"/><text x="168" y="37" text-anchor="middle" fill="#151025" font-family="Arial, sans-serif" font-size="30" font-weight="800">A</text>
+    <rect x="232" width="104" height="54" rx="14" fill="#FFFF7F"/><text x="284" y="37" text-anchor="middle" fill="#151025" font-family="Arial, sans-serif" font-size="30" font-weight="800">B</text>
+    <rect x="348" width="104" height="54" rx="14" fill="#7FFF7F"/><text x="400" y="37" text-anchor="middle" fill="#151025" font-family="Arial, sans-serif" font-size="30" font-weight="800">C</text>
+    <rect x="464" width="104" height="54" rx="14" fill="#7FBFFF"/><text x="516" y="37" text-anchor="middle" fill="#151025" font-family="Arial, sans-serif" font-size="30" font-weight="800">D</text>
+  </g>
+</svg>

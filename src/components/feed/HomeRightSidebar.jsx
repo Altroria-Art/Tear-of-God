@@ -35,6 +35,7 @@ export default function HomeRightSidebar() {
             {hashtags.map((tag) => (
               <div 
                 key={tag.tag} 
+                data-auth-next={`/discover/hashtag/${encodeURIComponent(tag.tag.replace(/^#/, ''))}`}
                 onClick={() => navigate(`/discover/hashtag/${encodeURIComponent(tag.tag.replace(/^#/, ''))}`)}
                 className="group cursor-pointer flex items-center justify-between py-0.5"
               >
@@ -68,6 +69,7 @@ export default function HomeRightSidebar() {
             {templates.map((tpl) => (
               <div 
                 key={tpl.id} 
+                data-auth-next={`/template/${tpl.id}`}
                 onClick={() => navigate(`/template/${tpl.id}`)}
                 className="group cursor-pointer flex gap-3 items-center justify-between"
               >

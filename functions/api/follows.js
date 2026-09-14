@@ -56,8 +56,22 @@ export async function onRequest({ request, env, data: auth }) {
         return jsonResponse({ error: 'ไม่สามารถ follow ตัวเองได้' }, 400);
       }
 
+      const target = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(following_id).first();
+      if (!target) return jsonResponse({ error: 'ไม่พบผู้ใช้ที่ต้องการติดตาม' }, 404);
+
       if (action === 'follow') {
-        await db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').bind(follower_id, following_id).run();
+        // Insert the event before the relationship inside one transaction. The NOT EXISTS
+        // condition and partial unique index prevent duplicate requests from creating spam.
+        await db.batch([
+          db.prepare(`
+            INSERT OR IGNORE INTO notifications (id, user_id, actor_id, type)
+            SELECT ?, ?, ?, 'follow'
+            WHERE NOT EXISTS (
+              SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?
+            )
+          `).bind(crypto.randomUUID(), following_id, follower_id, follower_id, following_id),
+          db.prepare('INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)').bind(follower_id, following_id),
+        ]);
         return jsonResponse({ success: true, is_following: true });
       } else if (action === 'unfollow') {
         await db.prepare('DELETE FROM follows WHERE follower_id = ? AND following_id = ?').bind(follower_id, following_id).run();

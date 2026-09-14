@@ -6,6 +6,7 @@ import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
 import { ArrowLeftIcon } from '../components/ui/Icons';
+import TopicFollowButton from '../components/topic/TopicFollowButton';
 import { useTranslation } from 'react-i18next';
 
 const PAGE_SIZE = 12;
@@ -79,7 +80,7 @@ export default function HashtagDetail() {
     <div className="text-ink font-sans min-h-screen flex flex-col">
       <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <Link
               to="/discover/hashtags"
               className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"
@@ -88,6 +89,7 @@ export default function HashtagDetail() {
             </Link>
             <span className="bg-highlight text-canvas font-bold px-4 py-1.5 rounded-full">#{tag}</span>
             <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
+            <TopicFollowButton topicType="hashtag" topicKey={tag} />
           </div>
           <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />
         </div>

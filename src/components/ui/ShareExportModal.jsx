@@ -5,13 +5,50 @@ import { downloadTablePng } from '../../lib/exportImage';
 import { useToast } from './Toast';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Swords } from 'lucide-react';
+import { trackShare } from '../../lib/analytics';
+
+const IMAGE_FORMATS = [
+  { id: 'landscape', labelKey: 'shareExport.formatLandscape', hint: '1200 × 630' },
+  { id: 'square', labelKey: 'shareExport.formatSquare', hint: '1080 × 1080' },
+  { id: 'story', labelKey: 'shareExport.formatStory', hint: '1080 × 1920' },
+];
+
+const FORMAT_WIDTHS = {
+  landscape: 'max-w-[640px]',
+  square: 'max-w-[540px]',
+  story: 'max-w-[360px]',
+};
+
+function FormatPicker({ value, onChange }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-wrap items-center gap-2" aria-label={t('shareExport.imageFormat')}>
+      <span className="mr-1 text-xs font-bold text-muted">{t('shareExport.imageFormat')}</span>
+      {IMAGE_FORMATS.map((format) => (
+        <button
+          key={format.id}
+          type="button"
+          onClick={() => onChange(format.id)}
+          className={`rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors ${
+            value === format.id
+              ? 'border-brand bg-brand/10 text-brand'
+              : 'border-line-soft text-muted hover:bg-tag hover:text-ink'
+          }`}
+        >
+          {t(format.labelKey)} <span className="ml-1 text-[10px] font-medium opacity-70">{format.hint}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function ShareExportModal({
   open,
   onClose,
   mode, // 'share' | 'export'
   link, // สำหรับ share
+  challengeLink, // optional: ลิงก์จัดอันดับจากโพสต์นี้แล้วเทียบผล
   preview, // สำหรับ export: React element ของการ์ดที่จะ capture
   filename, // สำหรับ export
   stats, // สำหรับ export: [{ item, avg, tier, votes }] — ข้อมูลสถิติความนิยม
@@ -21,14 +58,20 @@ export default function ShareExportModal({
   const { t } = useTranslation();
   const { isLightMode } = useTheme();
   const previewRef = useRef(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [exportTheme, setExportTheme] = useState(isLightMode ? 'light' : 'dark');
+  const [imageFormat, setImageFormat] = useState('landscape');
+  const [shareCardOpen, setShareCardOpen] = useState(false);
   const closeTimerRef = useRef(null);
+  const shareCardRef = useRef(null);
 
   useEffect(() => {
     if (open) {
       setExportTheme(isLightMode ? 'light' : 'dark');
+      setCopied(null);
+      setImageFormat('landscape');
+      setShareCardOpen(false);
     }
   }, [open, isLightMode]);
 
@@ -41,12 +84,13 @@ export default function ShareExportModal({
     };
   }, []);
 
-  const handleCopy = async () => {
-    const ok = await copyToClipboard(link);
+  const handleCopy = async (target, kind) => {
+    const ok = await copyToClipboard(target);
     if (ok) {
-      setCopied(true);
-      toast.success(t('shareExport.copySuccess'));
-      closeTimerRef.current = setTimeout(onClose, 400);
+      trackShare(target, kind);
+      setCopied(kind);
+      toast.success(t(kind === 'challenge' ? 'challenge.copySuccess' : 'shareExport.copySuccess'));
+      if (kind === 'share') closeTimerRef.current = setTimeout(onClose, 400);
     } else {
       toast.error(t('shareExport.copyFailed'));
     }
@@ -56,7 +100,9 @@ export default function ShareExportModal({
     setExporting(true);
     toast.info(t('shareExport.creatingImage'));
     const bgColor = exportTheme === 'dark' ? '#141517' : '#ffffff';
-    const ok = await downloadTablePng(previewRef.current, filename, bgColor);
+    const suffix = imageFormat === 'landscape' ? '' : `-${imageFormat}`;
+    const imageFilename = `${String(filename || 'tear-of-god-share').replace(/\.png$/i, '')}${suffix}.png`;
+    const ok = await downloadTablePng(previewRef.current, imageFilename, bgColor);
     setExporting(false);
     if (ok) {
       toast.success(t('shareExport.downloadTableSuccess'));
@@ -65,6 +111,48 @@ export default function ShareExportModal({
       toast.error(t('shareExport.exportImageFailed'));
     }
   };
+
+  const handleDownloadShareCard = async () => {
+    if (!shareCardRef.current) return;
+    setExporting(true);
+    toast.info(t('shareExport.creatingImage'));
+    const suffix = imageFormat === 'landscape' ? '' : `-${imageFormat}`;
+    const imageFilename = `${String(filename || 'tear-of-god-share').replace(/\.png$/i, '')}${suffix}.png`;
+    const ok = await downloadTablePng(shareCardRef.current, imageFilename, exportTheme === 'dark' ? '#141517' : '#ffffff');
+    setExporting(false);
+    if (ok) toast.success(t('shareExport.downloadTableSuccess'));
+    else toast.error(t('shareExport.exportImageFailed'));
+  };
+
+  const renderPreview = (format = imageFormat) => {
+    if (!React.isValidElement(preview)) return preview;
+    return React.cloneElement(preview, {
+      theme: exportTheme,
+      shareLink: challengeLink || link,
+      shareFormat: format,
+      shareCta: t('shareExport.shareCardCta'),
+      shareQrHint: challengeLink ? t('shareExport.qrChallengeHint') : t('shareExport.qrHint'),
+    });
+  };
+
+  const renderShareCardPanel = (ref) => (
+    <>
+      <FormatPicker value={imageFormat} onChange={setImageFormat} />
+      <div className="mt-3 rounded-2xl border border-line-soft bg-black/5 p-3 shadow-inner dark:bg-white/5">
+        <div ref={ref} className={`mx-auto w-full ${FORMAT_WIDTHS[imageFormat]}`}>
+          {renderPreview(imageFormat)}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={handleDownloadShareCard}
+        disabled={exporting}
+        className="mt-3 w-full rounded-xl bg-brand-accent px-4 py-2.5 text-sm font-bold text-canvas transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+      >
+        {exporting ? t('shareExport.generating') : t('shareExport.downloadShareCard')}
+      </button>
+    </>
+  );
 
   const downloadTextFile = (content, mime, name) => {
     const blob = new Blob([content], { type: mime });
@@ -97,8 +185,28 @@ export default function ShareExportModal({
 
   if (mode === 'share') {
     return (
-      <Modal open={open} onClose={onClose} title={t('shareExport.shareLinkTitle')}>
-        <p className="mb-3 text-sm text-muted">{t('shareExport.shareHint')}</p>
+      <Modal open={open} onClose={onClose} title={t('shareExport.shareLinkTitle')} maxWidth={shareCardOpen ? 'max-w-4xl' : 'max-w-md'}>
+        {challengeLink && (
+          <div className="mb-4 rounded-xl border border-highlight/40 bg-highlight/10 p-4">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-highlight text-canvas">
+                <Swords size={20} strokeWidth={2.5} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-ink">{t('challenge.shareTitle')}</p>
+                <p className="mt-1 text-sm text-muted">{t('challenge.shareHint')}</p>
+                <button
+                  type="button"
+                  onClick={() => handleCopy(challengeLink, 'challenge')}
+                  className="mt-3 w-full rounded-lg bg-highlight px-4 py-2.5 text-sm font-black text-canvas transition-all hover:brightness-110 active:scale-[0.98]"
+                >
+                  {copied === 'challenge' ? t('challenge.copied') : t('challenge.copyLink')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <p className="mb-3 text-sm text-muted">{challengeLink ? t('shareExport.sharePostHint') : t('shareExport.shareHint')}</p>
         <div className="flex items-center gap-2 rounded-lg border border-line-soft bg-tag p-2">
           <input
             type="text"
@@ -109,12 +217,32 @@ export default function ShareExportModal({
           />
           <button
             type="button"
-            onClick={handleCopy}
+            onClick={() => handleCopy(link, 'share')}
             className="shrink-0 rounded-lg bg-brand-accent px-4 py-2 text-sm font-bold text-canvas transition-all hover:brightness-110 active:scale-95"
           >
-            {copied ? t('shareExport.copied') : t('shareExport.copyLink')}
+            {copied === 'share' ? t('shareExport.copied') : t('shareExport.copyLink')}
           </button>
         </div>
+        {React.isValidElement(preview) && !shareCardOpen && (
+          <button
+            type="button"
+            onClick={() => setShareCardOpen(true)}
+            className="mt-3 w-full rounded-xl border border-brand/30 bg-brand/5 px-4 py-2.5 text-sm font-bold text-brand transition-colors hover:bg-brand/10"
+          >
+            {t('shareExport.previewShareCard')}
+          </button>
+        )}
+        {React.isValidElement(preview) && shareCardOpen && (
+          <div className="mt-5 border-t border-line-soft pt-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-black text-ink">{t('shareExport.shareCardTitle')}</p>
+              <button type="button" onClick={() => setShareCardOpen(false)} className="text-xs font-bold text-muted hover:text-ink">
+                {t('common.back')}
+              </button>
+            </div>
+            {renderShareCardPanel(shareCardRef)}
+          </div>
+        )}
       </Modal>
     );
   }
@@ -190,9 +318,12 @@ export default function ShareExportModal({
             </button>
           </div>
         </div>
+        <div className="mb-3">
+          <FormatPicker value={imageFormat} onChange={setImageFormat} />
+        </div>
         <div className="rounded-2xl border border-line-soft bg-black/5 dark:bg-white/5 p-3 sm:p-5 flex justify-center items-start shadow-inner">
-          <div ref={previewRef} className="w-full max-w-[640px] shadow-md rounded-2xl overflow-hidden">
-            {React.isValidElement(preview) ? React.cloneElement(preview, { theme: exportTheme }) : preview}
+          <div ref={previewRef} className={`w-full ${FORMAT_WIDTHS[imageFormat]} shadow-md rounded-2xl overflow-hidden`}>
+            {renderPreview(imageFormat)}
           </div>
         </div>
       </Modal>
