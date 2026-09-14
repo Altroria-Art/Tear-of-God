@@ -83,6 +83,9 @@ export async function onRequestPost({ request, env, data: auth, waitUntil }) {
 
     return Response.json({ success: true }, { status: 202, headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
-    return requestErrorResponse(error, 'Analytics event');
+    const invalid = requestErrorResponse(error);
+    if (invalid) return invalid;
+    console.error('Analytics event failed:', error.message);
+    return Response.json({ success: false, error: 'Service temporarily unavailable' }, { status: 500 });
   }
 }
