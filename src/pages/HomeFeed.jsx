@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
-import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Sparkles, Users, BarChart3 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Sparkles, Users, BarChart3, RotateCw } from 'lucide-react';
 import { challengeUrl, shareUrl } from '../lib/share';
 import ShareExportModal from '../components/ui/ShareExportModal';
 import ExportCard from '../components/ui/ExportCard';
@@ -13,7 +13,6 @@ import BookmarkButton from '../components/template/BookmarkButton';
 import { formatCount, timeAgo } from '../lib/format';
 import { takeLastPublished } from '../lib/lastPublished';
 import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
-import HomeRightSidebar from '../components/feed/HomeRightSidebar';
 import FeaturedPrompts from '../components/feed/FeaturedPrompts';
 import FreshnessHub from '../components/feed/FreshnessHub';
 import GuestAuthPrompt from '../components/auth/GuestAuthPrompt';
@@ -333,6 +332,7 @@ export default function HomeFeed() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
+  const toast = useToast();
   const [posts, setPosts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true) // หน้าแรกเท่านั้น — กันจอกระพริบตอน append หน้าถัดไป
@@ -387,69 +387,135 @@ export default function HomeFeed() {
   // (ได้จาก src/lib/lastPublished.js; F5/เข้าหน้าใหม่ = module reset → null → สับสุ่มตามเดิม)
   // ส่ง pin ต่อทุกหน้า (loadMore) เพื่อให้ backend slice จาก shuffle ชุดเดียวกัน ไม่ซ้ำ/ไม่ข้าม
   const pinnedIdRef = useRef(null);
+  const isManualRefreshRef = useRef(false);
+  // บันทึก ID โพสต์ที่เพิ่งแสดงผลไปเพื่อส่ง exclude ตอนกดรีเฟรช ป้องกันการเห็นโพสต์ซ้ำเมื่อกดรีเฟรชรัวๆ
+  const seenFeedIdsRef = useRef({ trending: [], for_you: [], following: [] });
+  const currentExcludeRef = useRef('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const refreshFeed = useCallback(() => {
+    isManualRefreshRef.current = true;
+    // รวบรวม ID ของโพสต์ที่กำลังแสดงอยู่เพื่อคัดกรองออกในการรีเฟรชครั้งนี้
+    setPosts((currentPosts) => {
+      const currentIds = (currentPosts || []).map((p) => p.id).filter(Boolean);
+      const tabKey = activeTab;
+      const prevSeen = seenFeedIdsRef.current[tabKey] || [];
+      const updated = [...prevSeen, ...currentIds.filter((id) => !prevSeen.includes(id))];
+      if (updated.length > 60) updated.splice(0, updated.length - 60);
+      seenFeedIdsRef.current[tabKey] = updated;
+      currentExcludeRef.current = updated.join(',');
+      return currentPosts;
+    });
+
+    // ล้าง cache ของทุกแท็บ เพื่อบังคับดึงข้อมูลใหม่ล่าสุดจากเซิร์ฟเวอร์
+    feedCacheRef.current = {};
+    // สุ่ม seed ใหม่เพื่อให้ได้การจัดเรียง/shuffle ชุดใหม่
+    seedRef.current = Math.floor(Math.random() * 1e9);
+    pageRef.current = 1;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsRefreshing(true);
+    setRefreshTrigger((prev) => prev + 1);
+  }, [activeTab]);
+
+  // รองรับการกดรีเฟรชจาก Navbar (คลิก Home หรือ Logo) หรือ Mobile Bottom Nav
+  useEffect(() => {
+    const handleGlobalRefresh = () => {
+      refreshFeed();
+    };
+    window.addEventListener('tog-refresh-feed', handleGlobalRefresh);
+    return () => window.removeEventListener('tog-refresh-feed', handleGlobalRefresh);
+  }, [refreshFeed]);
 
   // สลับแท็บ/ล็อกอิน ต้องเริ่มฟีดใหม่ตั้งแต่หน้า 1 เสมอ ไม่งั้นข้อมูลแท็บเก่าจะค้าง
   // ปนกับแท็บใหม่ตอน infinite scroll ต่อท้าย — เว้นแต่มี cache ของ key นี้อยู่แล้ว
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     if (feedLocked) {
-      setPosts([])
-      setHasMore(false)
-      setIsLoading(false)
-      return
+      setPosts([]);
+      setHasMore(false);
+      setIsLoading(false);
+      setIsRefreshing(false);
+      return;
     }
-    const cached = feedCacheRef.current[cacheKey]
+    const cached = feedCacheRef.current[cacheKey];
     if (cached) {
-      setPosts(cached.posts)
-      pageRef.current = cached.page
-      setHasMore(cached.hasMore)
-      setIsLoading(false)
-      return
+      setPosts(cached.posts);
+      pageRef.current = cached.page;
+      setHasMore(cached.hasMore);
+      setIsLoading(false);
+      setIsRefreshing(false);
+      return;
     }
 
     async function loadFirstPage() {
-      setIsLoading(true)
-      setPosts([])
-      pageRef.current = 1
-      setHasMore(true)
-      loadingRef.current = true
+      setIsLoading(true);
+      setPosts([]);
+      pageRef.current = 1;
+      setHasMore(true);
+      loadingRef.current = true;
       // consume pin ครั้งเดียวตอน mount (ครั้งถัดไป/เข้าหน้าใหม่ = ไม่มีอีก → กลับสุ่ม)
-      pinnedIdRef.current = takeLastPublished(currentUser?.id)
+      pinnedIdRef.current = takeLastPublished(currentUser?.id);
       resolvedFeedTypeRef.current = feedType;
-      let result = await fetchRankings({
-        userId: currentUser?.id,
-        feedType,
-        seed: seedRef.current,
-        pin: pinnedIdRef.current || undefined,
-        page: 1,
-        limit: PAGE_SIZE
-      })
-      // For You must always be useful. The API normally falls back to Trending
-      // for accounts without enough taste signals; keep the same guarantee in
-      // the client if an older database/schema or a transient API error returns
-      // an empty personalized result.
-      if (feedType === 'for_you' && currentUser?.id && (!result.data?.length || result.error)) {
-        result = await fetchRankings({
-          userId: currentUser.id,
-          feedType: 'trending',
+      const isManual = isManualRefreshRef.current;
+      isManualRefreshRef.current = false;
+      try {
+        const effectiveExclude = currentExcludeRef.current || (seenFeedIdsRef.current[feedType]?.length > 0 ? seenFeedIdsRef.current[feedType].join(',') : undefined);
+        let result = await fetchRankings({
+          userId: currentUser?.id,
+          feedType,
           seed: seedRef.current,
+          pin: pinnedIdRef.current || undefined,
+          exclude: effectiveExclude,
           page: 1,
-          limit: PAGE_SIZE
-        })
-        resolvedFeedTypeRef.current = 'trending';
+          limit: PAGE_SIZE,
+          refresh: isManual,
+        });
+        // For You must always be useful. The API normally falls back to Trending
+        // for accounts without enough taste signals; keep the same guarantee in
+        // the client if an older database/schema or a transient API error returns
+        // an empty personalized result.
+        if (feedType === 'for_you' && currentUser?.id && (!result.data?.length || result.error)) {
+          result = await fetchRankings({
+            userId: currentUser.id,
+            feedType: 'trending',
+            seed: seedRef.current,
+            exclude: effectiveExclude,
+            page: 1,
+            limit: PAGE_SIZE,
+            refresh: isManual,
+          });
+          resolvedFeedTypeRef.current = 'trending';
+        }
+        const data = result.data;
+        if (cancelled) return;
+        const nextHasMore = (data?.length || 0) === PAGE_SIZE;
+        setPosts(data || []);
+        setHasMore(nextHasMore);
+        feedCacheRef.current[cacheKey] = { posts: data || [], page: 1, hasMore: nextHasMore };
+
+        // บันทึก ID หน้าแรกลงประวัติที่เคยเห็นของแท็บนี้ ป้องกันการขึ้นซ้ำในรอบถัดไป
+        const pageIds = (data || []).map((p) => p.id).filter(Boolean);
+        const tabKey = feedType;
+        const prevSeen = seenFeedIdsRef.current[tabKey] || [];
+        const nextSeen = [...prevSeen, ...pageIds.filter((id) => !prevSeen.includes(id))];
+        if (nextSeen.length > 60) nextSeen.splice(0, nextSeen.length - 60);
+        seenFeedIdsRef.current[tabKey] = nextSeen;
+
+        if (isManual) {
+          toast.success(t('feed.refreshed'));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+          loadingRef.current = false;
+          setIsRefreshing(false);
+        }
       }
-      const data = result.data;
-      if (cancelled) return
-      const nextHasMore = (data?.length || 0) === PAGE_SIZE
-      setPosts(data || [])
-      setHasMore(nextHasMore)
-      setIsLoading(false)
-      loadingRef.current = false
-      feedCacheRef.current[cacheKey] = { posts: data || [], page: 1, hasMore: nextHasMore }
     }
-    loadFirstPage()
-    return () => { cancelled = true }
-  }, [currentUser, activeTab, cacheKey, feedType, feedLocked]);
+    loadFirstPage();
+    return () => { cancelled = true; };
+  }, [currentUser, activeTab, cacheKey, feedType, feedLocked, refreshTrigger, t, toast]);
 
   // ไม่มี total จาก API สำหรับฟีดทั่วไป (เฉพาะ template_id เท่านั้นที่ API คำนวณ total ให้ —
   // ดู functions/api/rankings.js) เลยเช็คจบฟีดจากจำนวนที่ได้กลับมาน้อยกว่า PAGE_SIZE แทน
@@ -461,11 +527,14 @@ export default function HomeFeed() {
     const nextPage = pageRef.current + 1
     pageRef.current = nextPage
     setIsLoadingMore(true)
+    const activeFeedType = resolvedFeedTypeRef.current;
+    const currentExclude = currentExcludeRef.current || (seenFeedIdsRef.current[activeFeedType]?.length > 0 ? seenFeedIdsRef.current[activeFeedType].join(',') : undefined);
     const { data } = await fetchRankings({
       userId: currentUser?.id,
-      feedType: resolvedFeedTypeRef.current,
+      feedType: activeFeedType,
       seed: seedRef.current,
       pin: pinnedIdRef.current || undefined,
+      exclude: currentExclude,
       page: nextPage,
       limit: PAGE_SIZE
     })
@@ -546,7 +615,13 @@ export default function HomeFeed() {
               key={id}
               type="button"
               aria-pressed={activeTab === id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => {
+                if (activeTab === id) {
+                  refreshFeed();
+                } else {
+                  setActiveTab(id);
+                }
+              }}
               className={`flex items-center gap-1.5 rounded-full px-3 sm:px-5 py-1.5 text-[11px] sm:text-xs font-bold transition-all duration-200 ${
                 activeTab === id
                   ? 'bg-brand text-canvas shadow-xs scale-100'
@@ -557,22 +632,35 @@ export default function HomeFeed() {
               {t(labelKey)}
             </button>
           ))}
+          <div className="h-4 w-px bg-line-soft mx-0.5" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={refreshFeed}
+            disabled={isRefreshing}
+            aria-label={t('feed.refresh')}
+            title={t('feed.refresh')}
+            className="flex items-center justify-center rounded-full p-1.5 text-muted hover:text-brand hover:bg-surface-glass transition-all disabled:opacity-50 active:scale-90"
+          >
+            <RotateCw size={13} className={isRefreshing ? 'animate-spin text-brand' : ''} />
+          </button>
         </div>
       </div>
 
       <div className="mx-auto max-w-7xl px-4 flex gap-8 pt-3 pb-12 items-start justify-center">
-        <aside className="hidden lg:block w-[240px] shrink-0 sticky top-[92px] max-h-[calc(100vh-92px)] overflow-y-auto hide-scrollbar pb-6">
+        <aside className="hidden lg:block w-[240px] shrink-0 sticky top-[88px] max-h-[calc(100vh-88px)] overflow-y-auto hide-scrollbar pb-6 space-y-4">
           <HomeLeftSidebar />
           {activeTab === 'trending' && (
-            <div className="mt-5">
-              <FeaturedPrompts compact />
-            </div>
+            <FeaturedPrompts compact />
           )}
         </aside>
         <main className="w-full max-w-2xl shrink">
         <div className="space-y-6">
           {activeTab === 'trending' && <div className="lg:hidden"><FeaturedPrompts /></div>}
-          {activeTab === 'trending' && <FreshnessHub />}
+          {activeTab === 'trending' && (
+            <div className="xl:hidden">
+              <FreshnessHub />
+            </div>
+          )}
 
           {isLoading && (
             <p className="text-center text-sm font-medium text-muted animate-pulse py-10">
@@ -649,8 +737,15 @@ export default function HomeFeed() {
           )}
         </div>
       </main>
-      <aside className="hidden xl:block w-[300px] shrink-0 sticky top-[88px] max-h-[calc(100vh-88px)] overflow-y-auto hide-scrollbar pb-6">
-        <HomeRightSidebar />
+      <aside className="hidden xl:block w-[320px] shrink-0 sticky top-[88px] max-h-[calc(100vh-88px)] overflow-y-auto hide-scrollbar pb-6 space-y-4">
+        <FreshnessHub compact />
+        <div className="px-2 pt-2 text-[11px] font-medium text-muted/80 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>&copy; 2026 Tear of God</span>
+          <span>&bull;</span>
+          <a href="#" className="hover:text-ink transition-colors">{t('sidebar.privacy')}</a>
+          <span>&bull;</span>
+          <a href="#" className="hover:text-ink transition-colors">{t('sidebar.terms')}</a>
+        </div>
       </aside>
     </div>
       <GuestAuthPrompt

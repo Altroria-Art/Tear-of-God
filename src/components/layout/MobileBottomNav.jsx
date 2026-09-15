@@ -39,6 +39,11 @@ export default function MobileBottomNav() {
               <NavLink
                 key={to}
                 to={to}
+                onClick={() => {
+                  if (to === '/' && location.pathname === '/') {
+                    window.dispatchEvent(new CustomEvent('tog-refresh-feed'));
+                  }
+                }}
                 aria-current={active ? 'page' : undefined}
                 className={`flex min-h-13 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-bold transition-colors ${
                   active ? 'text-brand' : 'text-muted hover:bg-surface-glass hover:text-ink'

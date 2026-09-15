@@ -62,6 +62,12 @@ const Navbar = () => {
     navigate('/login');
   };
 
+  const handleHomeClick = () => {
+    if (location.pathname === '/') {
+      window.dispatchEvent(new CustomEvent('tog-refresh-feed'));
+    }
+  };
+
   return (
     <nav className="glass-nav px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-50">
       
@@ -76,13 +82,13 @@ const Navbar = () => {
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
-          <Link to="/" className="whitespace-nowrap text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
+          <Link to="/" onClick={handleHomeClick} className="whitespace-nowrap text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
             Tear of God
           </Link>
         </div>
 
         <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-          <Link to="/" className={`pb-1 border-b-2 transition-all ${isActive('/')}`}>
+          <Link to="/" onClick={handleHomeClick} className={`pb-1 border-b-2 transition-all ${isActive('/')}`}>
             {t('nav.home')}
           </Link>
           <Link to="/create" className={`pb-1 border-b-2 transition-all ${isActive('/create')}`}>

@@ -4,7 +4,7 @@ import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, Check, Settings, X, ChevronLeft } from 'lucide-react';
+import { Settings, X, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
@@ -69,8 +69,6 @@ const CreateTierList = () => {
 
   const [quickAddText, setQuickAddText] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(Boolean(draft?.title));
-  const [createMode, setCreateMode] = useState('drag');
-  const [pairState, setPairState] = useState({ list: [], cursor: 0, swapped: false, pass: 1, done: false });
 
   const [title, setTitle] = useState(draft?.title ?? '');
   const [description, setDescription] = useState(draft?.description ?? '');
@@ -235,60 +233,7 @@ const CreateTierList = () => {
     setItems(items.map(item => ({ ...item, tierId: null })));
   };
 
-  const startPairMode = () => {
-    if (items.length < 2) {
-      toast.warning(t('create.pairNeedItems'));
-      return;
-    }
-    const tierIndex = new Map(tiers.map((tier, index) => [tier.id, index]));
-    const orderedIds = [...items]
-      .sort((left, right) => (tierIndex.get(left.tierId) ?? tiers.length) - (tierIndex.get(right.tierId) ?? tiers.length))
-      .map((item) => item.id);
-    setPairState({ list: orderedIds, cursor: 0, swapped: false, pass: 1, done: false });
-    setCreateMode('pair');
-  };
 
-  const stopPairMode = () => {
-    setCreateMode('drag');
-    setPairState({ list: [], cursor: 0, swapped: false, pass: 1, done: false });
-  };
-
-  const choosePairWinner = (winnerId) => {
-    setPairState((previous) => {
-      if (previous.done || previous.list.length < 2) return previous;
-      const nextList = [...previous.list];
-      const leftId = nextList[previous.cursor];
-      const rightId = nextList[previous.cursor + 1];
-      let swapped = previous.swapped;
-      if (winnerId === rightId) {
-        nextList[previous.cursor] = rightId;
-        nextList[previous.cursor + 1] = leftId;
-        swapped = true;
-      }
-
-      const passComplete = previous.cursor >= nextList.length - 2;
-      if (passComplete && !swapped) {
-        return { ...previous, list: nextList, done: true };
-      }
-      return passComplete
-        ? { list: nextList, cursor: 0, swapped: false, pass: previous.pass + 1, done: false }
-        : { ...previous, list: nextList, cursor: previous.cursor + 1, swapped, done: false };
-    });
-  };
-
-  useEffect(() => {
-    if (!pairState.done || pairState.list.length === 0) return;
-    const tierCount = Math.max(1, tiers.length);
-    const order = new Map(pairState.list.map((id, index) => [id, index]));
-    setItems((previous) => previous.map((item) => {
-      const rank = order.get(item.id);
-      if (rank == null) return item;
-      const tierIndex = Math.min(tierCount - 1, Math.floor((rank * tierCount) / pairState.list.length));
-      return { ...item, tierId: tiers[tierIndex]?.id ?? null };
-    }));
-    toast.success(t('create.pairComplete'));
-    stopPairMode();
-  }, [pairState.done, pairState.list, tiers, setItems, toast, t]);
 
   // ฟังก์ชัน Hashtag
   const handleToggleHashtag = (tag) => selectedHashtags.includes(tag) ? setSelectedHashtags(selectedHashtags.filter((x) => x !== tag)) : setSelectedHashtags([...selectedHashtags, tag]);
@@ -662,78 +607,11 @@ const CreateTierList = () => {
                 <span className="text-lg leading-none">⊕</span> {t('create.generate')}
               </button>
             </div>
-
-            <div className="border-t border-line-soft/60 pt-4">
-              <div className="flex items-center gap-2 text-sm font-black text-ink">
-                <ArrowLeftRight size={16} className="text-brand" />
-                {t('create.modeTitle')}
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => createMode === 'pair' ? stopPairMode() : setCreateMode('drag')}
-                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${createMode === 'drag' ? 'border-brand bg-brand/10 text-brand' : 'border-line-soft text-muted hover:bg-surface-glass hover:text-ink'}`}
-                >
-                  {t('create.dragMode')}
-                </button>
-                <button
-                  type="button"
-                  onClick={startPairMode}
-                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${createMode === 'pair' ? 'border-brand bg-brand/10 text-brand' : 'border-line-soft text-muted hover:bg-surface-glass hover:text-ink'}`}
-                >
-                  {t('create.pairMode')}
-                </button>
-              </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-muted">
-                {createMode === 'pair' ? t('create.pairProgress', { pass: pairState.pass }) : t('create.modeHelp')}
-              </p>
-            </div>
           </div>
         </div>
 
         {/* RIGHT CANVAS */}
         <div className="w-full lg:w-2/3 flex flex-col gap-6">
-          {createMode === 'pair' ? (
-            <div className="glass p-4 sm:p-6 rounded-2xl">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand">{t('create.pairEyebrow')}</p>
-                  <h2 className="mt-1 text-xl font-black text-ink">{t('create.pairTitle')}</h2>
-                  <p className="mt-1 text-sm font-medium text-muted">{t('create.pairHelp')}</p>
-                </div>
-                <button type="button" onClick={stopPairMode} className="rounded-lg border border-line-soft px-3 py-1.5 text-xs font-bold text-muted hover:bg-surface-glass hover:text-ink">
-                  {t('create.exitPair')}
-                </button>
-              </div>
-
-              {pairState.list.length >= 2 && (
-                <div className="mt-8">
-                  <div className="mb-3 text-center text-xs font-bold text-muted">
-                    {t('create.pairStep', { current: Math.min(pairState.cursor + 1, pairState.list.length - 1), total: pairState.list.length - 1 })}
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {[pairState.list[pairState.cursor], pairState.list[pairState.cursor + 1]].map((id, index) => {
-                      const item = items.find((candidate) => candidate.id === id);
-                      if (!item) return null;
-                      return (
-                        <button
-                          type="button"
-                          key={id}
-                          onClick={() => choosePairWinner(id)}
-                          className="group min-h-32 rounded-2xl border border-line-soft bg-surface p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-md active:scale-[0.98]"
-                        >
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted">{index === 0 ? 'A' : 'B'}</span>
-                          <span className="mt-2 block text-lg font-black leading-tight text-ink group-hover:text-brand">{item.content}</span>
-                          <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-brand"><Check size={14} /> {t('create.chooseThis')}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="mt-5 text-center text-xs font-medium text-muted">{t('create.pairHint')}</p>
-                </div>
-              )}
-            </div>
-          ) : (
           <div className="glass p-4 sm:p-6 rounded-2xl ">
 
             <div className="flex flex-col gap-3">
@@ -792,10 +670,9 @@ const CreateTierList = () => {
 
 
           </div>
-          )}
         </div>
       </div>
-      <EditorToolbar history={itemHistory} ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handlePublish} saving={isPublishing} />
+      <EditorToolbar showHistory={false} history={itemHistory} ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handlePublish} saving={isPublishing} />
     </div>
   );
 };

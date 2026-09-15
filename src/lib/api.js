@@ -157,7 +157,7 @@ export async function fetchRankings(categoryParam) {
     let url = `${API_URL}/api/rankings`;
     
     if (typeof categoryParam === 'object' && categoryParam !== null) {
-      const { category, hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin } = categoryParam;
+      const { category, hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, refresh, exclude } = categoryParam;
       const params = new URLSearchParams();
 
       if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
@@ -166,6 +166,7 @@ export async function fetchRankings(categoryParam) {
       if (feedType) params.append('feed_type', feedType);
       if (seed != null) params.append('seed', seed);
       if (pin) params.append('pin', pin);
+      if (exclude) params.append('exclude', Array.isArray(exclude) ? exclude.join(',') : String(exclude));
       if (days != null) params.append('days', days);
       if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
       // authorId = กรองเฉพาะโพสต์ของผู้ใช้คนนี้ (ใช้ตอนดูโปรไฟล์คนอื่น)
@@ -174,6 +175,7 @@ export async function fetchRankings(categoryParam) {
       if (sort) params.append('sort', sort);
       if (page) params.append('page', page);
       if (limit) params.append('limit', limit);
+      if (refresh) params.append('_t', String(Date.now()));
 
       const queryStr = params.toString();
       if (queryStr) url += `?${queryStr}`;

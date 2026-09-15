@@ -72,8 +72,8 @@
   },
   "spotlights": {
     "eyebrow": "Picked by Tear of God",
-    "title": "Featured prompts",
-    "subtitle": "One prompt, many opinions. Rank it before the next refresh.",
+    "title": "Daily & Weekly Templates",
+    "subtitle": "One template, many opinions. Rank it before the next refresh.",
     "daily": "Daily Pick",
     "weekly": "Weekly Debate",
     "general": "General",
@@ -83,7 +83,7 @@
     "timeDays": "{{days}}d {{hours}}h",
     "timeHours": "{{hours}}h {{minutes}}m",
     "timeMinutes": "{{minutes}}m",
-    "loading": "Loading featured prompts..."
+    "loading": "Loading templates..."
   },
   "freshness": {
     "eyebrow": "What's alive today",
@@ -182,6 +182,8 @@
     "trending": "Trending",
     "forYou": "For You",
     "following": "Following",
+    "refresh": "Refresh feed",
+    "refreshed": "Feed updated",
     "loadingYourFeed": "Loading your feed...",
     "empty": "No posts in the system yet",
     "emptyCta": "Create the first Tier List!",
@@ -633,7 +635,8 @@
     "viewProfile": "View Profile",
     "joinCtaTitle": "Create your Tier List",
     "joinCtaDesc": "Rank your favorite items and share them with the community",
-    "startRanking": "Start Ranking"
+    "startRanking": "Start Ranking",
+    "savedHint": "Your saved collection"
   },
   "admin": {
     "menu": "Admin menu",
@@ -806,7 +809,7 @@
     "commentFetchFailed": "Could not fetch comments",
     "commentCreateFailed": "Could not create comment",
     "templateFetchFailed": "Could not fetch template data",
-    "spotlightFetchFailed": "Could not fetch featured prompts",
+    "spotlightFetchFailed": "Could not fetch daily templates",
     "hashtagFetchFailed": "Could not fetch hashtag data",
     "viewRecordFailed": "Could not record the view",
     "statsFetchFailed": "Could not fetch statistics",
