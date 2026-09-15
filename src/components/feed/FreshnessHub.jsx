@@ -1,4 +1,4 @@
-import { ChevronRight, Clock3, Flame, MessageCircle, Scale, Sparkles, ThumbsUp } from 'lucide-react';
+import { ChevronRight, Clock3, MessageCircle, Sparkles, ThumbsUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
@@ -6,28 +6,32 @@ import { fetchSpotlights } from '../../lib/api';
 import { formatCount, timeAgo } from '../../lib/format';
 
 const RANKING_SECTIONS = [
-  { key: 'hot24', Icon: Flame, tone: 'text-aurora-orange', border: 'border-aurora-orange/25' },
   { key: 'recent', Icon: Clock3, tone: 'text-brand', border: 'border-brand/25' },
   { key: 'debate', Icon: MessageCircle, tone: 'text-aurora-purple', border: 'border-aurora-purple/25' },
-  { key: 'split', Icon: Scale, tone: 'text-rose-500', border: 'border-rose-400/25' },
 ];
 
-function RankingCard({ ranking }) {
+function RankingCard({ ranking, compact = false }) {
   const { t } = useTranslation();
   const next = `/post/${ranking.id}`;
   return (
     <Link
       to={next}
       data-auth-next={next}
-      className="block min-w-[17rem] snap-start rounded-xl border border-line-soft bg-surface/80 p-3 transition-colors hover:border-highlight"
+      className={`block ${
+        compact
+          ? 'w-full rounded-xl border border-line-soft bg-surface/80 p-2.5 transition-colors hover:border-highlight hover:bg-surface-glass shadow-2xs'
+          : 'min-w-[17rem] snap-start rounded-xl border border-line-soft bg-surface/80 p-3 transition-colors hover:border-highlight'
+      }`}
     >
-      <p className="line-clamp-2 text-sm font-extrabold leading-snug text-ink">{ranking.title}</p>
+      <p className={`line-clamp-2 ${compact ? 'text-[13px]' : 'text-sm'} font-extrabold leading-snug text-ink`}>
+        {ranking.title}
+      </p>
       <p className="mt-1 truncate text-[11px] font-semibold text-muted">
         {ranking.profile?.username || t('common.unknownUser')} · {timeAgo(ranking.created_at)}
       </p>
-      <div className="mt-3 flex items-center gap-3 text-[11px] font-semibold text-muted">
-        <span className="inline-flex items-center gap-1"><ThumbsUp size={13} /> {formatCount(ranking.stats?.likes || 0)}</span>
-        <span className="inline-flex items-center gap-1"><MessageCircle size={13} /> {formatCount(ranking.stats?.comments || 0)}</span>
+      <div className={`${compact ? 'mt-2' : 'mt-3'} flex items-center gap-3 text-[11px] font-semibold text-muted`}>
+        <span className="inline-flex items-center gap-1"><ThumbsUp size={12} /> {formatCount(ranking.stats?.likes || 0)}</span>
+        <span className="inline-flex items-center gap-1"><MessageCircle size={12} /> {formatCount(ranking.stats?.comments || 0)}</span>
         {ranking.disagreement > 0 && <span className="ml-auto text-rose-500">{t('freshness.splitScore', { score: ranking.disagreement })}</span>}
       </div>
     </Link>
@@ -121,26 +125,36 @@ function ScrollTrack({ children, hasMore = true, label }) {
   );
 }
 
-function Section({ section, items }) {
+function Section({ section, items, compact = false }) {
   const { t } = useTranslation();
   if (!items?.length) return null;
   const { Icon } = section;
   return (
-    <div className={`rounded-2xl border ${section.border} bg-surface/60 p-3`}>
+    <div className={`rounded-2xl border ${section.border} bg-surface/60 ${compact ? 'p-3' : 'p-3.5'}`}>
       <h3 className={`flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] ${section.tone}`}>
         <Icon size={14} aria-hidden="true" />
         {t(`freshness.${section.key}`)}
       </h3>
-      <div className="mt-2">
-        <ScrollTrack hasMore={items.length > 1} label={t('freshness.scrollHint')}>
-          {items.slice(0, 3).map((item) => <RankingCard key={item.id} ranking={item} />)}
-        </ScrollTrack>
+      <div className="mt-2.5">
+        {compact ? (
+          <div className="space-y-2">
+            {items.slice(0, 2).map((item) => (
+              <RankingCard key={item.id} ranking={item} compact={true} />
+            ))}
+          </div>
+        ) : (
+          <ScrollTrack hasMore={items.length > 1} label={t('freshness.scrollHint')}>
+            {items.slice(0, 3).map((item) => (
+              <RankingCard key={item.id} ranking={item} compact={false} />
+            ))}
+          </ScrollTrack>
+        )}
       </div>
     </div>
   );
 }
 
-export default function FreshnessHub() {
+export default function FreshnessHub({ compact = false }) {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -155,34 +169,45 @@ export default function FreshnessHub() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    const handleRefresh = () => {
+      fetchSpotlights(Date.now()).then((result) => {
+        setData(result?.data || null);
+      });
+    };
+    window.addEventListener('tog-refresh-feed', handleRefresh);
+    return () => window.removeEventListener('tog-refresh-feed', handleRefresh);
+  }, []);
+
   const freshness = data?.freshness || {};
   const hasFreshness = RANKING_SECTIONS.some((section) => freshness[section.key]?.length > 0);
   if (!loading && !hasFreshness) return null;
 
   return (
-    <section aria-labelledby="freshness-heading" className="space-y-3">
+    <section aria-labelledby={compact ? 'freshness-heading-compact' : 'freshness-heading'} className="space-y-3">
       <div className="flex items-end justify-between gap-4 px-1">
         <div>
           <p className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-muted">
             <Sparkles size={12} aria-hidden="true" />
             {t('freshness.eyebrow')}
           </p>
-          <h2 id="freshness-heading" className="mt-0.5 text-lg font-black text-ink">{t('freshness.title')}</h2>
+          <h2 id={compact ? 'freshness-heading-compact' : 'freshness-heading'} className={`mt-0.5 ${compact ? 'text-base' : 'text-lg'} font-black text-ink`}>
+            {t('freshness.title')}
+          </h2>
         </div>
-        <p className="hidden text-right text-xs font-medium text-muted sm:block">{t('freshness.subtitle')}</p>
+        {!compact && (
+          <p className="hidden text-right text-xs font-medium text-muted sm:block">{t('freshness.subtitle')}</p>
+        )}
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label={t('freshness.loading')}>
+        <div className={`grid grid-cols-1 gap-3 ${compact ? '' : 'sm:grid-cols-2'}`} aria-label={t('freshness.loading')}>
           {[0, 1].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl border border-line-soft bg-surface/60" />)}
         </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {RANKING_SECTIONS.map((section) => <Section key={section.key} section={section} items={freshness[section.key]} />)}
-          </div>
-
-        </>
+        <div className={`grid grid-cols-1 gap-3 ${compact ? '' : 'sm:grid-cols-2'}`}>
+          {RANKING_SECTIONS.map((section) => <Section key={section.key} section={section} items={freshness[section.key]} compact={compact} />)}
+        </div>
       )}
     </section>
   );

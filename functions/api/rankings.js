@@ -68,18 +68,25 @@ function mulberry32(a) {
   };
 }
 
-// Fisher–Yates ด้วย PRNG จาก seed — seed + ลำดับ input เดิม ⇒ ผลลัพธ์เดิมเสมอ
-// ทำให้ pagination (page/limit) เลื่อนไปทีละหน้าได้โดยไม่ซ้ำ/ไม่ข้าม ภายใน seed เดียวกัน
-function seededShuffle(list, seed) {
+// Windowed Fisher–Yates: สับเปลี่ยนตำแหน่งภายในกลุ่ม (window) ขนาด windowSize ตาม seed
+// ช่วยให้ feed แต่ละประเภท (Trending, For You, Following) สลับเปลี่ยน tier list ในหัวแถว
+// ทุกครั้งที่กดรีเฟรช โดยที่ยังคงรักษาอันดับความสดใหม่ (โพสต์ใหม่ๆ ขึ้นก่อน) และเกณฑ์ของแต่ละฟีด
+// ไม่ให้โพสต์เก่าหรือโพสต์ที่ไม่เกี่ยวข้องกระโดดขึ้นมาแซงหัวแถว และไม่ทำให้ pagination ซ้ำหรือข้าม
+function windowedShuffle(list, windowSize, seed) {
+  if (!seed || !list || list.length <= 1) return list;
   const rand = mulberry32((seed >>> 0) ^ 0x9e3779b9);
-  const arr = list.slice();
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    const tmp = arr[i];
-    arr[i] = arr[j];
-    arr[j] = tmp;
+  const result = [];
+  for (let i = 0; i < list.length; i += windowSize) {
+    const chunk = list.slice(i, i + windowSize);
+    for (let j = chunk.length - 1; j > 0; j--) {
+      const k = Math.floor(rand() * (j + 1));
+      const tmp = chunk[j];
+      chunk[j] = chunk[k];
+      chunk[k] = tmp;
+    }
+    result.push(...chunk);
   }
-  return arr;
+  return result;
 }
 
 export async function onRequest({ request, env, data: auth }) {
@@ -182,6 +189,9 @@ export async function onRequest({ request, env, data: auth }) {
         // src/lib/lastPublished.js ส่งมาเฉพาะ mount แรกหลัง publish; ให้การ์ดนั้นขึ้นอันแรก
         // อีกครั้ง (ถ้ารีโหลดหน้าใหม่ client ส่งไม่มา → กลับไปสุ่มแบบเดิม) — ตรวจเจ้าของเอง
         const runPin = url.searchParams.get('pin');
+        // รายการ ranking IDs ที่เพิ่งแสดงผลไปในการรีเฟรชครั้งล่าสุด เพื่อนำมาคัดออกจากหน้าแรกไม่ให้วนซ้ำ
+        const excludeParam = url.searchParams.get('exclude');
+        const excludeIds = excludeParam ? new Set(excludeParam.split(',').filter(Boolean)) : null;
 
         // sort ที่ระบุมาชัดเจนต้องชนะ personalized order เสมอ — ไม่งั้นหน้าที่ส่ง user_id มา
         // เพื่อขอ user_vote (เช่น Template Detail) จะโดนแย่ง ORDER BY ไปแบบไม่ได้ตั้งใจ
@@ -316,8 +326,10 @@ export async function onRequest({ request, env, data: auth }) {
 
             const trendingOrder = `(
               CASE
-                WHEN r.created_at >= datetime('now', '-7 days') THEN 30
-                WHEN r.created_at >= datetime('now', '-30 days') THEN 12
+                WHEN r.created_at >= datetime('now', '-3 days') THEN 50
+                WHEN r.created_at >= datetime('now', '-7 days') THEN 35
+                WHEN r.created_at >= datetime('now', '-14 days') THEN 20
+                WHEN r.created_at >= datetime('now', '-30 days') THEN 10
                 WHEN r.created_at >= datetime('now', '-90 days') THEN 3
                 ELSE 0
               END
@@ -352,10 +364,29 @@ export async function onRequest({ request, env, data: auth }) {
               poolIds = (fbRows || []).map((row) => row.id);
             }
 
-            // For You keeps a seeded mix within its relevant pool. Trending and Following
-            // already have meaningful, stable orders and must stay stable across pages.
-            const orderedIds = feedType === 'for_you' && !personalizationFallback
-              ? seededShuffle(poolIds, seed ^ fnv1a(feedType))
+            // คัดกรองโพสต์ที่เพิ่งเห็นในการรีเฟรชครั้งก่อนหน้าออกไป (exclude)
+            // เพื่อให้การกดรีเฟรชต่อเนื่อง (รีรัวๆ) ได้การ์ดใหม่เสมอ ไม่ขึ้นอันซ้ำ
+            if (excludeIds && excludeIds.size > 0) {
+              const filtered = poolIds.filter((id) => !excludeIds.has(id));
+              if (filtered.length >= limit) {
+                poolIds = filtered;
+              }
+            }
+
+            // เวลากด refresh (seed > 0):
+            // สุ่มสลับตำแหน่งแบบกลุ่มใหญ่ (windowed shuffle):
+            // - Trending: สุ่มสลับจากกลุ่ม Top 60 รายการยอดนิยม/สดใหม่ เพื่อให้เวลารีเฟรชไม่เห็นเฉพาะ 12 อันดับเดิมซ้ำๆ
+            // - For You: สุ่มสลับจากกลุ่ม 48 รายการที่ตรงกับความชอบของ account นั้น
+            // - Following: สุ่มสลับจากกลุ่ม 36 รายการล่าสุดจากคนที่ติดตาม
+            // ช่วยให้การรีเฟรชได้การ์ดชุดใหม่ที่หลากหลายขึ้นมาก ไม่วนซ้ำเฉพาะ 12 การ์ดเดิม
+            const SHUFFLE_WINDOWS = {
+              trending: 60,
+              for_you: 48,
+              following: 36,
+            };
+            const windowSize = SHUFFLE_WINDOWS[feedType] || 48;
+            const orderedIds = seed > 0
+              ? windowedShuffle(poolIds, windowSize, seed ^ fnv1a(feedType))
               : poolIds;
 
             // A freshly published ranking is pinned once at the top of Trending. Ownership

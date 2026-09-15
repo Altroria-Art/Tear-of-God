@@ -128,6 +128,12 @@ export default function FeaturedPrompts({ compact = false }) {
   }, [refreshKey]);
 
   useEffect(() => {
+    const handleRefresh = () => setRefreshKey(Date.now());
+    window.addEventListener('tog-refresh-feed', handleRefresh);
+    return () => window.removeEventListener('tog-refresh-feed', handleRefresh);
+  }, []);
+
+  useEffect(() => {
     const rolloverTimes = [spotlights?.daily?.ends_at, spotlights?.weekly?.ends_at]
       .map((value) => new Date(value).getTime())
       .filter(Number.isFinite);

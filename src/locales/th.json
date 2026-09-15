@@ -72,18 +72,18 @@
   },
   "spotlights": {
     "eyebrow": "คัดโดย Tear of God",
-    "title": "โจทย์ประจำรอบ",
-    "subtitle": "หัวข้อเดียวกัน ความเห็นต่างกัน จัดเลยก่อนเปลี่ยนรอบ",
+    "title": "เทมเพลตประจำวันและสัปดาห์",
+    "subtitle": "เทมเพลตคัดสรรประจำวันและประจำสัปดาห์ จัดอันดับก่อนเปลี่ยนรอบถัดไป",
     "daily": "Daily Pick",
     "weekly": "Weekly Debate",
     "general": "ทั่วไป",
     "rankedBy": "{{count}} คนจัดแล้ว",
-    "refreshesIn": "เปลี่ยนโจทย์ใน {{time}}",
+    "refreshesIn": "เปลี่ยนเทมเพลตใน {{time}}",
     "rankNow": "จัดเลย",
     "timeDays": "{{days}} วัน {{hours}} ชม.",
     "timeHours": "{{hours}} ชม. {{minutes}} นาที",
     "timeMinutes": "{{minutes}} นาที",
-    "loading": "กำลังโหลดโจทย์ประจำรอบ..."
+    "loading": "กำลังโหลดเทมเพลต..."
   },
   "freshness": {
     "eyebrow": "สิ่งที่กำลังเกิดขึ้นวันนี้",
@@ -182,6 +182,8 @@
     "trending": "กำลังมาแรง",
     "forYou": "สำหรับคุณ",
     "following": "กำลังติดตาม",
+    "refresh": "รีเฟรชฟีด",
+    "refreshed": "อัปเดตฟีดแล้ว",
     "loadingYourFeed": "กำลังโหลดฟีดของคุณ...",
     "empty": "ยังไม่มีโพสต์ในระบบเลย",
     "emptyCta": "สร้าง Tier List เป็นคนแรกเลย!",
@@ -629,7 +631,8 @@
     "viewProfile": "ดูโปรไฟล์",
     "joinCtaTitle": "สร้าง Tier List ของคุณ",
     "joinCtaDesc": "จัดอันดับสิ่งที่คุณชอบ แล้วแชร์ให้ชุมชนร่วมแสดงความเห็น",
-    "startRanking": "เริ่มจัดอันดับ"
+    "startRanking": "เริ่มจัดอันดับ",
+    "savedHint": "คอลเลกชันที่บันทึกไว้"
   },
   "admin": {
     "menu": "เมนูแอดมิน",
@@ -802,7 +805,7 @@
     "commentFetchFailed": "ไม่สามารถดึงคอมเมนต์ได้",
     "commentCreateFailed": "ไม่สามารถสร้างคอมเมนต์ได้",
     "templateFetchFailed": "ไม่สามารถดึงข้อมูลเทมเพลตได้",
-    "spotlightFetchFailed": "ไม่สามารถดึงโจทย์ประจำรอบได้",
+    "spotlightFetchFailed": "ไม่สามารถดึงเทมเพลตประจำวันได้",
     "hashtagFetchFailed": "ไม่สามารถดึงข้อมูลแฮชแท็กได้",
     "viewRecordFailed": "บันทึกการเข้าชมไม่สำเร็จ",
     "statsFetchFailed": "ไม่สามารถดึงสถิติได้",
