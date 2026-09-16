@@ -84,7 +84,9 @@ export default function HomeRightSidebar() {
                     <div className="text-[13px] font-bold text-ink-soft group-hover:text-highlight transition-colors truncate">
                       {tpl.title || t('common.untitled')}
                     </div>
-                    <div className="text-[11px] text-muted truncate">{tpl.category || 'general'}</div>
+                    <div className="text-[11px] text-muted truncate">
+                      {t(`category.${tpl.category || 'general'}.title`, { defaultValue: t('spotlights.general') })}
+                    </div>
                   </div>
                 </div>
                 <div className="text-[11px] text-muted font-medium bg-surface-glass px-2 py-0.5 rounded-full border border-line-soft shrink-0">

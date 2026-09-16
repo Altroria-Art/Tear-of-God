@@ -4,11 +4,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
-import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Sparkles, Users, BarChart3, RotateCw } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, BarChart3, RotateCw } from 'lucide-react';
 import { challengeUrl, shareUrl } from '../lib/share';
 import ShareExportModal from '../components/ui/ShareExportModal';
 import ExportCard from '../components/ui/ExportCard';
 import BookmarkButton from '../components/template/BookmarkButton';
+import UserFollowButton from '../components/user/UserFollowButton';
 
 import { formatCount, timeAgo } from '../lib/format';
 import { takeLastPublished } from '../lib/lastPublished';
@@ -32,11 +33,11 @@ import { useToast } from '../components/ui/Toast';
 const PAGE_SIZE = 12
 const FEED_TABS = [
   { id: 'trending', labelKey: 'feed.trending', Icon: Flame },
-  { id: 'for_you', labelKey: 'feed.forYou', Icon: Sparkles },
+  { id: 'for_you', labelKey: 'feed.forYou', Icon: Heart },
   { id: 'following', labelKey: 'feed.following', Icon: Users },
 ]
 
-function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null, onShare, onExport }) {
+function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialComments = 0, initialUserVote = null, onShare, onExport, onRequireAuth }) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
@@ -51,8 +52,12 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   // state machine เดียวรับทั้ง like/dislike: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
   const handleVote = async (type) => {
     if (!currentUser) {
-      toast.warning(t('feed.voteLogin'));
-      navigate('/login');
+      if (onRequireAuth) {
+        onRequireAuth(`/post/${id}`);
+      } else {
+        toast.warning(t('feed.voteLogin'));
+        navigate('/login');
+      }
       return;
     }
 
@@ -118,8 +123,9 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   );
 }
 
-function HomeTierCard({ post }) {
+function HomeTierCard({ post, onRequireAuth }) {
   const navigate = useNavigate();
+  const { currentUser } = useUser();
   const { t } = useTranslation();
   const [modal, setModal] = useState(null); // 'share' | 'export' | null
   const [mobileExpanded, setMobileExpanded] = useState(false);
@@ -181,13 +187,20 @@ function HomeTierCard({ post }) {
             )}
           </div>
           <div className="min-w-0">
-            <h3
-              data-auth-next={`/profile/${post.user_id}`}
-              className="truncate text-[15px] font-bold text-ink leading-tight cursor-pointer hover:underline"
-              onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
-            >
-              {post.profile?.username || t('common.unknownUser')}
-            </h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3
+                data-auth-next={`/profile/${post.user_id}`}
+                className="truncate text-[15px] font-bold text-ink leading-tight cursor-pointer hover:underline"
+                onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
+              >
+                {post.profile?.username || t('common.unknownUser')}
+              </h3>
+              <UserFollowButton
+                targetUserId={post.user_id}
+                initialIsFollowing={post.profile?.is_following}
+                onRequireAuth={onRequireAuth}
+              />
+            </div>
             <p
               data-auth-next={`/post/${post.id}`}
               className="text-[13px] text-muted font-medium cursor-pointer"
@@ -201,11 +214,21 @@ function HomeTierCard({ post }) {
         <div className="flex shrink-0 gap-1.5">
           <BookmarkButton 
             template={{ id: post.template_id, is_saved: post.is_template_saved }} 
+            onRequireAuth={onRequireAuth}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
           />
           <button
-            data-auth-next={`/rank?template=${encodeURIComponent(post.template_id || '')}`}
-            onClick={() => navigate(`/rank?template=${post.template_id || ''}`)}
+            onClick={() => {
+              if (!currentUser) {
+                if (onRequireAuth) {
+                  onRequireAuth(`/rank?template=${encodeURIComponent(post.template_id || '')}`);
+                } else {
+                  navigate(`/login?next=${encodeURIComponent(`/rank?template=${post.template_id || ''}`)}`);
+                }
+                return;
+              }
+              navigate(`/rank?template=${post.template_id || ''}`);
+            }}
             title={t('feed.useTemplate', { title: post.title })}
             className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
           >
@@ -295,6 +318,7 @@ function HomeTierCard({ post }) {
         initialUserVote={post.user_vote ?? null}
         onShare={() => setModal('share')}
         onExport={() => setModal('export')}
+        onRequireAuth={onRequireAuth}
       />
 
       {modal !== null && (
@@ -328,10 +352,29 @@ function HomeTierCard({ post }) {
   );
 }
 
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => (
+    typeof window !== 'undefined' ? window.matchMedia(query).matches : false
+  ));
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const media = window.matchMedia(query);
+    const onChange = (e) => setMatches(e.matches);
+    setMatches(media.matches);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, [query]);
+
+  return matches;
+}
+
 export default function HomeFeed() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
+  const isLg = useMediaQuery('(min-width: 1024px)');
+  const isXl = useMediaQuery('(min-width: 1280px)');
   const toast = useToast();
   const [posts, setPosts] = useState([]);
   const [hasMore, setHasMore] = useState(true);
@@ -380,7 +423,7 @@ export default function HomeFeed() {
   // The backend gives each mode distinct semantics: engagement+freshness, interest
   // matching, or authors followed by the signed-in viewer.
   const feedType = activeTab;
-  const feedLocked = activeTab !== 'trending' && !currentUser;
+  const feedLocked = activeTab === 'following' && !currentUser;
   const resolvedFeedTypeRef = useRef(feedType);
   const seedRef = useRef(Math.floor(Math.random() * 1e9));
   // 📍 [ใหม่]: ranking ที่เพิ่ง publish ของฉัน — ขึ้นการ์ดแรกหน้า Home แค่ mount แรกหลัง publish
@@ -573,34 +616,10 @@ export default function HomeFeed() {
     && !feedLocked
     && activeTab === 'following'
     && displayData.length === 0;
-  const LockedIcon = activeTab === 'following' ? Users : Sparkles;
-
-  const gateGuestInteraction = useCallback((event) => {
-    if (currentUser || !(event.target instanceof Element)) return;
-    const interactive = event.target.closest(
-      'a[href], button, input, textarea, select, summary, [role="button"], [class*="cursor-pointer"]'
-    );
-    if (!interactive || !event.currentTarget.contains(interactive)) return;
-    if (interactive.hasAttribute('data-guest-allowed')) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    let next = interactive.getAttribute('data-auth-next') || '/';
-    const anchor = interactive.closest('a[href]');
-    if (anchor) {
-      try {
-        const url = new URL(anchor.href, window.location.origin);
-        if (url.origin === window.location.origin) next = `${url.pathname}${url.search}${url.hash}`;
-      } catch {
-        next = '/';
-      }
-    }
-    setGuestPrompt({ open: true, next });
-  }, [currentUser]);
+  const LockedIcon = Users;
 
   return (
-    <div className="min-h-screen font-sans" onClickCapture={gateGuestInteraction}>
+    <div className="min-h-screen font-sans">
       {/* Floating Tab Navigation Capsule with Auto-hide on Scroll */}
       <div
         className={`sticky top-[80px] z-30 flex justify-center pointer-events-none transition-all duration-300 ease-in-out pb-2 ${
@@ -649,16 +668,32 @@ export default function HomeFeed() {
       <div className="mx-auto max-w-7xl px-4 flex gap-8 pt-3 pb-12 items-start justify-center">
         <aside className="hidden lg:block w-[240px] shrink-0 sticky top-[88px] max-h-[calc(100vh-88px)] overflow-y-auto hide-scrollbar pb-6 space-y-4">
           <HomeLeftSidebar />
-          {activeTab === 'trending' && (
+          {activeTab === 'trending' && isLg && (
             <FeaturedPrompts compact />
           )}
         </aside>
         <main className="w-full max-w-2xl shrink">
         <div className="space-y-6">
-          {activeTab === 'trending' && <div className="lg:hidden"><FeaturedPrompts /></div>}
-          {activeTab === 'trending' && (
+          {activeTab === 'trending' && !isLg && <div className="lg:hidden"><FeaturedPrompts /></div>}
+          {activeTab === 'trending' && !isXl && (
             <div className="xl:hidden">
               <FreshnessHub />
+            </div>
+          )}
+
+          {activeTab === 'for_you' && !currentUser && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-line-soft bg-surface/80 p-3.5 text-xs text-muted shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <Heart size={16} className="text-brand shrink-0" />
+                <span>{t('feed.forYouGuestNotice')}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGuestPrompt({ open: true, next: '/' })}
+                className="shrink-0 font-bold text-brand hover:underline"
+              >
+                {t('nav.login')}
+              </button>
             </div>
           )}
 
@@ -683,13 +718,13 @@ export default function HomeFeed() {
                 <LockedIcon size={24} />
               </div>
               <p className="text-base font-bold text-ink">
-                {t(activeTab === 'following' ? 'feed.followingLockedTitle' : 'feed.forYouLockedTitle')}
+                {t('feed.followingLockedTitle')}
               </p>
               <p className="mt-2 text-sm text-muted font-medium">
-                {t(activeTab === 'following' ? 'feed.followingLockedDesc' : 'feed.forYouLockedDesc')}
+                {t('feed.followingLockedDesc')}
               </p>
               <button
-                onClick={() => navigate('/login')}
+                onClick={() => setGuestPrompt({ open: true, next: '/' })}
                 className="mt-5 px-5 py-2.5 bg-brand text-canvas text-sm font-bold rounded-full shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97]"
               >
                 {t('feed.loginCta')}
@@ -715,7 +750,7 @@ export default function HomeFeed() {
           )}
 
           {!isLoading && displayData.map((post) => (
-            <HomeTierCard key={post.id} post={post} />
+            <HomeTierCard key={post.id} post={post} onRequireAuth={(next) => setGuestPrompt({ open: true, next })} />
           ))}
 
           {/* เงื่อนไขต้องไม่มี isLoading — ถ้ามี sentinel จะยังไม่ mount ตอนโหลดหน้าแรก
@@ -738,7 +773,7 @@ export default function HomeFeed() {
         </div>
       </main>
       <aside className="hidden xl:block w-[320px] shrink-0 sticky top-[88px] max-h-[calc(100vh-88px)] overflow-y-auto hide-scrollbar pb-6 space-y-4">
-        <FreshnessHub compact />
+        {isXl && <FreshnessHub compact />}
         <div className="px-2 pt-2 text-[11px] font-medium text-muted/80 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span>&copy; 2026 Tear of God</span>
           <span>&bull;</span>

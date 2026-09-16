@@ -1,4 +1,4 @@
-import { ChevronRight, Clock3, MessageCircle, Sparkles, ThumbsUp } from 'lucide-react';
+import { Activity, ChevronRight, Clock3, MessageCircle, ThumbsUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
@@ -188,7 +188,7 @@ export default function FreshnessHub({ compact = false }) {
       <div className="flex items-end justify-between gap-4 px-1">
         <div>
           <p className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-muted">
-            <Sparkles size={12} aria-hidden="true" />
+            <Activity size={12} aria-hidden="true" />
             {t('freshness.eyebrow')}
           </p>
           <h2 id={compact ? 'freshness-heading-compact' : 'freshness-heading'} className={`mt-0.5 ${compact ? 'text-base' : 'text-lg'} font-black text-ink`}>

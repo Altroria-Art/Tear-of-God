@@ -17,9 +17,9 @@ async function apiFetch(url, options = {}) {
 // แก้ปัญหาได้ไม่ว่าสาเหตุต้นตอจะมาจากอะไร (context re-render, effect รีรัน, remount ฯลฯ)
 const inFlightGET = new Map();
 
-async function getJSON(url) {
-  if (inFlightGET.has(url)) return inFlightGET.get(url);
-  const promise = apiFetch(url)
+async function getJSON(url, options = {}) {
+  if (!options.signal && inFlightGET.has(url)) return inFlightGET.get(url);
+  const promise = apiFetch(url, options)
     .then(async (res) => {
       const ct = res.headers.get('content-type') || '';
       if (!ct.includes('application/json')) {
@@ -32,8 +32,10 @@ async function getJSON(url) {
       }
       return json;
     })
-    .finally(() => inFlightGET.delete(url));
-  inFlightGET.set(url, promise);
+    .finally(() => {
+      if (!options.signal) inFlightGET.delete(url);
+    });
+  if (!options.signal) inFlightGET.set(url, promise);
   return promise;
 }
 
@@ -424,9 +426,10 @@ export async function fetchTemplate(templateId, { light = false, period = null }
   }
 }
 
-export async function fetchTemplates({ hashtag, category, limit, page, sort, q, saved } = {}) {
+export async function fetchTemplates({ hashtag, category, limit, page, sort, q, saved, suggest, signal } = {}, options = {}) {
   try {
     const params = new URLSearchParams();
+    if (suggest) params.set('suggest', '1');
     if (q) params.set('q', q);
     if (saved) params.set('saved', 'true');
     if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
@@ -436,9 +439,11 @@ export async function fetchTemplates({ hashtag, category, limit, page, sort, q, 
     if (sort) params.append('sort', sort);
 
     const queryStr = params.toString();
-    const result = await getJSON(`${API_URL}/api/templates${queryStr ? `?${queryStr}` : ''}`);
+    const fetchOptions = { ...options, ...(signal ? { signal } : {}) };
+    const result = await getJSON(`${API_URL}/api/templates${queryStr ? `?${queryStr}` : ''}`, fetchOptions);
     return applyFreshViewCounts(result);
   } catch (error) {
+    if (error.name === 'AbortError') throw error;
     console.error("fetchTemplates error:", error);
     return { data: [], error: i18n.t('errors.templateFetchFailed') };
   }
@@ -468,17 +473,20 @@ export async function fetchCategories({ limit } = {}) {
   }
 }
 
-export async function fetchHashtags({ page, limit, sort, q } = {}) {
+export async function fetchHashtags({ page, limit, sort, q, suggest, signal } = {}, options = {}) {
   try {
     const params = new URLSearchParams();
+    if (suggest) params.set('suggest', '1');
     if (page) params.append('page', page);
     if (limit) params.append('limit', limit);
     if (sort) params.append('sort', sort);
     if (q) params.append('q', q);
 
     const queryStr = params.toString();
-    return await getJSON(`${API_URL}/api/hashtags${queryStr ? `?${queryStr}` : ''}`);
+    const fetchOptions = { ...options, ...(signal ? { signal } : {}) };
+    return await getJSON(`${API_URL}/api/hashtags${queryStr ? `?${queryStr}` : ''}`, fetchOptions);
   } catch (error) {
+    if (error.name === 'AbortError') throw error;
     console.error("fetchHashtags error:", error);
     return { data: [], error: i18n.t('errors.hashtagFetchFailed') };
   }

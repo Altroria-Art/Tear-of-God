@@ -24,10 +24,10 @@ const EVENT_NAMES = [
 
 const ENTITY_TYPES = ['feed', 'template', 'ranking', 'challenge', 'comparison'];
 
-function shouldRunCleanup(eventId) {
-  let bucket = 0;
-  for (const character of eventId) bucket = (bucket * 31 + character.charCodeAt(0)) % 64;
-  return bucket === 0;
+function shouldRunCleanup() {
+  const sample = new Uint8Array(1);
+  crypto.getRandomValues(sample);
+  return (sample[0] & 63) === 0;
 }
 
 export async function onRequestPost({ request, env, data: auth, waitUntil }) {
@@ -60,7 +60,7 @@ export async function onRequestPost({ request, env, data: auth, waitUntil }) {
     const gate = consumeMemoryRateLimit('analytics-event', rateSubject, { limit: 240, windowSeconds: 3600 });
     if (!gate.allowed) return rateLimitResponse(gate);
 
-    await env.tear_of_god_db.prepare(`
+    const result = await env.tear_of_god_db.prepare(`
       INSERT OR IGNORE INTO analytics_events
         (id, event_name, session_id, user_id, entity_type, entity_id)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -74,8 +74,9 @@ export async function onRequestPost({ request, env, data: auth, waitUntil }) {
     ).run();
 
     // Opportunistic retention cleanup keeps the table bounded without adding a
-    // cron dependency. Roughly 1/64 accepted events trigger the same idempotent job.
-    if (shouldRunCleanup(eventId)) {
+    // cron dependency. Roughly 1/64 newly-inserted events trigger the same idempotent job.
+    // Duplicate events (changes === 0) never trigger cleanup.
+    if ((result.meta?.changes ?? 0) > 0 && shouldRunCleanup()) {
       waitUntil(env.tear_of_god_db.prepare(
         `DELETE FROM analytics_events WHERE created_at < datetime('now', '-180 days')`
       ).run());

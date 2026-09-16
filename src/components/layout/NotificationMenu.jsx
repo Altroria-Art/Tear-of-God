@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Sparkles, TrendingUp, UserPlus } from 'lucide-react';
+import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Swords, TrendingUp, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchNotifications, markNotificationRead } from '../../lib/api';
@@ -8,7 +8,7 @@ import { timeAgo } from '../../lib/format';
 const notificationIcon = {
   comment: MessageCircle,
   follow: UserPlus,
-  challenge: Sparkles,
+  challenge: Swords,
   template_use: LayoutTemplate,
   following_rank: UserPlus,
   trending: TrendingUp,
@@ -42,9 +42,11 @@ export default function NotificationMenu({ userId }) {
   const [isLoading, setIsLoading] = useState(true);
   const menuRef = useRef(null);
   const requestIdRef = useRef(0);
+  const lastRefreshedAtRef = useRef(0);
 
   const refresh = useCallback(async ({ quiet = false } = {}) => {
     if (!userId) return;
+    lastRefreshedAtRef.current = Date.now();
     const requestId = ++requestIdRef.current;
     if (!quiet) setIsLoading(true);
     const result = await fetchNotifications(20);
@@ -59,11 +61,27 @@ export default function NotificationMenu({ userId }) {
   useEffect(() => {
     if (!userId) return undefined;
     refresh();
+
+    // Poll every 5 minutes (300,000 ms) while visible
     const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible') refresh({ quiet: true });
-    }, 90000);
+      if (document.visibilityState === 'visible' && Date.now() - lastRefreshedAtRef.current >= 60000) {
+        refresh({ quiet: true });
+      }
+    }, 300000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Refresh when user returns to tab if at least 60 seconds have elapsed since last actual refresh from ANY trigger
+        if (Date.now() - lastRefreshedAtRef.current >= 60000) {
+          refresh({ quiet: true });
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       requestIdRef.current += 1;
     };
   }, [refresh, userId]);

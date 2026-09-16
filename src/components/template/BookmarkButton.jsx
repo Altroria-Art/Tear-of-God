@@ -7,7 +7,7 @@ import { useToast } from '../ui/Toast';
 import { saveTemplate } from '../../lib/api';
 import { loginPath } from '../../lib/navigation';
 
-export default function BookmarkButton({ template, className, children }) {
+export default function BookmarkButton({ template, className, children, onRequireAuth }) {
   const { t } = useTranslation();
   const { currentUser } = useUser();
   const toast = useToast();
@@ -22,7 +22,14 @@ export default function BookmarkButton({ template, className, children }) {
     return () => window.removeEventListener('tog-bookmark', update);
   }, [template.id]);
   const toggle = async () => {
-    if (!currentUser) { navigate(loginPath(location.pathname + location.search)); return; }
+    if (!currentUser) {
+      if (onRequireAuth) {
+        onRequireAuth(location.pathname + location.search);
+      } else {
+        navigate(loginPath(location.pathname + location.search));
+      }
+      return;
+    }
     setBusy(true);
     const result = await saveTemplate(template.id, !saved);
     setBusy(false);

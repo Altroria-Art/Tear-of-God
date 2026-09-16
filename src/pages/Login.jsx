@@ -1,7 +1,7 @@
 import { returnPath } from '../lib/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, TrendingUp } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
 import { registerUser, loginUser, syncGoogleUser, fetchTemplates, fetchRankings } from '../lib/api';
@@ -447,9 +447,9 @@ export default function Login() {
                     <div className="mt-2.5 pt-1.5 border-t border-line-soft/60 flex items-center justify-between text-[10px] text-muted">
                       <span className="flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span>{formatCount(primaryTemplate.use_count)} คนจัดแล้ว</span>
+                        <span>{formatCount(primaryTemplate.use_count)} {t('auth.rankedByCount')}</span>
                       </span>
-                      <span className="text-[#ff553e] font-extrabold">Template จริง</span>
+                      <span className="text-[#ff553e] font-extrabold">{t('auth.realTemplate')}</span>
                     </div>
                   </div>
 
@@ -465,7 +465,7 @@ export default function Login() {
                           </span>
                         </div>
                         <span className="text-[9px] font-extrabold text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded-md shrink-0">
-                          {formatCount(secondaryTemplate.use_count)} ใช้
+                          {formatCount(secondaryTemplate.use_count)} {t('common.uses')}
                         </span>
                       </div>
                       <div className="flex items-center gap-2.5 bg-black/[0.02] dark:bg-white/[0.02] rounded-2xl p-2 border border-line-soft/30">
@@ -488,7 +488,7 @@ export default function Login() {
                         <div className="text-[11px] font-bold text-ink truncate">{realRankings[0]?.title || 'จัดอันดับอนิเมะในดวงใจ ปี 2026'}</div>
                         <div className="text-[9px] text-muted">{t('auth.latestRankingActivity')}</div>
                       </div>
-                      <span className="ml-auto text-xs shrink-0">✨</span>
+                      <TrendingUp size={14} className="ml-auto text-emerald-500 shrink-0 mr-1" />
                     </div>
                   </div>
                 </div>

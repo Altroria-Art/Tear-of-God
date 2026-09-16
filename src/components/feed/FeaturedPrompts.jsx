@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, CalendarDays, Clock3, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, CalendarDays, Clock3, Users } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchSpotlights } from '../../lib/api';
@@ -10,7 +10,7 @@ import { useToast } from '../ui/Toast';
 
 const PROMPT_STYLES = {
   daily: {
-    Icon: Sparkles,
+    Icon: Clock3,
     accent: 'text-aurora-orange',
     tint: 'bg-aurora-orange/10',
     border: 'border-aurora-orange/25'

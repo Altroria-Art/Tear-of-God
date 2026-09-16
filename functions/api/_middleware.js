@@ -38,7 +38,8 @@ export async function onRequest(context) {
     ));
   }
 
-  const path = new URL(request.url).pathname.replace(/\/$/, '');
+  const url = new URL(request.url);
+  const path = url.pathname.replace(/\/$/, '');
   if (mutation) {
     const origin = request.headers.get('Origin');
     if ((origin && origin !== new URL(request.url).origin) || request.headers.get('Sec-Fetch-Site') === 'cross-site') {
@@ -50,16 +51,29 @@ export async function onRequest(context) {
     }
   }
   try {
-    context.data.user = await readSession(request, env.tear_of_god_db);
+    const isPublicSpotlight = path === '/api/spotlights' && request.method === 'GET';
+    const isPublicSuggestion =
+      request.method === 'GET' &&
+      url.searchParams.get('suggest') === '1' &&
+      (
+        (path === '/api/templates' && !url.searchParams.has('id')) ||
+        path === '/api/hashtags'
+      );
+    const skipSessionLookup = isPublicSpotlight || isPublicSuggestion;
+    context.data.user = skipSessionLookup
+      ? null
+      : await readSession(request, env.tear_of_god_db);
     const guestMutation = path === '/api/auth' || path === '/api/analytics';
     if (((mutation && !guestMutation) || path === '/api/admin' || path.startsWith('/api/admin/')) && !context.data.user) {
       return withSecurityHeaders(Response.json({ success: false, error: 'กรุณาเข้าสู่ระบบอีกครั้ง / Please log in again' }, { status: 401, headers: { 'Cache-Control': 'no-store' } }));
     }
     const response = await context.next();
     const privateResponse = withSecurityHeaders(response);
-    privateResponse.headers.append('Vary', 'Cookie');
-    if (context.data.user || path === '/api/auth') {
-      privateResponse.headers.set('Cache-Control', 'private, no-store');
+    if (!isPublicSpotlight) {
+      privateResponse.headers.append('Vary', 'Cookie');
+      if (context.data.user || path === '/api/auth') {
+        privateResponse.headers.set('Cache-Control', 'private, no-store');
+      }
     }
     return privateResponse;
   } catch (error) {

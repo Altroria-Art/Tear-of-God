@@ -165,8 +165,28 @@ async function loadTemplateItems(db, templates) {
   return itemsMap;
 }
 
-export async function onRequestGet({ env }) {
-  const db = env.tear_of_god_db;
+export async function onRequestGet(context) {
+  const { request, env } = context;
+
+  const url = new URL(request.url);
+  const cacheKey = new Request(`${url.origin}${url.pathname}`, { method: 'GET' });
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+
+  if (cache) {
+    try {
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    } catch (cacheErr) {
+      console.warn('Cache match failed:', { name: cacheErr?.name, message: cacheErr?.message });
+    }
+  }
+
+  const db = env?.tear_of_god_db;
+  if (!db) {
+    return Response.json({ success: false, error: 'Database unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  }
 
   try {
     const periods = getBangkokPeriods();
@@ -248,7 +268,7 @@ export async function onRequestGet({ env }) {
     const allTemplates = [dailyTemplate, weeklyTemplate, ...seasonalTemplates, ...officialTemplates].filter(Boolean);
     const itemsMap = await loadTemplateItems(db, allTemplates);
 
-    return Response.json({
+    const response = Response.json({
       success: true,
       data: {
         timezone: 'Asia/Bangkok',
@@ -276,11 +296,26 @@ export async function onRequestGet({ env }) {
         official: officialTemplates.map((template) => serializeTemplate(template, itemsMap)),
       }
     }, {
-      headers: { 'Cache-Control': 'public, max-age=120' }
+      headers: { 'Cache-Control': 'public, max-age=30, s-maxage=300' }
     });
+
+    if (cache && response.status === 200) {
+      try {
+        const putPromise = cache.put(cacheKey, response.clone());
+        if (typeof context.waitUntil === 'function') {
+          context.waitUntil(putPromise);
+        } else {
+          await putPromise;
+        }
+      } catch (putErr) {
+        console.warn('Cache put failed:', { name: putErr?.name, message: putErr?.message });
+      }
+    }
+
+    return response;
   } catch (error) {
     console.error('Spotlight query failed:', { name: error?.name, message: error?.message });
-    return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    return Response.json({ success: false, error: 'Internal server error' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }
 

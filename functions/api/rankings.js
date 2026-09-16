@@ -106,11 +106,12 @@ export async function onRequest({ request, env, data: auth }) {
         const viewerId = auth.user?.id || null;
         const { results: rankings } = await db.prepare(`
           SELECT r.*, p.username, p.avatar_url,
-            ${viewerId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote
+            ${viewerId ? `(SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?)` : `NULL`} as user_vote,
+            ${viewerId ? `(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = r.user_id)` : `NULL`} as is_following
           FROM rankings r
           LEFT JOIN profiles p ON r.user_id = p.id
           WHERE r.id = ?
-        `).bind(...(viewerId ? [viewerId, id] : [id])).all();
+        `).bind(...(viewerId ? [viewerId, viewerId, id] : [id])).all();
 
         if (rankings.length === 0) return jsonResponse({ success: false, error: 'Not found' }, 404);
         const ranking = rankings[0];
@@ -148,7 +149,12 @@ export async function onRequest({ request, env, data: auth }) {
 
         const result = {
           ...ranking,
-          profile: { id: ranking.user_id, username: ranking.username || 'Unknown', avatar_url: ranking.avatar_url },
+          profile: {
+            id: ranking.user_id,
+            username: ranking.username || 'Unknown',
+            avatar_url: ranking.avatar_url,
+            is_following: !!ranking.is_following,
+          },
           stats: { likes: ranking.likes_count, dislikes: ranking.dislikes_count, comments: ranking.comments_count },
           user_vote: ranking.user_vote ?? null,
           tiers: tiersDef, // 📍 [ใหม่]: null เมื่อ ranking ไม่มี template (ดูหมายเหตุด้านบน)
@@ -232,14 +238,16 @@ export async function onRequest({ request, env, data: auth }) {
         let feedLocked = false;
         let personalizationFallback = false;
         if (feedType) {
-          if (feedType !== 'trending' && !currentUserId) {
+          if (feedType === 'following' && !currentUserId) {
             feedLocked = true;
             homePoolIds = [];
           } else {
             let poolWhere = pageWhere;
             const poolParams = [...pageWhereParams];
 
-            if (feedType === 'for_you' && currentUserId) {
+            if (feedType === 'for_you' && !currentUserId) {
+              personalizationFallback = true;
+            } else if (feedType === 'for_you' && currentUserId) {
               const { results: followedTopicRows } = await db.prepare(`
                 SELECT topic_type, topic_key
                 FROM topic_follows
@@ -337,7 +345,7 @@ export async function onRequest({ request, env, data: auth }) {
               + COALESCE(r.comments_count, 0) * 2
               - COALESCE(r.dislikes_count, 0)
             ) DESC, r.created_at DESC, r.id DESC`;
-            const poolOrder = feedType === 'trending'
+            const poolOrder = (feedType === 'trending' || personalizationFallback)
               ? trendingOrder
               : `r.created_at DESC, r.id DESC`;
             const { results: poolRows } = await db.prepare(`
@@ -544,7 +552,8 @@ export async function onRequest({ request, env, data: auth }) {
           // หน้านี้เท่านั้น (≤ limit แถว ไม่ใช่ทุก template ในระบบ) ยิงคู่กับ ranking_items ด้วย
           // Promise.all ลด round-trip แทนที่จะรอทีละ query
           const templateIds = [...new Set(rankings.map(r => r.template_id).filter(Boolean))];
-          const [{ results: allItems }, tplRows, { results: templateUseRows }, { results: communityHistogram }] = await Promise.all([
+          const authorIds = [...new Set(rankings.map(r => r.user_id).filter(Boolean))];
+          const [{ results: allItems }, tplRows, { results: templateUseRows }, { results: communityHistogram }, followedRows] = await Promise.all([
             db.prepare(`
               SELECT ri.*, i.name as item_name, i.image_url as item_image
               FROM ranking_items ri
@@ -578,7 +587,15 @@ export async function onRequest({ request, env, data: auth }) {
                   GROUP BY r.template_id, ri.item_id, ri.tier
                 `).bind(...templateIds).all()
               : Promise.resolve({ results: [] }),
+            currentUserId && authorIds.length > 0
+              ? db.prepare(`
+                  SELECT following_id FROM follows
+                  WHERE follower_id = ? AND following_id IN (${authorIds.map(() => '?').join(',')})
+                `).bind(currentUserId, ...authorIds).all().then(res => res.results || [])
+              : Promise.resolve([]),
           ]);
+
+          const followedSet = new Set((followedRows || []).map(f => f.following_id));
 
           const itemsMap = {};
           allItems.forEach(ri => {
@@ -634,7 +651,12 @@ export async function onRequest({ request, env, data: auth }) {
 
           formattedRankings = rankings.map(r => ({
              ...r,
-             profile: { id: r.user_id, username: r.username || 'Unknown', avatar_url: r.avatar_url },
+             profile: {
+               id: r.user_id,
+               username: r.username || 'Unknown',
+               avatar_url: r.avatar_url,
+               is_following: followedSet.has(r.user_id),
+             },
              stats: {
                likes: r.likes_count,
                dislikes: r.dislikes_count,

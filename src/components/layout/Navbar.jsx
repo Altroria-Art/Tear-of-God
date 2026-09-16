@@ -6,7 +6,37 @@ import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { switchLanguage } from '../../i18n';
 import NotificationMenu from './NotificationMenu';
-import { loginPath } from '../../lib/navigation';
+import SearchSuggestions from './SearchSuggestions';
+import { fetchTemplates, fetchHashtags } from '../../lib/api';
+
+const SUGGESTION_CACHE_TTL_MS = 30 * 1000;
+const SUGGESTION_CACHE_MAX_ENTRIES = 50;
+const suggestionCache = new Map();
+
+function getCachedSuggestions(key) {
+  const entry = suggestionCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    suggestionCache.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function setCachedSuggestions(key, templates, hashtags) {
+  if (
+    !suggestionCache.has(key) &&
+    suggestionCache.size >= SUGGESTION_CACHE_MAX_ENTRIES
+  ) {
+    const oldestKey = suggestionCache.keys().next().value;
+    suggestionCache.delete(oldestKey);
+  }
+  suggestionCache.set(key, {
+    templates,
+    hashtags,
+    expiresAt: Date.now() + SUGGESTION_CACHE_TTL_MS
+  });
+}
 
 const Navbar = () => {
   const location = useLocation();
@@ -17,20 +47,94 @@ const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState({ templates: [], hashtags: [] });
+  const [isSearching, setIsSearching] = useState(false);
+  const [isSuggestOpen, setIsSuggestOpen] = useState(false);
   const dropdownRef = useRef(null);
-  useEffect(() => { setSearchQuery(new URLSearchParams(location.search).get('q') || ''); setIsMobileMenuOpen(false); }, [location.pathname, location.search]);
+  const desktopSearchRef = useRef(null);
+  const mobileSearchRef = useRef(null);
+
+  useEffect(() => {
+    setSearchQuery(new URLSearchParams(location.search).get('q') || '');
+    setIsMobileMenuOpen(false);
+    setIsSuggestOpen(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 2) {
+      setSuggestions({ templates: [], hashtags: [] });
+      setIsSearching(false);
+      return;
+    }
+
+    const cacheKey = trimmed;
+    let cancelled = false;
+    let controller = null;
+    setIsSearching(true);
+
+    const timer = setTimeout(async () => {
+      const cached = getCachedSuggestions(cacheKey);
+      if (cached) {
+        if (!cancelled) {
+          setSuggestions({
+            templates: cached.templates,
+            hashtags: cached.hashtags
+          });
+          setIsSearching(false);
+        }
+        return;
+      }
+
+      controller = new AbortController();
+
+      try {
+        const [tplRes, tagRes] = await Promise.all([
+          fetchTemplates({ q: trimmed, limit: 4, suggest: 1, signal: controller.signal }),
+          fetchHashtags({ q: trimmed.replace(/^#+/, ''), limit: 4, suggest: 1, signal: controller.signal })
+        ]);
+        if (!cancelled) {
+          const templates = tplRes?.data || [];
+          const hashtags = tagRes?.data || [];
+
+          if (!tplRes?.error && !tagRes?.error) {
+            setCachedSuggestions(cacheKey, templates, hashtags);
+          }
+
+          setSuggestions({
+            templates,
+            hashtags
+          });
+          setIsSearching(false);
+        }
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+        if (!cancelled) {
+          setSuggestions({ templates: [], hashtags: [] });
+          setIsSearching(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      controller?.abort();
+    };
+  }, [searchQuery]);
 
   const handleSearch = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (searchQuery.trim()) {
-      const next = `/discover?q=${encodeURIComponent(searchQuery.trim())}`;
-      navigate(currentUser ? next : loginPath(next));
+      setIsSuggestOpen(false);
       setIsMobileMenuOpen(false);
+      navigate(`/discover?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
-  const gateGuestSearch = () => {
-    if (!currentUser) navigate(loginPath('/discover'));
+  const handleSelectSuggestion = () => {
+    setIsSuggestOpen(false);
+    setIsMobileMenuOpen(false);
   };
 
   const toggleLanguage = () => {
@@ -42,18 +146,36 @@ const Navbar = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
+      if (
+        (!desktopSearchRef.current || !desktopSearchRef.current.contains(event.target)) &&
+        (!mobileSearchRef.current || !mobileSearchRef.current.contains(event.target))
+      ) {
+        setIsSuggestOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsSuggestOpen(false);
+        setIsDropdownOpen(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        desktopSearchRef.current?.querySelector('input')?.focus();
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
   const isActive = (path) => {
     const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
     return active
-      ? 'border-brand text-brand font-semibold'
-      : 'border-transparent text-ink-soft hover:text-highlight';
+      ? 'text-brand font-bold bg-brand/10'
+      : 'text-ink-soft hover:text-ink hover:bg-surface/50 font-medium';
   };
 
   const handleLogout = async () => {
@@ -69,10 +191,10 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="glass-nav px-3 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+    <nav className="glass-nav px-4 sm:px-8 py-3 flex items-center justify-between sticky top-0 z-50">
       
       {/* ฝั่งซ้าย: โลโก้ และ ลิงก์เมนู */}
-      <div className="flex items-center gap-4 lg:gap-8 min-w-0">
+      <div className="flex items-center gap-6 lg:gap-8 min-w-0">
         <div className="flex items-center gap-2">
           <button 
             aria-label={t('nav.menu')}
@@ -80,21 +202,21 @@ const Navbar = () => {
             className="md:hidden p-2 text-ink-soft hover:text-brand" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
           <Link to="/" onClick={handleHomeClick} className="whitespace-nowrap text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
             Tear of God
           </Link>
         </div>
 
-        <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-          <Link to="/" onClick={handleHomeClick} className={`pb-1 border-b-2 transition-all ${isActive('/')}`}>
+        <div className="hidden md:flex items-center gap-1.5 text-sm">
+          <Link to="/" onClick={handleHomeClick} className={`px-3 py-1.5 rounded-lg transition-all ${isActive('/')}`}>
             {t('nav.home')}
           </Link>
-          <Link to="/create" className={`pb-1 border-b-2 transition-all ${isActive('/create')}`}>
+          <Link to="/create" className={`px-3 py-1.5 rounded-lg transition-all ${isActive('/create')}`}>
             {t('nav.create')}
           </Link>
-          <Link to="/discover" className={`pb-1 border-b-2 transition-all ${isActive('/discover')}`}>
+          <Link to="/discover" className={`px-3 py-1.5 rounded-lg transition-all ${isActive('/discover')}`}>
             {t('nav.discover')}
           </Link>
         </div>
@@ -104,24 +226,42 @@ const Navbar = () => {
       <div className="flex items-center gap-1 sm:gap-3">
         
         {/* ช่อง Search */}
-        <form onSubmit={handleSearch} className="relative hidden lg:block">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input 
-            type="text" 
-            aria-label={t('discover.search')}
-            placeholder={t('nav.searchPlaceholder')} 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={gateGuestSearch}
-            readOnly={!currentUser}
-            className="bg-search border border-line-soft rounded-full py-2.5 pl-10 pr-4 text-sm w-48 xl:w-72 outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
-          />
-        </form>
+        <div ref={desktopSearchRef} className="relative hidden lg:block">
+          <form onSubmit={handleSearch}>
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+            <input 
+              type="text" 
+              aria-label={t('discover.search')}
+              placeholder={t('nav.searchPlaceholder')} 
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSuggestOpen(true);
+              }}
+              onFocus={() => {
+                if (searchQuery.trim()) setIsSuggestOpen(true);
+              }}
+              className="bg-search border border-line-soft rounded-full py-2.5 pl-10 pr-4 text-sm w-48 xl:w-72 outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
+            />
+          </form>
+
+          {isSuggestOpen && searchQuery.trim() && (
+            <SearchSuggestions
+              query={searchQuery}
+              templates={suggestions.templates}
+              hashtags={suggestions.hashtags}
+              isLoading={isSearching}
+              onSelect={handleSelectSuggestion}
+              onSeeAll={() => handleSearch()}
+              className="w-72 xl:w-84"
+            />
+          )}
+        </div>
 
         {/* ปุ่มเปลี่ยนภาษา */}
         <button
           onClick={toggleLanguage}
-          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft"
+          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft cursor-pointer"
           aria-label={t('nav.toggleLanguage')}
           title={t('nav.toggleLanguage')}
         >
@@ -211,18 +351,37 @@ const Navbar = () => {
       {/* Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
         <div className="md:hidden absolute top-full left-0 w-full glass border-t border-line-soft p-4 flex flex-col gap-4 shadow-lg z-50">
-          <form onSubmit={(e) => { handleSearch(e); setIsMobileMenuOpen(false); }} className="relative w-full">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input 
-              type="text" 
-              placeholder={t('nav.searchPlaceholder')} 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={gateGuestSearch}
-              readOnly={!currentUser}
-              className="bg-search border border-line-soft rounded-full py-2 pl-10 pr-4 text-sm w-full outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
-            />
-          </form>
+          <div ref={mobileSearchRef} className="relative w-full">
+            <form onSubmit={handleSearch}>
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+              <input 
+                type="text" 
+                aria-label={t('discover.search')}
+                placeholder={t('nav.searchPlaceholder')} 
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSuggestOpen(true);
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim()) setIsSuggestOpen(true);
+                }}
+                className="bg-search border border-line-soft rounded-full py-2 pl-10 pr-4 text-sm w-full outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
+              />
+            </form>
+
+            {isSuggestOpen && searchQuery.trim() && (
+              <SearchSuggestions
+                query={searchQuery}
+                templates={suggestions.templates}
+                hashtags={suggestions.hashtags}
+                isLoading={isSearching}
+                onSelect={handleSelectSuggestion}
+                onSeeAll={() => handleSearch()}
+                className="w-full left-0 right-0"
+              />
+            )}
+          </div>
           <div className="flex flex-col gap-2">
             <Link to="/" className={`px-4 py-2 rounded-lg ${isActive('/')}`} onClick={() => setIsMobileMenuOpen(false)}>
               {t('nav.home')}
