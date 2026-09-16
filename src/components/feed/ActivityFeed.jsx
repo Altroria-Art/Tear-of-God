@@ -1,4 +1,4 @@
-import { Activity, Heart, ListPlus, Sparkles } from 'lucide-react';
+import { Activity, Heart, ListPlus, LayoutTemplate } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { timeAgo } from '../../lib/format';
@@ -8,7 +8,7 @@ function eventDetails(event, t) {
     return { Icon: Heart, iconClass: 'text-vote-up', label: t('feed.activityLiked') };
   }
   if (event.type === 'template_used') {
-    return { Icon: Sparkles, iconClass: 'text-highlight', label: t('feed.activityUsedTemplate') };
+    return { Icon: LayoutTemplate, iconClass: 'text-highlight', label: t('feed.activityUsedTemplate') };
   }
   return { Icon: ListPlus, iconClass: 'text-brand', label: t('feed.activityCreatedRanking') };
 }

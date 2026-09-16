@@ -70,20 +70,22 @@ function App() {
                 {/* Create is intentionally guest-first: visitors can build a draft,
                     while Create.jsx gates the Publish action when authentication is needed. */}
                 <Route path="/create" element={<Create />} />
+                <Route path="/rank" element={<RankTierList />} />
+                <Route path="/discover" element={<Discover />} />
+                <Route path="/discover/templates" element={<PopularTemplates />} />
+                <Route path="/discover/hashtags" element={<PopularHashtags />} />
+                <Route path="/discover/hashtag/:tag" element={<HashtagDetail />} />
+                <Route path="/category/:categoryId" element={<CategoryPage />} />
+                <Route path="/template/:templateId" element={<TemplateDetailPage />} />
+                <Route path="/template/:templateId/community" element={<CommunityAveragePage />} />
+                <Route path="/template/:templateId/participants" element={<CommunityParticipants />} />
+                <Route path="/post/:postId" element={<PostDetail />} />
+                <Route path="/compare/:sourceId/:responseId" element={<ChallengeCompare />} />
+                <Route path="/profile/:userId" element={<Profile />} />
+
+                {/* Protected routes requiring authentication */}
                 <Route element={<RequireAuth />}>
-                  <Route path="/discover" element={<Discover />} />
-                  <Route path="/discover/templates" element={<PopularTemplates />} />
-                  <Route path="/discover/hashtags" element={<PopularHashtags />} />
-                  <Route path="/discover/hashtag/:tag" element={<HashtagDetail />} />
-                  <Route path="/rank" element={<RankTierList />} />
-                  <Route path="/category/:categoryId" element={<CategoryPage />} />
-                  <Route path="/template/:templateId" element={<TemplateDetailPage />} />
-                  <Route path="/template/:templateId/community" element={<CommunityAveragePage />} />
-                  <Route path="/template/:templateId/participants" element={<CommunityParticipants />} />
-                  <Route path="/post/:postId" element={<PostDetail />} />
-                  <Route path="/compare/:sourceId/:responseId" element={<ChallengeCompare />} />
                   <Route path="/profile" element={<Profile />} />
-                  <Route path="/profile/:userId" element={<Profile />} />
                   <Route path="/admin" element={<AdminLayout />}>
                     <Route index element={<AdminDashboard />} />
                     <Route path="users" element={<AdminUsers />} />
@@ -91,8 +93,9 @@ function App() {
                     <Route path="templates" element={<AdminTemplates />} />
                     <Route path="reports" element={<AdminReports />} />
                   </Route>
-                  <Route path="*" element={<NotFound />} />
                 </Route>
+
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
             </ErrorBoundary>

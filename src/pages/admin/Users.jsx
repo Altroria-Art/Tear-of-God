@@ -203,13 +203,13 @@ export default function Users() {
       {/* Admin Users Section */}
       <div className="mb-2 flex items-center gap-2">
         <Crown size={20} className="text-amber-500" />
-        <h2 className="text-lg font-bold text-ink">Administrators</h2>
+        <h2 className="text-lg font-bold text-ink">{t('admin.administrators')}</h2>
       </div>
       <UserTable data={admins} isLoading={loadingAdmins} />
 
       {/* All Users Section */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-lg font-bold text-ink">All Users</h2>
+        <h2 className="text-lg font-bold text-ink">{t('admin.allUsers')}</h2>
         <div className="relative w-full sm:max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input

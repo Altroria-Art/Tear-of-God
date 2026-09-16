@@ -4,7 +4,7 @@ import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Settings, X, ChevronLeft } from 'lucide-react';
+import { Settings, X, ChevronLeft, Zap, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { createRanking } from '../lib/api';
@@ -75,7 +75,7 @@ const CreateTierList = () => {
   const [isPublishing, setIsPublishing] = useState(false);
 
   // ลำดับ item ใน array = ลำดับการแสดงผลภายใน tier → restore แล้วตำแหน่งเดิมทุกชิ้น
-  const [items, setItems, itemHistory] = useHistoryState(
+  const [items, setItems] = useHistoryState(
     Array.isArray(draft?.items)
       ? draft.items.filter(i => i && typeof i.content === 'string' && i.id != null)
       : []
@@ -168,15 +168,12 @@ const CreateTierList = () => {
 
   const handleGenerateCards = () => {
     if (!quickAddText.trim()) return;
-    // Generating a new batch invalidates any in-progress pair comparison.
-    // Return to the normal editor so the freshly-created cards are immediately usable.
-    if (createMode === 'pair') stopPairMode();
     const newItems = quickAddText.split(/[,\n]+/).map(s => s.trim()).filter(Boolean).map((item, index) => ({
         id: `item-${Date.now()}-${index}`,
         content: item,
         tierId: null
       }));
-    setItems([...items, ...newItems]);
+    setItems(prev => [...prev, ...newItems]);
     setQuickAddText('');
   };
 
@@ -475,28 +472,6 @@ const CreateTierList = () => {
         <p className="text-sm text-ink-soft leading-relaxed">{t('create.resetConfirmMsg')}</p>
       </Modal>
 
-      {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }}>
-          <div className="bg-surface border border-line rounded-xl p-6 max-w-xs w-full shadow-2xl relative">
-            <h3 className="font-bold text-center mb-4 text-ink">{t('create.assignTier', 'Assign to tier')}</h3>
-            <div className="flex flex-col gap-2">
-              {tiers.map(tier => (
-                <button
-                  key={tier.id}
-                  onClick={() => {
-                    setItems(prev => repositionItem(prev, selectedItem.id, tier.id, 9999));
-                    setSelectedItem(null);
-                  }}
-                  className="py-2 px-4 rounded-lg font-bold border border-line-soft hover:brightness-110 transition-all text-center text-tag shadow-sm"
-                  style={{ backgroundColor: tier.color }}
-                >
-                  {tier.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
 
       {/* Header */}
@@ -599,12 +574,12 @@ const CreateTierList = () => {
           </div></details>
 
           <div className="order-2 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4">
-            <h3 className="font-black text-brand mb-1 flex items-center gap-2"><span className="text-xl">✨</span> {t('create.quickAdd')}</h3>
+            <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>
             <p className="text-xs text-muted mb-2 font-medium">{t('create.quickAddHelp')}</p>
             <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
             <div className="flex justify-end">
               <button onClick={handleGenerateCards} className="bg-surface hover:bg-brand hover:text-canvas hover:border-transparent text-brand font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
-                <span className="text-lg leading-none">⊕</span> {t('create.generate')}
+                <Plus size={16} /> {t('create.generate')}
               </button>
             </div>
           </div>
@@ -672,7 +647,7 @@ const CreateTierList = () => {
           </div>
         </div>
       </div>
-      <EditorToolbar showHistory={false} history={itemHistory} ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handlePublish} saving={isPublishing} />
+      <EditorToolbar ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handlePublish} saving={isPublishing} />
     </div>
   );
 };

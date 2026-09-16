@@ -1,15 +1,145 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ThumbsUp, ThumbsDown, MessageSquare, Crown, Pin, Sparkles, Award, BarChart3 } from 'lucide-react';
+import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage, setProfilePin } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import { FACULTIES, UP_UNIVERSITY_NAME, getMajorsForFaculty, getAdmissionYears } from '../lib/university';
-import TierRow from '../components/feed/TierRow';
+import TierLabel from '../components/tier/TierLabel';
 import Modal from '../components/ui/Modal';
 import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
+
+function MiniTierItem({ item, t }) {
+  const [imgError, setImgError] = useState(false);
+
+  const rawName = item?.item?.name || item?.item?.title || item?.name || item?.title || item?.item_id || t('common.unknownItem');
+  const itemName = typeof rawName === 'object' ? t('common.unknownItem') : String(rawName || '');
+
+  const rawImg = item?.item?.image_url || item?.image_url || item?.image;
+  const itemImg = (rawImg && rawImg !== 'null' && rawImg !== 'undefined') ? String(rawImg).trim() : null;
+
+  return (
+    <div
+      className="relative flex aspect-square h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-surface border border-line-soft/80 shadow-2xs overflow-hidden select-none p-0.5 text-center"
+      title={itemName}
+    >
+      {itemImg && !imgError ? (
+        <img
+          src={itemImg}
+          alt={itemName}
+          className="w-full h-full object-cover rounded-md pointer-events-none"
+          loading="lazy"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <span className="w-full line-clamp-2 text-[8px] sm:text-[9px] font-bold leading-[1.1] text-ink text-center break-words px-0.5">
+          {itemName}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSelect, t }) {
+  const rows = buildTierRows(post.ranking_items, post.tiers);
+  const previewRows = rows.slice(0, 2);
+
+  return (
+    <article
+      onClick={onSelect}
+      className="group relative flex flex-col rounded-2xl overflow-hidden glass border border-line-soft hover:border-brand/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer text-left select-none bg-surface/60"
+    >
+      {/* Top Visual Thumbnail Area */}
+      <div className="h-36 sm:h-40 relative bg-canvas/40 pt-9 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 overflow-hidden border-b border-line-soft/50">
+        {/* TikTok-style Pinned Tag or Category */}
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 max-w-[calc(100%-3rem)]">
+          {isPinned ? (
+            <span className="inline-flex items-center gap-1 bg-brand text-canvas text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-xs shrink-0">
+              <Pin size={10} fill="currentColor" />
+              <span>{t('profile.pinnedTag')}</span>
+            </span>
+          ) : post.category ? (
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted bg-surface/90 backdrop-blur-xs px-1.5 py-0.5 rounded border border-line-soft/80 shadow-2xs truncate">
+              {post.category}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Pin action toggle button (Owner only) */}
+        {isOwnProfile && (
+          <button
+            type="button"
+            onClick={(e) => onTogglePin(e, post)}
+            disabled={pinBusy}
+            title={isPinned ? t('profile.unpinList') : t('profile.pinList')}
+            className={`absolute top-2 right-2 z-10 p-1.5 rounded-full backdrop-blur-md border border-line-soft transition-all shadow-sm ${
+              isPinned
+                ? 'bg-brand text-canvas'
+                : 'bg-surface/90 text-muted opacity-0 group-hover:opacity-100 hover:text-brand hover:bg-brand/10'
+            }`}
+          >
+            <Pin size={11} fill={isPinned ? 'currentColor' : 'none'} />
+          </button>
+        )}
+
+        {/* Miniature Tier Preview Rows */}
+        {previewRows.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-xs text-muted font-medium">
+            {t('profile.createdTemplate')}
+          </div>
+        ) : (
+          previewRows.map((row, rIdx) => (
+            <div
+              key={row.tier + String(rIdx)}
+              className="flex items-center gap-1.5 rounded-xl bg-surface/75 backdrop-blur-xs border border-line-soft/60 px-1.5 py-1 min-h-[38px] sm:min-h-[42px] overflow-hidden"
+            >
+              <TierLabel
+                label={row.tier}
+                color={row.color}
+                index={row.index}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg text-xs font-black shrink-0 shadow-xs"
+              />
+              <div className="flex items-center gap-1.5 overflow-hidden flex-1 min-w-0">
+                {row.items.slice(0, 3).map((ri, iIdx) => (
+                  <MiniTierItem key={ri.id ?? iIdx} item={ri} t={t} />
+                ))}
+                {row.items.length > 3 && (
+                  <span className="text-[9px] font-bold text-muted shrink-0 px-1">
+                    +{row.items.length - 3}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Bottom Metadata & Stats */}
+      <div className="p-2.5 sm:p-3 flex flex-col justify-between flex-1 gap-2">
+        <h4
+          className="font-bold text-xs sm:text-sm text-ink line-clamp-2 leading-snug group-hover:text-brand transition-colors"
+          title={post.title}
+        >
+          {post.title}
+        </h4>
+
+        <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-muted pt-1.5 border-t border-line-soft/40">
+          <span>{timeAgo(post.created_at)}</span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-0.5">
+              <ThumbsUp size={11} /> {post.stats?.likes || 0}
+            </span>
+            <span className="flex items-center gap-0.5">
+              <MessageSquare size={11} /> {post.stats?.comments || 0}
+            </span>
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -49,6 +179,7 @@ export default function Profile() {
   const [isFollowListLoading, setIsFollowListLoading] = useState(false);
   const [pinBusyId, setPinBusyId] = useState(null);
   const [isTasteDetailsOpen, setIsTasteDetailsOpen] = useState(false);
+  const [postTab, setPostTab] = useState('all'); // 'all' | 'pinned'
 
   const handleOpenFollowList = async (type) => {
     setFollowListModal(type);
@@ -176,6 +307,12 @@ export default function Profile() {
 
     const currentPins = profileUser?.taste_identity?.pinned_rankings || [];
     const isPinned = currentPins.some((item) => item.ranking_id === post.id || item.id === post.id);
+
+    if (!isPinned && currentPins.length >= 3) {
+      toast.warning(t('profile.pinLimitReached'));
+      return;
+    }
+
     const position = isPinned ? 0 : Math.min(currentPins.length, 2);
     setPinBusyId(post.id);
     const result = await setProfilePin(post.id, !isPinned, position);
@@ -323,6 +460,21 @@ export default function Profile() {
   const tasteMatch = tasteIdentity.taste_match;
   const similarUsers = Array.isArray(tasteIdentity.similar_users) ? tasteIdentity.similar_users : [];
 
+  const pinnedSet = new Set(pinnedRankings.map((item) => item.ranking_id || item.id));
+  const isPinnedPost = (postId) => pinnedSet.has(postId);
+
+  const sortedPosts = [...posts].sort((a, b) => {
+    const aPinned = isPinnedPost(a.id);
+    const bPinned = isPinnedPost(b.id);
+    if (aPinned && !bPinned) return -1;
+    if (!aPinned && bPinned) return 1;
+    return 0;
+  });
+
+  const visiblePosts = postTab === 'pinned'
+    ? sortedPosts.filter((p) => isPinnedPost(p.id))
+    : sortedPosts;
+
   return (
     <div className="text-ink antialiased min-h-screen flex flex-col font-sans">
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
@@ -408,7 +560,7 @@ export default function Profile() {
             {/* Keep the summary under the profile; the full identity opens on demand. */}
             <section className="glass rounded-2xl p-5 shadow-sm" aria-label={t('profile.tasteIdentity')}>
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles size={16} className="text-brand" />
+                <Fingerprint size={16} className="text-brand" />
                 <h3 className="font-bold text-ink">{t('profile.tasteIdentity')}</h3>
               </div>
               <p className="text-[11px] text-muted mb-4">{t('profile.tasteSnapshotHelp')}</p>
@@ -493,7 +645,7 @@ export default function Profile() {
               <Modal open={isTasteDetailsOpen} onClose={() => setIsTasteDetailsOpen(false)} title={t('profile.tasteIdentity')} maxWidth="max-w-4xl">
                 <div className="space-y-5">
                   <div className="flex items-center gap-2 text-xs text-muted -mt-1">
-                    <Sparkles size={16} className="text-brand" />
+                    <Fingerprint size={16} className="text-brand" />
                     <span>{t('profile.tasteIdentityHelp')}</span>
                     <BarChart3 size={16} className="ml-auto shrink-0" />
                   </div>
@@ -598,95 +750,68 @@ export default function Profile() {
               </Modal>
             )}
 
-            {/* Pinned lists are the first thing visitors can use to understand a profile. */}
-            <section className="glass rounded-2xl p-5 sm:p-6 shadow-sm">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <Pin size={18} className="text-brand" />
-                  <h3 className="text-lg font-bold text-ink">{t('profile.pinnedLists')}</h3>
-                </div>
-                <span className="text-xs text-muted">{pinnedRankings.length}/3</span>
-              </div>
-              {pinnedRankings.length === 0 ? (
-                <p className="text-sm text-muted bg-surface rounded-xl px-4 py-4">{isOwnProfile ? t('profile.pinnedHint') : t('profile.noPinned')}</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {pinnedRankings.map((post) => (
-                    <button
-                      key={post.ranking_id || post.id}
-                      type="button"
-                      onClick={() => navigate(`/post/${post.ranking_id || post.id}`)}
-                      className="text-left rounded-xl border border-line bg-surface hover:border-highlight p-4 transition-colors"
-                    >
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand mb-1">{post.category || 'general'}</p>
-                      <p className="font-bold text-sm text-ink line-clamp-2">{post.title}</p>
-                      <p className="text-xs text-muted mt-2">{post.stats?.likes || 0} ♥ · {post.stats?.comments || 0} 💬</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {/* User's Created Templates */}
-            {posts.length === 0 ? (
-              <p className="text-center text-sm text-muted py-8 glass rounded-2xl ">
-                {isOwnProfile
-                  ? t('profile.emptyOwn')
-                  : t('profile.emptyOther', { name: displayUser?.username || t('common.unknownUser') })}
-              </p>
-            ) : (
-              posts.map((post) => (
-                <article
-                  key={post.id}
-                  onClick={() => navigate(`/post/${post.id}`)}
-                  className="glass rounded-2xl p-5 shadow-sm cursor-pointer hover:border-line transition-colors"
+            {/* TikTok-style Posts Section Header / Tabs */}
+            <div className="flex items-center justify-between border-b border-line-soft pb-3 pt-2">
+              <div className="flex items-center gap-6">
+                <button
+                  type="button"
+                  onClick={() => setPostTab('all')}
+                  className={`inline-flex items-center gap-2 pb-1 text-sm font-bold border-b-2 transition-colors ${
+                    postTab === 'all'
+                      ? 'border-brand text-ink'
+                      : 'border-transparent text-muted hover:text-ink'
+                  }`}
                 >
-                  <div className="text-xs font-bold text-brand uppercase tracking-wider mb-1">{t('profile.createdTemplate')}</div>
-                  <h3 className="text-lg font-bold text-ink mb-2">{post.title}</h3>
+                  <LayoutGrid size={16} />
+                  <span>{t('profile.allPosts')}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-surface text-muted">{posts.length}</span>
+                </button>
+                {pinnedRankings.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPostTab('pinned')}
+                    className={`inline-flex items-center gap-2 pb-1 text-sm font-bold border-b-2 transition-colors ${
+                      postTab === 'pinned'
+                        ? 'border-brand text-ink'
+                        : 'border-transparent text-muted hover:text-ink'
+                    }`}
+                  >
+                    <Pin size={15} />
+                    <span>{t('profile.pinnedTab')}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-surface text-muted">{pinnedRankings.length}</span>
+                  </button>
+                )}
+              </div>
+              {isOwnProfile && (
+                <span className="text-xs text-muted">
+                  {t('profile.pinnedCount', { count: pinnedRankings.length, max: 3 })}
+                </span>
+              )}
+            </div>
 
-                  {/* Preview Tiers */}
-                  <div className="space-y-1.5 mb-4">
-                    {(() => {
-                      const rows = buildTierRows(post.ranking_items, post.tiers);
-                      const shown = rows.slice(0, 2);
-                      return shown.map((row, rowIdx) => (
-                        <TierRow 
-                          key={row.tier + String(rowIdx)} 
-                          tier={row.tier} 
-                          color={row.color} 
-                          index={row.index} 
-                          items={row.items.slice(0, 6).map(ri => ({ 
-                            id: ri.id, 
-                            name: ri.item?.name || ri.item_id, 
-                            image_url: ri.item?.image_url 
-                          }))} 
-                        />
-                      ));
-                    })()}
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs text-muted">
-                    <span>{timeAgo(post.created_at)}</span>
-                    <div className="flex items-center gap-3 text-muted">
-                      {isOwnProfile && (
-                        <button
-                          type="button"
-                          onClick={(event) => handleTogglePin(event, post)}
-                          disabled={pinBusyId === post.id}
-                          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-brand hover:bg-brand/10 disabled:opacity-50"
-                          aria-label={pinnedRankings.some((item) => item.ranking_id === post.id || item.id === post.id) ? t('profile.unpinList') : t('profile.pinList')}
-                        >
-                          <Pin size={14} fill={pinnedRankings.some((item) => item.ranking_id === post.id || item.id === post.id) ? 'currentColor' : 'none'} />
-                          <span className="hidden sm:inline">{pinnedRankings.some((item) => item.ranking_id === post.id || item.id === post.id) ? t('profile.unpinList') : t('profile.pinList')}</span>
-                        </button>
-                      )}
-                      <span className="flex items-center gap-1.5"><ThumbsUp size={14} /> {post.stats?.likes || 0}</span>
-                      <span className="flex items-center gap-1.5"><ThumbsDown size={14} /> {post.stats?.dislikes || 0}</span>
-                      <span className="flex items-center gap-1.5"><MessageSquare size={14} /> {post.stats?.comments || 0}</span>
-                    </div>
-                  </div>
-                </article>
-              ))
+            {/* TikTok-style Squarish Grid of Posts */}
+            {visiblePosts.length === 0 ? (
+              <div className="text-center text-sm text-muted py-12 glass rounded-2xl">
+                {postTab === 'pinned'
+                  ? (isOwnProfile ? t('profile.pinnedHint') : t('profile.noPinned'))
+                  : (isOwnProfile ? t('profile.emptyOwn') : t('profile.emptyOther', { name: displayUser?.username || t('common.unknownUser') }))
+                }
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                {visiblePosts.map((post) => (
+                  <MiniTierTile
+                    key={post.id}
+                    post={post}
+                    isPinned={isPinnedPost(post.id)}
+                    isOwnProfile={isOwnProfile}
+                    pinBusy={pinBusyId === post.id}
+                    onTogglePin={handleTogglePin}
+                    onSelect={() => navigate(`/post/${post.id}`)}
+                    t={t}
+                  />
+                ))}
+              </div>
             )}
 
           </div>

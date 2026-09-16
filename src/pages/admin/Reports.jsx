@@ -83,7 +83,7 @@ export default function Reports() {
   };
 
   const handleDeleteContent = async (r) => {
-    if (!window.confirm('Are you sure you want to delete this reported CONTENT? This cannot be undone.')) return;
+    if (!window.confirm(t('admin.confirmDeleteReportContent'))) return;
     setBusy(r.id);
     
     let res;
@@ -93,10 +93,10 @@ export default function Reports() {
     
     setBusy(null);
     if (res?.success) {
-      toast.success('Content deleted successfully.');
+      toast.success(t('admin.deleteContentSuccess'));
       handleStatus(r, 'resolved'); // Auto mark resolved after delete
     } else {
-      toast.error('Failed to delete content.');
+      toast.error(t('admin.deleteContentFailed'));
     }
   };
 

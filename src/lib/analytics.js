@@ -24,14 +24,63 @@ function analyticsSessionId() {
   }
 }
 
+// Deterministic non-cryptographic 64-bit hash (dual 32-bit streams) for compact
+// event identity. Synchronous and zero-dependency to avoid microtask delays before
+// dispatching keepalive fetch requests.
+function hash64Hex(str) {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x27d4eb2f;
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x5bd1e995) >>> 0;
+  }
+  return h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+}
+
+function sessionOnceKey(sessionId, onceKey) {
+  return `${sessionId}:${onceKey}`;
+}
+
+function isOnceTracked(scopedKey) {
+  if (!scopedKey) return false;
+  if (trackedOnce.has(scopedKey)) return true;
+  try {
+    return sessionStorage.getItem(`analytics-once:${scopedKey}`) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markOncePersisted(scopedKey) {
+  if (!scopedKey) return;
+  try {
+    sessionStorage.setItem(`analytics-once:${scopedKey}`, '1');
+  } catch {
+    // sessionStorage unavailable or quota exceeded; fallback to in-memory trackedOnce
+  }
+}
+
+function deterministicEventId(sessionId, eventName, onceKey) {
+  const hash = hash64Hex(String(onceKey));
+  return `evt_${sessionId}:${eventName}:${hash}`;
+}
+
 export function trackEvent(eventName, { entityType = null, entityId = null, onceKey = null } = {}) {
-  if (onceKey && trackedOnce.has(onceKey)) return;
-  if (onceKey) trackedOnce.add(onceKey);
+  const sessionId = analyticsSessionId();
+  const scopedKey = onceKey ? sessionOnceKey(sessionId, onceKey) : null;
+
+  if (scopedKey && isOnceTracked(scopedKey)) return;
+  if (scopedKey) trackedOnce.add(scopedKey);
+
+  const eventId = onceKey
+    ? deterministicEventId(sessionId, eventName, onceKey)
+    : randomId('event');
 
   const payload = {
-    event_id: randomId('event'),
+    event_id: eventId,
     event_name: eventName,
-    session_id: analyticsSessionId(),
+    session_id: sessionId,
     entity_type: entityType,
     entity_id: entityId == null ? null : String(entityId),
   };
@@ -44,7 +93,19 @@ export function trackEvent(eventName, { entityType = null, entityId = null, once
     keepalive: true,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  }).catch(() => {});
+  })
+    .then((response) => {
+      if (response.ok) {
+        if (scopedKey) markOncePersisted(scopedKey);
+      } else if (scopedKey) {
+        // Failed on server; release in-memory key so subsequent reload/revisit can retry
+        trackedOnce.delete(scopedKey);
+      }
+    })
+    .catch(() => {
+      // Network failure; release in-memory key so subsequent reload/revisit can retry
+      if (scopedKey) trackedOnce.delete(scopedKey);
+    });
 }
 
 function entityFromUrl(target) {

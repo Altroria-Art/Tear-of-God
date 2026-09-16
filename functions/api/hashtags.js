@@ -1,8 +1,8 @@
 // ==========================================
 // GET /api/hashtags?page=&limit=&sort=&q=
-// รวม hashtag ทั้งหมดจาก templates.hashtags ∪ rankings.hashtags (คอลัมน์ CSV ทั้งสอง) ด้วย
-// recursive CTE เดียว — นับจำนวนเนื้อหาที่ติดแท็ก (ไม่ใช่แค่ template) เลยสะท้อนการใช้งานจริง
-// ใช้ bound params ตายตัว 3 ตัว (q, limit, offset) ไม่ว่าจะมี template/ranking กี่แถวก็ตาม
+// รวม hashtag ทั้งหมดจาก templates.hashtags (คอลัมน์ CSV) ด้วย recursive CTE เดียว
+// นับจำนวน distinct templates ที่มี tag นั้น (content_count = จำนวน templates ที่ติดแท็ก)
+// ใช้ bound params ตายตัว 3 ตัว (q, limit, offset) ไม่ว่าจะมี template กี่แถวก็ตาม
 // (ดู docs/feature-discover-view-all-pages.md §6 เรื่องลิมิต 100 bound params ของ D1)
 // ==========================================
 import { internalErrorResponse } from '../lib/request-guard.js';
@@ -13,6 +13,7 @@ export async function onRequestGet(context) {
   const db = env.tear_of_god_db;
 
   try {
+    const suggest = url.searchParams.get('suggest') === '1';
     const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
     const offset = (page - 1) * limit;
@@ -21,11 +22,48 @@ export async function onRequestGet(context) {
 
     const orderSql = sort === 'az' ? `tag ASC` : `content_count DESC, tag ASC`;
 
-    // 📍 นับ "การใช้งานจริง" = จำนวนเนื้อหาที่ติดแท็ก (templates ∪ rankings) แบบ DISTINCT — เดิม
-    // นับแค่ templates.hashtags อย่างเดียว เลขเลยไม่เคยขยับเวลาผู้ใช้สร้าง/ใช้แฮชแท็กบนโพสต์
-    // (สร้าง ranking + hashtags) ตัว "Trending Topics"+PopularHashtags เลยดูตายตัว (ดู
-    // docs/feature-discover-hashtag-count-usage.md) ทั้งสองแหล่งเป็นตารางเดียวกัน (anchor 2 ก้อน +
-    // ตัว split อันเดียว) แถวขยายรวม = templates(67) + rankings(634) เล็กมาก อ่านถูกทั้งสอง
+    // 📍 Lightweight suggestion path for Navbar autocomplete (P2-B2):
+    // Filters templates before recursive split via push-down filter on raw hashtags.
+    // Avoids window function COUNT(*) OVER() and never runs second CTE query on zero results.
+    if (suggest) {
+      const suggestCte = `
+        WITH RECURSIVE split(tag, rest, tid) AS (
+          SELECT '', hashtags || ',', id
+            FROM templates
+           WHERE hashtags IS NOT NULL
+             AND hashtags <> ''
+             AND (?1 = '' OR instr(lower(hashtags), lower(?1)) > 0)
+          UNION ALL
+          SELECT trim(substr(rest, 1, instr(rest, ',') - 1)),
+                 substr(rest, instr(rest, ',') + 1),
+                 tid
+            FROM split
+           WHERE rest <> ''
+        ),
+        tags AS (
+          SELECT lower('#' || replace(tag, '#', '')) AS tag, COUNT(DISTINCT tid) AS content_count
+            FROM split
+           WHERE tag <> ''
+           GROUP BY lower('#' || replace(tag, '#', ''))
+        )
+        SELECT tag, content_count
+          FROM tags
+         WHERE (?1 = '' OR instr(lower(tag), lower(?1)) > 0)
+         ORDER BY ${orderSql}
+         LIMIT ?2 OFFSET ?3
+      `;
+      const { results: rows = [] } = await db.prepare(suggestCte).bind(q, limit, offset).all();
+      return Response.json({
+        success: true,
+        data: rows.map(r => ({ tag: r.tag, content_count: r.content_count })),
+        page,
+        limit,
+        total: rows.length
+      });
+    }
+
+    // 📍 แหล่งข้อมูล hashtag มาจาก templates เท่านั้น (content_count = distinct templates ที่มี tag นั้น)
+    // ใช้ recursive split แกะ comma-separated hashtags เป็นแต่ละ tag แล้ว GROUP BY เพื่อคำนวณ content_count
     const cte = `
       WITH RECURSIVE split(tag, rest, tid) AS (
         SELECT '', hashtags || ',', id

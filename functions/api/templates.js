@@ -24,10 +24,11 @@ export async function onRequestGet(context) {
     // docs/discover-template-uses-views-fix-plan.md)
     // ==========================================
     if (!templateId) {
+      const suggest = url.searchParams.get('suggest') === '1';
       const hashtag = url.searchParams.get('hashtag');
       const category = url.searchParams.get('category');
       const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
-      const savedOnly = url.searchParams.get('saved') === 'true';
+      const savedOnly = !suggest && url.searchParams.get('saved') === 'true';
       const viewerId = context.data.user?.id || null;
       if (savedOnly && !viewerId) return Response.json({ success: false, error: 'Please log in' }, { status: 401 });
       const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
@@ -47,6 +48,35 @@ export async function onRequestGet(context) {
         // และทำให้ count จาก /api/hashtags กับ list นี้ใช้ source/filter เดียวกันเสมอ
         whereSql += ` AND instr(',' || lower(replace(t.hashtags, '#', '')) || ',', ',' || lower(replace(?, '#', '')) || ',') > 0`;
         whereParams.push(hashtag);
+      }
+
+      // 📍 Lightweight suggestion path for Navbar autocomplete (P2-B1):
+      // Only runs a single query for id, title, category, and live_uses.
+      // Skips profiles JOIN, is_saved, live_views, total count, and template_items.
+      if (suggest) {
+        const suggestQuery = `
+          SELECT t.id, t.title, t.category,
+            (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses
+          FROM templates t
+          ${whereSql}
+          ORDER BY live_uses DESC, t.created_at DESC, t.id DESC
+          LIMIT ? OFFSET ?
+        `;
+        const { results: templates } = await db.prepare(suggestQuery).bind(...whereParams, limit, offset).all();
+        const data = templates.map(t => ({
+          id: t.id,
+          title: t.title,
+          category: t.category,
+          use_count: t.live_uses || 0,
+          stats: { uses: t.live_uses || 0 }
+        }));
+        return Response.json({
+          success: true,
+          data,
+          page,
+          limit,
+          total: data.length
+        });
       }
 
       // เรียงตามเลขจริง (live_uses/live_views) ไม่ใช่คอลัมน์ที่ seed ไว้ — ไม่งั้นลำดับการ์ด

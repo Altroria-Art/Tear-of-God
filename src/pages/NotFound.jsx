@@ -12,7 +12,7 @@ export default function NotFound() {
         to="/" 
         className="px-6 py-2 bg-canvas border border-ink/10 rounded-md text-ink hover:bg-ink/5 transition-colors"
       >
-        {t('common.backToHome', 'Back to home')}
+        {t('common.backHome')}
       </Link>
     </div>
   );

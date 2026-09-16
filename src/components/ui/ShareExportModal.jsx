@@ -5,7 +5,7 @@ import { downloadTablePng } from '../../lib/exportImage';
 import { useToast } from './Toast';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../context/ThemeContext';
-import { Moon, Sun, Swords } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { trackShare } from '../../lib/analytics';
 
 const IMAGE_FORMATS = [
@@ -186,27 +186,7 @@ export default function ShareExportModal({
   if (mode === 'share') {
     return (
       <Modal open={open} onClose={onClose} title={t('shareExport.shareLinkTitle')} maxWidth={shareCardOpen ? 'max-w-4xl' : 'max-w-md'}>
-        {challengeLink && (
-          <div className="mb-4 rounded-xl border border-highlight/40 bg-highlight/10 p-4">
-            <div className="flex items-start gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-highlight text-canvas">
-                <Swords size={20} strokeWidth={2.5} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="font-bold text-ink">{t('challenge.shareTitle')}</p>
-                <p className="mt-1 text-sm text-muted">{t('challenge.shareHint')}</p>
-                <button
-                  type="button"
-                  onClick={() => handleCopy(challengeLink, 'challenge')}
-                  className="mt-3 w-full rounded-lg bg-highlight px-4 py-2.5 text-sm font-black text-canvas transition-all hover:brightness-110 active:scale-[0.98]"
-                >
-                  {copied === 'challenge' ? t('challenge.copied') : t('challenge.copyLink')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        <p className="mb-3 text-sm text-muted">{challengeLink ? t('shareExport.sharePostHint') : t('shareExport.shareHint')}</p>
+        <p className="mb-3 text-sm text-muted">{t('shareExport.shareHint')}</p>
         <div className="flex items-center gap-2 rounded-lg border border-line-soft bg-tag p-2">
           <input
             type="text"

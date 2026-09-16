@@ -4,7 +4,7 @@ import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
 import React, { useState, useEffect } from 'react';
-import { Share2, Shuffle, ArrowDownAZ, Swords } from 'lucide-react';
+import { Share2, Shuffle, ArrowDownAZ, Swords, Hash } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
@@ -340,78 +340,113 @@ const RankTierList = () => {
           </section>
         )}
 
-        {/* Top Info Card */}
-        <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col gap-4">
+        {/* Top Info Card: Title, Description & Hashtags */}
+        <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col gap-4 shadow-sm border border-line-soft">
+          {/* Title & Share */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('rank.titlePh')}
-              className="flex-1 text-[28px] font-bold text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1"
+              className="flex-1 text-2xl sm:text-[28px] font-black text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1"
             />
             <div className="hidden sm:flex items-center gap-3 pt-1 shrink-0">
-              <button onClick={handleShare} className="flex items-center gap-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors px-2">
-                <Share2 size={16} /> {t('common.share')}
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-1.5 text-xs font-bold text-ink-soft hover:text-ink transition-colors px-3 py-1.5 rounded-full border border-line-soft bg-surface-glass hover:bg-surface cursor-pointer"
+              >
+                <Share2 size={14} /> {t('common.share')}
               </button>
-
             </div>
           </div>
 
-          <details><summary className="cursor-pointer text-sm text-muted">{t('rank.description')}</summary><div className="mt-2">
-            <label className="block text-xs font-semibold text-muted mb-1">{t('rank.description')} <span className="font-normal text-muted">({t('rank.optional')})</span></label>
+          {/* Description field (always open and clean, no accordion) */}
+          <div>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('rank.descriptionPh')}
               rows={2}
-              className="w-full bg-surface-glass border border-line-soft rounded-md p-3 text-sm outline-none focus:ring-1 focus:ring-brand resize-none"
+              className="w-full bg-surface-glass/80 border border-line-soft rounded-xl p-3 text-sm text-ink outline-none focus:ring-1 focus:ring-brand resize-none placeholder-muted transition-all"
             />
-          </div></details>
-          {draftStatus && <p role="status" className="text-xs text-muted">{t(draftStatus)}</p>}
-          {templateError && <p role="alert" className="text-status-error">{templateError}</p>}
-        </div>
+          </div>
 
-        {/* Search & Add Hashtags */}
-        <details className="glass rounded-2xl p-4 sm:p-6"><summary className="text-sm font-semibold cursor-pointer">{t('rank.searchAddHashtags')} · {selectedHashtags.join(' ')}</summary><div className="flex flex-col gap-3 mt-4">
-          <label className="block text-sm font-semibold">{t('rank.searchAddHashtags')}</label>
+          {/* Hashtags Section (always open and clean, no accordion) */}
+          <div className="pt-2 border-t border-line-soft/60 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-ink-soft uppercase tracking-wider">
+                <Hash size={13} className="text-highlight" />
+                <span>{t('rank.searchAddHashtags')}</span>
+              </label>
+              {selectedHashtags.length > 0 && (
+                <span className="text-[11px] font-medium text-muted">
+                  {selectedHashtags.length} {t('common.tags') || 'tags'}
+                </span>
+              )}
+            </div>
 
-          {selectedHashtags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+            {/* Selected Hashtags + Tag Input in unified capsule */}
+            <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-surface-glass/80 border border-line-soft focus-within:ring-1 focus-within:ring-brand transition-all">
               {selectedHashtags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-brand text-canvas text-xs font-medium rounded-md shadow-sm">
-                  {tag}
-                  <button type="button" onClick={() => toggleHashtag(tag)} className="hover:text-red-200 font-bold ml-1">×</button>
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-highlight/15 text-highlight border border-highlight/30 text-xs font-bold rounded-lg shadow-xs"
+                >
+                  {tag.startsWith('#') ? tag : `#${tag}`}
+                  <button
+                    type="button"
+                    onClick={() => toggleHashtag(tag)}
+                    className="hover:text-status-error ml-0.5 font-bold transition-colors cursor-pointer text-sm leading-none"
+                    aria-label={`Remove ${tag}`}
+                  >
+                    ×
+                  </button>
                 </span>
               ))}
+
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagInputKeyDown}
+                placeholder={selectedHashtags.length === 0 ? t('rank.addTagsPh') : '+ เพิ่มแท็ก...'}
+                className="flex-1 min-w-[140px] bg-transparent border-none px-2 py-1 text-xs text-ink outline-none placeholder-muted"
+              />
+            </div>
+
+            {/* Suggested Tags */}
+            {suggestedTags.filter((t) => !selectedHashtags.includes(t)).length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <span className="text-[11px] font-semibold text-muted mr-1">
+                  {t('rank.suggestedTags')}:
+                </span>
+                {suggestedTags
+                  .filter((t) => !selectedHashtags.includes(t))
+                  .slice(0, 8)
+                  .map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleHashtag(tag)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border border-line-soft/80 bg-surface-glass text-ink-soft hover:bg-surface hover:text-brand hover:border-brand/30 active:scale-95 cursor-pointer"
+                    >
+                      + {tag.startsWith('#') ? tag : `#${tag}`}
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Draft status & error */}
+          {draftStatus && (
+            <div className="pt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>{t(draftStatus)}</span>
             </div>
           )}
-
-          <input
-            type="text"
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={handleTagInputKeyDown}
-            placeholder={t('rank.addTagsPh')}
-            className="w-full bg-surface-glass border border-line-soft rounded-md px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-brand"
-          />
-
-          <div>
-            <span className="text-xs font-semibold text-muted">{t('rank.suggestedTags')}</span>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {suggestedTags.filter(t => !selectedHashtags.includes(t)).map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleHashtag(tag)}
-                  className="px-2.5 py-1 rounded-md text-xs font-medium transition-colors border bg-surface-glass border-line-soft text-ink-soft hover:bg-surface"
-                >
-                  + {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div></details>
+          {templateError && <p role="alert" className="text-xs font-bold text-status-error">{templateError}</p>}
+        </div>
 
         {/* Tier List Canvas */}
         <div className="bg-surface-glass rounded-xl overflow-hidden flex flex-col">
@@ -491,7 +526,7 @@ const RankTierList = () => {
       </div>
 
       <AssignTierModal item={selectedItemForModal} tiers={tiers} onClose={() => setSelectedItemForModal(null)} onAssign={handleAssignTier} />
-      <EditorToolbar history={itemHistory} ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handleSaveRanking} saving={isSaving} disabled={isLoadingTemplate || !!templateError} />
+      <EditorToolbar ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handleSaveRanking} saving={isSaving} disabled={isLoadingTemplate || !!templateError} />
     </div>
   );
 };

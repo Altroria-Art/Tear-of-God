@@ -11,6 +11,7 @@ import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
+import UserFollowButton from '../components/user/UserFollowButton'
 
 // 📍 นำเข้า createComment มาใช้งาน
 import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking } from '../lib/api'
@@ -322,16 +323,24 @@ export default function PostDetail() {
           <article className="mt-4 rounded-2xl border border-line-soft glass p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
-              <Link
-                to={authorId ? `/profile/${authorId}` : '#'}
-                className={`flex items-center gap-3 w-fit ${!authorId ? 'pointer-events-none' : ''}`}
-              >
-                <Avatar name={author.name} src={author.avatarUrl} />
-                <div>
-                  <p className="text-sm font-bold text-ink hover:text-highlight transition-colors">{author.name}</p>
-                  <p className="text-xs text-muted">{postedAt}</p>
-                </div>
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  to={authorId ? `/profile/${authorId}` : '#'}
+                  className={`flex items-center gap-3 w-fit ${!authorId ? 'pointer-events-none' : ''}`}
+                >
+                  <Avatar name={author.name} src={author.avatarUrl} />
+                  <div>
+                    <p className="text-sm font-bold text-ink hover:text-highlight transition-colors">{author.name}</p>
+                    <p className="text-xs text-muted">{postedAt}</p>
+                  </div>
+                </Link>
+                {authorId && (
+                  <UserFollowButton
+                    targetUserId={authorId}
+                    initialIsFollowing={post.profile?.is_following}
+                  />
+                )}
+              </div>
 
               {/* 📍 บนขวา: เมนูจัดการโพสต์ (รายงาน / ลบ) */}
               <div className="flex shrink-0 items-center gap-2">
@@ -414,9 +423,6 @@ export default function PostDetail() {
                 <ActionButton icon={CommentIcon} count={stats.comments} label={t('post.comments')} onClick={handleCommentClick} />
               </div>
               <div className="ml-auto flex items-center gap-3">
-                {post.templateId && (
-                  <ActionButton icon={Swords} label={t('challenge.action')} onClick={() => setModal('share')} activeClass="hover:text-highlight" />
-                )}
                 <ActionButton icon={Download} label={t('common.export')} onClick={handleExport} activeClass="hover:text-highlight" />
                 <ActionButton
                   icon={ShareIcon}
