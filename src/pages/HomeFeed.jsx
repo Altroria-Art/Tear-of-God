@@ -13,6 +13,7 @@ import UserFollowButton from '../components/user/UserFollowButton';
 
 import { formatCount, timeAgo } from '../lib/format';
 import { takeLastPublished } from '../lib/lastPublished';
+import { createPendingGuard } from '../lib/pendingGuard';
 import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
 import FeaturedPrompts from '../components/feed/FeaturedPrompts';
 import FreshnessHub from '../components/feed/FreshnessHub';
@@ -48,8 +49,15 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   const [userVote, setUserVote] = useState(initialUserVote);
   const [likes, setLikes] = useState(initialLikes);
   const [dislikes, setDislikes] = useState(initialDislikes);
+  // M4-C1: guard per-card (component นี้มี 1 instance ต่อ 1 ranking จึง per-resource
+  // โดยธรรมชาติ) — กดซ้ำระหว่าง pending ไม่ยิง request ใหม่ การ์ดอื่นยังกดได้ปกติ,
+  // resolve/reject แล้วกดใหม่ได้
+  const voteGuardRef = useRef(null);
+  if (!voteGuardRef.current) voteGuardRef.current = createPendingGuard();
 
   // state machine เดียวรับทั้ง like/dislike: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
+  // M4-C1: acquire ก่อน optimistic mutation ใดๆ — คลิกที่ถูก block จะไม่มีทั้ง request,
+  // optimistic toggle และ rollback side effect ใดๆ
   const handleVote = async (type) => {
     if (!currentUser) {
       if (onRequireAuth) {
@@ -60,6 +68,7 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
       }
       return;
     }
+    if (!voteGuardRef.current.acquire(id)) return;
 
     const nextVote = userVote === type ? null : type;
     const prevVote = userVote;
@@ -77,17 +86,21 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
     setLikes(optimisticLikes);
     setDislikes(optimisticDislikes);
 
-    const result = await voteRanking({ rankingId: id, userId: currentUser.id, voteType: nextVote });
+    try {
+      const result = await voteRanking({ rankingId: id, userId: currentUser.id, voteType: nextVote });
 
-    if (result.success !== false) {
-      setUserVote(result.userVote ?? null);
-      setLikes(result.likes ?? optimisticLikes);
-      setDislikes(result.dislikes ?? optimisticDislikes);
-    } else {
-      setUserVote(prevVote);
-      setLikes(prevLikes);
-      setDislikes(prevDislikes);
-      toast.error(t('feed.voteFailed', { msg: result.error || t('common.error') }));
+      if (result.success !== false) {
+        setUserVote(result.userVote ?? null);
+        setLikes(result.likes ?? optimisticLikes);
+        setDislikes(result.dislikes ?? optimisticDislikes);
+      } else {
+        setUserVote(prevVote);
+        setLikes(prevLikes);
+        setDislikes(prevDislikes);
+        toast.error(t('feed.voteFailed', { msg: result.error || t('common.error') }));
+      }
+    } finally {
+      voteGuardRef.current.release(id);
     }
   };
 

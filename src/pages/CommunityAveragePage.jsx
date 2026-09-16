@@ -23,6 +23,7 @@ import {
 } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
+import { createPendingGuard } from '../lib/pendingGuard'
 import { useTranslation } from 'react-i18next'
 
 // หน้าแสดง Community Average ของเทมเพลต — เลียนแบบหน้า post ของ ranking ปกติ (PostDetail)
@@ -43,6 +44,9 @@ export default function CommunityAveragePage() {
 
   // like/dislike ของ Community Average — seed จาก templateReaction GET
   const [reaction, setReaction] = useState({ userVote: null, likes: 0, dislikes: 0 })
+  // M4-C1: หน้านี้มี 1 template — guard กันกดซ้ำระหว่าง pending, resolve/reject แล้วกดใหม่ได้
+  const voteGuardRef = useRef(null)
+  if (!voteGuardRef.current) voteGuardRef.current = createPendingGuard()
   const [commentCount, setCommentCount] = useState(0)
 
   useEffect(() => {
@@ -101,6 +105,8 @@ export default function CommunityAveragePage() {
       toast.warning(t('template.warnLoginVote'))
       return
     }
+    // M4-C1: acquire ก่อน optimistic mutation ใดๆ — คลิกที่ถูก block ไม่มี request/toggle/rollback
+    if (!voteGuardRef.current.acquire(templateId)) return
     const prev = reaction
     const nextVote = prev.userVote === type ? null : type
 
@@ -113,12 +119,16 @@ export default function CommunityAveragePage() {
 
     setReaction({ userVote: nextVote, likes, dislikes })
 
-    const result = await voteTemplate({ templateId, userId: currentUser.id, voteType: nextVote })
-    if (result.success !== false) {
-      setReaction({ userVote: result.userVote ?? null, likes: result.likes ?? likes, dislikes: result.dislikes ?? dislikes })
-    } else {
-      setReaction(prev)
-      toast.error(t('post.voteFailed', { msg: result.error || t('common.error') }))
+    try {
+      const result = await voteTemplate({ templateId, userId: currentUser.id, voteType: nextVote })
+      if (result.success !== false) {
+        setReaction({ userVote: result.userVote ?? null, likes: result.likes ?? likes, dislikes: result.dislikes ?? dislikes })
+      } else {
+        setReaction(prev)
+        toast.error(t('post.voteFailed', { msg: result.error || t('common.error') }))
+      }
+    } finally {
+      voteGuardRef.current.release(templateId)
     }
   }
 

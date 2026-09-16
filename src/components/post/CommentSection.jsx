@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { Reply, Flag, X } from 'lucide-react'
 import Avatar from '../ui/Avatar'
 import { timeAgo } from '../../lib/format'
+import { createPendingGuard } from '../../lib/pendingGuard'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '../../context/UserContext'
 
@@ -42,6 +43,11 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState(null) // { id, name }
   const { t } = useTranslation()
+  // M4-C1: guard แบบ synchronous กัน double-click/double-Enter/click+Enter ที่ยิง onSubmit
+  // ซ้อนกันใน tick ใกล้กัน — release ใน finally เสมอ failure จะได้ retry ได้, success ส่งใหม่ได้
+  // (ไม่ dedup ตาม text: ส่งข้อความเดิมหลัง request แรกจบยังได้ตามปกติ)
+  const submitGuardRef = useRef(null)
+  if (!submitGuardRef.current) submitGuardRef.current = createPendingGuard()
 
   // Group comments
   const { parents, childrenByParentId } = useMemo(() => {
@@ -64,13 +70,20 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
     return { parents, childrenByParentId }
   }, [comments])
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     const body = draft.trim()
     if (!body) return
-    onSubmit(body, replyingTo?.id)
+    if (!submitGuardRef.current.acquire()) return
+    // clear ทันทีเหมือน behavior เดิม — await มีไว้แค่จับจังหวะ release guard
+    // (failure ก็ release ใน finally จึง retry ได้)
     setDraft('')
     setReplyingTo(null)
+    try {
+      await onSubmit(body, replyingTo?.id)
+    } finally {
+      submitGuardRef.current.release()
+    }
   }
 
   function handleReply(parentId, parentName) {

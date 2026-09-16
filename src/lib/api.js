@@ -159,7 +159,10 @@ export async function fetchRankings(categoryParam) {
     let url = `${API_URL}/api/rankings`;
     
     if (typeof categoryParam === 'object' && categoryParam !== null) {
-      const { category, hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, refresh, exclude } = categoryParam;
+      // M1: ไม่เติม `_t=Date.now()` สำหรับ manual refresh แล้ว — HomeFeed สุ่ม seed ใหม่
+      // + exclude ใหม่ทุกครั้งที่ refresh (refreshFeed) ทำให้ URL ต่างกันอยู่แล้ว dedup ไม่กลืน
+      // และ browser cache ไม่ชน ของใหม่ยังได้ทุกรอบเหมือนเดิม
+      const { category, hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, exclude } = categoryParam;
       const params = new URLSearchParams();
 
       if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
@@ -177,7 +180,6 @@ export async function fetchRankings(categoryParam) {
       if (sort) params.append('sort', sort);
       if (page) params.append('page', page);
       if (limit) params.append('limit', limit);
-      if (refresh) params.append('_t', String(Date.now()));
 
       const queryStr = params.toString();
       if (queryStr) url += `?${queryStr}`;

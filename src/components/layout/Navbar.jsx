@@ -68,7 +68,8 @@ const Navbar = () => {
       return;
     }
 
-    const cacheKey = trimmed;
+    // M1: key เป็น lowercase — backend ค้นแบบ case-insensitive อยู่แล้ว ('Cat' ใช้ cache ของ 'cat' ได้)
+    const cacheKey = trimmed.toLowerCase();
     let cancelled = false;
     let controller = null;
     setIsSearching(true);
@@ -114,7 +115,7 @@ const Navbar = () => {
           setIsSearching(false);
         }
       }
-    }, 300);
+    }, 500);
 
     return () => {
       cancelled = true;

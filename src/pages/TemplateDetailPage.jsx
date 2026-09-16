@@ -10,6 +10,7 @@ import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
 import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPreview'
 import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate } from '../lib/api'
+import { createPendingGuard } from '../lib/pendingGuard'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
 import TierRow from '../components/feed/TierRow'
@@ -64,16 +65,21 @@ function RankingCard({ ranking, tiersDef }) {
   const [userVote, setUserVote] = useState(ranking.user_vote ?? null)
   const [likes, setLikes] = useState(ranking.stats?.likes || 0)
   const [dislikes, setDislikes] = useState(ranking.stats?.dislikes || 0)
+  // M4-C1: RankingCard มี 1 instance ต่อ 1 ranking — guard จึง per-resource โดยธรรมชาติ
+  const voteGuardRef = useRef(null)
+  if (!voteGuardRef.current) voteGuardRef.current = createPendingGuard()
 
   const tierRows = groupItemsByTierOrder(ranking.ranking_items, tiersDef)
 
   // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
+  // M4-C1: acquire ก่อน optimistic mutation ใดๆ — คลิกที่ถูก block ไม่มี request/toggle/rollback
   const handleVote = async (type) => {
     if (!currentUser) {
       toast.warning(t('template.warnLoginVote'))
       navigate('/login')
       return
     }
+    if (!voteGuardRef.current.acquire(ranking.id)) return
 
     const nextVote = userVote === type ? null : type
     const prevVote = userVote
@@ -91,17 +97,21 @@ function RankingCard({ ranking, tiersDef }) {
     setLikes(optimisticLikes)
     setDislikes(optimisticDislikes)
 
-    const result = await voteRanking({ rankingId: ranking.id, userId: currentUser.id, voteType: nextVote })
+    try {
+      const result = await voteRanking({ rankingId: ranking.id, userId: currentUser.id, voteType: nextVote })
 
-    if (result.success !== false) {
-      setUserVote(result.userVote ?? null)
-      setLikes(result.likes ?? optimisticLikes)
-      setDislikes(result.dislikes ?? optimisticDislikes)
-    } else {
-      setUserVote(prevVote)
-      setLikes(prevLikes)
-      setDislikes(prevDislikes)
-      console.error('vote failed:', result.error)
+      if (result.success !== false) {
+        setUserVote(result.userVote ?? null)
+        setLikes(result.likes ?? optimisticLikes)
+        setDislikes(result.dislikes ?? optimisticDislikes)
+      } else {
+        setUserVote(prevVote)
+        setLikes(prevLikes)
+        setDislikes(prevDislikes)
+        console.error('vote failed:', result.error)
+      }
+    } finally {
+      voteGuardRef.current.release(ranking.id)
     }
   }
 
@@ -221,6 +231,9 @@ export default function TemplateDetailPage() {
   // seed from template.stats เริ่มต้น ส่วน GET จะ override เลขจริง + user_vote
   const [templateReaction, setTemplateReaction] = useState({ userVote: null, likes: 0, dislikes: 0 })
   const [commentCount, setCommentCount] = useState(0)
+  // M4-C1: guard ของ template vote (คนละ scope กับ guard ใน RankingCard)
+  const templateVoteGuardRef = useRef(null)
+  if (!templateVoteGuardRef.current) templateVoteGuardRef.current = createPendingGuard()
 
   useEffect(() => {
     if (!template) return
@@ -328,12 +341,14 @@ export default function TemplateDetailPage() {
   }
 
   // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action (เหมือน RankingCard)
+  // M4-C1: acquire ก่อน optimistic mutation ใดๆ — คลิกที่ถูก block ไม่มี request/toggle/rollback
   const handleTemplateVote = async (type) => {
     if (!currentUser) {
       toast.warning(t('template.warnLoginVote'))
       navigate('/login')
       return
     }
+    if (!templateVoteGuardRef.current.acquire(templateId)) return
 
     const prev = templateReaction
     const nextVote = prev.userVote === type ? null : type
@@ -348,17 +363,21 @@ export default function TemplateDetailPage() {
 
     setTemplateReaction({ userVote: nextVote, likes, dislikes })
 
-    const result = await voteTemplate({ templateId, userId: currentUser.id, voteType: nextVote })
+    try {
+      const result = await voteTemplate({ templateId, userId: currentUser.id, voteType: nextVote })
 
-    if (result.success !== false) {
-      setTemplateReaction({
-        userVote: result.userVote ?? null,
-        likes: result.likes ?? likes,
-        dislikes: result.dislikes ?? dislikes
-      })
-    } else {
-      setTemplateReaction(prev)
-      console.error('template vote failed:', result.error)
+      if (result.success !== false) {
+        setTemplateReaction({
+          userVote: result.userVote ?? null,
+          likes: result.likes ?? likes,
+          dislikes: result.dislikes ?? dislikes
+        })
+      } else {
+        setTemplateReaction(prev)
+        console.error('template vote failed:', result.error)
+      }
+    } finally {
+      templateVoteGuardRef.current.release(templateId)
     }
   }
 

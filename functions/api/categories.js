@@ -16,9 +16,12 @@ export async function onRequestGet({ request, env }) {
     `;
     const { results } = await env.tear_of_god_db.prepare(query).bind(limit).all();
 
+    // M2: response มีแค่ {category, count} ไม่มีข้อมูลเฉพาะผู้ชม — cache ที่ edge/browser
+    // ได้ปลอดภัย (limit อยู่ใน URL จึงแยก cache key กันอยู่แล้ว; request ที่มี session
+    // จะถูก _middleware overwrite เป็น private,no-store ตามเดิม ไม่รั่วข้ามผู้ใช้)
     return new Response(JSON.stringify({ success: true, data: results }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' }
     });
   } catch (error) {
     console.error('Category query failed:', { name: error?.name, message: error?.message });

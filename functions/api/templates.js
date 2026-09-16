@@ -70,13 +70,15 @@ export async function onRequestGet(context) {
           use_count: t.live_uses || 0,
           stats: { uses: t.live_uses || 0 }
         }));
+        // M2: suggest response ไม่มี is_saved / ข้อมูลเฉพาะผู้ชม (_middleware ข้าม session
+        // lookup ให้ path นี้อยู่แล้ว) — cache สาธารณะได้ ไม่แตะ logic search/query
         return Response.json({
           success: true,
           data,
           page,
           limit,
           total: data.length
-        });
+        }, { headers: { 'Cache-Control': 'public, max-age=60' } });
       }
 
       // เรียงตามเลขจริง (live_uses/live_views) ไม่ใช่คอลัมน์ที่ seed ไว้ — ไม่งั้นลำดับการ์ด
