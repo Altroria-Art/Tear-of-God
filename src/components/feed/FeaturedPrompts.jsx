@@ -119,7 +119,9 @@ export default function FeaturedPrompts({ compact = false }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchSpotlights(refreshKey).then((result) => {
+    // M1: refreshKey เป็นแค่ตัว retrigger — ไม่ส่งเป็น ?cycle เพื่อให้ URL ตรงกับ
+    // FreshnessHub แล้ว inFlightGET รวมเหลือ 1 request (backend cacheKey ตัด query ทิ้งอยู่แล้ว)
+    fetchSpotlights().then((result) => {
       if (cancelled) return;
       setSpotlights(result?.data || null);
       setLoading(false);

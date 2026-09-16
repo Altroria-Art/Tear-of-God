@@ -16,6 +16,7 @@ import UserFollowButton from '../components/user/UserFollowButton'
 // 📍 นำเข้า createComment มาใช้งาน
 import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
+import { createPendingGuard } from '../lib/pendingGuard'
 import { formatDbDate } from '../lib/format'
 import { challengeUrl, shareUrl } from '../lib/share'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +37,9 @@ export default function PostDetail() {
   const [comments, setComments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [userVote, setUserVote] = useState(null) // 'like' | 'dislike' | null — seed จาก data.user_vote เท่านั้น
+  // M4-C1: หน้านี้มี 1 ranking — guard กันกดซ้ำระหว่าง pending, resolve/reject แล้วกดใหม่ได้
+  const voteGuardRef = useRef(null)
+  if (!voteGuardRef.current) voteGuardRef.current = createPendingGuard()
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] = useState('')
   const [reporting, setReporting] = useState(false)
@@ -122,11 +126,13 @@ export default function PostDetail() {
 
   // state machine: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action —
   // กด like ซ้ำตอน like อยู่แล้ว = ยกเลิกโหวต (null) ดู docs/feature-like-dislike-voting.md §4
+  // M4-C1: acquire ก่อน optimistic mutation ใดๆ — คลิกที่ถูก block ไม่มี request/toggle/rollback
   const handleVote = async (type) => {
     if (!currentUser) {
       toast.warning(t('post.warnLoginVote'));
       return;
     }
+    if (!voteGuardRef.current.acquire(postId)) return
 
     const nextVote = userVote === type ? null : type
     const prevVote = userVote
@@ -143,16 +149,20 @@ export default function PostDetail() {
     setUserVote(nextVote)
     setPost(prev => ({ ...prev, stats: { ...prev.stats, likes: optimisticLikes, dislikes: optimisticDislikes } }))
 
-    const result = await voteRanking({ rankingId: postId, userId: currentUser.id, voteType: nextVote })
+    try {
+      const result = await voteRanking({ rankingId: postId, userId: currentUser.id, voteType: nextVote })
 
-    if (result.success !== false) {
-      setUserVote(result.userVote ?? null)
-      setPost(prev => ({ ...prev, stats: { ...prev.stats, likes: result.likes ?? prev.stats.likes, dislikes: result.dislikes ?? prev.stats.dislikes } }))
-    } else {
-      // rollback
-      setUserVote(prevVote)
-      setPost(prev => ({ ...prev, stats: prevStats }))
-      toast.error(t('post.voteFailed', { msg: result.error || t('common.error') }))
+      if (result.success !== false) {
+        setUserVote(result.userVote ?? null)
+        setPost(prev => ({ ...prev, stats: { ...prev.stats, likes: result.likes ?? prev.stats.likes, dislikes: result.dislikes ?? prev.stats.dislikes } }))
+      } else {
+        // rollback
+        setUserVote(prevVote)
+        setPost(prev => ({ ...prev, stats: prevStats }))
+        toast.error(t('post.voteFailed', { msg: result.error || t('common.error') }))
+      }
+    } finally {
+      voteGuardRef.current.release(postId)
     }
   }
 

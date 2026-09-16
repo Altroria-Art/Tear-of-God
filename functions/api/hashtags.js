@@ -107,10 +107,11 @@ export async function onRequestGet(context) {
       total = totalRows[0]?.n || 0;
     }
 
-    // 📍 ข้อมูล public ล้วน (นับจากทุก template+ranking ในระบบ ไม่มี field เฉพาะผู้ชม) — cache
-    // สั้น max-age=30 (ไม่มี stale-while-revalidate) เพื่อให้จำนวน "เทรนด์" สะท้อนโพสต์ที่สร้าง
-    // ใหม่ได้ไว ไม่ค้างตัวเลขเหมือนเดิมที่ SWR 300s (เทมพ์เดียวกับที่ตัดออกจาก templates list —
-    // ดู docs/discover-template-view-refresh-and-tracking-plan.md)
+    // M2: ข้อมูล public ล้วน (ไม่มี field เฉพาะผู้ชม; page/limit/sort/q อยู่ใน URL จึงแยก
+    // cache key กันอยู่แล้ว) — request ไม่มี q (รายการ browse หลักของ Discover/sidebar)
+    // เปลี่ยนนับเฉพาะตอน template สร้าง/ลบ จึง cache 300s ได้ ส่วน request มี q (ค้นหา/
+    // autocomplete) คง max-age=30 สั้นเดิมเพื่อให้ผลค้นหาสด ไม่แตะ recursive CTE
+    // (เหตุผล TTL สั้นเดิม + การตัด SWR ดู docs/discover-template-view-refresh-and-tracking-plan.md)
     return Response.json(
       {
         success: true,
@@ -119,7 +120,7 @@ export async function onRequestGet(context) {
         limit,
         total
       },
-      { headers: { 'Cache-Control': 'public, max-age=30' } }
+      { headers: { 'Cache-Control': q ? 'public, max-age=30' : 'public, max-age=300' } }
     );
   } catch (error) {
     console.error('Hashtag query failed:', { name: error?.name, message: error?.message });

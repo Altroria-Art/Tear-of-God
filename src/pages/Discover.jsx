@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bookmark, ArrowRight, X } from 'lucide-react';
 import { useUser } from '../context/UserContext';
@@ -55,6 +55,10 @@ export default function Discover() {
   const [templates, setTemplates] = useState([]);
   const [hashtags, setHashtags] = useState([]);
   const [hashtagSections, setHashtagSections] = useState([]);
+  // M1: โซน hashtag-sections อยู่ใต้ fold — ยังไม่ยิง 3 requests (top3 tags × fetchTemplates)
+  // พร้อม mount แต่รอให้ sentinel ใกล้เข้า viewport ก่อน (คนไม่ scroll = ประหยัด 3 requests)
+  const [sectionsArmed, setSectionsArmed] = useState(false);
+  const sectionsSentinelRef = useRef(null);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -95,21 +99,6 @@ export default function Discover() {
         setTemplates(tpl.data || []);
         setHashtags(tags.data || []);
         setTotal(tpl.total || 0);
-
-        const top3 = (tags.data || []).slice(0, 3);
-        const sectionsData = await Promise.all(
-          top3.map((h) => fetchTemplates({ hashtag: h.tag, limit: 4 }))
-        );
-        if (cancelled) return;
-
-        const newSections = top3
-          .map((h, i) => ({
-            tag: h.tag,
-            items: sectionsData[i].data || [],
-          }))
-          .filter((section) => section.items.length);
-
-        setHashtagSections(newSections);
         setLoadError(tpl.error || tags.error || '');
       }
       setIsLoading(false);
@@ -119,6 +108,54 @@ export default function Discover() {
       cancelled = true;
     };
   }, [q, saved, page, browsingResults, viewerId, retry]);
+
+  // M1: arm การโหลด sections เมื่อ sentinel ใกล้เข้า viewport (rootMargin 400px ล่วงหน้า)
+  // ไม่มี IntersectionObserver (เบราว์เซอร์เก่า) = โหลดทันทีเหมือนพฤติกรรมเดิม
+  useEffect(() => {
+    if (browsingResults || sectionsArmed || isLoading) return undefined;
+    const el = sectionsSentinelRef.current;
+    if (!el) return undefined;
+    if (typeof IntersectionObserver === 'undefined') {
+      setSectionsArmed(true);
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setSectionsArmed(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [browsingResults, sectionsArmed, isLoading]);
+
+  // M1: ยิง 3 requests ของ sections ต่อเมื่อ armed แล้วเท่านั้น (ครั้งแรกที่เข้า viewport)
+  useEffect(() => {
+    if (browsingResults || !sectionsArmed || hashtags.length === 0) return undefined;
+    let cancelled = false;
+    async function loadSections() {
+      const top3 = hashtags.slice(0, 3);
+      const sectionsData = await Promise.all(
+        top3.map((h) => fetchTemplates({ hashtag: h.tag, limit: 4 }))
+      );
+      if (cancelled) return;
+      setHashtagSections(
+        top3
+          .map((h, i) => ({
+            tag: h.tag,
+            items: sectionsData[i].data || [],
+          }))
+          .filter((section) => section.items.length)
+      );
+    }
+    loadSections();
+    return () => {
+      cancelled = true;
+    };
+  }, [browsingResults, sectionsArmed, hashtags, retry]);
 
   useEffect(() => {
     const update = (event) => {
@@ -288,6 +325,9 @@ export default function Discover() {
               ))}
             </div>
           </section>
+
+          {/* M1 sentinel: จุดสังเกตสำหรับ arm การโหลด sections แบบ lazy (ไม่มี UI) */}
+          <div ref={sectionsSentinelRef} aria-hidden="true" />
 
           {/* Section: Dynamic Hashtag Sections */}
           {hashtagSections.map(({ tag, items }) => (

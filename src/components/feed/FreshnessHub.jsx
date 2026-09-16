@@ -171,7 +171,9 @@ export default function FreshnessHub({ compact = false }) {
 
   useEffect(() => {
     const handleRefresh = () => {
-      fetchSpotlights(Date.now()).then((result) => {
+      // M1: ใช้ URL เดียวกับ FeaturedPrompts (ไม่มี ?cycle) เพื่อให้ inFlightGET ใน
+      // api.js รวม 2 calls ที่ยิงพร้อมกันจาก event เดียวกันเหลือ 1 request
+      fetchSpotlights().then((result) => {
         setData(result?.data || null);
       });
     };
