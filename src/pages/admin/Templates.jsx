@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Trash2, Eye, Layers, X, ExternalLink } from 'lucide-react';
+import { Search, Trash2, Eye, X, ExternalLink } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminTemplates, deleteAdminTemplate, fetchTemplate } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import HashtagCell from '../../components/admin/HashtagCell';
 import TierLabel from '../../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
 
@@ -104,8 +105,7 @@ export default function Templates() {
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
                   <th className="px-4 py-3 font-bold">{t('admin.title')}</th>
                   <th className="px-4 py-3 font-bold">{t('admin.owner')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.category')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.tiers')}</th>
+                    <th className="px-4 py-3 font-bold">{t('admin.hashtags')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.uses')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.views')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
@@ -140,10 +140,7 @@ export default function Templates() {
                         template.creator?.username || t('common.unknownUser')
                       )}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">{template.category}</td>
-                    <td className="px-4 py-3 text-right text-ink-soft">
-                      <span className="inline-flex items-center gap-1"><Layers size={13} /> {template.tier_count}</span>
-                    </td>
+                    <td className="px-4 py-3 text-ink-soft max-w-[220px]"><HashtagCell hashtags={template.hashtags} /></td>
                     <td className="px-4 py-3 text-right text-ink-soft">{template.use_count}</td>
                     <td className="px-4 py-3 text-right text-ink-soft">
                       <span className="inline-flex items-center gap-1"><Eye size={13} /> {template.view_count}</span>

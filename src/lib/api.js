@@ -709,6 +709,20 @@ export async function deleteAdminTemplate({ userId: _userId, targetId }) {
   }
 }
 
+// A2: creator ลบ template ตัวเอง (หรือ admin) — backend ตรวจสิทธิ์เอง
+export async function deleteTemplate(templateId) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/template-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id: templateId })
+    });
+    return await response.json();
+  } catch {
+    return { success: false, error: i18n.t('errors.templateDeleteFailed') };
+  }
+}
+
 // ==========================================
 // ระบบรายงาน template (Report)
 // ==========================================

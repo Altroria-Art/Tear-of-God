@@ -314,12 +314,15 @@ export default function CommunityAveragePage() {
 <ActionButton icon={CommentIcon} count={formatCount(commentCount)} label={t('post.comments')} onClick={handleCommentClick} />
               </div>
               <div className="ml-auto flex items-center gap-3">
-                <Link
-                  to={`/template/${templateId}/participants`}
-                  className="flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-muted transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:text-ink hover:shadow-md active:scale-[0.95]"
-                >
-                  <Users size={14} /> {t('template.viewParticipants')}
-                </Link>
+                {/* A1: ปุ่ม Participants สำหรับ admin เท่านั้น (endpoint requireAdmin ด้วย) */}
+                {currentUser?.role === 'admin' && (
+                  <Link
+                    to={`/template/${templateId}/participants`}
+                    className="flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-muted transition-all shadow-sm hover:-translate-y-0.5 hover:bg-surface hover:text-ink hover:shadow-md active:scale-[0.95]"
+                  >
+                    <Users size={14} /> {t('template.viewParticipants')}
+                  </Link>
+                )}
                 <ActionButton icon={Download} label={t('common.export')} onClick={() => setModal('export')} activeClass="hover:text-highlight" />
                 <ActionButton
                   icon={ShareIcon}

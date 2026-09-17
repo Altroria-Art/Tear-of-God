@@ -1,11 +1,24 @@
 // GET /api/template-participants?template_id={id}
 // Returns all rankings for a template with user profile and ranking items
 // Used by the Community Participants page to show every user's tier-list results
+//
+// A1: admin-only — response มี faculty/major/year ของผู้ใช้ทุกคน จึงต้อง requireAdmin
+// ทั้ง endpoint (ซ่อนปุ่มฝั่ง UI อย่างเดียวไม่พอ); guest → 401, non-admin → 403,
+// admin ได้ contract เดิม 100%
+import { requireAdmin } from './admin/_check.js';
 
 export async function onRequestGet(context) {
-  const { request, env } = context;
+  const { request, env, data: auth } = context;
   const url = new URL(request.url);
   const db = env.tear_of_god_db;
+
+  const userId = auth?.user?.id;
+  if (!userId) {
+    return Response.json({ success: false, error: 'กรุณาเข้าสู่ระบบอีกครั้ง / Please log in again' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
+  }
+  if (!(await requireAdmin(env, userId))) {
+    return Response.json({ success: false, error: 'ไม่มีสิทธิ์เข้าถึง (ต้องเป็นแอดมิน)' }, { status: 403 });
+  }
 
   const templateId = url.searchParams.get('template_id');
   if (!templateId) {

@@ -14,7 +14,7 @@ import ExportCard from '../components/ui/ExportCard'
 import UserFollowButton from '../components/user/UserFollowButton'
 
 // 📍 นำเข้า createComment มาใช้งาน
-import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking } from '../lib/api'
+import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking, deleteAdminRanking } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
 import { createPendingGuard } from '../lib/pendingGuard'
 import { formatDbDate } from '../lib/format'
@@ -250,12 +250,18 @@ export default function PostDetail() {
     }
   }
 
-  // 📍 ลบโพสต์ของตัวเอง
+  // 📍 ลบโพสต์ — เจ้าของลบของตัวเอง (self-delete เดิม) ส่วน admin ลบโพสต์ใดก็ได้
+  // ผ่าน deleteAdminRanking (backend enforce admin เอง)
+  // ใช้ post?.authorId (authorId ที่ destructure ด้านล่างยังไม่เกิดตรงนี้ — กัน TDZ)
+  const isOwner = currentUser?.id != null && currentUser.id === post?.authorId;
+  const isAdmin = currentUser?.role === 'admin';
   const [isDeleting, setIsDeleting] = useState(false);
   const handleDeletePost = async () => {
     if (!window.confirm(t('post.confirmDelete', 'Are you sure you want to delete this post?'))) return;
     setIsDeleting(true);
-    const res = await deleteRanking(postId);
+    const res = isOwner
+      ? await deleteRanking(postId)
+      : await deleteAdminRanking({ userId: currentUser?.id, targetId: postId });
     setIsDeleting(false);
     if (res.success) {
       toast.success(t('post.deleteSuccess', 'Post deleted successfully'));
@@ -263,7 +269,7 @@ export default function PostDetail() {
     } else {
       toast.error(t('post.deleteFailed', { msg: res.error || t('common.error') }));
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -354,7 +360,7 @@ export default function PostDetail() {
 
               {/* 📍 บนขวา: เมนูจัดการโพสต์ (รายงาน / ลบ) */}
               <div className="flex shrink-0 items-center gap-2">
-                {currentUser?.id === authorId && (
+                {(isOwner || isAdmin) && (
                   <button
                     type="button"
                     onClick={handleDeletePost}

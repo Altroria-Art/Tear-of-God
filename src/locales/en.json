@@ -502,6 +502,13 @@
       "community_voice": "Community Contributor",
       "template_hit": "Popular Template"
     },
+    "badgeDesc": {
+      "first_rank": "Publish your first tier list",
+      "ranker_10": "Publish 10 tier lists",
+      "template_creator": "Create a template",
+      "community_voice": "Gain 5 followers",
+      "template_hit": "Own a template used 25 times"
+    },
     "createNewTemplate": "Create New Template",
     "createNewTemplateHelp": "Start a new tier list from scratch",
     "tierListsBy": "Tier Lists by {{name}}",
@@ -577,6 +584,10 @@
     "use": "Use Template",
     "uses": "Uses",
     "views": "Views",
+    "deleteTemplate": "Delete template",
+    "confirmDeleteTemplate": "Delete \"{{title}}\"? All Tier Lists made from it ({{count}}) will also be removed.",
+    "deleteTemplateSuccess": "Template deleted",
+    "deleteTemplateFailed": "Failed to delete template: {{msg}}",
     "report": "Report",
     "reportTemplate": "Report Template",
     "reportTemplateHelp": "Notify admins to review this template",

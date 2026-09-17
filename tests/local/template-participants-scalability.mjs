@@ -71,6 +71,8 @@ async function seedDataset(db, rankingCount) {
       json_extract(value, '$.year')
     FROM json_each(?1)
   `, profiles);
+  // A1: endpoint เป็น admin-only — user-0 เป็น admin สำหรับ direct handler calls
+  await db.prepare(`UPDATE profiles SET role = 'admin' WHERE id = ?`).bind(profiles[0].id).run();
   await insertJsonRows(db, `
     INSERT INTO items (id, name)
     SELECT json_extract(value, '$.id'), json_extract(value, '$.name')
@@ -144,6 +146,12 @@ function instrumentDb(db) {
                 metrics.rowsRead += result.meta?.rows_read || 0;
                 return result;
               },
+              async first() {
+                metrics.queries += 1;
+                const result = await bound.first();
+                metrics.rowsReturned += result ? 1 : 0;
+                return result;
+              },
             };
           },
         };
@@ -152,12 +160,14 @@ function instrumentDb(db) {
   };
 }
 
-async function fetchCurrent(db, templateId) {
+async function fetchCurrent(db, templateId, userId = 'user-0') {
   const instrumented = instrumentDb(db);
   const startedAt = performance.now();
   const response = await templateParticipants({
     request: new Request(`https://local.test/api/template-participants?template_id=${templateId}`),
     env: { tear_of_god_db: instrumented.binding },
+    // A1: endpoint requireAdmin — default ใช้ admin (user-0) ที่ seed ไว้
+    ...(userId ? { data: { user: { id: userId } } } : {}),
   });
   const body = await response.json();
   return {
@@ -284,7 +294,8 @@ function assertCurrentResult(result, rankingCount) {
   assert.equal(result.body.success, true);
   assert.equal(result.body.total, rankingCount);
   assert.equal(result.body.data.length, rankingCount);
-  assert.equal(result.metrics.queries, rankingCount === 0 ? 2 : 3);
+  // A1: +1 requireAdmin SELECT ต่อทุก request (empty มี early-return ข้าม items query เหมือนเดิม)
+  assert.equal(result.metrics.queries, rankingCount === 0 ? 3 : 4);
   assert.equal(result.metrics.maxBoundParameters, 1);
   if (rankingCount > 0) {
     assert.equal(result.body.data[0].ranking_id, `ranking-${String(rankingCount - 1).padStart(4, '0')}`);
@@ -307,6 +318,12 @@ for (const rankingCount of [0, 1, 100, 101, 500]) {
     const current = await fetchCurrent(db, templateId);
     assertCurrentResult(current, rankingCount);
     logMetrics(`${rankingCount} rankings`, current);
+
+    // A1: guest → 401, non-admin → 403 (ใช้ dataset เดียวกัน)
+    if (rankingCount === 0) {
+      assert.equal((await fetchCurrent(db, templateId, null)).status, 401);
+      assert.equal((await fetchCurrent(db, templateId, 'user-1')).status, 403);
+    }
 
     if (rankingCount === 100) {
       const legacy = await fetchLegacy(db, templateId);

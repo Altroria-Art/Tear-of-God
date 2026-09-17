@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid } from 'lucide-react';
+import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, Lock, BarChart3, LayoutGrid } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage, setProfilePin } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
+import { getBadgeStates } from '../lib/badges';
 import { FACULTIES, UP_UNIVERSITY_NAME, getMajorsForFaculty, getAdmissionYears } from '../lib/university';
 import TierLabel from '../components/tier/TierLabel';
 import Modal from '../components/ui/Modal';
@@ -457,6 +458,15 @@ export default function Profile() {
   const categoryDistribution = Array.isArray(tasteIdentity.category_distribution) ? tasteIdentity.category_distribution : [];
   const topItems = Array.isArray(tasteIdentity.top_items) ? tasteIdentity.top_items : [];
   const badges = Array.isArray(tasteIdentity.badges) ? tasteIdentity.badges : [];
+  // A4: สถานะ badge ทั้ง 5 (ปลด/ล็อก + progress) จากตัวเลขที่มีอยู่แล้ว — ไม่เพิ่ม request
+  const badgeValue = (id) => badges.find((b) => b.id === id)?.value ?? null;
+  const badgeStates = getBadgeStates({
+    rankingCount: displayUser?.posts_count ?? posts.length,
+    templateCount: badgeValue('template_creator') ?? 0,
+    followerCount: displayUser?.followers_count ?? 0,
+    maxTemplateUses: badgeValue('template_hit'),
+    unlockedIds: badges.map((b) => b.id),
+  });
   const tasteMatch = tasteIdentity.taste_match;
   const similarUsers = Array.isArray(tasteIdentity.similar_users) ? tasteIdentity.similar_users : [];
 
@@ -733,19 +743,32 @@ export default function Profile() {
                 </div>
               )}
 
-              {badges.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.badges')}</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {badges.map((badge) => (
-                      <span key={badge.id} className="inline-flex items-center gap-1.5 rounded-full bg-surface border border-line px-3 py-1.5 text-xs font-semibold text-ink">
-                        <Award size={14} className="text-amber-500" />
-                        {t(`profile.badge.${badge.id}`)}
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.badges')}</h4>
+                <div className="flex flex-wrap gap-2">
+                  {badgeStates.map((badge) => (
+                    <span
+                      key={badge.id}
+                      title={t(`profile.badgeDesc.${badge.id}`)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                        badge.unlocked
+                          ? 'bg-surface border-line text-ink'
+                          : 'bg-surface-glass border-line-soft text-muted opacity-70'
+                      }`}
+                    >
+                      {badge.unlocked
+                        ? <Award size={14} className="text-amber-500" />
+                        : <Lock size={14} />}
+                      {t(`profile.badge.${badge.id}`)}
+                      <span className="text-[11px] font-bold text-muted">
+                        {badge.progress == null
+                          ? t(`profile.badgeDesc.${badge.id}`)
+                          : `${badge.progress}/${badge.need}`}
                       </span>
-                    ))}
-                  </div>
+                    </span>
+                  ))}
                 </div>
-              )}
+              </div>
                 </div>
               </Modal>
             )}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, ChevronDown } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, ChevronDown, Trash2 } from 'lucide-react'
 import Avatar from '../components/ui/Avatar'
 import Pagination from '../components/ui/Pagination'
 import SortDropdown from '../components/ui/SortDropdown'
@@ -9,7 +9,7 @@ import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
 import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPreview'
-import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate } from '../lib/api'
+import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate, deleteTemplate } from '../lib/api'
 import { createPendingGuard } from '../lib/pendingGuard'
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
@@ -315,6 +315,22 @@ export default function TemplateDetailPage() {
 
   const handleExportAverage = () => setModal('export')
 
+  // A2: creator/admin ลบ template ตัวเอง — confirm ก่อน, สำเร็จแล้วไปหน้า templates
+  const canDeleteTemplate = currentUser && (currentUser.role === 'admin' || currentUser.id === template.profile?.id)
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false)
+  const handleDeleteTemplate = async () => {
+    if (!window.confirm(t('template.confirmDeleteTemplate', { title: template.title, count: template.stats?.uses || 0 }))) return
+    setIsDeletingTemplate(true)
+    const res = await deleteTemplate(templateId)
+    setIsDeletingTemplate(false)
+    if (res.success) {
+      toast.success(t('template.deleteTemplateSuccess'))
+      navigate('/discover/templates')
+    } else {
+      toast.error(t('template.deleteTemplateFailed', { msg: res.error || t('common.error') }))
+    }
+  }
+
   // 📍 รายงานเทมเพลต — เปิด modal ให้เลือกเหตุผล แล้วยิง POST ไปหา admin
   const handleReport = async () => {
     if (!currentUser) {
@@ -445,7 +461,7 @@ export default function TemplateDetailPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <details className="relative order-last"><summary aria-label={t('common.more')} className="cursor-pointer list-none px-3 py-2 rounded-xl border border-line-soft">•••</summary><div className="absolute right-0 top-full mt-2 z-30 rounded-xl bg-canvas border border-line p-2 min-w-40 shadow-panel"><button
+              <details className="relative order-last"><summary aria-label={t('common.more')} className="cursor-pointer list-none px-3 py-2 rounded-xl border border-line-soft">•••</summary>              <div className="absolute right-0 top-full mt-2 z-30 rounded-xl bg-canvas border border-line p-2 min-w-40 shadow-panel"><button
                 type="button"
                 onClick={() => setReportOpen(true)}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-status-error hover:bg-tag w-full"
@@ -454,7 +470,19 @@ export default function TemplateDetailPage() {
               >
                 <Flag size={16} />
                 <span>{t('template.report')}</span>
-              </button></div></details>
+              </button>{canDeleteTemplate && (
+                <button
+                  type="button"
+                  onClick={handleDeleteTemplate}
+                  disabled={isDeletingTemplate}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-status-error hover:bg-status-error/10 w-full disabled:opacity-50"
+                  aria-label={t('template.deleteTemplate')}
+                  title={t('template.deleteTemplate')}
+                >
+                  <Trash2 size={16} />
+                  <span>{t('template.deleteTemplate')}</span>
+                </button>
+              )}</div></details>
               <button
                 type="button"
                 onClick={handleShare}

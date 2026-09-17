@@ -3,7 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { Trash2, Flag, ExternalLink } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
-import { fetchAdminReports, setReportStatus, deleteAdminReport, deleteAdminComment } from '../../lib/api';
+import { fetchAdminReports, setReportStatus, deleteAdminReport, deleteAdminComment, deleteAdminRanking, deleteAdminTemplate } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
 import { timeAgo } from '../../lib/format';
 import { useTranslation } from 'react-i18next';
@@ -85,18 +85,24 @@ export default function Reports() {
   const handleDeleteContent = async (r) => {
     if (!window.confirm(t('admin.confirmDeleteReportContent'))) return;
     setBusy(r.id);
-    
+
+    // A1: ลบ target ที่ report อ้างถึง — reuse admin delete APIs เดิมตาม kind
+    // (backend enforce admin เองทุก endpoint; สำเร็จแล้ว mark resolved ตาม pattern เดิม)
     let res;
     if (r.kind === 'comment' || r.kind === 'template_comment') {
       res = await deleteAdminComment(r.kind === 'comment' ? r.comment_id : r.template_comment_id, r.kind === 'template_comment');
+    } else if (r.kind === 'post' && r.ranking_id) {
+      res = await deleteAdminRanking({ userId: currentUser?.id, targetId: r.ranking_id });
+    } else if (r.kind === 'template' && r.template_id) {
+      res = await deleteAdminTemplate({ userId: currentUser?.id, targetId: r.template_id });
     }
-    
+
     setBusy(null);
     if (res?.success) {
       toast.success(t('admin.deleteContentSuccess'));
       handleStatus(r, 'resolved'); // Auto mark resolved after delete
     } else {
-      toast.error(t('admin.deleteContentFailed'));
+      toast.error(res?.error || t('admin.deleteContentFailed'));
     }
   };
 
@@ -268,7 +274,7 @@ export default function Reports() {
                           {t('common.delete')} Report
                         </button>
                         
-                        {(r.kind === 'comment' || r.kind === 'template_comment') && r.status !== 'resolved' && (
+                        {(r.kind === 'comment' || r.kind === 'template_comment' || r.kind === 'post' || r.kind === 'template') && r.status !== 'resolved' && (
                           <button
                             onClick={() => handleDeleteContent(r)}
                             disabled={busy === r.id}

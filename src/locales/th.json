@@ -502,6 +502,13 @@
       "community_voice": "ผู้ร่วมแสดงความเห็น",
       "template_hit": "เทมเพลตยอดนิยม"
     },
+    "badgeDesc": {
+      "first_rank": "เผยแพร่ tier list แรก",
+      "ranker_10": "เผยแพร่ tier list 10 รายการ",
+      "template_creator": "สร้างเทมเพลต",
+      "community_voice": "มีผู้ติดตาม 5 คน",
+      "template_hit": "มีเทมเพลตที่ถูกใช้ 25 ครั้ง"
+    },
     "createNewTemplate": "สร้างเทมเพลตใหม่",
     "createNewTemplateHelp": "เริ่ม tier list ใหม่จากศูนย์",
     "tierListsBy": "Tier Lists โดย {{name}}",
@@ -577,6 +584,10 @@
     "use": "ใช้เทมเพลต",
     "uses": "การใช้งาน",
     "views": "การเข้าชม",
+    "deleteTemplate": "ลบเทมเพลต",
+    "confirmDeleteTemplate": "ลบ \"{{title}}\" ใช่หรือไม่? Tier List ที่สร้างจากเทมเพลตนี้ทั้งหมด ({{count}}) จะถูกลบไปด้วย",
+    "deleteTemplateSuccess": "ลบเทมเพลตแล้ว",
+    "deleteTemplateFailed": "ลบเทมเพลตไม่สำเร็จ: {{msg}}",
     "report": "รายงาน",
     "reportTemplate": "รายงานเทมเพลต",
     "reportTemplateHelp": "แจ้งแอดมินให้ตรวจสอบเทมเพลตนี้",

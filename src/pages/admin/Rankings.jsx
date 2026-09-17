@@ -5,6 +5,7 @@ import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminRankings, deleteAdminRanking, fetchRanking } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import HashtagCell from '../../components/admin/HashtagCell';
 import TierLabel from '../../components/tier/TierLabel';
 import Avatar from '../../components/ui/Avatar';
 import { buildTierRows } from '../../lib/tiers';
@@ -131,7 +132,7 @@ export default function Rankings() {
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
                   <th className="px-4 py-3 font-bold">{t('admin.postTitle')}</th>
                   <th className="px-4 py-3 font-bold">{t('admin.author')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.category')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.hashtags')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.likes')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.dislikes')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.comments')}</th>
@@ -176,7 +177,7 @@ export default function Rankings() {
                         r.author?.username || '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">{r.category}</td>
+                    <td className="px-4 py-3 text-ink-soft max-w-[220px]"><HashtagCell hashtags={r.hashtags} /></td>
                     <td className="px-4 py-3 text-right text-ink-soft">
                       <span className="inline-flex items-center gap-1"><ThumbsUp size={13} className="text-vote-up" /> {r.stats?.likes}</span>
                     </td>

@@ -3,6 +3,7 @@
 // (ดู functions/api/admin/_check.js)
 import { requireAdmin } from './_check.js';
 import { assertAllowedFields } from '../../lib/request-guard.js';
+import { templateDeleteStatements } from '../../lib/templateDelete.js';
 import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
 
 function parseTiers(raw) {
@@ -64,6 +65,7 @@ export async function onRequest({ request, env, data: auth }) {
         title: t.title,
         description: t.description,
         category: t.category,
+        hashtags: t.hashtags || '',
         tier_count: (parseTiers(t.tiers) || []).length,
         use_count: t.live_uses || 0,
         view_count: t.live_views || 0,
@@ -89,20 +91,8 @@ export async function onRequest({ request, env, data: auth }) {
       assertAllowedFields(payload, ['action', 'target_id']);
 
       if (action === 'delete') {
-        await db.batch([
-          db.prepare('DELETE FROM template_items WHERE template_id = ?').bind(targetId),
-          db.prepare('DELETE FROM template_views WHERE template_id = ?').bind(targetId),
-          db.prepare('DELETE FROM template_reactions WHERE template_id = ?').bind(targetId),
-          db.prepare('DELETE FROM template_comments WHERE template_id = ?').bind(targetId),
-          db.prepare('DELETE FROM template_bookmarks WHERE template_id = ?').bind(targetId),
-          db.prepare('DELETE FROM reports WHERE template_id = ?').bind(targetId),
-          db.prepare('DELETE FROM ranking_item_scores WHERE template_id = ?').bind(targetId),
-          db.prepare('DELETE FROM ranking_items WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(targetId),
-          db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(targetId),
-          db.prepare('DELETE FROM comments WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(targetId),
-          db.prepare('DELETE FROM rankings WHERE template_id = ?').bind(targetId),
-          db.prepare('DELETE FROM templates WHERE id = ?').bind(targetId),
-        ]);
+        // A2: ใช้ statement ชุดเดียวกับ creator delete (รวม topic_follows กัน orphan ใหม่)
+        await db.batch(templateDeleteStatements(db, targetId));
         return jsonResponse({ success: true, data: { id: targetId } });
       }
 
