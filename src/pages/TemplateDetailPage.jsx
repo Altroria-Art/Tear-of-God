@@ -217,7 +217,10 @@ export default function TemplateDetailPage() {
   const [reporting, setReporting] = useState(false)
 
   const [template, setTemplate] = useState(null)
-  const [communityAllTime, setCommunityAllTime] = useState(null)
+  // มี community average แบบ all-time หรือไม่ — มาจาก field
+  // has_community_average_all_time ของ GET /api/templates รอบเดียว (เดิมยิง
+  // fetchTemplate(all-time) รอบสองเพื่อหา boolean นี้ตัวเดียว)
+  const [hasCommunityAverageAllTime, setHasCommunityAverageAllTime] = useState(false)
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(true)
   const [periodDays, setPeriodDays] = useState(0) // 0 = ทั้งหมด, 7/30/90 = ช่วงกี่วันล่าสุด
 
@@ -262,24 +265,27 @@ export default function TemplateDetailPage() {
     async function loadTemplate() {
       setIsLoadingTemplate(true)
       const wantsPeriod = periodDays > 0
-      const [tplRes, allTimeRes] = await Promise.all([
-        fetchTemplate(templateId, { period: wantsPeriod ? { days: periodDays } : null }),
-        wantsPeriod ? fetchTemplate(templateId, { period: null }) : Promise.resolve(null),
-      ])
+      // ยิงรอบเดียว: boolean all-time มากับ has_community_average_all_time ใน
+      // response เดียวกันแล้ว (ไม่ต้อง fetch all-time รอบสองอีก)
+      const tplRes = await fetchTemplate(templateId, { period: wantsPeriod ? { days: periodDays } : null })
       if (cancelled) return
       if (tplRes.data) {
         setTemplate(tplRes.data)
-        setCommunityAllTime(
-          wantsPeriod
-            ? (allTimeRes?.data?.community_average ?? null)
-            : (tplRes.data.community_average ?? null)
-        )
+        // fallback derive จาก community_average เผื่อ response ที่ติด cache เก่า
+        // (ก่อน field นี้จะมี) — semantics เท่ากันทุกกรณี (ดู functions/api/templates.js)
+        const hasAllTime = tplRes.data.has_community_average_all_time
+          ?? ((tplRes.data.community_average?.tiers || []).some((t) => (t.items || []).length > 0))
+        setHasCommunityAverageAllTime(!!hasAllTime)
       }
       setIsLoadingTemplate(false)
     }
     if (templateId) loadTemplate()
+    // NOTE: no currentUser dep — GET /api/templates detail URL/body has no
+    // user-specific field (no is_saved/user_vote/is_following; is_saved exists
+    // only in list mode), so login/logout must not refetch this public data.
+    // Rankings/reaction/view effects below keep their own currentUser deps.
     return () => { cancelled = true }
-  }, [templateId, currentUser?.id, periodDays])
+  }, [templateId, periodDays])
 
   // 📍 Record view แยก effect — ยิงเฉพาะครั้งแรกที่เข้ามาดู template (หรือ login/logout)
   // ไม่ต้อง re-fire เมื่อผู้ใช้เปลี่ยน periodDays
@@ -417,8 +423,8 @@ export default function TemplateDetailPage() {
   const tiersDef = template.tiers || []
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  // ตรวจจากข้อมูล all-time (ทุกช่วง) ว่าเทมเพลตนี้มี Community Average หรือไม่
-  const hasCommunityAverage = (communityAllTime?.tiers || []).some((t) => (t.items || []).length > 0)
+  // ตรวจจาก field all-time ที่มากับ response รอบเดียว (ทุกช่วง)
+  const hasCommunityAverage = hasCommunityAverageAllTime
   const communityAvgRows = tiersDef.map((t, index) => {
     const found = template.community_average?.tiers?.find((x) => x.label === t.label)
     return {

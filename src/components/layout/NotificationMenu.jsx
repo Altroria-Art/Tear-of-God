@@ -3,6 +3,13 @@ import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Swor
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { fetchNotifications, markNotificationRead } from '../../lib/api';
+import {
+  POLL_INTERVAL_MS,
+  createRequestDeduper,
+  shouldPollTick,
+  shouldRefreshOnVisible,
+  shouldReuseFreshFetch,
+} from '../../lib/notificationFeed';
 import { timeAgo } from '../../lib/format';
 
 const notificationIcon = {
@@ -43,17 +50,29 @@ export default function NotificationMenu({ userId }) {
   const menuRef = useRef(null);
   const requestIdRef = useRef(0);
   const lastRefreshedAtRef = useRef(0);
+  const lastSuccessAtRef = useRef(0);
+  const deduperRef = useRef(null);
+  if (!deduperRef.current) deduperRef.current = createRequestDeduper();
 
   const refresh = useCallback(async ({ quiet = false } = {}) => {
     if (!userId) return;
     lastRefreshedAtRef.current = Date.now();
     const requestId = ++requestIdRef.current;
     if (!quiet) setIsLoading(true);
-    const result = await fetchNotifications(20);
+    // Concurrent triggers (timer + menu open, visibility + menu open) share
+    // the pending GET instead of firing N requests. Sequential triggers fetch
+    // normally — this is dedup, not a response cache.
+    let result;
+    try {
+      result = await deduperRef.current.run(() => fetchNotifications(20));
+    } catch {
+      result = { success: false };
+    }
     if (requestId !== requestIdRef.current) return;
     if (result.success !== false) {
       setNotifications(result.data || []);
       setUnreadCount(result.unreadCount || 0);
+      lastSuccessAtRef.current = Date.now();
     }
     setIsLoading(false);
   }, [userId]);
@@ -62,26 +81,51 @@ export default function NotificationMenu({ userId }) {
     if (!userId) return undefined;
     refresh();
 
-    // Poll every 5 minutes (300,000 ms) while visible
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === 'visible' && Date.now() - lastRefreshedAtRef.current >= 60000) {
-        refresh({ quiet: true });
+    // 5-minute polling is for the active tab only: the interval is stopped
+    // while hidden (not merely skipped inside) and restarted on return.
+    // Cadence while visible stays ~5 minutes; the 60s freshness guard below
+    // is unchanged, so a return-to-tab refresh still happens when stale.
+    let interval = null;
+    const startPolling = () => {
+      if (interval) return;
+      interval = window.setInterval(() => {
+        if (shouldPollTick({
+          userId,
+          visible: document.visibilityState === 'visible',
+          now: Date.now(),
+          lastRefreshAt: lastRefreshedAtRef.current,
+        })) {
+          refresh({ quiet: true });
+        }
+      }, POLL_INTERVAL_MS);
+    };
+    const stopPolling = () => {
+      if (interval) {
+        window.clearInterval(interval);
+        interval = null;
       }
-    }, 300000);
+    };
+    startPolling();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Refresh when user returns to tab if at least 60 seconds have elapsed since last actual refresh from ANY trigger
-        if (Date.now() - lastRefreshedAtRef.current >= 60000) {
+        if (shouldRefreshOnVisible({ now: Date.now(), lastRefreshAt: lastRefreshedAtRef.current })) {
           refresh({ quiet: true });
         }
+        startPolling();
+      } else {
+        stopPolling();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.clearInterval(interval);
+      stopPolling();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Logout / user switch / unmount: drop shared in-flight state so a
+      // pending response can never fill the next identity's state (the
+      // request-id bump above already discards its result as well).
+      deduperRef.current.reset();
       requestIdRef.current += 1;
     };
   }, [refresh, userId]);
@@ -97,7 +141,17 @@ export default function NotificationMenu({ userId }) {
   const openMenu = () => {
     const nextOpen = !isOpen;
     setIsOpen(nextOpen);
-    if (nextOpen) refresh({ quiet: notifications.length > 0 });
+    if (!nextOpen) return;
+    // A fetch that succeeded seconds ago (timer/visibility collision) need not
+    // run again: skip only inside the short reuse window, otherwise refresh.
+    // Failures never count as fresh, so an error is always followed by a retry.
+    if (
+      notifications.length > 0 &&
+      shouldReuseFreshFetch({ now: Date.now(), lastSuccessAt: lastSuccessAtRef.current })
+    ) {
+      return;
+    }
+    refresh({ quiet: notifications.length > 0 });
   };
 
   const markAllRead = async () => {

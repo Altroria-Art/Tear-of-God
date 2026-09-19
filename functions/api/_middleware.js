@@ -59,7 +59,12 @@ export async function onRequest(context) {
         (path === '/api/templates' && !url.searchParams.has('id')) ||
         path === '/api/hashtags'
       );
-    const skipSessionLookup = isPublicSpotlight || isPublicSuggestion;
+    // GET /api/categories returns only {category,count} aggregates — no user id,
+    // is_following/is_saved/user_vote, or any session-dependent field, and the
+    // handler never reads context.data.user (see functions/api/categories.js).
+    // Same safe bypass pattern as spotlights/suggest above.
+    const isPublicCategories = path === '/api/categories' && request.method === 'GET';
+    const skipSessionLookup = isPublicSpotlight || isPublicSuggestion || isPublicCategories;
     context.data.user = skipSessionLookup
       ? null
       : await readSession(request, env.tear_of_god_db);

@@ -204,6 +204,50 @@ export async function fetchRanking(postId, _userId) {
   }
 }
 
+// 📍 ranking ล่าสุดของตัวเองบน template นี้ (CommunityAveragePage "ของฉัน vs ชุมชน") —
+// lightweight กว่า fetchRankings({ templateId, authorId, limit: 1 }) ที่รัน enrich
+// เต็มชุด (tiers/uses/histogram/follows) ทั้งที่หน้านี้ใช้แค่ ranking_items
+// (tier + item name) — server ใช้ session user เอง (mine=1) ไม่เชื่อ author_id จาก client
+export async function fetchMyRanking({ templateId } = {}) {
+  try {
+    if (!templateId) return { data: [], error: i18n.t('errors.fetchFailed') };
+    return await getJSON(`${API_URL}/api/rankings?template_id=${encodeURIComponent(templateId)}&mine=1`);
+  } catch (error) {
+    console.error('fetchMyRanking error:', error);
+    return { data: [], error: i18n.t('errors.fetchFailed') };
+  }
+}
+
+// 📍 Taste Details lazy section (Profile modal): similar users + viewer match.
+// Same endpoint, ?fields=similar mode — server derives the viewer from the
+// session, the client viewerKey below is ONLY a cache key (never trusted).
+// 60s TTL: taste snapshot semantics for one modal session; reopening within
+// 60s reuses, otherwise refetches. Cap mirrors Navbar suggestionCache.
+const SIMILAR_TTL_MS = 60 * 1000;
+const SIMILAR_CACHE_MAX_ENTRIES = 50;
+const similarCache = new Map(); // `${viewerKey}:${profileId}` -> { data, expiresAt }
+
+export async function fetchSimilarUsers(profileId, viewerKey) {
+  try {
+    if (!profileId) return { success: false, data: null, error: i18n.t('errors.fetchFailed') };
+    const key = `${viewerKey ?? 'anon'}:${profileId}`;
+    const hit = similarCache.get(key);
+    if (hit && Date.now() < hit.expiresAt) return hit.data;
+    // getJSON dedups concurrent identical URLs in-flight, so a remount while
+    // the first request is pending does not fire a second request.
+    const data = await getJSON(`${API_URL}/api/users?id=${encodeURIComponent(profileId)}&fields=similar`);
+    if (data?.success !== false) {
+      if (!similarCache.has(key) && similarCache.size >= SIMILAR_CACHE_MAX_ENTRIES) {
+        similarCache.delete(similarCache.keys().next().value);
+      }
+      similarCache.set(key, { data, expiresAt: Date.now() + SIMILAR_TTL_MS });
+    }
+    return data;
+  } catch (error) {
+    console.error('fetchSimilarUsers error:', error);
+    return { success: false, data: null, error: i18n.t('errors.fetchFailed') };
+  }
+}
 // 📍 ดึงโปรไฟล์สาธารณะของผู้ใช้ (ใช้ตอนเปิดดูโปรไฟล์คนอื่นจากหน้าฟีด/โพสต์)
 export async function fetchUserProfile(userId, _viewerId = null) {
   try {

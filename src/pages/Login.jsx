@@ -4,7 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, TrendingUp } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useTheme } from '../context/ThemeContext';
-import { registerUser, loginUser, syncGoogleUser, fetchTemplates, fetchRankings } from '../lib/api';
+import { registerUser, loginUser, syncGoogleUser } from '../lib/api';
 import { signInWithGoogle } from '../lib/firebase';
 import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
@@ -134,25 +134,11 @@ export default function Login() {
     setAnimClass('translate-y-0 opacity-100 scale-100');
   }, [lang]);
 
-  const [realTemplates, setRealTemplates] = useState(REAL_DEFAULT_TEMPLATES);
-  const [realRankings, setRealRankings] = useState(REAL_DEFAULT_RANKINGS);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchTemplates({ limit: 3, sort: 'popular' })
-      .then((res) => {
-        if (cancelled || !Array.isArray(res.data) || res.data.length === 0) return;
-        setRealTemplates(res.data);
-      })
-      .catch(() => {});
-    fetchRankings({ limit: 5, sort: 'recent' })
-      .then((res) => {
-        if (cancelled || !Array.isArray(res.data) || res.data.length === 0) return;
-        setRealRankings(res.data);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
+  // Decorative hero uses static fallback data only — no API prefetch on mount
+  // (previously fetched templates/rankings here; removed to save 2 Worker
+  // invocations + D1 reads per login page view — the hero is decorative).
+  const realTemplates = REAL_DEFAULT_TEMPLATES;
+  const realRankings = REAL_DEFAULT_RANKINGS;
 
   const [isRegister, setIsRegister] = useState(() => new URLSearchParams(location.search).get('mode') === 'signup');
   const [email, setEmail] = useState('');

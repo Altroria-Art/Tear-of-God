@@ -1,6 +1,17 @@
+import {
+  emitCacheMetric,
+  requestColo,
+  shouldSampleMetric,
+  spotlightsMetric,
+} from '../lib/pool-cache.js';
+
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const CANDIDATE_LIMIT = 40;
 const RANKING_SPOTLIGHT_LIMIT = 6;
+
+// Pure helpers are exported for regression tests (fixed-clock rotation and
+// response-equivalence checks). They carry no request state — exporting them
+// changes no runtime behavior.
 
 function parseTiers(raw) {
   if (!raw) return [];
@@ -176,6 +187,11 @@ export async function onRequestGet(context) {
     try {
       const cached = await cache.match(cacheKey);
       if (cached) {
+        // Batch 9: 1 sampled summary log per request (hit path returns
+        // before D1, exactly as before — no PII, no payload).
+        if (shouldSampleMetric(env)) {
+          emitCacheMetric(console, spotlightsMetric({ result: 'HIT', colo: requestColo(request) }));
+        }
         return cached;
       }
     } catch (cacheErr) {
@@ -191,28 +207,32 @@ export async function onRequestGet(context) {
   try {
     const periods = getBangkokPeriods();
     const seasonal = getSeasonalProfile();
-    const seasonalConditions = seasonal.keywords.map(() => '(lower(t.title) LIKE ? OR instr(lower(replace(COALESCE(t.hashtags, \'\'), \'#\', \'\')), ?) > 0)').join(' OR ');
-    const seasonalParams = seasonal.keywords.flatMap((keyword) => [`%${keyword.toLowerCase()}%`, keyword.toLowerCase()]);
+    // Lowercased once, like the old SQL's lower(?) params. Keywords contain no
+    // LIKE wildcards, so substring search === LIKE %kw% for the ASCII/Thai
+    // text stored here (documented residual edge: exotic Unicode case pairs
+    // where JS toLowerCase and SQLite lower() disagree — no such text exists
+    // in this app's Thai/English corpus).
+    const seasonalKeywords = seasonal.keywords.map((keyword) => keyword.toLowerCase());
     const [
-      candidatesResult,
+      baseResult,
       hot24Result,
       recentResult,
       debateResult,
       splitResult,
-      seasonalResult,
-      officialResult,
     ] = await Promise.all([
+      // Single template pass (Batch 6): candidates/seasonal/official used to
+      // SCAN templates 3× with the same 3 correlated counts each. One scan +
+      // one count set per template, partitioned in JS below with comparators
+      // matching the old SQL ORDER BY exactly.
       db.prepare(`
-        SELECT t.*, p.username, p.avatar_url,
+        SELECT t.*, p.username, p.avatar_url, p.role AS creator_role,
           (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses,
           (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views,
           (SELECT COUNT(*) FROM template_items ti WHERE ti.template_id = t.id) AS item_count
         FROM templates t
         LEFT JOIN profiles p ON p.id = t.creator_id
         WHERE EXISTS (SELECT 1 FROM template_items ti WHERE ti.template_id = t.id)
-        ORDER BY live_uses DESC, live_views DESC, t.created_at DESC, t.id DESC
-        LIMIT ?
-      `).bind(CANDIDATE_LIMIT).all(),
+      `).all(),
       db.prepare(`${RANKING_SELECT}
         WHERE r.created_at >= datetime('now', '-1 day')
         ORDER BY (COALESCE(r.likes_count, 0) * 3 + COALESCE(r.comments_count, 0) * 2 - COALESCE(r.dislikes_count, 0)) DESC,
@@ -234,37 +254,46 @@ export async function onRequestGet(context) {
         ORDER BY (COALESCE(r.likes_count, 0) + COALESCE(r.dislikes_count, 0)) DESC,
                  r.created_at DESC, r.id DESC
         LIMIT ?`).bind(RANKING_SPOTLIGHT_LIMIT).all(),
-      db.prepare(`
-        SELECT t.*, p.username, p.avatar_url,
-          (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses,
-          (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views,
-          (SELECT COUNT(*) FROM template_items ti WHERE ti.template_id = t.id) AS item_count
-        FROM templates t
-        LEFT JOIN profiles p ON p.id = t.creator_id
-        WHERE EXISTS (SELECT 1 FROM template_items ti WHERE ti.template_id = t.id)
-          AND (${seasonalConditions})
-        ORDER BY live_uses DESC, t.created_at DESC, t.id DESC
-        LIMIT 4
-      `).bind(...seasonalParams).all(),
-      db.prepare(`
-        SELECT t.*, p.username, p.avatar_url,
-          (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses,
-          (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views,
-          (SELECT COUNT(*) FROM template_items ti WHERE ti.template_id = t.id) AS item_count
-        FROM templates t
-        JOIN profiles p ON p.id = t.creator_id
-        WHERE p.role = 'admin'
-          AND EXISTS (SELECT 1 FROM template_items ti WHERE ti.template_id = t.id)
-        ORDER BY t.created_at DESC, t.id DESC
-        LIMIT 4
-      `).all(),
     ]);
 
-    const candidates = candidatesResult?.results || [];
+    const baseTemplates = baseResult?.results || [];
+    // Descending comparators mirroring the old SQL ORDER BY clauses exactly.
+    // IDs/timestamps here are ASCII, where JS code-unit </> ordering equals
+    // SQLite BINARY collation; NULLS LAST in DESC on both sides via ?? ''.
+    // Each chain ends in unique id DESC, so the order is total either way.
+    const descText = (a, b) => {
+      const x = a ?? '';
+      const y = b ?? '';
+      if (x === y) return 0;
+      return x < y ? 1 : -1;
+    };
+    const descNum = (a, b) => (Number(b) || 0) - (Number(a) || 0);
+    // Old candidates ORDER BY: live_uses, live_views, created_at, id.
+    const byUsesViewsCreatedId = (a, b) =>
+      descNum(a.live_uses, b.live_uses) ||
+      descNum(a.live_views, b.live_views) ||
+      descText(a.created_at, b.created_at) ||
+      descText(a.id, b.id);
+    // Old seasonal ORDER BY: live_uses, created_at, id.
+    const byUsesCreatedId = (a, b) =>
+      descNum(a.live_uses, b.live_uses) ||
+      descText(a.created_at, b.created_at) ||
+      descText(a.id, b.id);
+    // Old official ORDER BY: created_at, id.
+    const byCreatedId = (a, b) =>
+      descText(a.created_at, b.created_at) ||
+      descText(a.id, b.id);
+    const matchesSeasonal = (template) => {
+      const title = String(template.title || '').toLowerCase();
+      const tags = String(template.hashtags || '').replaceAll('#', '').toLowerCase();
+      return seasonalKeywords.some((keyword) => title.includes(keyword) || tags.includes(keyword));
+    };
+
+    const candidates = [...baseTemplates].sort(byUsesViewsCreatedId).slice(0, CANDIDATE_LIMIT);
     const dailyTemplate = chooseTemplate(candidates, `daily:${periods.daily.key}`);
     const weeklyTemplate = chooseTemplate(candidates, `weekly:${periods.weekly.key}`, dailyTemplate?.id);
-    const seasonalTemplates = seasonalResult?.results || [];
-    const officialTemplates = officialResult?.results || [];
+    const seasonalTemplates = baseTemplates.filter(matchesSeasonal).sort(byUsesCreatedId).slice(0, 4);
+    const officialTemplates = baseTemplates.filter((t) => t.creator_role === 'admin').sort(byCreatedId).slice(0, 4);
     const allTemplates = [dailyTemplate, weeklyTemplate, ...seasonalTemplates, ...officialTemplates].filter(Boolean);
     const itemsMap = await loadTemplateItems(db, allTemplates);
 
@@ -312,10 +341,18 @@ export async function onRequestGet(context) {
       }
     }
 
+    // Batch 9: miss-path summary (match-error-then-success counts as MISS —
+    // the error itself stays on the warn log above). 500 path stays silent.
+    if (shouldSampleMetric(env)) {
+      emitCacheMetric(console, spotlightsMetric({ result: 'MISS', colo: requestColo(request) }));
+    }
+
     return response;
   } catch (error) {
     console.error('Spotlight query failed:', { name: error?.name, message: error?.message });
     return Response.json({ success: false, error: 'Internal server error' }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }
+
+export { getBangkokPeriods, getSeasonalProfile, chooseTemplate, serializeTemplate, serializeRanking };
 

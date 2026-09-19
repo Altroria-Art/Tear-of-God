@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, Lock, BarChart3, LayoutGrid } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, updateProfile, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage, setProfilePin } from '../lib/api';
+import { fetchRankings, updateProfile, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import { getBadgeStates } from '../lib/badges';
@@ -181,6 +181,32 @@ export default function Profile() {
   const [pinBusyId, setPinBusyId] = useState(null);
   const [isTasteDetailsOpen, setIsTasteDetailsOpen] = useState(false);
   const [postTab, setPostTab] = useState('all'); // 'all' | 'pinned'
+
+  // Taste Details modal content (similar users + viewer match) loads on explicit
+  // open only — never on mount. Core profile request no longer computes it.
+  // fetchSimilarUsers caches per viewer+profile for 60s and dedups in-flight
+  // identical URLs, so reopen/remount costs 0-1 requests. On failure the modal
+  // simply shows no similar section (same as the empty state) — core intact.
+  useEffect(() => {
+    if (!isTasteDetailsOpen || !profileUserId) return;
+    let cancelled = false;
+    fetchSimilarUsers(profileUserId, currentUser?.id).then((res) => {
+      if (cancelled) return;
+      if (res?.success !== false && res?.data) {
+        setProfileUser((prev) => prev
+          ? {
+              ...prev,
+              taste_identity: {
+                ...(prev.taste_identity || {}),
+                similar_users: res.data.similar_users ?? [],
+                taste_match: res.data.taste_match ?? null,
+              },
+            }
+          : prev);
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isTasteDetailsOpen, profileUserId, currentUser?.id]);
 
   const handleOpenFollowList = async (type) => {
     setFollowListModal(type);

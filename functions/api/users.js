@@ -117,8 +117,8 @@ async function findSimilarUsers(db, userId, targetTaste) {
   }).sort((left, right) => right.score - left.score || left.username.localeCompare(right.username)).slice(0, 3);
 }
 
-async function buildTasteIdentity(db, userId, viewerId, baseUser) {
-  const [categoryResult, topScoreResult, pinnedResult, templateStats, targetTaste] = await Promise.all([
+async function buildTasteIdentity(db, userId, baseUser) {
+  const [categoryResult, topScoreResult, pinnedResult, templateStats] = await Promise.all([
     db.prepare(`
       SELECT lower(trim(COALESCE(NULLIF(category, ''), 'general'))) AS category, COUNT(*) AS count
       FROM rankings
@@ -151,13 +151,21 @@ async function buildTasteIdentity(db, userId, viewerId, baseUser) {
       FROM templates
       WHERE creator_id = ?
     `).bind(userId).first(),
-    collectTaste(db, userId),
   ]);
+
+  const categories = (categoryResult?.results || []).map((row) => ({
+    category: row.category || 'general',
+    count: toNumber(row.count),
+  }));
+  const totalCategoryRanks = categories.reduce((sum, row) => sum + row.count, 0);
 
   let topItemRows = topScoreResult?.results || [];
   // Older rankings may predate ranking_item_scores. Fall back to the first tier
   // defined by the template so those users still get a useful identity card.
-  if (topItemRows.length === 0) {
+  // Proven skip: the fallback joins rankings filtered by this user, so when the
+  // category aggregate above already shows zero rankings it can only return []
+  // — identical output with one fewer query.
+  if (topItemRows.length === 0 && totalCategoryRanks > 0) {
     const fallback = await db.prepare(`
       SELECT ri.item_id, COALESCE(i.name, ri.item_id) AS name, COUNT(*) AS count
       FROM ranking_items ri
@@ -176,11 +184,6 @@ async function buildTasteIdentity(db, userId, viewerId, baseUser) {
     topItemRows = fallback?.results || [];
   }
 
-  const categories = (categoryResult?.results || []).map((row) => ({
-    category: row.category || 'general',
-    count: toNumber(row.count),
-  }));
-  const totalCategoryRanks = categories.reduce((sum, row) => sum + row.count, 0);
   const categoryDistribution = categories.map((row) => ({
     ...row,
     percentage: totalCategoryRanks ? Math.round((row.count / totalCategoryRanks) * 100) : 0,
@@ -196,21 +199,6 @@ async function buildTasteIdentity(db, userId, viewerId, baseUser) {
   if (templateCount >= 1) badges.push({ id: 'template_creator', value: templateCount });
   if (followerCount >= 5) badges.push({ id: 'community_voice', value: followerCount });
   if (maxTemplateUses >= 25) badges.push({ id: 'template_hit', value: maxTemplateUses });
-
-  const similarUsers = await findSimilarUsers(db, userId, targetTaste);
-  let tasteMatch = null;
-  if (viewerId && viewerId !== userId) {
-    const viewerTaste = await collectTaste(db, viewerId);
-    const categoryScore = jaccard(targetTaste.categories, viewerTaste.categories);
-    const templateScore = jaccard(targetTaste.templates, viewerTaste.templates);
-    const hashtagScore = jaccard(targetTaste.hashtags, viewerTaste.hashtags);
-    tasteMatch = {
-      score: Math.round((categoryScore * 0.5 + templateScore * 0.3 + hashtagScore * 0.2) * 100),
-      shared_categories: [...targetTaste.categories].filter((value) => viewerTaste.categories.has(value)).slice(0, 5),
-      shared_templates: [...targetTaste.templates].filter((value) => viewerTaste.templates.has(value)).length,
-      shared_hashtags: [...targetTaste.hashtags].filter((value) => viewerTaste.hashtags.has(value)).slice(0, 5),
-    };
-  }
 
   return {
     category_distribution: categoryDistribution,
@@ -236,9 +224,34 @@ async function buildTasteIdentity(db, userId, viewerId, baseUser) {
       created_at: row.ranking_created_at || row.created_at || null,
     })),
     badges,
-    taste_match: tasteMatch,
-    similar_users: similarUsers,
+    // Similar users + viewer match are fetched on demand via ?fields=similar
+    // (Taste Details modal) — never computed in the core profile request.
+    taste_match: null,
+    similar_users: null,
   };
+}
+
+// Lazy section for the Taste Details modal: same Jaccard formula, weights,
+// candidate cap, sort, tie-break and legacy fallback as before — only the
+// timing changed (explicit open instead of every profile view). Viewer always
+// comes from the verified session, never from a client parameter.
+async function buildSimilarSection(db, userId, viewerId) {
+  const targetTaste = await collectTaste(db, userId);
+  const similarUsers = await findSimilarUsers(db, userId, targetTaste);
+  let tasteMatch = null;
+  if (viewerId && viewerId !== userId) {
+    const viewerTaste = await collectTaste(db, viewerId);
+    const categoryScore = jaccard(targetTaste.categories, viewerTaste.categories);
+    const templateScore = jaccard(targetTaste.templates, viewerTaste.templates);
+    const hashtagScore = jaccard(targetTaste.hashtags, viewerTaste.hashtags);
+    tasteMatch = {
+      score: Math.round((categoryScore * 0.5 + templateScore * 0.3 + hashtagScore * 0.2) * 100),
+      shared_categories: [...targetTaste.categories].filter((value) => viewerTaste.categories.has(value)).slice(0, 5),
+      shared_templates: [...targetTaste.templates].filter((value) => viewerTaste.templates.has(value)).length,
+      shared_hashtags: [...targetTaste.hashtags].filter((value) => viewerTaste.hashtags.has(value)).slice(0, 5),
+    };
+  }
+  return { similar_users: similarUsers, taste_match: tasteMatch };
 }
 
 export async function onRequest({ request, env, data: auth }) {
@@ -246,10 +259,20 @@ export async function onRequest({ request, env, data: auth }) {
   if (request.method !== 'GET') return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
 
   try {
-    const id = new URL(request.url).searchParams.get('id');
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
     if (!id) return jsonResponse({ success: false, error: 'Missing id' }, 400);
 
     const viewerId = auth?.user?.id || null;
+
+    // ?fields=similar — lazy Taste Details section (same formulas as the old
+    // inline computation; viewer strictly from the verified session).
+    if (url.searchParams.get('fields') === 'similar') {
+      const exists = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(id).first();
+      if (!exists) return jsonResponse({ success: false, error: 'ไม่พบผู้ใช้นี้' }, 404);
+      const section = await buildSimilarSection(db, id, viewerId);
+      return jsonResponse({ success: true, data: { id, ...section } });
+    }
     const { results } = await db.prepare(`
       SELECT p.*,
         (SELECT COUNT(*) FROM rankings r WHERE r.user_id = p.id) as posts_count,
@@ -279,7 +302,7 @@ export async function onRequest({ request, env, data: auth }) {
       is_following: !!user.is_following,
     };
 
-    const taste_identity = await buildTasteIdentity(db, id, viewerId, publicUser);
+    const taste_identity = await buildTasteIdentity(db, id, publicUser);
     return jsonResponse({ success: true, data: { ...publicUser, taste_identity } });
   } catch (err) {
     console.error('User profile query failed:', { name: err?.name, message: err?.message });

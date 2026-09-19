@@ -164,10 +164,20 @@ async function testExistingTemplate(count) {
     assert.equal(result.response.status, 201);
     assert.equal(result.body.success, true);
     assert.equal(result.body.data.template_id, templateId);
-    assert.deepEqual(result.instrumented.batchSizes, [4]);
+    // Publish must commit in ONE atomic batch. The batch holds the core writes
+    // (ranking INSERT, ranking_items, frozen scores, use_count mirror) plus the
+    // notification fan-out statements (following_rank, community_average) added
+    // after this test was written — fan-out joins the same batch instead of
+    // splitting the transaction, so assert singleness + core minimum, not an
+    // exact size that breaks on every legitimate fan-out addition.
+    assert.equal(result.instrumented.batchSizes.length, 1);
+    assert.ok(result.instrumented.batchSizes[0] >= 4);
     await assertRankingRows(db, result.body.data.id, count);
     assert.equal((await db.prepare('SELECT use_count FROM templates WHERE id = ?').bind(templateId).first()).use_count, 8);
-    console.log(`existing template: ${count} items, 4 statements, one atomic batch`);
+    // Self-publish: fan-out recipients exclude the publisher, so no rows may land
+    // in notifications even though the fan-out statements ran inside the batch.
+    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM notifications').first()).count, 0);
+    console.log(`existing template: ${count} items, single atomic batch of ${result.instrumented.batchSizes[0]} statements`);
   } finally {
     await mf.dispose();
   }
@@ -182,7 +192,11 @@ async function testNewTemplate(count) {
     assert.equal(result.response.status, 201);
     assert.equal(result.body.success, true);
     assert.ok(result.body.data.template_id);
-    assert.deepEqual(result.instrumented.batchSizes, [6]);
+    // Same atomicity contract as the existing-template path: one batch holding
+    // the core writes (template + template_items + ranking + ranking_items +
+    // frozen scores) plus fan-out — singleness + core minimum, not exact size.
+    assert.equal(result.instrumented.batchSizes.length, 1);
+    assert.ok(result.instrumented.batchSizes[0] >= 5);
     await assertRankingRows(db, result.body.data.id, count);
     const template = await db.prepare('SELECT * FROM templates WHERE id = ?').bind(result.body.data.template_id).first();
     assert.equal(template.use_count, 1);
@@ -197,7 +211,7 @@ async function testNewTemplate(count) {
       assert.equal(row.tier, null);
       assert.equal(row.position, index);
     });
-    console.log(`new template + first ranking: ${count} items, 6 statements, one atomic batch`);
+    console.log(`new template + first ranking: ${count} items, single atomic batch of ${result.instrumented.batchSizes[0]} statements`);
   } finally {
     await mf.dispose();
   }

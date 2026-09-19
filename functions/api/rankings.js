@@ -17,6 +17,24 @@ import {
   requestErrorResponse,
 } from '../lib/request-guard.js';
 
+import {
+  buildSharedHomeTrendingKey,
+  buildTrendingPoolKey,
+  emitCacheMetric,
+  getRecentPool,
+  isSharedHomeTrendingEligible,
+  readTrendingPool,
+  removeRecentPool,
+  requestColo,
+  runPoolQueryDeduped,
+  setRecentPool,
+  SHARED_HOME_TRENDING_TTL_SECONDS,
+  shouldSampleMetric,
+  trendingPoolCacheRequest,
+  trendingPoolMetric,
+  writeTrendingPool,
+} from '../lib/pool-cache.js';
+
 function parseTiers(raw) {
   if (!raw) return null;
   try {
@@ -89,7 +107,7 @@ function windowedShuffle(list, windowSize, seed) {
   return result;
 }
 
-export async function onRequest({ request, env, data: auth }) {
+export async function onRequest({ request, env, data: auth, waitUntil }) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const db = env.tear_of_god_db;
@@ -198,6 +216,42 @@ export async function onRequest({ request, env, data: auth }) {
         // รายการ ranking IDs ที่เพิ่งแสดงผลไปในการรีเฟรชครั้งล่าสุด เพื่อนำมาคัดออกจากหน้าแรกไม่ให้วนซ้ำ
         const excludeParam = url.searchParams.get('exclude');
         const excludeIds = excludeParam ? new Set(excludeParam.split(',').filter(Boolean)) : null;
+
+        // 📍 mine=1: ranking ล่าสุดของ "ตัวเอง" บน template นี้ (CommunityAveragePage
+        // "ของฉัน vs ชุมชน" — เดิมใช้ template_id+author_id+limit=1 ซึ่งรัน enrich
+        // เต็มชุด: tiers/uses/histogram/follows ทั้งที่หน้านี้ใช้แค่ ranking_items
+        // tier+ชื่อ item) ใช้ session user ฝั่ง server เท่านั้น ไม่เชื่อ author_id
+        // จาก client; คืน ranking + ranking_items (ชื่อ/รูป item ครบ) ไม่รัน
+        // histogram/follows/live-uses — ordering เดิม: ใหม่สุดก่อน (created_at,id)
+        if (url.searchParams.get('mine') === '1') {
+          if (!currentUserId) return jsonResponse({ success: false, error: 'กรุณาเข้าสู่ระบบอีกครั้ง / Please log in again' }, 401);
+          if (!templateId) return jsonResponse({ success: false, error: 'Missing template_id' }, 400);
+          const mineRow = await db.prepare(
+            `SELECT r.* FROM rankings r WHERE r.template_id = ? AND r.user_id = ? ORDER BY r.created_at DESC, r.id DESC LIMIT 1`
+          ).bind(templateId, currentUserId).first();
+          if (!mineRow) return jsonResponse({ success: true, data: [], page: 1, limit: 1, total: 0 });
+          const { results: mineItems } = await db.prepare(`
+            SELECT ri.*, i.name as item_name, i.image_url as item_image
+            FROM ranking_items ri
+            LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)
+            WHERE ri.ranking_id = ?
+            ORDER BY ri.position ASC
+          `).bind(mineRow.id).all();
+          return jsonResponse({
+            success: true,
+            data: [{
+              ...mineRow,
+              profile: null,
+              stats: { likes: mineRow.likes_count, dislikes: mineRow.dislikes_count, comments: mineRow.comments_count },
+              user_vote: null,
+              tiers: null,
+              ranking_items: mineItems.map(ri => ({
+                ...ri, item: { id: ri.item_id, name: ri.item_name || ri.item_id, image_url: ri.item_image }
+              })),
+            }],
+            page: 1, limit: 1, total: 1,
+          });
+        }
 
         // sort ที่ระบุมาชัดเจนต้องชนะ personalized order เสมอ — ไม่งั้นหน้าที่ส่ง user_id มา
         // เพื่อขอ user_vote (เช่น Template Detail) จะโดนแย่ง ORDER BY ไปแบบไม่ได้ตั้งใจ
@@ -348,13 +402,90 @@ export async function onRequest({ request, env, data: auth }) {
             const poolOrder = (feedType === 'trending' || personalizationFallback)
               ? trendingOrder
               : `r.created_at DESC, r.id DESC`;
-            const { results: poolRows } = await db.prepare(`
-              SELECT r.id FROM rankings r
-              ${poolWhere}
-              ORDER BY ${poolOrder}
-              LIMIT ?
-            `).bind(...poolParams, HOME_POOL_CAP).all();
-            let poolIds = (poolRows || []).map((row) => row.id);
+            const runPoolQuery = async () => {
+              const { results: poolRows } = await db.prepare(`
+                SELECT r.id FROM rankings r
+                ${poolWhere}
+                ORDER BY ${poolOrder}
+                LIMIT ?
+              `).bind(...poolParams, HOME_POOL_CAP).all();
+              return (poolRows || []).map((row) => row.id);
+            };
+            // Batch 3 L1 (per-seed) + Batch 4 L2 (shared unfiltered home
+            // trending): raw IDs only — for_you/following candidate selection
+            // is user-specific and keeps querying (see pool-cache.js).
+            // L1 key pins the seed so manual refresh (new seed) still misses
+            // L1; page slicing, exclude, shuffle and pin below run on whatever
+            // pool is returned, hit or miss.
+            // Batch 9: one sampled summary log per home-feed request (no PII,
+            // pool size only) — cache/D1 behavior untouched.
+            const poolStartedAt = Date.now();
+            let poolIds;
+            let poolOutcome = null;
+            if (feedType === 'trending') {
+              const poolKey = buildTrendingPoolKey({
+                feedType, seed, category, hashtag, authorId, templateId, days,
+                poolCap: HOME_POOL_CAP,
+              });
+              const poolCache = typeof caches !== 'undefined' ? caches.default : null;
+              const poolCacheRequest = trendingPoolCacheRequest(url.origin, poolKey);
+              const eligible = isSharedHomeTrendingEligible({ feedType, category, hashtag, authorId, templateId, days });
+              let l1 = 'MISS';
+              let l2 = 'SKIP';
+              let d1Build = false;
+              poolIds = await readTrendingPool(poolCache, poolCacheRequest);
+              // Phase 0 bridge: post-D1/pre-put window (in-flight entry gone,
+              // Cache API write not committed yet) — memory only, falls back.
+              if (!poolIds) poolIds = getRecentPool(poolKey);
+              if (poolIds) {
+                l1 = 'HIT';
+              } else if (eligible) {
+                const sharedKey = buildSharedHomeTrendingKey({ poolCap: HOME_POOL_CAP });
+                const sharedRequest = trendingPoolCacheRequest(url.origin, sharedKey);
+                let sharedIds = await readTrendingPool(poolCache, sharedRequest);
+                if (!sharedIds) sharedIds = getRecentPool(sharedKey);
+                if (sharedIds) {
+                  l2 = 'HIT';
+                } else {
+                  // Shared in-flight dedup keyed by the L2 key (not the
+                  // seed): concurrent new seeds share one D1 pool query.
+                  sharedIds = await runPoolQueryDeduped(sharedKey, runPoolQuery);
+                  d1Build = true;
+                  l2 = 'MISS';
+                  setRecentPool(sharedKey, sharedIds);
+                  const sharedStored = await writeTrendingPool(
+                    poolCache, sharedRequest, sharedIds, waitUntil,
+                    SHARED_HOME_TRENDING_TTL_SECONDS,
+                  );
+                  if (!sharedStored) removeRecentPool(sharedKey);
+                }
+                poolIds = sharedIds;
+                // Populate L1(seed) so the session's next pages hit L1.
+                setRecentPool(poolKey, poolIds);
+                const l1Stored = await writeTrendingPool(poolCache, poolCacheRequest, poolIds, waitUntil);
+                if (!l1Stored) removeRecentPool(poolKey);
+              } else {
+                // Filtered trending: L1 per-seed only, exactly Batch 3.
+                poolIds = await runPoolQueryDeduped(poolKey, runPoolQuery);
+                d1Build = true;
+                setRecentPool(poolKey, poolIds);
+                const l1Stored = await writeTrendingPool(poolCache, poolCacheRequest, poolIds, waitUntil);
+                if (!l1Stored) removeRecentPool(poolKey);
+              }
+              poolOutcome = { l1, l2, d1Build, eligible };
+            } else {
+              poolIds = await runPoolQuery();
+              poolOutcome = { l1: 'SKIP', l2: 'SKIP', d1Build: false, eligible: false };
+            }
+            if (poolOutcome && shouldSampleMetric(env)) {
+              emitCacheMetric(console, trendingPoolMetric({
+                ...poolOutcome,
+                feedType,
+                poolSize: (poolIds || []).length,
+                ms: Date.now() - poolStartedAt,
+                colo: requestColo(request),
+              }));
+            }
 
             // A new account has no useful interest signals yet. Show Trending until its
             // category/template/hashtag history is strong enough; Following stays empty.

@@ -1,27 +1,78 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TrendingUp, LayoutTemplate, ArrowRight } from 'lucide-react';
 import { fetchHashtags, fetchTemplates } from '../../lib/api';
 import { useTranslation } from 'react-i18next';
+
+// Sidebar-scoped short-TTL client cache (exact queries only — not global getJSON).
+// TTLs are capped by the endpoints' own Cache-Control freshness, never longer:
+//   GET /api/templates list → `public, max-age=10`  (functions/api/templates.js)
+//   GET /api/hashtags (no q) → `public, max-age=300` (functions/api/hashtags.js)
+// Module-level so SPA remounts share entries; the in-flight map dedups mounts
+// that race before the first request resolves. Per-tab memory only — a logged-in
+// user's `private,no-store` overwrite at the middleware does not leak across
+// users here because nothing is shared across tabs/sessions.
+const SIDEBAR_TTL_MS = { templates: 10 * 1000, hashtags: 300 * 1000 };
+const sidebarCache = new Map(); // key -> { value, expiresAt }
+const sidebarInflight = new Map(); // key -> Promise
+
+function getCachedSidebar(key, ttlMs, fetcher) {
+  const hit = sidebarCache.get(key);
+  if (hit && Date.now() < hit.expiresAt) return Promise.resolve(hit.value);
+  if (sidebarInflight.has(key)) return sidebarInflight.get(key);
+  const pending = fetcher().then((value) => {
+    sidebarCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+    return value;
+  }).finally(() => {
+    sidebarInflight.delete(key);
+  });
+  sidebarInflight.set(key, pending);
+  return pending;
+}
 
 export default function HomeRightSidebar() {
   const { t } = useTranslation();
   const [hashtags, setHashtags] = useState([]);
   const [templates, setTemplates] = useState([]);
   const navigate = useNavigate();
+  const containerRef = useRef(null);
 
   useEffect(() => {
-    fetchHashtags({ limit: 5, sort: 'popular' }).then(res => {
-      if (res.data) setHashtags(res.data);
-    }).catch(() => {});
-
-    fetchTemplates({ limit: 3, sort: 'popular' }).then(res => {
-      if (res.data) setTemplates(res.data);
-    }).catch(() => {});
+    const el = containerRef.current;
+    if (!el) return undefined;
+    let cancelled = false;
+    // Same params as before — sort/limit/endpoint unchanged, only timing changes.
+    const load = () => {
+      getCachedSidebar('sidebar:hashtags:limit=5:sort=popular', SIDEBAR_TTL_MS.hashtags, () =>
+        fetchHashtags({ limit: 5, sort: 'popular' }).then((res) => res.data || [])
+      ).then((data) => { if (!cancelled) setHashtags(data); }).catch(() => {});
+      getCachedSidebar('sidebar:templates:limit=3:sort=popular', SIDEBAR_TTL_MS.templates, () =>
+        fetchTemplates({ limit: 3, sort: 'popular' }).then((res) => res.data || [])
+      ).then((data) => { if (!cancelled) setTemplates(data); }).catch(() => {});
+    };
+    // No IntersectionObserver (old browsers) → fetch immediately, as before.
+    if (typeof IntersectionObserver === 'undefined') {
+      load();
+      return () => { cancelled = true; };
+    }
+    // Fetch only when the sidebar can actually be seen: on mobile it is
+    // CSS-hidden (never intersects → 0 requests); resize to desktop makes it
+    // intersect and loads normally. 200px margin preloads just before scroll-in.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          load();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(el);
+    return () => { cancelled = true; observer.disconnect(); };
   }, []);
 
   return (
-    <div className="space-y-6 text-ink">
+    <div ref={containerRef} className="space-y-6 text-ink">
       
       {/* Trending Hashtags */}
       <div className="bg-surface border border-line-soft rounded-2xl p-5 shadow-sm">

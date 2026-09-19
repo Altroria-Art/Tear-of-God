@@ -18,7 +18,7 @@ import {
   voteTemplate,
   fetchTemplateComments,
   createTemplateComment,
-  fetchRankings,
+  fetchMyRanking,
   reportComment
 } from '../lib/api'
 import { formatCount, timeAgo } from '../lib/format'
@@ -89,11 +89,12 @@ export default function CommunityAveragePage() {
   }, [templateId, i18n.language, t])
 
   // ดึง ranking ล่าสุดของผู้ใช้บนเทมเพลตนี้ — ใช้เทียบ "ของฉัน vs ชุมชน"
-  // (GET /api/rankings?template_id=..&author_id=.. รองรับอยู่แล้ว ไม่ต้องแก้ backend)
+  // (mine=1: server ใช้ session user เอง ไม่เชื่อ author_id จาก client; คืนแค่
+  // ranking + ranking_items ไม่รัน enrich เต็มชุดแบบ list ปกติ)
   useEffect(() => {
     if (!templateId || !currentUser) { setMyRanking(null); return }
     let cancelled = false
-    fetchRankings({ templateId, authorId: currentUser.id, limit: 1 }).then((res) => {
+    fetchMyRanking({ templateId }).then((res) => {
       if (cancelled) return
       setMyRanking(res?.data?.[0] || null)
     })

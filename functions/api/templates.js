@@ -287,6 +287,30 @@ export async function onRequestGet(context) {
       };
     }
 
+    // has_community_average_all_time: บอกว่า template นี้มี community average
+    // แบบ all-time หรือไม่ โดยไม่ต้อง fetch full รอบสอง (TemplateDetailPage ตอน
+    // เลือก period เดิมยิง fetchTemplate(all-time) ซ้ำเพื่อหา boolean นี้ตัวเดียว)
+    // source of truth เดียวกับ community_average: ranking_item_scores (score
+    // freeze ตอน publish; ไม่ใช้ use_count/view_count mirror ที่ drift ได้)
+    //  - period == null (all-time): derive จาก histogram ที่เพิ่งคำนวณ ไม่เพิ่ม query
+    //  - มี period: EXISTS แบบ bound (idx_ris_template_time รองรับ template_id อยู่แล้ว)
+    // boolean นี้เท่ากับ `(all_time_average.tiers||[]).some(items.length>0)` ทุกกรณี:
+    // histogram จับทุก score row ลง tier แบบ clamp (idx 0..tierCount-1) เสมอ จึง
+    // non-empty ก็ต่อเมื่อ tierCount>0 และมี score ≥1 แถว — ตรงกับ EXISTS พอดี
+    let hasCommunityAverageAllTime = null;
+    if (!light) {
+      if (!period?.from && !period?.to) {
+        hasCommunityAverageAllTime =
+          tierCount > 0 &&
+          (communityAverage?.tiers || []).some((t) => (t.items || []).length > 0);
+      } else {
+        const existsRow = await db.prepare(
+          `SELECT 1 AS one FROM ranking_item_scores WHERE template_id = ? LIMIT 1`
+        ).bind(templateId).first();
+        hasCommunityAverageAllTime = tierCount > 0 && !!existsRow;
+      }
+    }
+
     const responseData = {
       id: template.id,
       title: template.title,
@@ -310,7 +334,8 @@ export async function onRequestGet(context) {
         ...ti,
         item: { id: ti.item_id, name: ti.item_name || ti.item_id, image_url: ti.item_image || null }
       })),
-      community_average: communityAverage
+      community_average: communityAverage,
+      has_community_average_all_time: hasCommunityAverageAllTime
     };
 
     // 📍 เช่นเดียวกับโหมด list — ไม่มี field เฉพาะผู้ชมเลย cache ที่ edge ได้ปลอดภัย แต่ใช้ max-age
