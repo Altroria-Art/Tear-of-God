@@ -148,12 +148,19 @@ export async function onRequest(context) {
         // 📍 [ใหม่]: เอา tier definition (label+color+id) ของ template ที่ผูกกับ ranking นี้มาด้วย
         // — ไม่งั้นฝั่งหน้าบ้านมีแต่ ranking_items.tier ที่เป็นสตริงเฉยๆ ไม่รู้สี
         let tiersDef = null;
+        let templateCreatorId = null;
+        let templateTitle = null;
         if (ranking.template_id) {
           const { results: tplRows } = await db.prepare(
-            `SELECT tiers FROM templates WHERE id = ?`
+            `SELECT creator_id, title, tiers FROM templates WHERE id = ?`
           ).bind(ranking.template_id).all();
-          tiersDef = tplRows[0] ? parseTiers(tplRows[0].tiers) : null;
+          if (tplRows[0]) {
+            tiersDef = parseTiers(tplRows[0].tiers);
+            templateCreatorId = tplRows[0].creator_id ?? null;
+            templateTitle = tplRows[0].title ?? null;
+          }
         }
+        const isOriginal = !ranking.template_id || (templateCreatorId !== null && templateCreatorId === ranking.user_id);
 
         // 📍 ดึงข้อมูลคอมเมนต์ของโพสต์นี้พร้อมข้อมูลผู้ใช้
         // กัน unbounded growth (ดู docs/row-read-optimization-plan.md §4 hypothesis H4) — ตอนนี้
@@ -170,6 +177,8 @@ export async function onRequest(context) {
 
         const result = {
           ...ranking,
+          is_original: isOriginal,
+          template_title: templateTitle,
           profile: {
             id: ranking.user_id,
             username: ranking.username || 'Unknown',
@@ -654,7 +663,7 @@ export async function onRequest(context) {
             `).bind(...rankingIds).all(),
             templateIds.length > 0
               ? db.prepare(
-                  `SELECT id, tiers FROM templates WHERE id IN (${templateIds.map(() => '?').join(',')})`
+                  `SELECT id, creator_id, title, tiers FROM templates WHERE id IN (${templateIds.map(() => '?').join(',')})`
                 ).bind(...templateIds).all().then(res => res.results)
               : Promise.resolve([]),
             // A just-published pinned post must see its new contribution immediately.
@@ -679,7 +688,11 @@ export async function onRequest(context) {
           });
 
           const tiersByTemplateId = {};
-          tplRows.forEach(t => { tiersByTemplateId[t.id] = parseTiers(t.tiers); });
+          const templateMetaById = {};
+          tplRows.forEach(t => {
+            tiersByTemplateId[t.id] = parseTiers(t.tiers);
+            templateMetaById[t.id] = { creator_id: t.creator_id ?? null, title: t.title ?? null };
+          });
 
           const usesByTemplateId = {};
           (templateUseRows || []).forEach((row) => {
@@ -721,25 +734,31 @@ export async function onRequest(context) {
               : null;
           });
 
-          formattedRankings = rankings.map(r => ({
-             ...r,
-             profile: {
-               id: r.user_id,
-               username: r.username || 'Unknown',
-               avatar_url: r.avatar_url,
-               is_following: followedSet.has(r.user_id),
-             },
-             stats: {
-               likes: r.likes_count,
-               dislikes: r.dislikes_count,
-               comments: r.comments_count,
-               templateUses: r.template_id ? (usesByTemplateId[r.template_id] || 0) : 0,
-               communityDisagreement: disagreementByRankingId[r.id],
-             },
-             user_vote: r.user_vote ?? null,
-             tiers: r.template_id ? (tiersByTemplateId[r.template_id] ?? null) : null,
-             ranking_items: itemsMap[r.id] || []
-          }));
+          formattedRankings = rankings.map(r => {
+            const tpl = r.template_id ? templateMetaById[r.template_id] : null;
+            const isOriginal = !r.template_id || (tpl && tpl.creator_id !== null && tpl.creator_id === r.user_id);
+            return {
+              ...r,
+              is_original: isOriginal,
+              template_title: tpl?.title || null,
+              profile: {
+                id: r.user_id,
+                username: r.username || 'Unknown',
+                avatar_url: r.avatar_url,
+                is_following: followedSet.has(r.user_id),
+              },
+              stats: {
+                likes: r.likes_count,
+                dislikes: r.dislikes_count,
+                comments: r.comments_count,
+                templateUses: r.template_id ? (usesByTemplateId[r.template_id] || 0) : 0,
+                communityDisagreement: disagreementByRankingId[r.id],
+              },
+              user_vote: r.user_vote ?? null,
+              tiers: r.template_id ? (tiersByTemplateId[r.template_id] ?? null) : null,
+              ranking_items: itemsMap[r.id] || []
+            };
+          });
         }
 
         // 📍 cache ที่ edge ได้เฉพาะตอนไม่มี currentUserId เท่านั้น — มี user_vote ฝังอยู่ใน response

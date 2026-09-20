@@ -57,18 +57,34 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
     >
       {/* Top Visual Thumbnail Area */}
       <div className="h-36 sm:h-40 relative bg-canvas/40 pt-9 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 overflow-hidden border-b border-line-soft/50">
-        {/* TikTok-style Pinned Tag or Category */}
-        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 max-w-[calc(100%-3rem)]">
-          {isPinned ? (
+        {/* TikTok-style Pinned Tag, Type Badge, and Category */}
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 max-w-[calc(100%-3rem)] flex-wrap">
+          {isPinned && (
             <span className="inline-flex items-center gap-1 bg-brand text-canvas text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-xs shrink-0">
               <Pin size={10} fill="currentColor" />
               <span>{t('profile.pinnedTag')}</span>
             </span>
-          ) : post.hashtags ? (
+          )}
+          {post.is_original !== false ? (
+            <span
+              title={t('profile.badgeOriginal')}
+              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-line-soft/80 bg-surface/90 text-ink-soft shadow-2xs backdrop-blur-xs shrink-0"
+            >
+              {t('profile.badgeOriginal')}
+            </span>
+          ) : (
+            <span
+              title={t('profile.usedTemplateTooltip', { title: post.template_title || post.title })}
+              className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-highlight/40 bg-highlight/15 text-highlight shadow-2xs backdrop-blur-xs shrink-0"
+            >
+              {t('profile.badgeTemplate')}
+            </span>
+          )}
+          {post.hashtags && (
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted bg-surface/90 backdrop-blur-xs px-1.5 py-0.5 rounded border border-line-soft/80 shadow-2xs truncate">
               {formatHashtags(post.hashtags)}
             </span>
-          ) : null}
+          )}
         </div>
 
         {/* Pin action toggle button (Owner only) */}
@@ -508,13 +524,13 @@ export default function Profile() {
   const hashtagDistribution = Array.isArray(tasteIdentity.hashtag_distribution) ? tasteIdentity.hashtag_distribution : [];
   const topItems = Array.isArray(tasteIdentity.top_items) ? tasteIdentity.top_items : [];
   const badges = Array.isArray(tasteIdentity.badges) ? tasteIdentity.badges : [];
-  // A4: สถานะ badge ทั้ง 5 (ปลด/ล็อก + progress) จากตัวเลขที่มีอยู่แล้ว — ไม่เพิ่ม request
+  // A4: สถานะ badge ทั้ง 10 (ปลด/ล็อก + progress) จากตัวเลขที่มีอยู่แล้ว — ไม่เพิ่ม request
   const badgeValue = (id) => badges.find((b) => b.id === id)?.value ?? null;
   const badgeStates = getBadgeStates({
     rankingCount: displayUser?.posts_count ?? posts.length,
-    templateCount: badgeValue('template_creator') ?? 0,
+    templateCount: tasteIdentity.template_count ?? badgeValue('template_builder') ?? badgeValue('template_creator') ?? 0,
     followerCount: displayUser?.followers_count ?? 0,
-    maxTemplateUses: badgeValue('template_hit'),
+    maxTemplateUses: tasteIdentity.max_template_uses ?? badgeValue('trending_template') ?? badgeValue('template_hit'),
     unlockedIds: badges.map((b) => b.id),
   });
   const tasteMatch = tasteIdentity.taste_match;
@@ -810,7 +826,11 @@ export default function Profile() {
 
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.badges')}</h4>
-                <BadgeGallery badges={badgeStates} />
+                {badgeStates.filter((b) => b.unlocked).length > 0 ? (
+                  <BadgeGallery badges={badgeStates.filter((b) => b.unlocked)} />
+                ) : (
+                  <p className="text-sm text-muted">{t('profile.noBadgesUnlocked')}</p>
+                )}
               </div>
                 </div>
               </Modal>

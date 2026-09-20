@@ -498,6 +498,7 @@
     "tasteNeighbors": "คนที่รสนิยมใกล้เคียงกัน",
     "similarPercent": "เหมือนกัน {{score}}%",
     "badges": "ป้ายความสำเร็จ",
+    "noBadgesUnlocked": "ยังไม่มีป้ายความสำเร็จที่ปลดล็อก",
     "pinnedLists": "ลิสต์ปักหมุด",
     "pinnedHint": "ปักหมุดได้สูงสุด 3 ลิสต์ เพื่อบอกความเป็นคุณ",
     "noPinned": "ยังไม่มีลิสต์ปักหมุด",
@@ -505,6 +506,9 @@
     "pinnedCount": "ปักหมุดแล้ว {{count}}/{{max}}",
     "allPosts": "เทียร์ลิสต์ทั้งหมด",
     "pinnedTab": "ปักหมุดแล้ว",
+    "badgeOriginal": "สร้างเอง",
+    "badgeTemplate": "ใช้เทมเพลต",
+    "usedTemplateTooltip": "สร้างจากเทมเพลต: {{title}}",
     "pinLimitReached": "สามารถปักหมุดได้สูงสุด 3 ลิสต์เท่านั้น",
     "pinList": "ปักหมุด",
     "unpinList": "เลิกปักหมุด",
@@ -514,16 +518,26 @@
     "badge": {
       "first_rank": "จัดอันดับครั้งแรก",
       "ranker_10": "จัดแล้ว 10+ ลิสต์",
+      "ranking_veteran": "Ranking Veteran",
       "template_creator": "นักสร้างเทมเพลต",
+      "template_builder": "Template Builder",
       "community_voice": "ผู้ร่วมแสดงความเห็น",
-      "template_hit": "เทมเพลตยอดนิยม"
+      "community_star": "Community Star",
+      "template_hit": "เทมเพลตยอดนิยม",
+      "trending_template": "Trending Template",
+      "all_rounder": "All-Rounder"
     },
     "badgeDesc": {
       "first_rank": "เผยแพร่ tier list แรก",
       "ranker_10": "เผยแพร่ tier list 10 รายการ",
+      "ranking_veteran": "เผยแพร่ tier list 50 รายการ",
       "template_creator": "สร้างเทมเพลต",
+      "template_builder": "สร้างเทมเพลต 5 รายการ",
       "community_voice": "มีผู้ติดตาม 5 คน",
-      "template_hit": "มีเทมเพลตที่ถูกใช้ 25 ครั้ง"
+      "community_star": "มีผู้ติดตาม 25 คน",
+      "template_hit": "มีเทมเพลตที่ถูกใช้ 25 ครั้ง",
+      "trending_template": "มีเทมเพลตที่ถูกใช้ 100 ครั้ง",
+      "all_rounder": "เผยแพร่ 10 tier lists, สร้าง 5 เทมเพลต และมีผู้ติดตาม 10 คน"
     },
     "createNewTemplate": "สร้างเทมเพลตใหม่",
     "createNewTemplateHelp": "เริ่ม tier list ใหม่จากศูนย์",

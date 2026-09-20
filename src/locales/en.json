@@ -498,6 +498,7 @@
     "tasteNeighbors": "People with similar taste",
     "similarPercent": "{{score}}% match",
     "badges": "Badges",
+    "noBadgesUnlocked": "No badges unlocked yet",
     "pinnedLists": "Pinned lists",
     "pinnedHint": "Pin up to 3 lists below to show visitors your taste",
     "noPinned": "No pinned lists yet",
@@ -505,6 +506,9 @@
     "pinnedCount": "Pinned {{count}}/{{max}}",
     "allPosts": "All Tier Lists",
     "pinnedTab": "Pinned",
+    "badgeOriginal": "Original",
+    "badgeTemplate": "From Template",
+    "usedTemplateTooltip": "Created from template: {{title}}",
     "pinLimitReached": "You can only pin up to 3 lists",
     "pinList": "Pin",
     "unpinList": "Unpin",
@@ -514,16 +518,26 @@
     "badge": {
       "first_rank": "First ranking",
       "ranker_10": "10+ rankings",
+      "ranking_veteran": "Ranking Veteran",
       "template_creator": "Template creator",
+      "template_builder": "Template Builder",
       "community_voice": "Community Contributor",
-      "template_hit": "Popular Template"
+      "community_star": "Community Star",
+      "template_hit": "Popular Template",
+      "trending_template": "Trending Template",
+      "all_rounder": "All-Rounder"
     },
     "badgeDesc": {
       "first_rank": "Publish your first tier list",
       "ranker_10": "Publish 10 tier lists",
+      "ranking_veteran": "Publish 50 tier lists",
       "template_creator": "Create a template",
+      "template_builder": "Create 5 templates",
       "community_voice": "Gain 5 followers",
-      "template_hit": "Own a template used 25 times"
+      "community_star": "Gain 25 followers",
+      "template_hit": "Own a template used 25 times",
+      "trending_template": "Own a template used 100 times",
+      "all_rounder": "Publish 10 tier lists, create 5 templates, and gain 10 followers"
     },
     "createNewTemplate": "Create New Template",
     "createNewTemplateHelp": "Start a new tier list from scratch",
