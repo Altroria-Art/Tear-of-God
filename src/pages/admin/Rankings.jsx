@@ -127,27 +127,27 @@ export default function Rankings() {
       ) : (
         <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed min-w-[820px] text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
-                  <th className="px-4 py-3 font-bold">{t('admin.postTitle')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.author')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.hashtags')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.likes')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.dislikes')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.comments')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
+                  <th className="px-4 py-3 font-bold w-[24%]">{t('admin.postTitle')}</th>
+                  <th className="px-4 py-3 font-bold w-[13%]">{t('admin.author')}</th>
+                  <th className="px-4 py-3 font-bold w-[20%]">{t('admin.hashtags')}</th>
+                  <th className="px-4 py-3 font-bold text-right w-[8%]">{t('admin.likes')}</th>
+                  <th className="px-4 py-3 font-bold text-right w-[8%]">{t('admin.dislikes')}</th>
+                  <th className="px-4 py-3 font-bold text-right w-[8%]">{t('admin.comments')}</th>
+                  <th className="px-4 py-3 font-bold text-right w-[19%]">{t('admin.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {rankings.map((r) => (
                   <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
-                    <td className="px-4 py-3 text-ink font-medium max-w-[240px]">
-                      <div className="inline-flex items-center gap-1.5 max-w-full">
+                    <td className="px-4 py-3 text-ink font-medium">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <button
                           type="button"
                           onClick={() => handleView(r)}
-                          className="hover:text-brand hover:underline font-medium text-left truncate cursor-pointer"
+                          className="hover:text-brand hover:underline font-medium text-left truncate min-w-0 cursor-pointer"
                           title={r.title}
                         >
                           {r.title}
@@ -177,14 +177,14 @@ export default function Rankings() {
                         r.author?.username || '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft max-w-[220px]"><HashtagCell hashtags={r.hashtags} /></td>
-                    <td className="px-4 py-3 text-right text-ink-soft">
+                    <td className="px-4 py-3 text-ink-soft"><HashtagCell hashtags={r.hashtags} /></td>
+                    <td className="px-4 py-3 text-right text-ink-soft whitespace-nowrap">
                       <span className="inline-flex items-center gap-1"><ThumbsUp size={13} className="text-vote-up" /> {r.stats?.likes}</span>
                     </td>
-                    <td className="px-4 py-3 text-right text-ink-soft">
+                    <td className="px-4 py-3 text-right text-ink-soft whitespace-nowrap">
                       <span className="inline-flex items-center gap-1"><ThumbsDown size={13} className="text-vote-down" /> {r.stats?.dislikes}</span>
                     </td>
-                    <td className="px-4 py-3 text-right text-ink-soft">
+                    <td className="px-4 py-3 text-right text-ink-soft whitespace-nowrap">
                       <span className="inline-flex items-center gap-1"><MessageSquare size={13} /> {r.stats?.comments}</span>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">

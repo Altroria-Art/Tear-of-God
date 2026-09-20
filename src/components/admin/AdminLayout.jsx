@@ -65,7 +65,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-6 md:py-8 flex flex-col md:flex-row gap-6">
+    <div className="w-full max-w-7xl mx-auto px-4 py-6 md:py-8 flex flex-col md:flex-row gap-8">
       {/* Mobile Nav */}
       <nav className="flex md:hidden overflow-x-auto gap-2 pb-2 -mx-4 px-4 scrollbar-none border-b border-line-soft">
         {NAV_ITEMS.map(({ to, labelKey, icon: Icon, end }) => (
@@ -93,7 +93,7 @@ export default function AdminLayout() {
       </nav>
 
       {/* Sidebar (Desktop) */}
-      <aside className="hidden md:block w-56 shrink-0">
+      <aside className="hidden md:block w-[240px] shrink-0">
         <div className="glass rounded-2xl p-4 sticky top-24">
           <div className="px-2 pb-3 text-xs font-bold uppercase tracking-wider text-muted">
             {t('admin.menu')}

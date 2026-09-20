@@ -234,6 +234,9 @@ CREATE TABLE IF NOT EXISTS reports (
   reporter_id TEXT,
   reason TEXT,
   status TEXT DEFAULT 'pending',
+  -- UTC 'YYYY-MM-DD HH:MM:SS' set when the report is closed (resolved/dismissed);
+  -- cleared on reopen. Drives the 24-hour reopen window + auto-expiry purge.
+  closed_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
   FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
@@ -251,6 +254,7 @@ CREATE INDEX IF NOT EXISTS idx_template_comments_parent_id ON template_comments(
 CREATE INDEX IF NOT EXISTS idx_reports_template ON reports(template_id);
 CREATE INDEX IF NOT EXISTS idx_reports_ranking ON reports(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_reports_status_closed_at ON reports(status, closed_at);
 
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles(created_at DESC, id DESC);
 

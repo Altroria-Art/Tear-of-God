@@ -5,6 +5,22 @@ import { requireAdmin } from './_check.js';
 import { assertAllowedFields, assertEnum } from '../../lib/request-guard.js';
 import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
 
+// Closed reports (resolved/dismissed) stay in D1 for 24 hours after closing so
+// admin can reopen them; after that they are physically deleted. Pending reports
+// are never touched — status guard keeps the window mechanics honest even if a
+// closed_at somehow leaked through on a pending row. Time comparison stays in
+// SQLite (datetime('now', '-24 hours'), UTC) so it matches closed_at storage.
+const EXPIRY_AT = "datetime('now', '-24 hours')";
+
+async function purgeExpiredReports(db) {
+  await db.prepare(
+    `DELETE FROM reports
+     WHERE status != 'pending'
+       AND closed_at IS NOT NULL
+       AND closed_at < ${EXPIRY_AT}`
+  ).run();
+}
+
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -23,6 +39,10 @@ export async function onRequest({ request, env, data: auth }) {
   // =====================
   if (request.method === 'GET') {
     try {
+      // Physically drop closed reports past the 24h reopen window before
+      // answering — the list and the pending badge must reflect post-purge state.
+      await purgeExpiredReports(db);
+
       if (url.searchParams.get('count') === 'pending') {
         const row = await db.prepare(
           `SELECT COUNT(*) as n FROM reports WHERE status = 'pending'`
@@ -88,6 +108,7 @@ export async function onRequest({ request, env, data: auth }) {
           template_comment_content: r.template_comment_content,
           reason: r.reason,
           status: r.status,
+          closed_at: r.closed_at,
           reporter: r.reporter_id
             ? { id: r.reporter_id, username: r.reporter_username, email: r.reporter_email }
             : null,
@@ -121,7 +142,44 @@ export async function onRequest({ request, env, data: auth }) {
       if (action === 'set_status') {
         assertAllowedFields(payload, ['action', 'target_id', 'status']);
         const status = assertEnum(payload.status, 'status', ['pending', 'resolved', 'dismissed']);
-        await db.prepare('UPDATE reports SET status = ? WHERE id = ?').bind(status, targetId).run();
+
+        // Drop rows whose reopen window already passed so the mutation never
+        // operates on an expired report. Runs after field validation so
+        // rejected requests leave the store untouched.
+        await purgeExpiredReports(db);
+
+        if (status === 'pending') {
+          // Reopen: only while the report exists and its 24h window has not elapsed.
+          const row = await db.prepare(
+            `SELECT status,
+                    CASE WHEN closed_at IS NOT NULL AND closed_at < ${EXPIRY_AT}
+                         THEN 1 ELSE 0 END AS expired
+             FROM reports WHERE id = ?`
+          ).bind(targetId).first();
+          if (!row) {
+            return jsonResponse({ success: false, error: 'รายงานไม่พบหรือถูกลบอัตโนมัติแล้ว' }, 404);
+          }
+          if (row.status === 'pending') {
+            // Already pending — idempotent success.
+            return jsonResponse({ success: true, data: { id: targetId, status: 'pending' } });
+          }
+          if (row.expired === 1) {
+            await db.prepare('DELETE FROM reports WHERE id = ?').bind(targetId).run();
+            return jsonResponse({ success: false, error: 'เกิน 24 ชั่วโมงแล้ว ไม่สามารถเปิดใหม่ได้' }, 410);
+          }
+          await db.prepare(
+            `UPDATE reports SET status = 'pending', closed_at = NULL WHERE id = ?`
+          ).bind(targetId).run();
+          return jsonResponse({ success: true, data: { id: targetId, status: 'pending' } });
+        }
+
+        // Close: set status and stamp the 24h window. An already-closed report
+        // keeps its original closed_at (re-closing must not restart the window).
+        await db.prepare(
+          `UPDATE reports
+           SET status = ?, closed_at = CASE WHEN status = 'pending' THEN CURRENT_TIMESTAMP ELSE closed_at END
+           WHERE id = ?`
+        ).bind(status, targetId).run();
         return jsonResponse({ success: true, data: { id: targetId, status } });
       }
 
