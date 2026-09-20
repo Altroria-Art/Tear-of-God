@@ -1,3 +1,4 @@
+import { prioritizeUnseen } from '../lib/feed-refresh.js';
 // 📍 [ใหม่]: ranking_items.tier เก็บแค่ "ชื่อ tier" เป็นสตริง — สี/id ของ tier อยู่ที่
 // templates.tiers เท่านั้น (ดู functions/api/templates.js). ก่อนหน้านี้ endpoint นี้ไม่เคย
 // ส่ง tiers กลับมาเลย ทำให้ Home Feed / Feed Detailed โชว์ tier ไม่มีสี ต่างจาก Discover
@@ -468,15 +469,6 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
               poolIds = (fbRows || []).map((row) => row.id);
             }
 
-            // คัดกรองโพสต์ที่เพิ่งเห็นในการรีเฟรชครั้งก่อนหน้าออกไป (exclude)
-            // เพื่อให้การกดรีเฟรชต่อเนื่อง (รีรัวๆ) ได้การ์ดใหม่เสมอ ไม่ขึ้นอันซ้ำ
-            if (excludeIds && excludeIds.size > 0) {
-              const filtered = poolIds.filter((id) => !excludeIds.has(id));
-              if (filtered.length >= limit) {
-                poolIds = filtered;
-              }
-            }
-
             // เวลากด refresh (seed > 0):
             // สุ่มสลับตำแหน่งแบบกลุ่มใหญ่ (windowed shuffle):
             // - Trending: สุ่มสลับจากกลุ่ม Top 60 รายการยอดนิยม/สดใหม่ เพื่อให้เวลารีเฟรชไม่เห็นเฉพาะ 12 อันดับเดิมซ้ำๆ
@@ -489,9 +481,9 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
               following: 36,
             };
             const windowSize = SHUFFLE_WINDOWS[feedType] || 48;
-            const orderedIds = seed > 0
+            const orderedIds = prioritizeUnseen(seed > 0
               ? windowedShuffle(poolIds, windowSize, seed ^ fnv1a(feedType))
-              : poolIds;
+              : poolIds, excludeIds);
 
             // A freshly published ranking is pinned once at the top of Trending. Ownership
             // is checked server-side so an arbitrary URL cannot pin somebody else's post.
@@ -863,6 +855,9 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
             return {
               name: assertString(item.name, `template.items[${index}].name`, { min: 1, max: INPUT_LIMITS.itemName, trim: true }),
               position: item.position == null ? index : assertInteger(item.position, `template.items[${index}].position`, { min: 0, max: INPUT_LIMITS.items - 1 }),
+              tier: item.tier == null
+                ? null
+                : assertString(item.tier, `template.items[${index}].tier`, { min: 1, max: INPUT_LIMITS.tierLabel, trim: true }),
             };
           }),
         };
@@ -912,21 +907,30 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
           JSON.stringify(cleanTemplate.tiers)
         ));
 
-        // item pool ของ template = item ทุกชิ้นที่ user เพิ่มมา (tier ว่าง เพราะเป็นของ template ไม่ใช่คำตอบ)
-        // dedupe ด้วยชื่อ กัน item ซ้ำชื่อเดียวกันโผล่สองการ์ดตอน remix
+        // item pool ของ template = item ทุกชิ้นที่ user เพิ่มมา — เก็บ tier label ที่ user จัดไว้ด้วย
+        // (แบบเดียวกับ template เดิม/seed) ไม่งั้น TemplateCard พรีวิวใน Discover แยก item ออกเป็น
+        // tier rows ไม่ได้ก็โชว์ fallback แค่ "N items" (ดู docs วิธีแสดง: src/components/template/TemplateCard.jsx
+        // กลุ่ม tier จาก template_items.tier) — ถ้า caller เก่าส่ง payload ไม่มี tier ให้ map จาก ranking
+        // item ที่ชื่อเดียวกันใน batch นี้แทน; dedupe ด้วยชื่อ กัน item ซ้ำชื่อเดียวกันโผล่สองการ์ดตอน remix
+        const tierByRankingItem = new Map(cleanItems.map((item) => [item.item_id, item.tier]));
         const seenNames = new Set();
         const templateItems = [];
         cleanTemplate.items.forEach((item) => {
           const name = item.name;
           if (!name || seenNames.has(name)) return;
           seenNames.add(name);
-          templateItems.push({ id: crypto.randomUUID(), item_id: name, position: item.position });
+          templateItems.push({
+            id: crypto.randomUUID(),
+            item_id: name,
+            tier: item.tier ?? tierByRankingItem.get(name) ?? null,
+            position: item.position,
+          });
         });
         if (templateItems.length > 0) {
           statements.push(db.prepare(
             `INSERT INTO template_items (id, template_id, item_id, tier, position)
-             SELECT json_extract(value, '$.id'), ?1, json_extract(value, '$.item_id'), NULL,
-                    CAST(json_extract(value, '$.position') AS INTEGER)
+             SELECT json_extract(value, '$.id'), ?1, json_extract(value, '$.item_id'),
+                    json_extract(value, '$.tier'), CAST(json_extract(value, '$.position') AS INTEGER)
              FROM json_each(?2)`
           ).bind(templateId, JSON.stringify(templateItems)));
         }

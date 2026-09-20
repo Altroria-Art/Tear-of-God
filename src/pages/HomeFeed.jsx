@@ -445,34 +445,25 @@ export default function HomeFeed() {
   const pinnedIdRef = useRef(null);
   const isManualRefreshRef = useRef(false);
   // บันทึก ID โพสต์ที่เพิ่งแสดงผลไปเพื่อส่ง exclude ตอนกดรีเฟรช ป้องกันการเห็นโพสต์ซ้ำเมื่อกดรีเฟรชรัวๆ
-  const seenFeedIdsRef = useRef({ trending: [], for_you: [], following: [] });
+  const seenFeedIdsRef = useRef({});
   const currentExcludeRef = useRef('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const requestGenerationRef = useRef(0);
   const refreshFeed = useCallback(() => {
+    if (loadingRef.current || feedLocked) return;
     isManualRefreshRef.current = true;
-    // รวบรวม ID ของโพสต์ที่กำลังแสดงอยู่เพื่อคัดกรองออกในการรีเฟรชครั้งนี้
-    setPosts((currentPosts) => {
-      const currentIds = (currentPosts || []).map((p) => p.id).filter(Boolean);
-      const tabKey = activeTab;
-      const prevSeen = seenFeedIdsRef.current[tabKey] || [];
-      const updated = [...prevSeen, ...currentIds.filter((id) => !prevSeen.includes(id))];
-      if (updated.length > 60) updated.splice(0, updated.length - 60);
-      seenFeedIdsRef.current[tabKey] = updated;
-      currentExcludeRef.current = updated.join(',');
-      return currentPosts;
-    });
-
-    // ล้าง cache ของทุกแท็บ เพื่อบังคับดึงข้อมูลใหม่ล่าสุดจากเซิร์ฟเวอร์
-    feedCacheRef.current = {};
-    // สุ่ม seed ใหม่เพื่อให้ได้การจัดเรียง/shuffle ชุดใหม่
-    seedRef.current = Math.floor(Math.random() * 1e9);
+    const prevSeen = seenFeedIdsRef.current[cacheKey] || [];
+    const currentIds = posts.map(post => post.id).filter(Boolean);
+    seenFeedIdsRef.current[cacheKey] = [...new Set([...prevSeen, ...currentIds])].slice(-60);
+    delete feedCacheRef.current[cacheKey];
+    requestGenerationRef.current += 1;
     pageRef.current = 1;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setIsRefreshing(true);
-    setRefreshTrigger((prev) => prev + 1);
-  }, [activeTab]);
+    setRefreshTrigger(prev => prev + 1);
+  }, [cacheKey, posts, feedLocked]);
 
   // รองรับการกดรีเฟรชจาก Navbar (คลิก Home หรือ Logo) หรือ Mobile Bottom Nav
   useEffect(() => {
@@ -487,21 +478,28 @@ export default function HomeFeed() {
   // ปนกับแท็บใหม่ตอน infinite scroll ต่อท้าย — เว้นแต่มี cache ของ key นี้อยู่แล้ว
   useEffect(() => {
     let cancelled = false;
+    requestGenerationRef.current += 1;
+    loadingRef.current = false;
+    setIsLoadingMore(false);
     if (feedLocked) {
       setPosts([]);
       setHasMore(false);
       setIsLoading(false);
       setIsRefreshing(false);
-      return;
+      return () => { requestGenerationRef.current += 1; };
     }
     const cached = feedCacheRef.current[cacheKey];
     if (cached) {
+      seedRef.current = cached.seed;
+      currentExcludeRef.current = cached.exclude;
+      pinnedIdRef.current = cached.pin;
+      resolvedFeedTypeRef.current = cached.feedType;
       setPosts(cached.posts);
       pageRef.current = cached.page;
       setHasMore(cached.hasMore);
       setIsLoading(false);
       setIsRefreshing(false);
-      return;
+      return () => { requestGenerationRef.current += 1; };
     }
 
     async function loadFirstPage() {
@@ -513,10 +511,12 @@ export default function HomeFeed() {
       // consume pin ครั้งเดียวตอน mount (ครั้งถัดไป/เข้าหน้าใหม่ = ไม่มีอีก → กลับสุ่ม)
       pinnedIdRef.current = takeLastPublished(currentUser?.id);
       resolvedFeedTypeRef.current = feedType;
+      seedRef.current = Math.floor(Math.random() * 1e9);
+      currentExcludeRef.current = (seenFeedIdsRef.current[cacheKey] || []).join(',');
       const isManual = isManualRefreshRef.current;
       isManualRefreshRef.current = false;
       try {
-        const effectiveExclude = currentExcludeRef.current || (seenFeedIdsRef.current[feedType]?.length > 0 ? seenFeedIdsRef.current[feedType].join(',') : undefined);
+        const effectiveExclude = currentExcludeRef.current || undefined;
         let result = await fetchRankings({
           userId: currentUser?.id,
           feedType,
@@ -527,11 +527,12 @@ export default function HomeFeed() {
           limit: PAGE_SIZE,
           refresh: isManual,
         });
+        if (cancelled) return;
         // For You must always be useful. The API normally falls back to Trending
         // for accounts without enough taste signals; keep the same guarantee in
-        // the client if an older database/schema or a transient API error returns
-        // an empty personalized result.
-        if (feedType === 'for_you' && currentUser?.id && (!result.data?.length || result.error)) {
+        // the client for an empty successful result. A request error must not
+        // silently switch the viewer to an unrelated feed.
+        if (feedType === 'for_you' && currentUser?.id && !result.error && result.success !== false && !result.data?.length) {
           result = await fetchRankings({
             userId: currentUser.id,
             feedType: 'trending',
@@ -541,6 +542,7 @@ export default function HomeFeed() {
             limit: PAGE_SIZE,
             refresh: isManual,
           });
+          if (cancelled) return;
           resolvedFeedTypeRef.current = 'trending';
         }
         const data = result.data;
@@ -548,11 +550,11 @@ export default function HomeFeed() {
         const nextHasMore = (data?.length || 0) === PAGE_SIZE;
         setPosts(data || []);
         setHasMore(nextHasMore);
-        feedCacheRef.current[cacheKey] = { posts: data || [], page: 1, hasMore: nextHasMore };
+        feedCacheRef.current[cacheKey] = { posts: data || [], page: 1, hasMore: nextHasMore, seed: seedRef.current, exclude: currentExcludeRef.current, pin: pinnedIdRef.current, feedType: resolvedFeedTypeRef.current };
 
         // บันทึก ID หน้าแรกลงประวัติที่เคยเห็นของแท็บนี้ ป้องกันการขึ้นซ้ำในรอบถัดไป
         const pageIds = (data || []).map((p) => p.id).filter(Boolean);
-        const tabKey = feedType;
+        const tabKey = cacheKey;
         const prevSeen = seenFeedIdsRef.current[tabKey] || [];
         const nextSeen = [...prevSeen, ...pageIds.filter((id) => !prevSeen.includes(id))];
         if (nextSeen.length > 60) nextSeen.splice(0, nextSeen.length - 60);
@@ -570,7 +572,7 @@ export default function HomeFeed() {
       }
     }
     loadFirstPage();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; requestGenerationRef.current += 1; };
   }, [currentUser, activeTab, cacheKey, feedType, feedLocked, refreshTrigger, t, toast]);
 
   // ไม่มี total จาก API สำหรับฟีดทั่วไป (เฉพาะ template_id เท่านั้นที่ API คำนวณ total ให้ —
@@ -581,30 +583,38 @@ export default function HomeFeed() {
     // 📍 ใช้ pageRef ไม่ใช่ closure `page` — ถ้า observer เก่ายิงค้างมาก่อน React commit
     // re-render (ที่จะ re-attach observer ใหม่) จะได้ร่างหน้าถัดไปที่ถูกต้อง ไม่ fetch ซ้ำหน้าเดิม
     const nextPage = pageRef.current + 1
-    pageRef.current = nextPage
     setIsLoadingMore(true)
     const activeFeedType = resolvedFeedTypeRef.current;
-    const currentExclude = currentExcludeRef.current || (seenFeedIdsRef.current[activeFeedType]?.length > 0 ? seenFeedIdsRef.current[activeFeedType].join(',') : undefined);
-    const { data } = await fetchRankings({
-      userId: currentUser?.id,
-      feedType: activeFeedType,
-      seed: seedRef.current,
-      pin: pinnedIdRef.current || undefined,
-      exclude: currentExclude,
-      page: nextPage,
-      limit: PAGE_SIZE
-    })
-    setPosts(prev => {
-      const existingIds = new Set(prev.map(p => p.id));
-      const newPosts = (data || []).filter(p => !existingIds.has(p.id));
-      const merged = [...prev, ...newPosts]
-      const nextHasMore = (data?.length || 0) === PAGE_SIZE
-      feedCacheRef.current[cacheKey] = { posts: merged, page: nextPage, hasMore: nextHasMore }
-      return merged
-    })
-    setHasMore((data?.length || 0) === PAGE_SIZE)
-    setIsLoadingMore(false)
-    loadingRef.current = false
+    const generation = requestGenerationRef.current;
+    const currentExclude = currentExcludeRef.current || undefined;
+    try {
+      const { data, success, error } = await fetchRankings({
+        userId: currentUser?.id,
+        feedType: activeFeedType,
+        seed: seedRef.current,
+        pin: pinnedIdRef.current || undefined,
+        exclude: currentExclude,
+        page: nextPage,
+        limit: PAGE_SIZE
+      })
+      if (generation !== requestGenerationRef.current) return;
+      if (success === false || error) return;
+      pageRef.current = nextPage;
+      setPosts(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        const newPosts = (data || []).filter(p => !existingIds.has(p.id));
+        const merged = [...prev, ...newPosts]
+        const nextHasMore = (data?.length || 0) === PAGE_SIZE
+        feedCacheRef.current[cacheKey] = { ...feedCacheRef.current[cacheKey], posts: merged, page: nextPage, hasMore: nextHasMore }
+        return merged
+      })
+      setHasMore((data?.length || 0) === PAGE_SIZE)
+    } finally {
+      if (generation === requestGenerationRef.current) {
+        setIsLoadingMore(false);
+        loadingRef.current = false;
+      }
+    }
   }, [hasMore, currentUser, cacheKey, feedLocked]);
 
   // callback ref แทน useRef+useEffect — React เรียก callback นี้เองทันทีที่ DOM node
@@ -651,6 +661,7 @@ export default function HomeFeed() {
                 if (activeTab === id) {
                   refreshFeed();
                 } else {
+                  requestGenerationRef.current += 1;
                   setActiveTab(id);
                 }
               }}
