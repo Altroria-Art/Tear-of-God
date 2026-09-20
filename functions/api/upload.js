@@ -51,6 +51,7 @@ export async function onRequest({ request, env, data: auth }) {
     await env.STORAGE.put(uniqueFilename, file.stream(), {
       httpMetadata: {
         contentType: file.type,
+        cacheControl: 'public, max-age=31536000, immutable',
       },
     });
 

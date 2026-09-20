@@ -16,17 +16,27 @@ export async function onRequest({ request, env, data: auth }) {
       const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20), 50);
       const [{ results }, unreadRow] = await Promise.all([
         db.prepare(`
+          WITH recent AS (
+            SELECT * FROM (
+              SELECT * FROM notifications WHERE user_id = ?1 AND is_read = 0
+              ORDER BY created_at DESC, id DESC LIMIT ?2
+            )
+            UNION ALL
+            SELECT * FROM (
+              SELECT * FROM notifications WHERE user_id = ?1 AND is_read = 1
+              ORDER BY created_at DESC, id DESC LIMIT ?2
+            )
+          )
           SELECT n.*, actor.username AS actor_username, actor.avatar_url AS actor_avatar_url,
                  target.title AS ranking_title, source.title AS source_ranking_title,
                  topic_template.title AS template_title
-          FROM notifications n
+          FROM recent n
           LEFT JOIN profiles actor ON actor.id = n.actor_id
           LEFT JOIN rankings target ON target.id = n.ranking_id
           LEFT JOIN rankings source ON source.id = n.source_ranking_id
           LEFT JOIN templates topic_template ON topic_template.id = n.template_id
-          WHERE n.user_id = ?
           ORDER BY n.created_at DESC, n.id DESC
-          LIMIT ?
+          LIMIT ?2
         `).bind(userId, limit).all(),
         db.prepare(`
           SELECT COUNT(*) AS count FROM notifications
@@ -45,7 +55,7 @@ export async function onRequest({ request, env, data: auth }) {
       if (action === 'read') {
         const notificationId = assertId(body.id, 'id');
         await db.prepare(`
-          UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?
+          UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ? AND is_read = 0
         `).bind(notificationId, userId).run();
         return jsonResponse({ success: true });
       }

@@ -233,9 +233,10 @@ export async function onRequestGet(context) {
     // like/dislike/comment ของ Community Average — นับสดจากตาราง template_reactions/template_comments
     const { results: reactionRows } = await db.prepare(
       `SELECT
-         (SELECT COUNT(*) FROM template_reactions WHERE template_id = ?1 AND vote_type = 'like') AS likes,
-         (SELECT COUNT(*) FROM template_reactions WHERE template_id = ?1 AND vote_type = 'dislike') AS dislikes,
-         (SELECT COUNT(*) FROM template_comments WHERE template_id = ?1) AS comments`
+         COALESCE(SUM(vote_type = 'like'), 0) AS likes,
+         COALESCE(SUM(vote_type = 'dislike'), 0) AS dislikes,
+         (SELECT COUNT(*) FROM template_comments WHERE template_id = ?1) AS comments
+       FROM template_reactions WHERE template_id = ?1`
     ).bind(templateId).all();
     const reaction = reactionRows[0] || {};
 

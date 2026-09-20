@@ -8,6 +8,41 @@
 import { internalErrorResponse } from '../lib/request-guard.js';
 
 export async function onRequestGet(context) {
+  const url = new URL(context.request.url);
+  // Only public catalog data. Normalize aliases/parameter ordering without
+  // changing filter semantics; cookies never participate in this cache.
+  url.pathname = '/api/hashtags';
+  url.searchParams.sort();
+  const cacheKey = new Request(url, { method: 'GET' });
+  const cache = globalThis.caches?.default;
+  try {
+    const hit = await cache?.match(cacheKey);
+    if (hit) {
+      const remaining = Math.floor((Number(hit.headers.get('X-Catalog-Expires')) - Date.now()) / 1000);
+      if (remaining > 0) {
+        const response = new Response(hit.body, hit);
+        response.headers.delete('X-Catalog-Expires');
+        response.headers.set('Cache-Control', `public, max-age=${remaining}`);
+        return response;
+      }
+    }
+  } catch { /* Cache availability must never affect catalog access. */ }
+
+  const response = await queryHashtags(context);
+  if (cache && response.ok) {
+    const ttl = Number(/max-age=(\d+)/.exec(response.headers.get('Cache-Control') || '')?.[1]);
+    if (ttl > 0) {
+      const copy = response.clone();
+      copy.headers.set('X-Catalog-Expires', String(Date.now() + ttl * 1000));
+      const pending = (async () => { try { await cache.put(cacheKey, copy); } catch { /* best effort */ } })();
+      if (typeof context.waitUntil === 'function') context.waitUntil(pending);
+      else await pending;
+    }
+  }
+  return response;
+}
+
+async function queryHashtags(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const db = env.tear_of_god_db;
@@ -59,7 +94,7 @@ export async function onRequestGet(context) {
         page,
         limit,
         total: rows.length
-      });
+      }, { headers: { 'Cache-Control': 'public, max-age=30' } });
     }
 
     // 📍 แหล่งข้อมูล hashtag มาจาก templates เท่านั้น (content_count = distinct templates ที่มี tag นั้น)
@@ -97,7 +132,7 @@ export async function onRequestGet(context) {
        LIMIT ?2 OFFSET ?3
     `).bind(q, limit, offset).all();
 
-    let total = rows[0]?.total_count ?? null;
+    let total = rows[0]?.total_count ?? (page === 1 ? 0 : null);
     if (total === null) {
       const { results: totalRows } = await db.prepare(`
         ${cte}

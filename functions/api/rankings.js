@@ -1,4 +1,5 @@
 import { prioritizeUnseen } from '../lib/feed-refresh.js';
+import { feedCommunityStats } from '../lib/community-cache.js';
 // 📍 [ใหม่]: ranking_items.tier เก็บแค่ "ชื่อ tier" เป็นสตริง — สี/id ของ tier อยู่ที่
 // templates.tiers เท่านั้น (ดู functions/api/templates.js). ก่อนหน้านี้ endpoint นี้ไม่เคย
 // ส่ง tiers กลับมาเลย ทำให้ Home Feed / Feed Detailed โชว์ tier ไม่มีสี ต่างจาก Discover
@@ -108,7 +109,8 @@ function windowedShuffle(list, windowSize, seed) {
   return result;
 }
 
-export async function onRequest({ request, env, data: auth, waitUntil }) {
+export async function onRequest(context) {
+  const { request, env, data: auth, waitUntil } = context;
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const db = env.tear_of_god_db;
@@ -642,7 +644,7 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
           // Promise.all ลด round-trip แทนที่จะรอทีละ query
           const templateIds = [...new Set(rankings.map(r => r.template_id).filter(Boolean))];
           const authorIds = [...new Set(rankings.map(r => r.user_id).filter(Boolean))];
-          const [{ results: allItems }, tplRows, { results: templateUseRows }, { results: communityHistogram }, followedRows] = await Promise.all([
+          const [{ results: allItems }, tplRows, { templateUseRows, communityHistogram }, followedRows] = await Promise.all([
             db.prepare(`
               SELECT ri.*, i.name as item_name, i.image_url as item_image
               FROM ranking_items ri
@@ -655,27 +657,8 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
                   `SELECT id, tiers FROM templates WHERE id IN (${templateIds.map(() => '?').join(',')})`
                 ).bind(...templateIds).all().then(res => res.results)
               : Promise.resolve([]),
-            templateIds.length > 0
-              ? db.prepare(`
-                  SELECT template_id, COUNT(*) AS uses
-                  FROM rankings
-                  WHERE template_id IN (${templateIds.map(() => '?').join(',')})
-                  GROUP BY template_id
-                `).bind(...templateIds).all()
-              : Promise.resolve({ results: [] }),
-            // Aggregate all published placements once per template/item. This works for
-            // legacy rankings too (many old rows predate ranking_item_scores), while
-            // keeping the response query bounded to the templates visible on this page.
-            templateIds.length > 0
-              ? db.prepare(`
-                  SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements
-                  FROM ranking_items ri
-                  JOIN rankings r ON r.id = ri.ranking_id
-                  WHERE r.template_id IN (${templateIds.map(() => '?').join(',')})
-                    AND ri.tier IS NOT NULL
-                  GROUP BY r.template_id, ri.item_id, ri.tier
-                `).bind(...templateIds).all()
-              : Promise.resolve({ results: [] }),
+            // A just-published pinned post must see its new contribution immediately.
+            feedCommunityStats(context, db, templateIds, { fresh: !!runPin }),
             currentUserId && authorIds.length > 0
               ? db.prepare(`
                   SELECT following_id FROM follows
