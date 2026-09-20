@@ -4,16 +4,16 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { Trash2, Flag, ExternalLink } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
-import { fetchAdminReports, setReportStatus, deleteAdminReport, deleteAdminComment, deleteAdminRanking, deleteAdminTemplate } from '../../lib/api';
+import { fetchAdminReports, setReportStatus, deleteAdminComment, deleteAdminRanking, deleteAdminTemplate } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
-import { timeAgo } from '../../lib/format';
+import { parseDbDate, timeAgo } from '../../lib/format';
 import { useTranslation } from 'react-i18next';
 
 const PAGE_LIMIT = 20;
+const REOPEN_WINDOW_MS = 24 * 60 * 60 * 1000;
 const STATUS_FILTERS = [
   { value: 'pending', labelKey: 'admin.statusPending' },
   { value: 'resolved', labelKey: 'admin.statusResolved' },
-  { value: 'dismissed', labelKey: 'admin.statusDismissed' },
 ];
 
 const STATUS_META = {
@@ -57,38 +57,38 @@ export default function Reports() {
     setBusy(r.id);
     const res = await setReportStatus({ userId: currentUser?.id, targetId: r.id, status: nextStatus });
     setBusy(null);
-    if (res.success) {
-      toast.success(t('admin.statusUpdated'));
-      setReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: nextStatus } : x)));
-      if (nextStatus !== 'pending' && r.status === 'pending') setPendingCount((c) => Math.max(0, c - 1));
-      if (nextStatus === 'pending' && r.status !== 'pending') setPendingCount((c) => c + 1);
-      refreshPending?.();
-    } else {
+    if (!res.success) {
       toast.error(res.error || t('admin.statusUpdateFailed', { msg: '' }));
+      return;
     }
-  };
+    toast.success(t('admin.statusUpdated'));
 
-  const handleDelete = async (r) => {
-    if (!window.confirm(t('admin.confirmDeleteReport'))) return;
-    setBusy(r.id);
-    const res = await deleteAdminReport({ userId: currentUser?.id, targetId: r.id });
-    setBusy(null);
-    if (res.success) {
-      toast.success(t('admin.reportDeleted'));
+    // Use the status the API actually confirmed, not just the button's intent.
+    const confirmedStatus = res.data?.status || nextStatus;
+
+    if (confirmedStatus !== status) {
+      // The row no longer belongs to the active tab — drop it immediately. The
+      // target tab back-fills via its own fetch on switch, so no page refresh.
       setReports((prev) => prev.filter((x) => x.id !== r.id));
       setTotal((prev) => Math.max(0, prev - 1));
-      refreshPending?.();
     } else {
-      toast.error(res.error || t('admin.deleteReportFailed', { msg: '' }));
+      // Same-tab transition: keep the row, just reflect the new state locally.
+      const closedAt = confirmedStatus === 'pending' ? null : new Date().toISOString().slice(0, 19).replace('T', ' ');
+      setReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: confirmedStatus, closed_at: closedAt } : x)));
     }
+    if (confirmedStatus !== 'pending' && r.status === 'pending') setPendingCount((c) => Math.max(0, c - 1));
+    if (confirmedStatus === 'pending' && r.status !== 'pending') setPendingCount((c) => c + 1);
+    refreshPending?.();
   };
 
   const handleDeleteContent = async (r) => {
     if (!window.confirm(t('admin.confirmDeleteReportContent'))) return;
     setBusy(r.id);
 
-    // A1: ลบ target ที่ report อ้างถึง — reuse admin delete APIs เดิมตาม kind
-    // (backend enforce admin เองทุก endpoint; สำเร็จแล้ว mark resolved ตาม pattern เดิม)
+    // ลบ target ที่ report อ้างถึง — reuse admin delete APIs เดิมตาม kind
+    // (backend enforce admin เองทุก endpoint) Deleting the content also removes
+    // the report row itself via FK cascade / explicit report cleanup, so the row
+    // is dropped from the list instead of being marked resolved.
     let res;
     if (r.kind === 'comment' || r.kind === 'template_comment') {
       res = await deleteAdminComment(r.kind === 'comment' ? r.comment_id : r.template_comment_id, r.kind === 'template_comment');
@@ -101,10 +101,23 @@ export default function Reports() {
     setBusy(null);
     if (res?.success) {
       toast.success(t('admin.deleteContentSuccess'));
-      handleStatus(r, 'resolved'); // Auto mark resolved after delete
+      setReports((prev) => prev.filter((x) => x.id !== r.id));
+      setTotal((prev) => Math.max(0, prev - 1));
+      if (r.status === 'pending') setPendingCount((c) => Math.max(0, c - 1));
+      refreshPending?.();
     } else {
       toast.error(res?.error || t('admin.deleteContentFailed'));
     }
+  };
+
+  // Remaining time until a closed report is auto-deleted (0 when the window passed).
+  const autoDeleteLabel = (closedAt) => {
+    const closed = parseDbDate(closedAt);
+    if (!closed) return null;
+    const remaining = closed.getTime() + REOPEN_WINDOW_MS - Date.now();
+    if (remaining <= 0) return null;
+    const totalMinutes = Math.ceil(remaining / 60000);
+    return t('admin.autoDeleteIn', { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 });
   };
 
   const totalPages = Math.ceil(total / PAGE_LIMIT);
@@ -142,15 +155,15 @@ export default function Reports() {
       ) : (
         <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed min-w-[900px] text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
-                  <th className="px-4 py-3 font-bold">{t('admin.content')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.reason')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.reporter')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.time')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.status')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
+                  <th className="px-4 py-3 font-bold w-[28%]">{t('admin.content')}</th>
+                  <th className="px-4 py-3 font-bold w-[18%]">{t('admin.reason')}</th>
+                  <th className="px-4 py-3 font-bold w-[12%]">{t('admin.reporter')}</th>
+                  <th className="px-4 py-3 font-bold w-[14%]">{t('admin.time')}</th>
+                  <th className="px-4 py-3 font-bold w-[10%]">{t('admin.status')}</th>
+                  <th className="px-4 py-3 font-bold text-right w-[18%]">{t('admin.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -191,99 +204,93 @@ export default function Reports() {
 
                   return (
                     <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${labelCls}`}>
-                          {labelText}
-                        </span>
-                        <div className="mt-1 text-ink font-medium max-w-[220px]">
-                          {targetUrl ? (
-                            <Link
-                              to={targetUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-brand hover:underline inline-flex items-center gap-1 group max-w-full"
-                              title={titleText}
-                            >
-                              <span className="truncate block max-h-12 overflow-hidden">{titleText}</span>
-                              <ExternalLink size={12} className="shrink-0 opacity-60 group-hover:opacity-100 transition-opacity text-brand" />
-                            </Link>
-                          ) : (
-                            <span className="truncate block max-h-12 overflow-hidden text-muted">{titleText}</span>
+                      <td className="px-4 py-2.5 align-middle">
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className={`inline-flex self-start items-center rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase ${labelCls}`}>
+                            {labelText}
+                          </span>
+                          <div className="text-ink font-medium min-w-0">
+                            {targetUrl ? (
+                              <Link
+                                to={targetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-brand hover:underline inline-flex items-center gap-1 group max-w-full"
+                                title={titleText}
+                              >
+                                <span className="truncate block max-w-full">{titleText}</span>
+                                <ExternalLink size={12} className="shrink-0 opacity-60 group-hover:opacity-100 transition-opacity text-brand" />
+                              </Link>
+                            ) : (
+                              <span className="truncate block max-w-full text-muted">{titleText}</span>
+                            )}
+                          </div>
+                          {contextText && (
+                            <div className="text-xs text-muted truncate">
+                              {contextText}
+                            </div>
                           )}
                         </div>
-                        <div className="text-xs text-muted truncate">
-                          {contextText}
-                        </div>
                       </td>
-                      <td className="px-4 py-3 text-ink-soft max-w-[220px]">{r.reason}</td>
-                      <td className="px-4 py-3 text-ink-soft">
+                      <td className="px-4 py-2.5 text-ink-soft align-middle">
+                        <span className="block truncate max-w-full" title={r.reason}>{r.reason}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-ink-soft align-middle min-w-0">
                         {r.reporter?.id ? (
                           <Link
                             to={`/profile/${r.reporter.id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="hover:text-ink hover:underline"
+                            className="hover:text-ink hover:underline block truncate max-w-full"
                           >
                             {r.reporter.username}
                           </Link>
                         ) : r.reporter ? (
-                          r.reporter.username
+                          <span className="block truncate max-w-full">{r.reporter.username}</span>
                         ) : (
                           <span className="text-muted">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-ink-soft whitespace-nowrap">{timeAgo(r.created_at)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${meta.cls}`}>
+                      <td className="px-4 py-2.5 text-ink-soft align-middle whitespace-nowrap pr-5">
+                        <span className="block truncate max-w-full" title={timeAgo(r.created_at)}>{timeAgo(r.created_at)}</span>
+                      </td>
+                      <td className="px-4 py-2.5 align-middle">
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap ${meta.cls}`}>
                           {t(meta.labelKey)}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        {r.status === 'pending' && (
-                          <button
-                            onClick={() => handleStatus(r, 'resolved')}
-                            disabled={busy === r.id}
-                            className="text-xs font-bold text-status-success hover:bg-status-success/10 rounded-lg px-2 py-1 disabled:opacity-50"
-                          >
-                            {t('admin.markResolved')}
-                          </button>
-                        )}
-                        {r.status === 'pending' && (
-                          <button
-                            onClick={() => handleStatus(r, 'dismissed')}
-                            disabled={busy === r.id}
-                            className="text-xs font-bold text-muted hover:bg-tag rounded-lg px-2 py-1 disabled:opacity-50"
-                          >
-                            {t('admin.dismiss')}
-                          </button>
-                        )}
-                        {r.status !== 'pending' && (
-                          <button
-                            onClick={() => handleStatus(r, 'pending')}
-                            disabled={busy === r.id}
-                            className="text-xs font-bold text-brand-accent hover:bg-surface-glass rounded-lg px-2 py-1 disabled:opacity-50"
-                          >
-                            {t('admin.reopen')}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(r)}
-                          disabled={busy === r.id}
-                          className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50 mt-1"
-                        >
-                          <Trash2 size={14} className="inline-block mr-1" />
-                          {t('common.delete')} Report
-                        </button>
-                        
-                        {(r.kind === 'comment' || r.kind === 'template_comment' || r.kind === 'post' || r.kind === 'template') && r.status !== 'resolved' && (
-                          <button
-                            onClick={() => handleDeleteContent(r)}
-                            disabled={busy === r.id}
-                            className="text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-lg px-2 py-1 disabled:opacity-50 mt-1 block w-full text-right"
-                          >
-                            <Trash2 size={14} className="inline-block mr-1" />
-                            Delete Content
-                          </button>
+                      <td className="px-4 py-2.5 text-right align-middle">
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {r.status === 'pending' ? (
+                            <>
+                              <button
+                                onClick={() => handleStatus(r, 'resolved')}
+                                disabled={busy === r.id}
+                                className="text-xs font-bold text-status-success hover:bg-status-success/10 rounded-lg px-2 py-1 disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {t('admin.keepContent')}
+                              </button>
+                              <button
+                                onClick={() => handleDeleteContent(r)}
+                                disabled={busy === r.id}
+                                className="text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-lg px-2 py-1 disabled:opacity-50 whitespace-nowrap"
+                              >
+                                <Trash2 size={14} className="inline-block mr-1" />
+                                {t('admin.deleteContent')}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleStatus(r, 'pending')}
+                              disabled={busy === r.id}
+                              className="text-xs font-bold text-brand-accent hover:bg-surface-glass rounded-lg px-2 py-1 disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {t('admin.reopen')}
+                            </button>
+                          )}
+                        </div>
+                        {r.status !== 'pending' && autoDeleteLabel(r.closed_at) && (
+                          <div className="text-[11px] text-muted mt-1 whitespace-nowrap">{autoDeleteLabel(r.closed_at)}</div>
                         )}
                       </td>
                     </tr>

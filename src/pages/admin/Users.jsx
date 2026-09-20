@@ -114,15 +114,15 @@ export default function Users() {
     return (
       <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden mb-8">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed min-w-[760px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft bg-surface-glass">
-                <th className="px-4 py-3 font-bold">{t('admin.user')}</th>
-                <th className="px-4 py-3 font-bold">{t('admin.email')}</th>
-                <th className="px-4 py-3 font-bold">{t('admin.role')}</th>
-                <th className="px-4 py-3 font-bold text-right">{t('admin.posts')}</th>
-                <th className="px-4 py-3 font-bold text-right">{t('admin.followers')}</th>
-                <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
+                <th className="px-4 py-3 font-bold w-[18%]">{t('admin.user')}</th>
+                <th className="px-4 py-3 font-bold w-[26%]">{t('admin.email')}</th>
+                <th className="px-4 py-3 font-bold w-[14%]">{t('admin.role')}</th>
+                <th className="px-4 py-3 font-bold text-right w-[11%]">{t('admin.posts')}</th>
+                <th className="px-4 py-3 font-bold text-right w-[11%]">{t('admin.followers')}</th>
+                <th className="px-4 py-3 font-bold text-right w-[20%]">{t('admin.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -148,7 +148,7 @@ export default function Users() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-ink-soft">{u.email}</td>
+                    <td className="px-4 py-3 text-ink-soft truncate">{u.email}</td>
                     <td className="px-4 py-3">
                       {u.role === 'admin' ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-status-success bg-status-success/10 rounded-full px-2.5 py-1">
@@ -208,7 +208,7 @@ export default function Users() {
       <UserTable data={admins} isLoading={loadingAdmins} />
 
       {/* All Users Section */}
-      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-4 flex flex-col gap-4">
         <h2 className="text-lg font-bold text-ink">{t('admin.allUsers')}</h2>
         <div className="relative w-full sm:max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />

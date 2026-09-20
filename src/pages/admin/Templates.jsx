@@ -100,29 +100,29 @@ export default function Templates() {
       ) : (
         <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full table-fixed min-w-[820px] text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
-                  <th className="px-4 py-3 font-bold">{t('admin.title')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.owner')}</th>
-                  <th className="px-4 py-3 font-bold">{t('admin.hashtags')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.uses')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.views')}</th>
-                  <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
+                  <th className="px-4 py-3 font-bold w-[26%]">{t('admin.title')}</th>
+                  <th className="px-4 py-3 font-bold w-[13%]">{t('admin.owner')}</th>
+                  <th className="px-4 py-3 font-bold w-[22%]">{t('admin.hashtags')}</th>
+                  <th className="px-4 py-3 font-bold text-right w-[8%]">{t('admin.uses')}</th>
+                  <th className="px-4 py-3 font-bold text-right w-[9%]">{t('admin.views')}</th>
+                  <th className="px-4 py-3 font-bold text-right w-[22%]">{t('admin.actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {templates.map((template) => (
                   <tr key={template.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
-                    <td className="px-4 py-3 text-ink font-medium max-w-[240px]">
+                    <td className="px-4 py-3 text-ink font-medium">
                       <Link
                         to={`/template/${template.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:text-brand hover:underline inline-flex items-center gap-1.5 group max-w-full"
+                        className="hover:text-brand hover:underline flex items-center gap-1.5 min-w-0 group"
                         title={template.title}
                       >
-                        <span className="truncate">{template.title}</span>
+                        <span className="truncate min-w-0">{template.title}</span>
                         <ExternalLink size={13} className="shrink-0 opacity-60 group-hover:opacity-100 transition-opacity text-brand" />
                       </Link>
                     </td>
@@ -140,9 +140,9 @@ export default function Templates() {
                         template.creator?.username || t('common.unknownUser')
                       )}
                     </td>
-                    <td className="px-4 py-3 text-ink-soft max-w-[220px]"><HashtagCell hashtags={template.hashtags} /></td>
-                    <td className="px-4 py-3 text-right text-ink-soft">{template.use_count}</td>
-                    <td className="px-4 py-3 text-right text-ink-soft">
+                    <td className="px-4 py-3 text-ink-soft"><HashtagCell hashtags={template.hashtags} /></td>
+                    <td className="px-4 py-3 text-right text-ink-soft whitespace-nowrap">{template.use_count}</td>
+                    <td className="px-4 py-3 text-right text-ink-soft whitespace-nowrap">
                       <span className="inline-flex items-center gap-1"><Eye size={13} /> {template.view_count}</span>
                     </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
