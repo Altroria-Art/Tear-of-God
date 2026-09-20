@@ -1,7 +1,35 @@
+import { useState } from 'react';
 import { formatHashtags } from '../../lib/hashtags';
 import Avatar from './Avatar';
 import TierLabel from '../tier/TierLabel';
 import ShareQr from './ShareQr';
+
+function ExportCardItem({ item, clsItemBorder }) {
+  const [imgError, setImgError] = useState(false);
+  const itemName = typeof item === 'object' ? (item.name || item.title) : item;
+  const rawImg = typeof item === 'object' ? (item.image_url || item.image) : null;
+  const itemImg = (rawImg && rawImg !== 'null' && rawImg !== 'undefined') ? String(rawImg).trim() : null;
+
+  return (
+    <div
+      className={`flex h-16 w-16 sm:h-18 sm:w-18 aspect-square shrink-0 items-center justify-center rounded-xl border p-1.5 text-center shadow-2xs overflow-hidden ${clsItemBorder}`}
+      title={itemName}
+    >
+      {itemImg && !imgError ? (
+        <img
+          src={itemImg}
+          alt={itemName}
+          className="h-full w-full rounded-lg object-cover pointer-events-none"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <span className="w-full line-clamp-3 text-[11px] font-semibold leading-tight break-words select-none px-0.5">
+          {itemName}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function ExportCard({
   title,
@@ -94,26 +122,9 @@ export default function ExportCard({
                     ไม่มีรายการในระดับนี้
                   </span>
                 ) : (
-                  list.map((item, idx) => {
-                    const itemName = typeof item === 'object' ? (item.name || item.title) : item;
-                    const itemImg = typeof item === 'object' ? (item.image_url || item.image) : null;
-
-                    return (
-                      <div
-                        key={idx}
-                        className={`flex h-16 w-16 sm:h-18 sm:w-18 aspect-square shrink-0 items-center justify-center rounded-xl border p-1.5 text-center shadow-2xs overflow-hidden ${clsItemBorder}`}
-                        title={itemName}
-                      >
-                        {itemImg ? (
-                          <img src={itemImg} alt={itemName} className="h-full w-full rounded-lg object-cover pointer-events-none" />
-                        ) : (
-                          <span className="w-full line-clamp-3 text-[11px] font-semibold leading-tight break-words select-none px-0.5">
-                            {itemName}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })
+                  list.map((item, idx) => (
+                    <ExportCardItem key={idx} item={item} clsItemBorder={clsItemBorder} />
+                  ))
                 )}
               </div>
             </div>

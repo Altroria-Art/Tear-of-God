@@ -66,6 +66,8 @@ export default function PostDetail() {
         setPost({
           id: data.id,
           templateId: data.template_id ?? null,
+          isOriginal: data.is_original ?? (!data.template_id),
+          templateTitle: data.template_title ?? null,
           authorId: data.profile?.id ?? null,
           author: {
             name: data.profile?.username || t('common.unknownUser'),
@@ -398,7 +400,38 @@ export default function PostDetail() {
               </div>
             </div>
 
-            <h1 className="mt-2 text-2xl font-bold text-ink">{title}</h1>
+            <div className="mt-2 flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl font-bold text-ink">{title}</h1>
+              {post.isOriginal ? (
+                <span
+                  title={t('profile.badgeOriginal')}
+                  className="px-2.5 py-0.5 rounded-full border border-line-soft bg-surface text-ink-soft text-xs font-bold shadow-2xs"
+                >
+                  {t('profile.badgeOriginal')}
+                </span>
+              ) : (
+                post.templateId ? (
+                  <Link
+                    to={`/template/${encodeURIComponent(post.templateId)}`}
+                    title={t('profile.usedTemplateTooltip', { title: post.templateTitle || tpl?.title || title })}
+                    className="px-2.5 py-0.5 rounded-full border border-highlight/40 bg-highlight/15 text-highlight text-xs font-bold shadow-2xs hover:bg-highlight/25 transition-colors inline-flex items-center gap-1"
+                  >
+                    <span>{t('profile.badgeTemplate')}</span>
+                    {(post.templateTitle || tpl?.title) && (
+                      <span className="text-[11px] font-medium opacity-85 max-w-[160px] truncate">
+                        : {post.templateTitle || tpl?.title}
+                      </span>
+                    )}
+                  </Link>
+                ) : (
+                  <span
+                    className="px-2.5 py-0.5 rounded-full border border-highlight/40 bg-highlight/15 text-highlight text-xs font-bold shadow-2xs"
+                  >
+                    {t('profile.badgeTemplate')}
+                  </span>
+                )
+              )}
+            </div>
             {description && <p className="mt-2 text-sm text-ink-soft">{description}</p>}
             
             {post.hashtags && (
