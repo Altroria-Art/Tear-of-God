@@ -21,7 +21,7 @@
 - In-app notifications for replies, template usage, followed creators/topics' new rankings, trending posts, Community Average changes, daily like digests, and completed challenges
 - Rich social link previews for posts, templates, Community Average, and challenges; downloadable share cards in landscape, square, and story formats with QR/CTA
 - First-party product funnel and returning-user analytics in the admin dashboard
-- User profiles with University of Phayao faculty/major info, Taste Identity (category DNA, favorite S-tier items, badges, similar users), and up to three pinned rankings
+- User profiles with University of Phayao faculty/major info, Taste Identity (hashtag distribution, favorite S-tier items, badges, similar users), and up to three pinned rankings
 - Admin panel — dashboard, user/ranking/template/report management
 - Share and export tier lists as PNG
 - Dark/light theme toggle
@@ -73,6 +73,11 @@ npm run dev:full       # build + wrangler pages dev dist
 ```
 
 ## Database
+
+Classification now uses `hashtags` only. `rankings` and `templates` no longer
+have a `category` column in the fresh schema. Existing databases need the staged
+[hashtags-only migration](docs/hashtags-only-migration.md): apply 0009, deploy the
+new app, then apply 0010. Do not apply 0010 while the old app is still running.
 
 Schema in `schema.sql`: profiles, follows, topic_follows, rankings, items, ranking_items, votes, comments, templates, template_views, template_items, ranking_item_scores, profile_pins, template_reactions, template_comments, reports.
 D1 binding (`tear_of_god_db`) is defined in `wrangler.toml`.
@@ -162,7 +167,7 @@ node tests/local/k6-auth-safety.mjs
 - **Auth model** — `/api/_middleware.js` verifies a 7-day HttpOnly cookie against hashed sessions in D1. Mutations use the session owner, and admin endpoints verify the current database role. New passwords use salted PBKDF2-SHA-256; legacy unsalted SHA-256 hashes upgrade on successful login. Forgot/reset password uses one-hour, single-use hashed tokens and Brevo for transactional email when configured; a successful reset revokes old sessions. Firebase public config is shared in `src/lib/firebaseConfig.js`; Google tokens are verified by Firebase on the server. Production D1 schema state must be verified separately before deployment.
 - **Ranking publish integrity** — Creating a new template with its first ranking, or publishing from an existing template, submits all template/ranking/item/score/counter writes in one D1 transaction through a single `db.batch()` call.
 - **Pages SPA routing** — Static deep links rely on Cloudflare Pages' SPA fallback when no top-level `404.html` exists. `/api/*` remains handled by Pages Functions, and static assets are served directly; no catch-all `_redirects` rule is required.
-- **Home feed** — "Trending" ranks posts by freshness and engagement; "For You" uses category, template, hashtag, and explicit topic-follow signals (a followed topic can surface a matching post on its own) with a session-stable seeded mix; "Following" shows the newest posts from followed accounts. Guests can scroll Trending, while every feed interaction opens a login/sign-up prompt and all non-auth deep links redirect through login with a safe return path.
+- **Home feed** — "Trending" ranks posts by freshness and engagement; "For You" uses template, hashtag, and explicit topic-follow signals (a followed topic can surface a matching post on its own) with a session-stable seeded mix; "Following" shows the newest posts from followed accounts. Guests can scroll Trending, while every feed interaction opens a login/sign-up prompt and all non-auth deep links redirect through login with a safe return path.
 - **Community Average** — Aggregated tier rankings per template, computed from frozen `ranking_item_scores` (score = tier position at time of publish). Supports time-period filtering. Includes self-healing backfill if scores are missing for older rankings.
 - **Timestamps** — D1 returns `created_at`/`updated_at` as `"YYYY-MM-DD HH:MM:SS"` in UTC with no timezone marker. Always parse through `parseDbDate()` / `formatDbDate()` in `src/lib/format.js` — never pass raw D1 timestamps to `new Date()`.
 - **Theme** — Dark/light toggle persisted to `localStorage`, respects system preference on first visit.

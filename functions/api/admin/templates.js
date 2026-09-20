@@ -64,7 +64,6 @@ export async function onRequest({ request, env, data: auth }) {
         id: t.id,
         title: t.title,
         description: t.description,
-        category: t.category,
         hashtags: t.hashtags || '',
         tier_count: (parseTiers(t.tiers) || []).length,
         use_count: t.live_uses || 0,

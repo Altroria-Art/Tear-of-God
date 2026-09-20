@@ -9,7 +9,7 @@ import {
   requestErrorResponse,
 } from '../lib/request-guard.js';
 
-const TOPIC_TYPES = ['hashtag', 'category', 'template'];
+const TOPIC_TYPES = ['hashtag', 'template'];
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {

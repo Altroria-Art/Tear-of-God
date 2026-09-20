@@ -27,12 +27,7 @@ function jaccard(left, right) {
 }
 
 async function collectTaste(db, userId) {
-  const [{ results: categoryRows }, { results: templateRows }, { results: tagRows }] = await Promise.all([
-    db.prepare(`
-      SELECT lower(trim(COALESCE(NULLIF(category, ''), 'general'))) AS category
-      FROM rankings
-      WHERE user_id = ?
-    `).bind(userId).all(),
+  const [{ results: templateRows }, { results: tagRows }] = await Promise.all([
     db.prepare(`
       SELECT DISTINCT template_id
       FROM rankings
@@ -46,37 +41,31 @@ async function collectTaste(db, userId) {
   ]);
 
   return {
-    categories: new Set((categoryRows || []).map((row) => String(row.category || 'general').toLowerCase())),
     templates: new Set((templateRows || []).map((row) => String(row.template_id || '')).filter(Boolean)),
     hashtags: new Set((tagRows || []).flatMap((row) => parseTags(row.hashtags))),
   };
 }
 
 async function findSimilarUsers(db, userId, targetTaste) {
-  const categoryKeys = [...targetTaste.categories].slice(0, 12);
-  if (categoryKeys.length === 0) return [];
+  const hashtagKeys = [...targetTaste.hashtags].slice(0, 12);
+  if (hashtagKeys.length === 0) return [];
 
-  const placeholders = categoryKeys.map(() => '?').join(',');
+  const placeholders = hashtagKeys.map(() => '?').join(',');
   const { results: candidateRows } = await db.prepare(`
     SELECT DISTINCT p.id, p.username, p.avatar_url
     FROM profiles p
     JOIN rankings r ON r.user_id = p.id
     WHERE p.id != ?
-      AND lower(trim(COALESCE(NULLIF(r.category, ''), 'general'))) IN (${placeholders})
+      AND EXISTS (SELECT 1 FROM ranking_hashtags rh WHERE rh.ranking_id = r.id AND rh.hashtag IN (${placeholders}))
     GROUP BY p.id, p.username, p.avatar_url
     ORDER BY COUNT(*) DESC, p.username ASC
     LIMIT 60
-  `).bind(userId, ...categoryKeys).all();
+  `).bind(userId, ...hashtagKeys).all();
   if (!candidateRows?.length) return [];
 
   const candidateIds = candidateRows.map((row) => row.id);
   const candidatePlaceholders = candidateIds.map(() => '?').join(',');
-  const [categoryResult, templateResult, tagResult] = await Promise.all([
-    db.prepare(`
-      SELECT user_id, lower(trim(COALESCE(NULLIF(category, ''), 'general'))) AS category
-      FROM rankings
-      WHERE user_id IN (${candidatePlaceholders})
-    `).bind(...candidateIds).all(),
+  const [templateResult, tagResult] = await Promise.all([
     db.prepare(`
       SELECT DISTINCT user_id, template_id
       FROM rankings
@@ -90,11 +79,9 @@ async function findSimilarUsers(db, userId, targetTaste) {
   ]);
 
   const tastes = new Map(candidateIds.map((id) => [id, {
-    categories: new Set(),
     templates: new Set(),
     hashtags: new Set(),
   }]));
-  (categoryResult.results || []).forEach((row) => tastes.get(row.user_id)?.categories.add(String(row.category || 'general')));
   (templateResult.results || []).forEach((row) => {
     if (row.template_id) tastes.get(row.user_id)?.templates.add(String(row.template_id));
   });
@@ -104,27 +91,25 @@ async function findSimilarUsers(db, userId, targetTaste) {
 
   return candidateRows.map((candidate) => {
     const taste = tastes.get(candidate.id);
-    const categoryScore = jaccard(targetTaste.categories, taste.categories);
     const templateScore = jaccard(targetTaste.templates, taste.templates);
     const hashtagScore = jaccard(targetTaste.hashtags, taste.hashtags);
     return {
       id: candidate.id,
       username: candidate.username || 'Unknown',
       avatar_url: candidate.avatar_url || null,
-      score: Math.round((categoryScore * 0.5 + templateScore * 0.3 + hashtagScore * 0.2) * 100),
-      shared_categories: [...targetTaste.categories].filter((value) => taste.categories.has(value)).slice(0, 3),
+      score: Math.round((templateScore * 0.3 + hashtagScore * 0.7) * 100),
     };
   }).sort((left, right) => right.score - left.score || left.username.localeCompare(right.username)).slice(0, 3);
 }
 
 async function buildTasteIdentity(db, userId, baseUser) {
-  const [categoryResult, topScoreResult, pinnedResult, templateStats] = await Promise.all([
+  const [hashtagResult, topScoreResult, pinnedResult, templateStats] = await Promise.all([
     db.prepare(`
-      SELECT lower(trim(COALESCE(NULLIF(category, ''), 'general'))) AS category, COUNT(*) AS count
-      FROM rankings
+      SELECT hashtag, COUNT(*) AS count
+      FROM ranking_hashtags
       WHERE user_id = ?
-      GROUP BY lower(trim(COALESCE(NULLIF(category, ''), 'general')))
-      ORDER BY count DESC, category ASC
+      GROUP BY hashtag
+      ORDER BY count DESC, hashtag ASC
     `).bind(userId).all(),
     db.prepare(`
       SELECT ris.item_id, COALESCE(i.name, ris.item_id) AS name, COUNT(*) AS count
@@ -138,7 +123,7 @@ async function buildTasteIdentity(db, userId, baseUser) {
     `).bind(userId).all(),
     db.prepare(`
       SELECT p.ranking_id, p.position, p.created_at,
-             r.title, r.description, r.category, r.hashtags, r.template_id,
+             r.title, r.description, r.hashtags, r.template_id,
              r.likes_count, r.dislikes_count, r.comments_count, r.created_at AS ranking_created_at
       FROM profile_pins p
       JOIN rankings r ON r.id = p.ranking_id
@@ -153,19 +138,19 @@ async function buildTasteIdentity(db, userId, baseUser) {
     `).bind(userId).first(),
   ]);
 
-  const categories = (categoryResult?.results || []).map((row) => ({
-    category: row.category || 'general',
+  const hashtags = (hashtagResult?.results || []).map((row) => ({
+    hashtag: row.hashtag,
     count: toNumber(row.count),
   }));
-  const totalCategoryRanks = categories.reduce((sum, row) => sum + row.count, 0);
+  const totalHashtagRanks = hashtags.reduce((sum, row) => sum + row.count, 0);
 
   let topItemRows = topScoreResult?.results || [];
   // Older rankings may predate ranking_item_scores. Fall back to the first tier
   // defined by the template so those users still get a useful identity card.
   // Proven skip: the fallback joins rankings filtered by this user, so when the
-  // category aggregate above already shows zero rankings it can only return []
+  // profile count above already shows zero rankings it can only return []
   // — identical output with one fewer query.
-  if (topItemRows.length === 0 && totalCategoryRanks > 0) {
+  if (topItemRows.length === 0 && toNumber(baseUser.posts_count) > 0) {
     const fallback = await db.prepare(`
       SELECT ri.item_id, COALESCE(i.name, ri.item_id) AS name, COUNT(*) AS count
       FROM ranking_items ri
@@ -184,9 +169,9 @@ async function buildTasteIdentity(db, userId, baseUser) {
     topItemRows = fallback?.results || [];
   }
 
-  const categoryDistribution = categories.map((row) => ({
+  const hashtagDistribution = hashtags.map((row) => ({
     ...row,
-    percentage: totalCategoryRanks ? Math.round((row.count / totalCategoryRanks) * 100) : 0,
+    percentage: totalHashtagRanks ? Math.round((row.count / totalHashtagRanks) * 100) : 0,
   }));
 
   const rankingCount = toNumber(baseUser.posts_count);
@@ -201,7 +186,7 @@ async function buildTasteIdentity(db, userId, baseUser) {
   if (maxTemplateUses >= 25) badges.push({ id: 'template_hit', value: maxTemplateUses });
 
   return {
-    category_distribution: categoryDistribution,
+    hashtag_distribution: hashtagDistribution,
     top_items: topItemRows.map((row) => ({
       id: row.item_id,
       name: row.name || row.item_id,
@@ -213,7 +198,6 @@ async function buildTasteIdentity(db, userId, baseUser) {
       position: toNumber(row.position),
       title: row.title || 'Untitled ranking',
       description: row.description || null,
-      category: row.category || 'general',
       hashtags: row.hashtags || '',
       template_id: row.template_id || null,
       stats: {
@@ -241,12 +225,10 @@ async function buildSimilarSection(db, userId, viewerId) {
   let tasteMatch = null;
   if (viewerId && viewerId !== userId) {
     const viewerTaste = await collectTaste(db, viewerId);
-    const categoryScore = jaccard(targetTaste.categories, viewerTaste.categories);
     const templateScore = jaccard(targetTaste.templates, viewerTaste.templates);
     const hashtagScore = jaccard(targetTaste.hashtags, viewerTaste.hashtags);
     tasteMatch = {
-      score: Math.round((categoryScore * 0.5 + templateScore * 0.3 + hashtagScore * 0.2) * 100),
-      shared_categories: [...targetTaste.categories].filter((value) => viewerTaste.categories.has(value)).slice(0, 5),
+      score: Math.round((templateScore * 0.3 + hashtagScore * 0.7) * 100),
       shared_templates: [...targetTaste.templates].filter((value) => viewerTaste.templates.has(value)).length,
       shared_hashtags: [...targetTaste.hashtags].filter((value) => viewerTaste.hashtags.has(value)).slice(0, 5),
     };
@@ -265,8 +247,8 @@ export async function onRequest({ request, env, data: auth }) {
 
     const viewerId = auth?.user?.id || null;
 
-    // ?fields=similar — lazy Taste Details section (same formulas as the old
-    // inline computation; viewer strictly from the verified session).
+    // ?fields=similar — lazy Taste Details based on hashtags and templates;
+    // viewer strictly from the verified session.
     if (url.searchParams.get('fields') === 'similar') {
       const exists = await db.prepare('SELECT id FROM profiles WHERE id = ?').bind(id).first();
       if (!exists) return jsonResponse({ success: false, error: 'ไม่พบผู้ใช้นี้' }, 404);

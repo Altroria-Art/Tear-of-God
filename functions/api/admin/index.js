@@ -28,7 +28,7 @@ export async function onRequest({ request, env, data: auth }) {
         counts,
         recentPostsRows,
         recentReportsRows,
-        topCategoriesRows,
+        topHashtagsRows,
         topTemplatesRows
       ] = await Promise.all([
         db.prepare(`
@@ -42,7 +42,7 @@ export async function onRequest({ request, env, data: auth }) {
             (SELECT COUNT(*) FROM reports WHERE status = 'pending') AS pending_reports
         `).first(),
         db.prepare(`
-          SELECT r.id, r.title, r.category, r.created_at,
+          SELECT r.id, r.title, r.hashtags, r.created_at,
                  p.id as author_id, p.username as author_name, p.avatar_url as author_avatar
           FROM rankings r
           LEFT JOIN profiles p ON r.user_id = p.id
@@ -63,14 +63,10 @@ export async function onRequest({ request, env, data: auth }) {
           LIMIT 5
         `).all(),
         db.prepare(`
-          SELECT category, COUNT(*) as count
-          FROM rankings
-          WHERE category IS NOT NULL AND category != ''
-          GROUP BY category
-          ORDER BY count DESC
+          SELECT hashtag, COUNT(*) as count FROM ranking_hashtags GROUP BY hashtag ORDER BY count DESC, hashtag ASC
         `).all(),
         db.prepare(`
-          SELECT t.id, t.title, t.category,
+          SELECT t.id, t.title, t.hashtags,
                  (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses,
                  (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views,
                  p.username as author_name
@@ -92,7 +88,7 @@ export async function onRequest({ request, env, data: auth }) {
         recent_posts: (recentPostsRows?.results || []).map(r => ({
           id: r.id,
           title: r.title,
-          category: r.category,
+          hashtags: r.hashtags,
           created_at: r.created_at,
           author: { id: r.author_id, username: r.author_name, avatar_url: r.author_avatar }
         })),
@@ -106,14 +102,14 @@ export async function onRequest({ request, env, data: auth }) {
           created_at: rp.created_at,
           reporter: { id: rp.reporter_id, username: rp.reporter_name }
         })),
-        top_categories: (topCategoriesRows?.results || []).map(c => ({
-          category: c.category,
+        top_hashtags: (topHashtagsRows?.results || []).map(c => ({
+          hashtag: c.hashtag,
           count: c.count
         })),
         top_templates: (topTemplatesRows?.results || []).map(t => ({
           id: t.id,
           title: t.title,
-          category: t.category,
+          hashtags: t.hashtags,
           uses: t.live_uses ?? 0,
           views: t.live_views ?? 0,
           author: t.author_name

@@ -16,7 +16,7 @@
 // depends on user-specific state and must not use this path.
 // Internal pool cache only — API response Cache-Control headers are untouched.
 
-export const TRENDING_POOL_CACHE_VERSION = 'v1';
+export const TRENDING_POOL_CACHE_VERSION = 'v2';
 
 // Seed lifetime = one HomeFeed mount (a few minutes of scrolling; refresh or a
 // new mount mints a new seed and therefore misses by construction). 180s
@@ -29,7 +29,7 @@ export const TRENDING_POOL_CACHE_TTL_SECONDS = 180;
 // by at most 5s — but shuffle still uses its own fresh seed, so ordering is
 // always per-session.
 export const SHARED_HOME_TRENDING_TTL_SECONDS = 5;
-export const SHARED_HOME_TRENDING_VERSION = 'v2';
+export const SHARED_HOME_TRENDING_VERSION = 'v3';
 
 // Recent-result memory bridge (Phase 0 fix): covers the post-D1/pre-put
 // window where the in-flight entry is already gone but the Cache API write
@@ -77,12 +77,11 @@ const MAX_INFLIGHT_POOLS = 100;
 //     but IS included so manual refresh (new seed) always re-queries a fresh
 //     pool — refresh behavior stays bit-identical to before this change.
 //   - user/session/cookie: the trending pool SQL has no user-dependent input.
-export function buildTrendingPoolKey({ feedType, seed, category, hashtag, authorId, templateId, days, poolCap }) {
+export function buildTrendingPoolKey({ feedType, seed, hashtag, authorId, templateId, days, poolCap }) {
   return [
     TRENDING_POOL_CACHE_VERSION,
     feedType ?? '',
     String((seed ?? 0) >>> 0),
-    category ?? '',
     hashtag ?? '',
     authorId ?? '',
     templateId ?? '',
@@ -94,12 +93,11 @@ export function buildTrendingPoolKey({ feedType, seed, category, hashtag, author
 // L2 eligibility: EXACT unfiltered home trending only. Mirrors the pool
 // builder conditions in functions/api/rankings.js one by one:
 //   - feed_type must be trending (for_you/following carry user predicates)
-//   - category/hashtag/authorId/templateId/days must all be filter-absent,
-//     using the SAME truthiness the builder uses ('null' category string and
+//   - hashtag/authorId/templateId/days must all be filter-absent,
+//     using the SAME truthiness the builder uses (empty hashtag string and
 //     '' hashtag mean "no filter" there, so they mean eligible here).
-export function isSharedHomeTrendingEligible({ feedType, category, hashtag, authorId, templateId, days }) {
+export function isSharedHomeTrendingEligible({ feedType, hashtag, authorId, templateId, days }) {
   if (feedType !== 'trending') return false;
-  if (category && category !== 'null') return false;
   if (hashtag) return false;
   if (authorId) return false;
   if (templateId) return false;

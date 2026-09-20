@@ -22,13 +22,12 @@ INSERT INTO items (id, name, image_url) VALUES
   ('preview-item-002', 'Preview Item Two', NULL);
 
 INSERT INTO templates (
-  id, creator_id, title, description, category, hashtags, tiers, use_count, view_count
+  id, creator_id, title, description, hashtags, tiers, use_count, view_count
 ) VALUES (
   'preview-template-001',
   'preview-user-001',
   'Preview Synthetic Template',
   'Synthetic sentinel template for Preview isolation checks',
-  'test',
   '#preview,#synthetic',
   '[{"id":"preview-tier-s","label":"S","color":"#ef4444"},{"id":"preview-tier-a","label":"A","color":"#f97316"}]',
   1,
@@ -40,13 +39,12 @@ INSERT INTO template_items (id, template_id, item_id, tier, position) VALUES
   ('preview-template-item-002', 'preview-template-001', 'preview-item-002', NULL, 1);
 
 INSERT INTO rankings (
-  id, title, description, category, hashtags, user_id, template_id,
+  id, title, description, hashtags, user_id, template_id,
   likes_count, dislikes_count, comments_count
 ) VALUES (
   'preview-ranking-001',
   'Preview Synthetic Ranking',
   'Synthetic sentinel ranking for Preview isolation checks',
-  'test',
   '#preview,#synthetic',
   'preview-user-001',
   'preview-template-001',

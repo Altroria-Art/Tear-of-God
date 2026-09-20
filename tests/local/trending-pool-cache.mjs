@@ -89,18 +89,18 @@ async function createSeededD1() {
   // 30 rankings: r_top dominates trending (recent + 100 likes). r02..r15 recent
   // with #gaming, r16..r30 old with #food. userA owns rA1 (for pin) and liked r_top.
   const inserts = [
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind('r_top', 'Top post', 'author1', 'gaming', '#gaming', 100),
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind('rA1', 'User A post', 'userA', 'gaming', '#gaming', 1),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('r_top', 'Top post', 'author1', '#gaming', 100),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('rA1', 'User A post', 'userA', '#gaming', 1),
   ];
   for (let i = 2; i <= 15; i += 1) {
-    inserts.push(db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind(`r${String(i).padStart(2, '0')}`, `Post ${i}`, i % 2 ? 'author1' : 'author2', 'gaming', '#gaming', 30 - i));
+    inserts.push(db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind(`r${String(i).padStart(2, '0')}`, `Post ${i}`, i % 2 ? 'author1' : 'author2', '#gaming', 30 - i));
   }
   for (let i = 16; i <= 30; i += 1) {
-    inserts.push(db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now', '-100 days'))`).bind(`r${i}`, `Old ${i}`, 'author2', 'food', '#food', 1));
+    inserts.push(db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now', '-100 days'))`).bind(`r${i}`, `Old ${i}`, 'author2', '#food', 1));
   }
   await db.batch(inserts);
   await db.prepare(`INSERT INTO votes (id, ranking_id, user_id, vote_type) VALUES (?, ?, ?, ?)`)
@@ -206,7 +206,7 @@ try {
   // CASE 8 — cache outage: feed still answers via D1 fallback. Uses a filtered
   // request (unique key) so a warm memory bridge cannot mask the D1 fallback.
   globalThis.caches = { default: makeFakeCache({ failMatch: true }) };
-  const outage = await callFeed(db, { feed_type: 'trending', seed: 999, limit: 12, page: 1, category: 'food' }, null);
+  const outage = await callFeed(db, { feed_type: 'trending', seed: 999, limit: 12, page: 1, hashtag: 'food' }, null);
   assert.equal(outage.response.status, 200);
   assert.equal(outage.body.data.length, 12);
   assert.equal(counter.pool, 3);
@@ -318,11 +318,11 @@ try {
   // returns its own category.
   const sharedReads14 = globalThis.caches.default.matchCalls.filter(isSharedKey).length;
   const before14 = counter.pool;
-  const catRes = await callFeed(db, { feed_type: 'trending', seed: 777, limit: 12, page: 1, category: 'gaming' }, null);
+  const catRes = await callFeed(db, { feed_type: 'trending', seed: 777, limit: 12, page: 1, hashtag: 'gaming' }, null);
   assert.equal(catRes.response.status, 200);
   assert.equal(counter.pool, before14 + 1, 'filtered request must query its own pool');
   assert.ok(catRes.body.data.length > 0);
-  assert.ok(catRes.body.data.every((row) => row.category === 'gaming'), 'no cross-category rows');
+  assert.ok(catRes.body.data.every((row) => row.hashtags === '#gaming'), 'no cross-category rows');
   assert.equal(
     globalThis.caches.default.matchCalls.filter(isSharedKey).length,
     sharedReads14,
@@ -349,7 +349,7 @@ try {
   // CASE 17 — match outage on both layers: feed still answers via D1.
   globalThis.caches = { default: makeFakeCache({ failMatch: true }) };
   const before17 = counter.pool;
-  const outage2 = await callFeed(db, { feed_type: 'trending', seed: 1717, limit: 12, page: 1, category: 'food' }, null);
+  const outage2 = await callFeed(db, { feed_type: 'trending', seed: 1717, limit: 12, page: 1, hashtag: 'food' }, null);
   assert.equal(outage2.response.status, 200);
   assert.equal(outage2.body.data.length, 12);
   assert.equal(counter.pool, before17 + 1, 'outage must fall back to D1');
@@ -360,11 +360,11 @@ try {
   // Filtered key (fresh for this case) so no warm bridge can mask the fallback.
   globalThis.caches = { default: makeFakeCache({ failPut: true }) };
   const before18 = counter.pool;
-  const putFail1 = await callFeed(db, { feed_type: 'trending', seed: 1818, limit: 12, page: 1, category: 'food' }, null);
+  const putFail1 = await callFeed(db, { feed_type: 'trending', seed: 1818, limit: 12, page: 1, hashtag: 'food' }, null);
   assert.equal(putFail1.response.status, 200);
   assert.equal(putFail1.body.data.length, 12);
   assert.equal(counter.pool, before18 + 1);
-  const putFail2 = await callFeed(db, { feed_type: 'trending', seed: 1818, limit: 12, page: 1, category: 'food' }, null);
+  const putFail2 = await callFeed(db, { feed_type: 'trending', seed: 1818, limit: 12, page: 1, hashtag: 'food' }, null);
   assert.equal(putFail2.response.status, 200);
   assert.equal(counter.pool, before18 + 2, 'failed writes must not poison later requests');
   console.log('CASE 18 passed: put errors stay best-effort, next request falls back');
@@ -406,7 +406,7 @@ try {
   globalThis.caches = { default: makeFakeCache({ gateFirstPut: true }) };
   {
     const before21 = counter.pool;
-    const reqA = callFeed(db, { feed_type: 'trending', seed: 2121, limit: 12, page: 1, category: 'food' }, null);
+    const reqA = callFeed(db, { feed_type: 'trending', seed: 2121, limit: 12, page: 1, hashtag: 'food' }, null);
     for (let i = 0; i < 500 && counter.pool < before21 + 1; i += 1) await sleep(10);
     assert.equal(counter.pool, before21 + 1, 'A pool query must have run');
     await sleep(300);
@@ -442,11 +442,11 @@ try {
   globalThis.caches = { default: makeFakeCache() };
 
   // Key/TTL/eligibility hygiene (unit-level).
-  const l1Base = { feedType: 'trending', seed: 1, category: null, hashtag: null, authorId: null, templateId: null, days: 0, poolCap: 600 };
+  const l1Base = { feedType: 'trending', seed: 1, hashtag: null, authorId: null, templateId: null, days: 0, poolCap: 600 };
   const keyA = buildTrendingPoolKey(l1Base);
   // Seed is pinned (refresh safety); every SQL-affecting input changes the key.
   assert.notEqual(buildTrendingPoolKey({ ...l1Base, seed: 2 }), keyA);
-  assert.notEqual(buildTrendingPoolKey({ ...l1Base, category: 'gaming' }), keyA);
+  assert.notEqual(buildTrendingPoolKey({ ...l1Base, hashtag: 'gaming' }), keyA);
   assert.notEqual(buildTrendingPoolKey({ ...l1Base, hashtag: 'gaming' }), keyA);
   assert.notEqual(buildTrendingPoolKey({ ...l1Base, authorId: 'u1' }), keyA);
   assert.notEqual(buildTrendingPoolKey({ ...l1Base, templateId: 't1' }), keyA);
@@ -454,15 +454,15 @@ try {
   assert.notEqual(buildTrendingPoolKey({ ...l1Base, poolCap: 100 }), keyA);
   assert.ok(TRENDING_POOL_CACHE_TTL_SECONDS >= 60 && TRENDING_POOL_CACHE_TTL_SECONDS <= 600);
   // L2 eligibility mirrors the pool builder exactly.
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', category: null, hashtag: null, authorId: null, templateId: null, days: 0 }), true);
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', category: 'null', hashtag: '', authorId: null, templateId: null, days: 0 }), true);
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', category: 'gaming', hashtag: null, authorId: null, templateId: null, days: 0 }), false);
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', category: null, hashtag: 'g', authorId: null, templateId: null, days: 0 }), false);
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', category: null, hashtag: null, authorId: 'u', templateId: null, days: 0 }), false);
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', category: null, hashtag: null, authorId: null, templateId: 't', days: 0 }), false);
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', category: null, hashtag: null, authorId: null, templateId: null, days: 7 }), false);
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'for_you', category: null, hashtag: null, authorId: null, templateId: null, days: 0 }), false);
-  assert.equal(isSharedHomeTrendingEligible({ feedType: 'following', category: null, hashtag: null, authorId: null, templateId: null, days: 0 }), false);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: null, authorId: null, templateId: null, days: 0 }), true);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: '', authorId: null, templateId: null, days: 0 }), true);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: 'gaming', authorId: null, templateId: null, days: 0 }), false);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: 'g', authorId: null, templateId: null, days: 0 }), false);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: null, authorId: 'u', templateId: null, days: 0 }), false);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: null, authorId: null, templateId: 't', days: 0 }), false);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: null, authorId: null, templateId: null, days: 7 }), false);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'for_you', hashtag: null, authorId: null, templateId: null, days: 0 }), false);
+  assert.equal(isSharedHomeTrendingEligible({ feedType: 'following', hashtag: null, authorId: null, templateId: null, days: 0 }), false);
   // L2 key carries no seed/user/page/pin/exclude; TTL is capped at 5s.
   const l2key = buildSharedHomeTrendingKey({ poolCap: 600 });
   assert.ok(!/\b\d{4,}\b/.test(l2key.replace('600', '')), 'L2 key must not embed seed-like values');

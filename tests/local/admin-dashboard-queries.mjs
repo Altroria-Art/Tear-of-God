@@ -37,7 +37,7 @@ const combinedCountQuery = `
 `;
 
 const recentPostsQuery = `
-  SELECT r.id, r.title, r.category, r.created_at,
+  SELECT r.id, r.title, r.hashtags, r.created_at,
          p.id as author_id, p.username as author_name, p.avatar_url as author_avatar
   FROM rankings r
   LEFT JOIN profiles p ON r.user_id = p.id
@@ -59,16 +59,12 @@ const recentReportsQuery = `
   LIMIT 5
 `;
 
-const topCategoriesQuery = `
-  SELECT category, COUNT(*) as count
-  FROM rankings
-  WHERE category IS NOT NULL AND category != ''
-  GROUP BY category
-  ORDER BY count DESC
+const topHashtagsQuery = `
+  SELECT hashtag, COUNT(*) as count FROM ranking_hashtags GROUP BY hashtag ORDER BY count DESC, hashtag ASC
 `;
 
 const topTemplatesQuery = `
-  SELECT t.id, t.title, t.category,
+  SELECT t.id, t.title, t.hashtags,
          (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses,
          (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views,
          p.username as author_name
@@ -78,7 +74,7 @@ const topTemplatesQuery = `
   LIMIT 4
 `;
 
-const detailQueries = [recentPostsQuery, recentReportsQuery, topCategoriesQuery, topTemplatesQuery];
+const detailQueries = [recentPostsQuery, recentReportsQuery, topHashtagsQuery, topTemplatesQuery];
 
 async function createLocalD1() {
   const mf = new Miniflare(convertV4MiniflareOptions({
@@ -121,7 +117,7 @@ async function seedLargeDataset(db) {
     id: `template-${index}`,
     creator_id: index % 2 === 0 ? 'admin' : profiles[index].id,
     title: `Template ${index}`,
-    category: `category-${index % 5}`,
+    hashtags: `hashtags-${index % 5}`,
     created_at: timestamp(index),
   }));
   const rankings = Array.from({ length: 240 }, (_, index) => ({
@@ -129,7 +125,7 @@ async function seedLargeDataset(db) {
     title: `Ranking ${index}`,
     user_id: profiles[index % profiles.length].id,
     template_id: templates[index % templates.length].id,
-    category: index % 11 === 0 ? null : `category-${index % 5}`,
+    hashtags: index % 11 === 0 ? null : `hashtags-${index % 5}`,
     created_at: timestamp(1000 + index),
   }));
   const votes = rankings.map((ranking, index) => ({
@@ -165,16 +161,16 @@ async function seedLargeDataset(db) {
     FROM json_each(?1)
   `, profiles);
   await insertJson(db, `
-    INSERT INTO templates (id, creator_id, title, category, created_at)
+    INSERT INTO templates (id, creator_id, title, hashtags, created_at)
     SELECT json_extract(value, '$.id'), json_extract(value, '$.creator_id'),
-           json_extract(value, '$.title'), json_extract(value, '$.category'), json_extract(value, '$.created_at')
+           json_extract(value, '$.title'), json_extract(value, '$.hashtags'), json_extract(value, '$.created_at')
     FROM json_each(?1)
   `, templates);
   await insertJson(db, `
-    INSERT INTO rankings (id, title, user_id, template_id, category, created_at)
+    INSERT INTO rankings (id, title, user_id, template_id, hashtags, created_at)
     SELECT json_extract(value, '$.id'), json_extract(value, '$.title'),
            json_extract(value, '$.user_id'), json_extract(value, '$.template_id'),
-           json_extract(value, '$.category'), json_extract(value, '$.created_at')
+           json_extract(value, '$.hashtags'), json_extract(value, '$.created_at')
     FROM json_each(?1)
   `, rankings);
   await insertJson(db, `
@@ -250,7 +246,7 @@ function instrumentDb(db) {
 async function legacyStats(db) {
   const [
     users, rankings, templates, votes, comments, follows, pendingReports,
-    recentPostsRows, recentReportsRows, topCategoriesRows, topTemplatesRows,
+    recentPostsRows, recentReportsRows, topHashtagsRows, topTemplatesRows,
   ] = await Promise.all([
     ...legacyCountQueries.map((sql) => db.prepare(sql).first()),
     ...detailQueries.map((sql) => db.prepare(sql).all()),
@@ -267,7 +263,7 @@ async function legacyStats(db) {
     recent_posts: (recentPostsRows?.results || []).map((row) => ({
       id: row.id,
       title: row.title,
-      category: row.category,
+      hashtags: row.hashtags,
       created_at: row.created_at,
       author: { id: row.author_id, username: row.author_name, avatar_url: row.author_avatar },
     })),
@@ -281,14 +277,14 @@ async function legacyStats(db) {
       created_at: row.created_at,
       reporter: { id: row.reporter_id, username: row.reporter_name },
     })),
-    top_categories: (topCategoriesRows?.results || []).map((row) => ({
-      category: row.category,
+    top_hashtags: (topHashtagsRows?.results || []).map((row) => ({
+      hashtag: row.hashtag,
       count: row.count,
     })),
     top_templates: (topTemplatesRows?.results || []).map((row) => ({
       id: row.id,
       title: row.title,
-      category: row.category,
+      hashtags: row.hashtags,
       uses: row.live_uses ?? 0,
       views: row.live_views ?? 0,
       author: row.author_name,
@@ -329,7 +325,7 @@ async function verifyDataset({ large }) {
     assert.deepEqual(body.data, expected);
     assert.deepEqual(Object.keys(body.data), [
       'users', 'rankings', 'templates', 'votes', 'comments', 'follows', 'pending_reports',
-      'recent_posts', 'recent_reports', 'top_categories', 'top_templates',
+      'recent_posts', 'recent_reports', 'top_hashtags', 'top_templates',
     ]);
     assert.equal(instrumented.metrics.statements, 6, 'handler must retain role check and use five dashboard statements');
     assert.equal(instrumented.metrics.sql.filter((sql) => sql.includes('SELECT role FROM profiles')).length, 1);

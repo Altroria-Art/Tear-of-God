@@ -1,5 +1,6 @@
 import { INPUT_LIMITS, assertId, assertString, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 import { maybeNotifyTrending } from '../lib/notifications.js';
+import { deleteOwnComment } from '../lib/comment-delete.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -9,6 +10,7 @@ export async function onRequest({ request, env, data: auth }) {
   const rankingId = url.searchParams.get('ranking_id');
 
   try {
+    if (request.method === 'DELETE') return await deleteOwnComment(request, db, auth.user);
     // 🟢 [GET] ดึงคอมเมนต์ทั้งหมดของโพสต์นั้น
     if (request.method === 'GET') {
       if (!rankingId) return jsonResponse({ success: false, error: 'Missing ranking_id' }, 400);

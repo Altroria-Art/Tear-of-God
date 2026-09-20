@@ -1,3 +1,4 @@
+import { formatHashtags } from '../../lib/hashtags';
 import TierLabel from '../tier/TierLabel'
 import ShareQr from '../ui/ShareQr'
 
@@ -6,7 +7,7 @@ import ShareQr from '../ui/ShareQr'
 // สำหรับจุด export ของ Community Average ใน TemplateDetailPage และ CommunityAveragePage
 export default function CommunityAvgExportPreview({
   title,
-  category,
+  hashtags,
   updatedText,
   tiers = [],
   shareLink = null,
@@ -31,9 +32,9 @@ export default function CommunityAvgExportPreview({
           <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-bold text-gray-600">
             Community Average
           </span>
-          {category && (
+          {hashtags && (
             <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200/60">
-              {category}
+              {formatHashtags(hashtags)}
             </span>
           )}
         </div>

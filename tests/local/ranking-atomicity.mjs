@@ -47,7 +47,6 @@ function requestBody(count, { templateId, createTemplate = false } = {}) {
     payload: {
       title: `Atomic ranking ${count}`,
       description: 'Local D1 atomicity test',
-      category: 'testing',
       hashtags: '#atomic,#local',
       ...(templateId ? { template_id: templateId } : {}),
     },
@@ -56,7 +55,6 @@ function requestBody(count, { templateId, createTemplate = false } = {}) {
       template: {
         title: `Atomic template ${count}`,
         description: 'Created with the first ranking',
-        category: 'testing',
         hashtags: '#atomic,#local',
         tiers,
         items: rankedItems.map((item) => ({ name: item.item_id, position: item.position })),
@@ -110,10 +108,9 @@ async function seedProfile(db, userId) {
 }
 
 async function seedTemplate(db, templateId, userId, useCount = 7) {
-  await db.prepare(`INSERT INTO templates
-    (id, creator_id, title, description, category, hashtags, tiers, use_count)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(templateId, userId, 'Existing template', '', 'testing', '#existing', JSON.stringify(tiers), useCount)
+  await db.prepare(`INSERT INTO templates (id, creator_id, title, description, hashtags, tiers, use_count)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    .bind(templateId, userId, 'Existing template', '', '#existing', JSON.stringify(tiers), useCount)
     .run();
 }
 

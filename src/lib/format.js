@@ -45,10 +45,10 @@ export function parseDbDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/** Calendar-date-only rendering of a D1 timestamp. Returns null when unrenderable. */
+/** Render D1 timestamps in Thailand's timezone regardless of the viewer's device. */
 export function formatDbDate(value, locale, options) {
   const d = parseDbDate(value);
-  return d ? d.toLocaleDateString(locale, options) : null;
+  return d ? d.toLocaleDateString(locale, { ...options, timeZone: 'Asia/Bangkok' }) : null;
 }
 
 function ago(n, unit) {
@@ -60,7 +60,7 @@ export function timeAgo(dateString) {
   const date = parseDbDate(dateString);
   if (!date) return i18n.t('common.justNow');
 
-  const dateFormatted = date.toLocaleDateString(i18n.language === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const dateFormatted = formatDbDate(date, i18n.language === 'th' ? 'th-TH' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   // Clamp negatives: a client clock a few minutes fast (or a stray future-dated
   // row) previously rendered literal "-300 seconds ago" because `seconds < 60`
   // was also true for negative numbers.

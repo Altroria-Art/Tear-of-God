@@ -1,3 +1,4 @@
+import { formatHashtags } from '../../lib/hashtags';
 import Avatar from './Avatar';
 import TierLabel from '../tier/TierLabel';
 import ShareQr from './ShareQr';
@@ -7,7 +8,7 @@ export default function ExportCard({
   authorName,
   authorAvatar,
   postedAt,
-  category,
+  hashtags,
   tiers = [],
   theme = 'light',
   shareLink = null,
@@ -59,9 +60,9 @@ export default function ExportCard({
             <span className="inline-flex items-center gap-1 rounded-full bg-indigo-600 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-white">
               ★ TEAR OF GOD
             </span>
-            {category && (
+            {hashtags && (
               <span className="inline-flex items-center rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[11px] font-bold text-amber-500 border border-amber-500/30">
-                {category}
+                {formatHashtags(hashtags)}
               </span>
             )}
           </div>

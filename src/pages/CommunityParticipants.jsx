@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, Navigate } from 'react-router-dom'
+import { useUser } from '../context/UserContext'
 import { Download, Users, Filter } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useToast } from '../components/ui/Toast'
@@ -63,6 +64,16 @@ function calculateCommunityAverage(filteredRankings, tiersDef) {
 }
 
 export default function CommunityParticipants() {
+  const { templateId } = useParams()
+  const { currentUser, isRestoring } = useUser()
+  if (isRestoring) return null
+  if (currentUser?.role !== 'admin') {
+    return <Navigate to={`/template/${encodeURIComponent(templateId)}/community`} replace />
+  }
+  return <CommunityParticipantsContent />
+}
+
+function CommunityParticipantsContent() {
   const { templateId } = useParams()
   const { t } = useTranslation()
   const toast = useToast()

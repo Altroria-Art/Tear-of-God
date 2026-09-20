@@ -1,3 +1,4 @@
+import { formatHashtags } from '../../lib/hashtags';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Search, LayoutTemplate, Hash, Users, ArrowRight, Loader2 } from 'lucide-react';
@@ -61,8 +62,8 @@ export default function SearchSuggestions({
                   >
                     <div className="min-w-0 flex-1 truncate">
                       <p className="truncate font-bold group-hover:underline">{template.title}</p>
-                      {template.category && (
-                        <p className="text-[10px] text-muted truncate">{template.category}</p>
+                      {template.hashtags && (
+                        <p className="text-[10px] text-muted truncate">{formatHashtags(template.hashtags)}</p>
                       )}
                     </div>
                     {template.stats?.uses != null && (

@@ -18,6 +18,7 @@ import {
   voteTemplate,
   fetchTemplateComments,
   createTemplateComment,
+  deleteComment,
   fetchMyRanking,
   reportComment
 } from '../lib/api'
@@ -161,6 +162,18 @@ export default function CommunityAveragePage() {
       toast.error(t('post.reportFailed', { msg: res?.error || t('common.error') }));
     }
   }
+
+  const handleDeleteComment = async (id) => {
+    const result = await deleteComment(id, true);
+    if (!result.success) {
+      toast.error(t('errors.commentDeleteFailed'));
+      return false;
+    }
+    setComments(previous => previous.filter(comment => comment.id !== id)
+      .map(comment => comment.parentId === id ? { ...comment, parentId: null } : comment));
+    setCommentCount(result.comments_count);
+    return true;
+  };
 
   const handleAddComment = async (body, parentId) => {
     if (!currentUser) {
@@ -342,7 +355,7 @@ export default function CommunityAveragePage() {
             preview={
               <CommunityAvgExportPreview
                 title={`${template.title} · ${t('template.communityAverage')}`}
-                category={template.category}
+                hashtags={template.hashtags}
                 updatedText={t('template.updated', { time: updatedAt ? timeAgo(updatedAt) : '—' })}
                 tiers={avgTiers.map((row) => ({
                   label: row.tier,
@@ -433,6 +446,7 @@ export default function CommunityAveragePage() {
             comments={comments} 
             onSubmit={handleAddComment} 
             onReportComment={handleReportComment}
+            onDeleteComment={handleDeleteComment}
             inputRef={commentInputRef} 
           />
         </div>

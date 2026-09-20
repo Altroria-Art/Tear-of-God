@@ -52,7 +52,6 @@ export async function onRequest({ request, env, data: auth }) {
         id: r.id,
         title: r.title,
         description: r.description,
-        category: r.category,
         hashtags: r.hashtags || '',
         author: { id: r.user_id, username: r.username, email: r.email },
         stats: { likes: r.likes_count, dislikes: r.dislikes_count, comments: r.comments_count },

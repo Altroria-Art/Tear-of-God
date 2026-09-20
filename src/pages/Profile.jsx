@@ -1,6 +1,9 @@
+import { formatHashtags } from '../lib/hashtags';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, Lock, BarChart3, LayoutGrid } from 'lucide-react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { returnPath } from '../lib/navigation';
+import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid } from 'lucide-react';
+import BadgeGallery from '../components/user/BadgeGallery';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
@@ -61,9 +64,9 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
               <Pin size={10} fill="currentColor" />
               <span>{t('profile.pinnedTag')}</span>
             </span>
-          ) : post.category ? (
+          ) : post.hashtags ? (
             <span className="text-[9px] font-bold uppercase tracking-wider text-muted bg-surface/90 backdrop-blur-xs px-1.5 py-0.5 rounded border border-line-soft/80 shadow-2xs truncate">
-              {post.category}
+              {formatHashtags(post.hashtags)}
             </span>
           ) : null}
         </div>
@@ -144,6 +147,8 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
 
 export default function Profile() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isEducationSetup = new URLSearchParams(location.search).get('setup') === 'education';
   const { userId: routeUserId } = useParams(); // 📍 /profile/:userId = ดูโปรไฟล์คนอื่น, /profile = ของตัวเอง
   const { currentUser, login } = useUser();
   const toast = useToast();
@@ -157,6 +162,16 @@ export default function Profile() {
   const [notFound, setNotFound] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
+  const closeProfileEditor = () => {
+    if (savingRef.current) return;
+    setIsEditOpen(false);
+    if (isEducationSetup) navigate(returnPath(location.search), { replace: true });
+  };
+  useEffect(() => {
+    if (isEducationSetup && isOwnProfile && currentUser?.id) setIsEditOpen(true);
+  }, [isEducationSetup, isOwnProfile, currentUser?.id]);
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
   const [studiedAtUp, setStudiedAtUp] = useState(false);
@@ -180,6 +195,7 @@ export default function Profile() {
   const [isFollowListLoading, setIsFollowListLoading] = useState(false);
   const [pinBusyId, setPinBusyId] = useState(null);
   const [isTasteDetailsOpen, setIsTasteDetailsOpen] = useState(false);
+  const [isBadgesOpen, setIsBadgesOpen] = useState(false);
   const [postTab, setPostTab] = useState('all'); // 'all' | 'pinned'
 
   // Taste Details modal content (similar users + viewer match) loads on explicit
@@ -275,7 +291,7 @@ export default function Profile() {
     }
     if (isOwnProfile && currentUser) {
       setDisplayName(currentUser.username || '');
-      setBio(currentUser.bio || 'Master of tier lists. Categorizing the virtual world one tier at a time.');
+      setBio(currentUser.bio || '');
       // 📍 ค่าจาก dropdown เท่านั้น: ถ้าข้อมูลเดิมไม่ตรงกับคณะ/สาขา/ปีที่รู้จัก ให้จับเป็นค่าว่าง
       // (ข้อมูลเก่าถูกล้างไปแล้วจาก migrations/0011_profile_education_reset.sql)
       const storedFaculty = currentUser.faculty || '';
@@ -283,18 +299,21 @@ export default function Profile() {
       const storedMajor = currentUser.major || '';
       const matchedMajor = matchedFaculty && getMajorsForFaculty(matchedFaculty).includes(storedMajor) ? storedMajor : '';
       const storedYear = String(currentUser.year || '');
-      setStudiedAtUp(!!currentUser.university);
+      setStudiedAtUp(currentUser.university ? true : (isEducationSetup ? null : false));
       setFacultyValue(matchedFaculty);
       setMajorValue(matchedMajor);
       setAdmissionYear(admissionYears.includes(storedYear) ? storedYear : '');
       setAvatarUrl(currentUser.avatar_url || '');
     }
-  }, [profileUserId, isOwnProfile, currentUser, admissionYears]);
+  }, [profileUserId, isOwnProfile, currentUser, admissionYears, isEducationSetup]);
 
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') {
-        setIsEditOpen(false);
+        if (!savingRef.current) {
+          setIsEditOpen(false);
+          if (isEducationSetup && isOwnProfile && isEditOpen) navigate(returnPath(location.search), { replace: true });
+        }
         setFollowListModal(null);
         setIsTasteDetailsOpen(false);
       }
@@ -303,7 +322,7 @@ export default function Profile() {
       window.addEventListener('keydown', handleEsc);
     }
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [isEditOpen, followListModal, isTasteDetailsOpen]);
+  }, [isEditOpen, followListModal, isTasteDetailsOpen, isEducationSetup, isOwnProfile, location.search, navigate]);
 
   const handleToggleFollow = async () => {
     if (!currentUser) {
@@ -358,7 +377,6 @@ export default function Profile() {
           position,
           title: post.title,
           description: post.description,
-          category: post.category,
           hashtags: post.hashtags,
           template_id: post.template_id,
           stats: post.stats,
@@ -399,6 +417,8 @@ export default function Profile() {
 
   const handleSaveChanges = async (e) => {
     e.preventDefault();
+    if (savingRef.current || isUploading) return;
+    if (studiedAtUp === null) { toast.error(t('profile.chooseMembership')); return; }
 
     // 📍 Validation ฝั่ง client — ถ้าเลือก "เคยศึกษาที่มหาวิทยาลัยพะเยา" ต้องเลือกครบทั้ง 3 ฟิลด์
     // (ฝั่ง server ตรวจซ้ำอีกชั้นใน functions/api/auth.js)
@@ -421,6 +441,8 @@ export default function Profile() {
       ? { university: UP_UNIVERSITY_NAME, faculty: facultyValue, major: majorValue, year: admissionYear }
       : { university: null, faculty: null, major: null, year: null };
 
+    savingRef.current = true;
+    setIsSaving(true);
     const { error } = await updateProfile(currentUser.id, {
       username: displayName,
       bio: bio,
@@ -428,6 +450,8 @@ export default function Profile() {
       avatar_url: avatarUrl
     });
 
+    savingRef.current = false;
+    setIsSaving(false);
     if (error) {
       toast.error(t('profile.errUpdate', { msg: error }));
       return;
@@ -444,7 +468,7 @@ export default function Profile() {
       avatar_url: avatarUrl
     };
     login(updatedUser); // อัปเดตข้อมูลใน Context / LocalStorage
-    setIsEditOpen(false);
+    closeProfileEditor();
     toast.success(t('profile.successUpdate'));
   };
 
@@ -481,7 +505,7 @@ export default function Profile() {
   const totalLikes = posts.reduce((n, p) => n + (p.stats?.likes || 0), 0);
   const tasteIdentity = displayUser?.taste_identity || {};
   const pinnedRankings = Array.isArray(tasteIdentity.pinned_rankings) ? tasteIdentity.pinned_rankings : [];
-  const categoryDistribution = Array.isArray(tasteIdentity.category_distribution) ? tasteIdentity.category_distribution : [];
+  const hashtagDistribution = Array.isArray(tasteIdentity.hashtag_distribution) ? tasteIdentity.hashtag_distribution : [];
   const topItems = Array.isArray(tasteIdentity.top_items) ? tasteIdentity.top_items : [];
   const badges = Array.isArray(tasteIdentity.badges) ? tasteIdentity.badges : [];
   // A4: สถานะ badge ทั้ง 5 (ปลด/ล็อก + progress) จากตัวเลขที่มีอยู่แล้ว — ไม่เพิ่ม request
@@ -601,15 +625,15 @@ export default function Profile() {
               </div>
               <p className="text-[11px] text-muted mb-4">{t('profile.tasteSnapshotHelp')}</p>
 
-              {categoryDistribution.length === 0 && topItems.length === 0 ? (
+              {hashtagDistribution.length === 0 && topItems.length === 0 ? (
                 <p className="text-xs text-muted bg-surface rounded-xl px-3 py-3">{t('profile.noTasteData')}</p>
               ) : (
                 <>
                   <div className="space-y-2.5">
-                    {categoryDistribution.slice(0, 3).map((item) => (
-                      <div key={item.category}>
+                    {hashtagDistribution.slice(0, 3).map((item) => (
+                      <div key={item.hashtag}>
                         <div className="flex items-center justify-between text-[11px] mb-1">
-                          <span className="font-semibold text-ink capitalize truncate pr-2">{item.category}</span>
+                          <span className="font-semibold text-ink capitalize truncate pr-2">#{item.hashtag}</span>
                           <span className="text-muted shrink-0">{item.percentage}%</span>
                         </div>
                         <div className="h-1.5 rounded-full bg-surface overflow-hidden">
@@ -650,7 +674,23 @@ export default function Profile() {
                 {t('profile.viewTasteDetails')} →
               </button>
             </section>
+            <section className="glass rounded-2xl p-5 shadow-sm" aria-label={t('profile.badges')}>
+              <div className="flex items-center gap-2">
+                <Award size={18} className="text-brand" aria-hidden="true" />
+                <h3 className="font-bold text-ink">{t('profile.badges')}</h3>
+              </div>
+              <p className="mt-2 text-sm text-muted">{t('profile.badgesUnlockedCount', { count: badgeStates.filter(badge => badge.unlocked).length, total: badgeStates.length })}</p>
+              <button type="button" onClick={() => setIsBadgesOpen(true)} aria-haspopup="dialog"
+                className="mt-4 w-full rounded-xl border border-brand/30 px-3 py-2.5 text-sm font-bold text-brand hover:bg-brand/10 transition-colors">
+                {t('profile.viewAllBadges')}
+              </button>
+            </section>
           </div>
+
+          <Modal open={isBadgesOpen} onClose={() => setIsBadgesOpen(false)} title={t('profile.badges')} maxWidth="max-w-2xl">
+            <p className="text-sm text-muted mb-4">{t('profile.badgesFor', { name: displayUser?.username })}</p>
+            <BadgeGallery badges={badgeStates} />
+          </Modal>
 
           {/* Right Content: Create Template Button & List of User Posts */}
           <div className="lg:col-span-3 space-y-6">
@@ -686,17 +726,17 @@ export default function Profile() {
                     <BarChart3 size={16} className="ml-auto shrink-0" />
                   </div>
 
-              {categoryDistribution.length === 0 && topItems.length === 0 ? (
+              {hashtagDistribution.length === 0 && topItems.length === 0 ? (
                 <p className="text-sm text-muted bg-surface rounded-xl px-4 py-5 text-center">{t('profile.noTasteData')}</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.categories')}</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.hashtags')}</h4>
                     <div className="space-y-3">
-                      {categoryDistribution.map((item) => (
-                        <div key={item.category}>
+                      {hashtagDistribution.map((item) => (
+                        <div key={item.hashtag}>
                           <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="font-semibold text-ink capitalize">{item.category}</span>
+                            <span className="font-semibold text-ink capitalize">#{item.hashtag}</span>
                             <span className="text-muted">{item.percentage}%</span>
                           </div>
                           <div className="h-2 rounded-full bg-surface overflow-hidden">
@@ -736,7 +776,6 @@ export default function Profile() {
                     <p className="text-sm text-ink mt-1">{t('profile.tasteMatchYou', { score: tasteMatch.score })}</p>
                   </div>
                   <div className="text-right text-xs text-muted">
-                    {tasteMatch.shared_categories?.length > 0 && <p>{t('profile.sharedCategories', { categories: tasteMatch.shared_categories.slice(0, 3).join(', ') })}</p>}
                     {tasteMatch.shared_hashtags?.length > 0 && <p>#{tasteMatch.shared_hashtags.slice(0, 3).join(' #')}</p>}
                   </div>
                 </div>
@@ -771,29 +810,7 @@ export default function Profile() {
 
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.badges')}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {badgeStates.map((badge) => (
-                    <span
-                      key={badge.id}
-                      title={t(`profile.badgeDesc.${badge.id}`)}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                        badge.unlocked
-                          ? 'bg-surface border-line text-ink'
-                          : 'bg-surface-glass border-line-soft text-muted opacity-70'
-                      }`}
-                    >
-                      {badge.unlocked
-                        ? <Award size={14} className="text-amber-500" />
-                        : <Lock size={14} />}
-                      {t(`profile.badge.${badge.id}`)}
-                      <span className="text-[11px] font-bold text-muted">
-                        {badge.progress == null
-                          ? t(`profile.badgeDesc.${badge.id}`)
-                          : `${badge.progress}/${badge.need}`}
-                      </span>
-                    </span>
-                  ))}
-                </div>
+                <BadgeGallery badges={badgeStates} />
               </div>
                 </div>
               </Modal>
@@ -874,20 +891,24 @@ export default function Profile() {
         <div 
           className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setIsEditOpen(false);
+            if (e.target === e.currentTarget) closeProfileEditor();
           }}
         >
-          <div className="glass w-full max-w-md rounded-2xl p-6 shadow-xl relative">
+          <div role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" className="glass w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl p-6 shadow-xl relative">
             <button
-              onClick={() => setIsEditOpen(false)}
+              onClick={closeProfileEditor}
+              aria-label={t('profile.cancel')}
               className="absolute top-4 right-4 text-muted hover:text-ink-soft font-bold"
             >
               ✕
             </button>
 
-            <h3 className="text-xl font-bold text-ink mb-4">{t('profile.editProfile')}</h3>
+            <h3 id="profile-editor-title" className="text-xl font-bold text-ink mb-4">{t(isEducationSetup ? 'profile.setupTitle' : 'profile.editProfile')}</h3>
+            {isEducationSetup && <p className="text-sm text-muted mb-4">{t('profile.setupHelp')}</p>}
 
             <form onSubmit={handleSaveChanges} className="space-y-4">
+              <fieldset disabled={isSaving || isUploading} className="space-y-4">
+              {!isEducationSetup && <>
               <div className="text-center mb-4">
                 <div className="w-20 h-20 mx-auto rounded-full bg-surface overflow-hidden mb-2 relative">
                   {isUploading ? (
@@ -938,37 +959,23 @@ export default function Profile() {
                 ></textarea>
               </div>
 
+              </>}
               <div className="bg-surface/50 border border-line-soft rounded-xl p-4 space-y-3">
-                <label className="flex items-center gap-3 cursor-pointer select-none">
-                  <span className="relative inline-flex items-center justify-center w-5 h-5 flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={studiedAtUp}
-                      onChange={(e) => {
-                        setStudiedAtUp(e.target.checked);
-                        if (!e.target.checked) {
-                          setFacultyValue('');
-                          setMajorValue('');
-                          setAdmissionYear('');
-                        }
-                      }}
-                      className="peer sr-only"
-                    />
-                    <span className="absolute inset-0 rounded-md border-2 border-line bg-surface transition-colors peer-checked:bg-brand peer-checked:border-brand" />
-                    <svg
-                      viewBox="0 0 12 12"
-                      className="absolute w-3 h-3 text-canvas opacity-0 peer-checked:opacity-100 transition-opacity"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M2 6.5 4.5 9 10 3" />
-                    </svg>
-                  </span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">{t('profile.studiedUp')}</span>
-                </label>
+                <fieldset>
+                  <legend className="text-sm font-bold text-ink mb-3">{t('profile.membershipQuestion')}</legend>
+                  <div className="flex flex-wrap gap-4">
+                    {[true, false].map(value => (
+                      <label key={String(value)} className="flex items-center gap-2 text-sm text-ink cursor-pointer">
+                        <input type="radio" name="up-membership" checked={studiedAtUp === value}
+                          onChange={() => {
+                            setStudiedAtUp(value);
+                            if (!value) { setFacultyValue(''); setMajorValue(''); setAdmissionYear(''); }
+                          }} required />
+                        {t(value ? 'profile.membershipYes' : 'profile.membershipNo')}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
 
                 {studiedAtUp && (
                   <>
@@ -1026,18 +1033,19 @@ export default function Profile() {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setIsEditOpen(false)}
+                  onClick={closeProfileEditor}
                   className="px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-surface-glass rounded-xl"
                 >
-                  {t('profile.cancel')}
+                  {t(isEducationSetup ? 'profile.setupLater' : 'profile.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-5 py-2 text-sm font-bold bg-brand hover:bg-brand-accent text-canvas rounded-xl shadow-sm"
                 >
-                  {t('profile.saveChanges')}
+                  {t(isSaving ? 'profile.saving' : (isEducationSetup ? 'profile.setupContinue' : 'profile.saveChanges'))}
                 </button>
               </div>
+              </fieldset>
             </form>
           </div>
         </div>
@@ -1107,8 +1115,6 @@ export default function Profile() {
     </div>
   );
 }
-
-
 
 
 

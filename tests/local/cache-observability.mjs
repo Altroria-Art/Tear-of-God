@@ -117,9 +117,9 @@ async function createSeededD1() {
     db.prepare(`INSERT INTO templates (id, creator_id, title, tiers) VALUES (?, ?, ?, ?)`).bind('tpl1', 'author1', 'T1', '[]'),
     db.prepare(`INSERT INTO template_items (id, template_id, item_id, position) VALUES (?, ?, ?, ?)`).bind('ti1', 'tpl1', 'ball', 0),
     db.prepare(`INSERT INTO items (id, name) VALUES (?, ?)`).bind('ball', 'Ball'),
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, likes_count, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('r1', 'One', 'author1', 'gaming', 5),
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, likes_count, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('r2', 'Two', 'author1', 'gaming', 3),
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, likes_count, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('r3', 'Three', 'author1', 'food', 1),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('r1', 'One', 'author1', 'gaming', 5),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('r2', 'Two', 'author1', 'gaming', 3),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('r3', 'Three', 'author1', 'food', 1),
   ]);
   return { mf, db };
 }
@@ -228,7 +228,7 @@ try {
 
   // CASE 4 — filtered trending: eligible=false, never a shared miss.
   captureLogs();
-  await callRankings(db, { feed_type: 'trending', seed: 103, limit: 5, page: 1, category: 'gaming' });
+  await callRankings(db, { feed_type: 'trending', seed: 103, limit: 5, page: 1, hashtag: 'gaming' });
   releaseLogs();
   {
     const [entry] = metricLogs();
@@ -260,7 +260,7 @@ try {
   // D1 fallback the same way it would for an unfiltered outage.
   globalThis.caches = { default: fakeCache({ failMatch: true, failPut: true }) };
   captureLogs();
-  const outage = await callRankings(db, { feed_type: 'trending', seed: 106, limit: 5, page: 1, category: 'gaming' });
+  const outage = await callRankings(db, { feed_type: 'trending', seed: 106, limit: 5, page: 1, hashtag: 'gaming' });
   assert.equal(outage.response.status, 200);
   assert.equal(outage.body.data.length, 2);
   releaseLogs();

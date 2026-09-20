@@ -105,7 +105,7 @@ export default function Templates() {
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
                   <th className="px-4 py-3 font-bold">{t('admin.title')}</th>
                   <th className="px-4 py-3 font-bold">{t('admin.owner')}</th>
-                    <th className="px-4 py-3 font-bold">{t('admin.hashtags')}</th>
+                  <th className="px-4 py-3 font-bold">{t('admin.hashtags')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.uses')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.views')}</th>
                   <th className="px-4 py-3 font-bold text-right">{t('admin.actions')}</th>
@@ -193,7 +193,6 @@ export default function Templates() {
                 </div>
                 <p className="text-sm text-muted mt-1">
                   {t('admin.createdBy', { name: detail.template?.profile?.username || detail.template?.creator?.username || t('common.unknownUser') })}
-                  {' · '}{t('admin.category')}: {detail.template.category || '—'}
                 </p>
               </div>
               <button
@@ -210,11 +209,9 @@ export default function Templates() {
               <p className="text-sm text-ink-soft mb-4">{detail.template.description}</p>
             )}
 
-            <div className="flex flex-wrap gap-2 mb-4 text-sm">
+            <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
               <span className="text-xs font-bold uppercase tracking-wider text-muted mr-1">{t('admin.hashtags')}:</span>
-              {(detail.template.hashtags || '').split(',').filter(Boolean).map((h) => (
-                <span key={h} className="rounded-full bg-surface px-2 py-0.5 text-xs font-semibold text-brand">{h.trim()}</span>
-              ))}
+              <HashtagCell hashtags={detail.template.hashtags} />
             </div>
 
             {/* คลังไอเทมของเทมเพลต (Item Pool) */}
