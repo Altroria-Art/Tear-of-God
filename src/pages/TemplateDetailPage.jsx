@@ -322,7 +322,7 @@ export default function TemplateDetailPage() {
   const handleExportAverage = () => setModal('export')
 
   // A2: creator/admin ลบ template ตัวเอง — confirm ก่อน, สำเร็จแล้วไปหน้า templates
-  const canDeleteTemplate = currentUser && (currentUser.role === 'admin' || currentUser.id === template.profile?.id)
+  const canDeleteTemplate = currentUser && (currentUser.role === 'admin' || currentUser.id === template?.profile?.id)
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false)
   const handleDeleteTemplate = async () => {
     if (!window.confirm(t('template.confirmDeleteTemplate', { title: template.title, count: template.stats?.uses || 0 }))) return
