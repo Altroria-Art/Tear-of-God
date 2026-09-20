@@ -16,12 +16,12 @@
 - Modify: `src/locales/th.json`
 - Modify: `src/locales/en.json`
 
-- [ ] **Step 1: Add translation keys in `th.json` and `en.json`**
+- [x] **Step 1: Add translation keys in `th.json` and `en.json`**
   - Add `badgeOriginal`: "สร้างเอง" / "Original"
   - Add `badgeTemplate`: "ใช้เทมเพลต" / "From Template"
   - Add `usedTemplateTooltip`: "สร้างจากเทมเพลต: {{title}}" / "Created from template: {{title}}"
 
-- [ ] **Step 2: Commit translation changes**
+- [x] **Step 2: Commit translation changes**
   - Run `git commit -m "i18n: add badge translations for original vs template"`
 
 ---
@@ -32,21 +32,21 @@
 - Modify: `functions/api/rankings.js:150-185` (single ranking fetch)
 - Modify: `functions/api/rankings.js:655-745` (batch ranking fetch)
 
-- [ ] **Step 1: Update single ranking query in `functions/api/rankings.js`**
+- [x] **Step 1: Update single ranking query in `functions/api/rankings.js`**
   - Query `id, creator_id, title, tiers FROM templates WHERE id = ?` instead of just `tiers`.
   - Calculate `is_original = !ranking.template_id || (tpl && tpl.creator_id === ranking.user_id)`.
   - Attach `is_original` and `template_title = tpl?.title || null` to the response.
 
-- [ ] **Step 2: Update batch ranking query in `functions/api/rankings.js`**
+- [x] **Step 2: Update batch ranking query in `functions/api/rankings.js`**
   - Query `id, creator_id, title, tiers FROM templates WHERE id IN (...)`.
   - Store `creator_id` and `title` in `templateById` map.
   - In `formattedRankings = rankings.map(...)`, compute `is_original = !r.template_id || (tpl && tpl.creator_id === r.user_id)`.
   - Attach `is_original` and `template_title = tpl?.title || null` to each item.
 
-- [ ] **Step 3: Verify backend changes**
+- [x] **Step 3: Verify backend changes**
   - Run `npm run lint`
 
-- [ ] **Step 4: Commit backend changes**
+- [x] **Step 4: Commit backend changes**
   - Run `git commit -m "feat(api): include is_original and template_title in rankings response"`
 
 ---
@@ -56,15 +56,15 @@
 **Files:**
 - Modify: `src/pages/Profile.jsx:55-80` (`MiniTierTile`)
 
-- [ ] **Step 1: Render the badge in `MiniTierTile`**
+- [x] **Step 1: Render the badge in `MiniTierTile`**
   - Inside the top-left overlay container (`absolute top-2 left-2 z-10 flex items-center gap-1 max-w-[calc(100%-3rem)] flex-wrap`):
     - If `post.is_original`: render badge with `bg-surface/90 text-ink border-line-soft font-bold text-[9px]` displaying `t('profile.badgeOriginal')`.
     - If `!post.is_original`: render badge with `bg-highlight/15 text-highlight border-highlight/40 font-bold text-[9px]` displaying `t('profile.badgeTemplate')`, with `title={t('profile.usedTemplateTooltip', { title: post.template_title || post.title })}`.
 
-- [ ] **Step 2: Verify lint and build**
+- [x] **Step 2: Verify lint and build**
   - Run `npm run lint` and `npm run build`
 
-- [ ] **Step 3: Commit profile changes**
+- [x] **Step 3: Commit profile changes**
   - Run `git commit -m "feat(profile): display template vs original badge on tier list cards"`
 
 ---
@@ -74,11 +74,11 @@
 **Files:**
 - Modify: `src/pages/PostDetail.jsx:400-430`
 
-- [ ] **Step 1: Render the badge in `PostDetail.jsx`**
+- [x] **Step 1: Render the badge in `PostDetail.jsx`**
   - Next to post title or above hashtags, display the corresponding badge with link to template if `!is_original` and `post.templateId`.
 
-- [ ] **Step 2: Verify lint and build**
+- [x] **Step 2: Verify lint and build**
   - Run `npm run lint` and `npm run build`
 
-- [ ] **Step 3: Commit PostDetail changes**
+- [x] **Step 3: Commit PostDetail changes**
   - Run `git commit -m "feat(post): display original vs template badge on post detail"`
