@@ -44,14 +44,14 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
     >
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
       <div ref={dialog} tabIndex={-1} className={`relative flex flex-col w-full max-h-[85dvh] ${maxWidth} rounded-2xl border border-line-soft bg-surface shadow-2xl shadow-black/30`}>
         <div className="flex shrink-0 items-center justify-between border-b border-line-soft px-5 py-4">
           <h3 className="text-lg font-bold text-ink">{title}</h3>
           <button
             type="button"
-            onClick={onClose}
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
             aria-label={t('common.close')}
             className="rounded-md p-1.5 text-muted transition-colors hover:bg-tag hover:text-ink"
           >
