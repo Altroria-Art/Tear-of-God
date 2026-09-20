@@ -300,7 +300,10 @@ function HomeTierCard({ post, onRequireAuth }) {
         )}
       </div>
 
-      <div className="mb-4 sm:hidden">
+      <div
+        className="mb-4 sm:hidden cursor-pointer"
+        onClick={() => navigate(`/post/${post.id}`)}
+      >
         <div className="space-y-1.5">
           {mobileRows.map((row) => renderTierRow(row, true, mobileExpanded ? null : 4))}
         </div>
@@ -308,7 +311,7 @@ function HomeTierCard({ post, onRequireAuth }) {
           <button
             type="button"
             aria-expanded={mobileExpanded}
-            onClick={() => setMobileExpanded((expanded) => !expanded)}
+            onClick={(e) => { e.stopPropagation(); setMobileExpanded((expanded) => !expanded); }}
             className="mt-2.5 w-full rounded-xl border border-line-soft bg-surface-glass px-4 py-2.5 text-xs font-bold text-ink-soft transition-colors hover:bg-tag hover:text-ink"
           >
             {mobileExpanded
@@ -318,7 +321,10 @@ function HomeTierCard({ post, onRequireAuth }) {
         )}
       </div>
 
-      <div className="hidden space-y-1.5 mb-4 sm:block">
+      <div
+        className="hidden space-y-1.5 mb-4 sm:block cursor-pointer"
+        onClick={() => navigate(`/post/${post.id}`)}
+      >
         {tierRows.map((row) => renderTierRow(row))}
       </div>
 
