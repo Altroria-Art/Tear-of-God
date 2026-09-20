@@ -63,7 +63,7 @@ export async function onRequest(context) {
     // is_following/is_saved/user_vote, or any session-dependent field, and the
     // handler never reads context.data.user (see functions/api/categories.js).
     // Same safe bypass pattern as spotlights/suggest above.
-    const isPublicCategories = path === '/api/categories' && request.method === 'GET';
+    const isPublicCategories = (path === '/api/categories' || path === '/api/hashtags') && request.method === 'GET';
     const skipSessionLookup = isPublicSpotlight || isPublicSuggestion || isPublicCategories;
     context.data.user = skipSessionLookup
       ? null

@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS items (
   name TEXT,
   image_url TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_items_name ON items(name);
 
 CREATE TABLE IF NOT EXISTS ranking_items (
   id TEXT PRIMARY KEY,
@@ -310,6 +311,8 @@ CREATE TABLE IF NOT EXISTS analytics_events (
 );
 CREATE INDEX IF NOT EXISTS idx_analytics_event_created
   ON analytics_events(event_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_created
+  ON analytics_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_session_created
   ON analytics_events(session_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_analytics_user_created

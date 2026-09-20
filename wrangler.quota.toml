@@ -1,0 +1,11 @@
+# Migration-only production config: discover ONLY the additive quota indexes.
+# Do not use wrangler.phase3d.toml or broad migration discovery for production.
+name = "tear-of-god-quota-migration"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tear-of-god-db"
+database_id = "69d366f1-55ba-43cf-a492-882e137786f4"
+migrations_dir = "migrations-active"
+migrations_pattern = "migrations-active/0011_quota_indexes.sql"

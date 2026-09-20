@@ -210,7 +210,8 @@ export async function onRequest({ request, env, data: auth }) {
             COUNT(DISTINCT events.user_id) AS users
           FROM dates
           LEFT JOIN analytics_events events
-            ON date(events.created_at, '+7 hours') = dates.day
+            ON events.created_at >= datetime(dates.day, '-7 hours')
+           AND events.created_at < datetime(dates.day, '+1 day', '-7 hours')
           GROUP BY dates.day
           ORDER BY dates.day ASC
         `).bind(dailyStartModifier).all(),
