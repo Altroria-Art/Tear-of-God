@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, ChevronDown, Trash2 } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, Trash2 } from 'lucide-react'
 import Avatar from '../components/ui/Avatar'
 import Pagination from '../components/ui/Pagination'
 import SortDropdown from '../components/ui/SortDropdown'
@@ -521,39 +521,6 @@ export default function TemplateDetailPage() {
           <HashtagList hashtags={template.hashtags} className="mt-3" />
         </section>
 
-        <section className="mb-8">
-          <details className="group bg-surface rounded-xl border border-line-soft overflow-hidden [&_summary::-webkit-details-marker]:hidden">
-            <summary className="cursor-pointer px-5 py-4 font-bold text-ink flex items-center justify-between hover:bg-surface-glass transition-colors list-none">
-              <span className="flex items-center gap-2">
-                <span className="text-xl">{t('template.itemsInTemplate', { defaultValue: 'Items in this Template' })}</span>
-                <span className="bg-surface-glass border border-line-soft rounded-full px-2 py-0.5 text-xs text-muted font-medium">
-                  {template.template_items?.length || 0}
-                </span>
-              </span>
-              <span className="text-muted transition-transform duration-200 group-open:rotate-180">
-                <ChevronDown size={20} />
-              </span>
-            </summary>
-            <div className="p-5 pt-2 border-t border-line-soft/30">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                {(template.template_items || []).map((ti, i) => (
-                  <div key={ti.item_id || i} className="flex flex-col items-center gap-1.5 p-2 bg-surface-glass rounded-lg border border-line-soft">
-                    {ti.item?.image_url ? (
-                      <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-surface">
-                        <img src={ti.item.image_url} alt={ti.item?.name || ti.item_id} className="w-full h-full object-cover" />
-                      </div>
-                    ) : (
-                      null
-                    )}
-                    <span className="text-xs font-medium text-ink text-center w-full leading-relaxed break-words">
-                      {ti.item?.name || ti.item_id}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </details>
-        </section>
 
         <section>
           <div className="mb-6 flex items-center justify-between">
