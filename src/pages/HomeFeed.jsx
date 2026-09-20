@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
-import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, BarChart3, RotateCw } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, BarChart3 } from 'lucide-react';
 import { challengeUrl, shareUrl } from '../lib/share';
 import ShareExportModal from '../components/ui/ShareExportModal';
 import ExportCard from '../components/ui/ExportCard';
@@ -453,7 +453,6 @@ export default function HomeFeed() {
   // บันทึก ID โพสต์ที่เพิ่งแสดงผลไปเพื่อส่ง exclude ตอนกดรีเฟรช ป้องกันการเห็นโพสต์ซ้ำเมื่อกดรีเฟรชรัวๆ
   const seenFeedIdsRef = useRef({});
   const currentExcludeRef = useRef('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const requestGenerationRef = useRef(0);
@@ -467,7 +466,6 @@ export default function HomeFeed() {
     requestGenerationRef.current += 1;
     pageRef.current = 1;
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    setIsRefreshing(true);
     setRefreshTrigger(prev => prev + 1);
   }, [cacheKey, posts, feedLocked]);
 
@@ -491,7 +489,6 @@ export default function HomeFeed() {
       setPosts([]);
       setHasMore(false);
       setIsLoading(false);
-      setIsRefreshing(false);
       return () => { requestGenerationRef.current += 1; };
     }
     const cached = feedCacheRef.current[cacheKey];
@@ -504,7 +501,6 @@ export default function HomeFeed() {
       pageRef.current = cached.page;
       setHasMore(cached.hasMore);
       setIsLoading(false);
-      setIsRefreshing(false);
       return () => { requestGenerationRef.current += 1; };
     }
 
@@ -573,7 +569,6 @@ export default function HomeFeed() {
         if (!cancelled) {
           setIsLoading(false);
           loadingRef.current = false;
-          setIsRefreshing(false);
         }
       }
     }
@@ -681,17 +676,6 @@ export default function HomeFeed() {
               {t(labelKey)}
             </button>
           ))}
-          <div className="h-4 w-px bg-line-soft mx-0.5" aria-hidden="true" />
-          <button
-            type="button"
-            onClick={refreshFeed}
-            disabled={isRefreshing}
-            aria-label={t('feed.refresh')}
-            title={t('feed.refresh')}
-            className="flex items-center justify-center rounded-full p-1.5 text-muted hover:text-brand hover:bg-surface-glass transition-all disabled:opacity-50 active:scale-90"
-          >
-            <RotateCw size={13} className={isRefreshing ? 'animate-spin text-brand' : ''} />
-          </button>
         </div>
       </div>
 

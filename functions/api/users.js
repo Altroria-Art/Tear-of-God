@@ -181,9 +181,16 @@ async function buildTasteIdentity(db, userId, baseUser) {
   const badges = [];
   if (rankingCount >= 1) badges.push({ id: 'first_rank', value: rankingCount });
   if (rankingCount >= 10) badges.push({ id: 'ranker_10', value: rankingCount });
+  if (rankingCount >= 50) badges.push({ id: 'ranking_veteran', value: rankingCount });
   if (templateCount >= 1) badges.push({ id: 'template_creator', value: templateCount });
+  if (templateCount >= 5) badges.push({ id: 'template_builder', value: templateCount });
   if (followerCount >= 5) badges.push({ id: 'community_voice', value: followerCount });
+  if (followerCount >= 25) badges.push({ id: 'community_star', value: followerCount });
   if (maxTemplateUses >= 25) badges.push({ id: 'template_hit', value: maxTemplateUses });
+  if (maxTemplateUses >= 100) badges.push({ id: 'trending_template', value: maxTemplateUses });
+  if (rankingCount >= 10 && templateCount >= 5 && followerCount >= 10) {
+    badges.push({ id: 'all_rounder', value: 3 });
+  }
 
   return {
     hashtag_distribution: hashtagDistribution,
@@ -208,6 +215,8 @@ async function buildTasteIdentity(db, userId, baseUser) {
       created_at: row.ranking_created_at || row.created_at || null,
     })),
     badges,
+    template_count: templateCount,
+    max_template_uses: maxTemplateUses,
     // Similar users + viewer match are fetched on demand via ?fields=similar
     // (Taste Details modal) — never computed in the core profile request.
     taste_match: null,

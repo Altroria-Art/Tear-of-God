@@ -1,6 +1,35 @@
+import { useState } from 'react';
 import { formatHashtags } from '../../lib/hashtags';
-import TierLabel from '../tier/TierLabel'
-import ShareQr from '../ui/ShareQr'
+import TierLabel from '../tier/TierLabel';
+import ShareQr from '../ui/ShareQr';
+
+function AvgExportItem({ item }) {
+  const [imgError, setImgError] = useState(false);
+  const itemName = typeof item === 'object' ? (item.name || item.title) : item;
+  const rawImg = typeof item === 'object' ? (item.image_url || item.image) : null;
+  const itemImg = (rawImg && rawImg !== 'null' && rawImg !== 'undefined') ? String(rawImg).trim() : null;
+
+  return (
+    <div
+      className="flex h-16 w-16 sm:h-18 sm:w-18 aspect-square shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white p-1.5 text-center shadow-2xs overflow-hidden"
+      title={itemName}
+    >
+      {itemImg && !imgError ? (
+        <img
+          src={itemImg}
+          alt={itemName}
+          className="h-full w-full rounded-lg object-cover pointer-events-none"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <span className="w-full line-clamp-3 text-[11px] font-semibold leading-tight text-gray-800 break-words select-none px-0.5">
+          {itemName}
+        </span>
+      )}
+    </div>
+  );
+}
+
 
 // Export preview สำหรับ Community Average — ใช้ capture เป็น PNG (ภาพตารางสะอาด)
 // แสดงชื่อ item ต่อ tier ตามที่เห็นบนหน้า ไม่มีป้ายคะแนน/โหวตยิบย่อยปนในภาพ
@@ -68,26 +97,9 @@ export default function CommunityAvgExportPreview({
                     ไม่มีรายการในระดับนี้
                   </span>
                 ) : (
-                  items.map((item, idx) => {
-                    const itemName = typeof item === 'object' ? (item.name || item.title) : item
-                    const itemImg = typeof item === 'object' ? (item.image_url || item.image) : null
-
-                    return (
-                      <div
-                        key={idx}
-                        className="flex h-16 w-16 sm:h-18 sm:w-18 aspect-square shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white p-1.5 text-center shadow-2xs overflow-hidden"
-                        title={itemName}
-                      >
-                        {itemImg ? (
-                          <img src={itemImg} alt={itemName} className="h-full w-full rounded-lg object-cover pointer-events-none" />
-                        ) : (
-                          <span className="w-full line-clamp-3 text-[11px] font-semibold leading-tight text-gray-800 break-words select-none px-0.5">
-                            {itemName}
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })
+                  items.map((item, idx) => (
+                    <AvgExportItem key={idx} item={item} />
+                  ))
                 )}
               </div>
             </div>

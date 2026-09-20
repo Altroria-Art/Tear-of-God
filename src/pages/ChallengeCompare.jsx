@@ -230,7 +230,15 @@ export default function ChallengeCompare() {
               <div key={row.key} className={`grid grid-cols-[64px_minmax(0,1fr)_64px] items-center gap-2 rounded-xl border p-2 sm:grid-cols-[88px_minmax(0,1fr)_88px] sm:p-3 ${row.same ? 'border-status-success/25 bg-status-success/5' : 'border-line-soft bg-tag'}`}>
                 <TierLabel label={row.source.tier} color={row.source.color} index={row.source.index} className="h-10 w-16 rounded-lg text-sm font-black sm:w-22" />
                 <div className="min-w-0 text-center">
-                  {row.imageUrl && <img src={row.imageUrl} alt="" className="mx-auto mb-1 h-9 w-9 rounded-lg object-cover" loading="lazy" />}
+                  {row.imageUrl && (
+                    <img
+                      src={row.imageUrl}
+                      alt=""
+                      className="mx-auto mb-1 h-9 w-9 rounded-lg object-cover"
+                      loading="lazy"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  )}
                   <p className="truncate text-xs font-bold text-ink sm:text-sm" title={row.name}>{row.name}</p>
                   <p className={`mt-0.5 text-[10px] font-bold ${row.same ? 'text-status-success' : 'text-muted'}`}>
                     {row.same ? t('challenge.agree') : t('challenge.tiersApart', { count: row.distance })}
