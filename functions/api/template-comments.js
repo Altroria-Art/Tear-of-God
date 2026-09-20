@@ -2,7 +2,7 @@
 // - GET  /api/template-comments?template_id=..  → รายการคอมเมนต์ (LIMIT 200)
 // - POST /api/template-comments  body: { template_id, user_id, content } → สร้างคอมเมนต์
 import { INPUT_LIMITS, assertId, assertString, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
-import { deleteOwnComment } from '../lib/comment-delete.js';
+import { deleteComment } from '../lib/comment-delete.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -12,7 +12,7 @@ export async function onRequest({ request, env, data: auth }) {
   const templateId = url.searchParams.get('template_id');
 
   try {
-    if (request.method === 'DELETE') return await deleteOwnComment(request, db, auth.user, true);
+    if (request.method === 'DELETE') return await deleteComment(request, db, auth.user, true);
     // 🟢 [GET] ดึงคอมเมนต์ทั้งหมดของ Community Average ของเทมเพลตนี้
     if (request.method === 'GET') {
       if (!templateId) return jsonResponse({ success: false, error: 'Missing template_id' }, 400);

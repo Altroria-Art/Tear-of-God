@@ -18,11 +18,12 @@ try {
   const statements = schema.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n')
     .split(';').map(sql => sql.trim()).filter(Boolean);
   await db.batch(statements.map(sql => db.prepare(sql)));
-  for (const [id, token] of [['owner', 'a'.repeat(64)], ['other', 'b'.repeat(64)]]) {
+  for (const [id, token] of [['owner', 'a'.repeat(64)], ['other', 'b'.repeat(64)], ['admin', 'c'.repeat(64)]]) {
     await db.prepare('INSERT INTO profiles (id, username) VALUES (?, ?)').bind(id, id).run();
     await db.prepare('INSERT INTO auth_sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)')
       .bind(await digest(token), id, Date.now() + 60000).run();
   }
+  await db.prepare("UPDATE profiles SET role = 'admin' WHERE id = 'admin'").run();
   await db.prepare("INSERT INTO templates (id, creator_id) VALUES ('template', 'other')").run();
   await db.prepare("INSERT INTO rankings (id, user_id, template_id, comments_count) VALUES ('ranking', 'other', 'template', 3)").run();
 
@@ -49,6 +50,7 @@ try {
     }
     assert.equal((await call(isTemplate, { id: 'parent' }, null)).status, 401);
     assert.equal((await call(isTemplate, { id: 'parent', user_id: 'owner' }, 'b'.repeat(64))).status, 403);
+    assert.equal((await call(isTemplate, { id: 'parent', role: 'admin', user_id: 'admin' }, 'b'.repeat(64))).status, 403);
     assert.equal((await call(isTemplate, { id: 'parent' }, 'a'.repeat(64), 'https://other.test')).status, 403);
     assert.equal((await call(isTemplate, { id: 'missing' })).status, 404);
     assert.equal((await call(isTemplate, { id: "' OR 1=1" })).status, 400);
@@ -71,8 +73,19 @@ try {
     assert.equal(replyDeleted.body.comments_count, 1);
     assert.ok(await db.prepare(`SELECT id FROM ${table} WHERE id = 'reply'`).first());
     if (!isTemplate) assert.equal((await db.prepare("SELECT comments_count FROM rankings WHERE id = 'ranking'").first()).comments_count, 1);
+    await db.prepare(`INSERT INTO ${table} (id, ${column}, user_id, content, parent_id) VALUES ('admin-reply', ?, 'owner', 'keep this reply', 'reply')`).bind(scope).run();
+    const moderated = await call(isTemplate, { id: 'reply' }, 'c'.repeat(64));
+    assert.equal(moderated.status, 200);
+    assert.equal(moderated.body.comments_count, 1);
+    assert.equal(await db.prepare(`SELECT id FROM ${table} WHERE id = 'reply'`).first(), null);
+    assert.equal((await db.prepare(`SELECT parent_id FROM ${table} WHERE id = 'admin-reply'`).first()).parent_id, null);
+    if (!isTemplate) assert.equal((await db.prepare("SELECT comments_count FROM rankings WHERE id = 'ranking'").first()).comments_count, 1);
+    // A revoked admin session must no longer permit moderation.
+    await db.prepare("UPDATE profiles SET role = 'user' WHERE id = 'admin'").run();
+    assert.equal((await call(isTemplate, { id: 'admin-reply' }, 'c'.repeat(64))).status, 403);
+    await db.prepare("UPDATE profiles SET role = 'admin' WHERE id = 'admin'").run();
   }
-  console.log('Comment deletion passed: ownership, guest/CSRF rejection, validation, reply preservation, counters and rollback for both endpoints.');
+  console.log('Comment deletion passed: ownership, admin moderation without reports, role spoof/revocation rejection, guest/CSRF rejection, reply preservation, counters and rollback for both endpoints.');
 } finally {
   await mf.dispose();
 }

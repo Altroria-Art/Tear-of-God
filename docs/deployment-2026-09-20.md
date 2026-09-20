@@ -1,5 +1,10 @@
 # Deployment checkpoint — 2026-09-20
 
+Follow-up deployment: https://bb393082.tear-of-god.pages.dev adds direct admin
+comment deletion without a report, for both ranking and template comments.
+Local tests verified admin access, rejected forged/revoked roles, preserved replies
+and counters; lint/build passed. No additional database migration was applied.
+
 User requested production deployment before pausing work.
 
 - Production: https://tear-of-god.pages.dev

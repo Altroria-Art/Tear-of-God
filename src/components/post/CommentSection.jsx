@@ -25,7 +25,7 @@ function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isR
               <Flag size={14} />
             </button>
           )}
-          {currentUser && currentUser.id === author?.id && onDelete && (
+          {currentUser && (currentUser.id === author?.id || currentUser.role === 'admin') && onDelete && (
             <button type="button" onClick={() => onDelete(id)} className="text-muted hover:text-status-error transition-colors p-1 rounded-md" aria-label={t('post.deleteComment')} title={t('post.deleteComment')}>
               <Trash2 size={14} />
             </button>
