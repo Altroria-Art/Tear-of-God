@@ -96,7 +96,6 @@ function serializeTemplate(template, itemsMap) {
     id: template.id,
     title: template.title,
     description: template.description,
-    category: template.category,
     hashtags: template.hashtags,
     tiers: parseTiers(template.tiers),
     use_count: Number(template.live_uses) || 0,
@@ -123,7 +122,7 @@ function serializeRanking(row) {
   return {
     id: row.id,
     title: row.title || 'Untitled ranking',
-    category: row.category || 'general',
+    hashtags: row.hashtags || '',
     template_id: row.template_id || null,
     template_title: row.template_title || null,
     created_at: row.created_at || null,
@@ -138,7 +137,7 @@ function serializeRanking(row) {
 }
 
 const RANKING_SELECT = `
-  SELECT r.id, r.title, r.category, r.template_id, r.created_at,
+  SELECT r.id, r.title, r.hashtags, r.template_id, r.created_at,
          r.likes_count, r.dislikes_count, r.comments_count,
          p.id AS user_id, p.username, p.avatar_url,
          t.title AS template_title
@@ -180,7 +179,7 @@ export async function onRequestGet(context) {
   const { request, env } = context;
 
   const url = new URL(request.url);
-  const cacheKey = new Request(`${url.origin}${url.pathname}`, { method: 'GET' });
+  const cacheKey = new Request(`${url.origin}${url.pathname}?schema=hashtags-v1`, { method: 'GET' });
   const cache = typeof caches !== 'undefined' ? caches.default : null;
 
   if (cache) {

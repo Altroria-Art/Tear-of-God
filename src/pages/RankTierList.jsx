@@ -265,7 +265,6 @@ const RankTierList = () => {
       payload: {
         title,
         description,
-        category: selectedHashtags[0].replace('#', '').toLowerCase(),
         hashtags: selectedHashtags.join(','),
         user_id: currentUser.id,
         username: currentUser.username,

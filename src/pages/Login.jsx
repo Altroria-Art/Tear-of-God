@@ -16,7 +16,6 @@ const REAL_DEFAULT_TEMPLATES = [
   {
     id: 'tmpl_053',
     title: 'เมนูอาหารไทยประจำภาค',
-    category: 'food',
     hashtags: '#Food,#Thai',
     use_count: 4700,
     tiers: [
@@ -35,7 +34,6 @@ const REAL_DEFAULT_TEMPLATES = [
   {
     id: 'tmpl_001',
     title: 'Top Shonen Anime',
-    category: 'anime',
     hashtags: '#Anime',
     use_count: 12000,
     tiers: [
@@ -53,7 +51,6 @@ const REAL_DEFAULT_TEMPLATES = [
   {
     id: 'tmpl_057',
     title: 'นักบาสเกตบอล NBA ที่เก่งที่สุด',
-    category: 'sports',
     hashtags: '#Sports',
     use_count: 13500,
     tiers: [
@@ -68,12 +65,12 @@ const REAL_DEFAULT_TEMPLATES = [
 ];
 
 const REAL_DEFAULT_RANKINGS = [
-  { id: 'rank_001', title: 'จัดอันดับอนิเมะในดวงใจ ปี 2026', category: 'anime', hashtags: '#Anime,#2026' },
-  { id: 'rank_002', title: 'Tier List สุดยอดเกม RPG ในตำนาน', category: 'gaming', hashtags: '#Gaming,#OpenWorld' },
-  { id: 'rank_003', title: 'จัดอันดับภาษายอดฮิตสาย Tech', category: 'tech', hashtags: '#Tech,#Programming' },
-  { id: 'rank_004', title: 'หนังไซไฟในดวงใจตลอดกาล', category: 'movie', hashtags: '#Movie,#MindBender' },
-  { id: 'tmpl_054', title: 'เพลงป๊อปเกาหลี K-Pop มาแรง', category: 'music', hashtags: '#Music,#Pop' },
-  { id: 'tmpl_058', title: 'นักเตะตำนานพรีเมียร์ลีก', category: 'sports', hashtags: '#Sports,#PremierLeague' }
+  { id: 'rank_001', title: 'จัดอันดับอนิเมะในดวงใจ ปี 2026', hashtags: '#Anime,#2026' },
+  { id: 'rank_002', title: 'Tier List สุดยอดเกม RPG ในตำนาน', hashtags: '#Gaming,#OpenWorld' },
+  { id: 'rank_003', title: 'จัดอันดับภาษายอดฮิตสาย Tech', hashtags: '#Tech,#Programming' },
+  { id: 'rank_004', title: 'หนังไซไฟในดวงใจตลอดกาล', hashtags: '#Movie,#MindBender' },
+  { id: 'tmpl_054', title: 'เพลงป๊อปเกาหลี K-Pop มาแรง', hashtags: '#Music,#Pop' },
+  { id: 'tmpl_058', title: 'นักเตะตำนานพรีเมียร์ลีก', hashtags: '#Sports,#PremierLeague' }
 ];
 
 // คำศัพท์สลับเปลี่ยนไปเรื่อยๆ สำหรับไฮไลต์หัวเรื่อง
@@ -86,6 +83,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const next = returnPath(location.search);
+  const setupPath = `/profile?setup=education&next=${encodeURIComponent(next === '/' ? '/profile' : next)}`;
   const { login } = useUser();
   const { isLightMode } = useTheme();
   const toast = useToast();
@@ -195,11 +193,20 @@ export default function Login() {
         toast.error(t('auth.errRegisterFailed', { msg: error }));
       } else {
         toast.success(t('auth.successRegister'));
-        setEmail('');
+        setIsLoading(true);
+        const { data, error: loginError } = await loginUser({ email, password });
+        setIsLoading(false);
         setPassword('');
         setConfirmPassword('');
         setUsername('');
         setIsRegister(false);
+        if (loginError) {
+          toast.error(t('auth.errLoginFailed', { msg: loginError }));
+          navigate(`/login?next=${encodeURIComponent(setupPath)}`, { replace: true });
+        } else {
+          login(data);
+          navigate(setupPath, { replace: true });
+        }
       }
     } else {
       const { data, error } = await loginUser({ email, password });
@@ -223,14 +230,14 @@ export default function Login() {
         toast.error(t('auth.errGoogleFailed', { msg: error }));
         return;
       }
-      const { data: dbUser, error: syncError } = await syncGoogleUser(firebaseUser);
+      const { data: dbUser, error: syncError, isNewUser } = await syncGoogleUser(firebaseUser);
       if (syncError) {
         toast.error(t('auth.errSyncFailed', { msg: syncError }));
         return;
       }
       login(dbUser);
       toast.success(t('auth.successWelcome', { name: dbUser?.username || firebaseUser.username }));
-      navigate(next, { replace: true });
+      navigate(isNewUser ? setupPath : next, { replace: true });
     } catch (err) {
       toast.error(t('auth.errGoogleFailed', { msg: err.message }));
     } finally {
@@ -395,7 +402,7 @@ export default function Login() {
                         </span>
                       </div>
                       <span className="text-[9px] font-extrabold text-[#ff553e] bg-[#ff553e]/10 dark:bg-[#ff553e]/20 px-2 py-0.5 rounded-full shrink-0">
-                        {primaryTemplate.hashtags?.split(',')[0] || `#${primaryTemplate.category || 'Template'}`}
+                        {primaryTemplate.hashtags?.split(',')[0] || '#Template'}
                       </span>
                     </div>
 

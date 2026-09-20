@@ -43,8 +43,8 @@ export async function onRequest({ request, env, data: auth }) {
       }
 
       const { results: reports } = await db.prepare(`
-        SELECT rp.*, t.title AS template_title, t.category AS template_category,
-          rk.title AS ranking_title, rk.category AS ranking_category,
+        SELECT rp.*, t.title AS template_title, t.hashtags AS template_hashtags,
+          rk.title AS ranking_title, rk.hashtags AS ranking_hashtags,
           c.content AS comment_content, tc.content AS template_comment_content,
           p.username AS reporter_username, p.email AS reporter_email
         FROM reports rp
@@ -78,10 +78,10 @@ export async function onRequest({ request, env, data: auth }) {
           kind,
           template_id: r.template_id,
           template_title: r.template_title,
-          template_category: r.template_category,
+          template_hashtags: r.template_hashtags,
           ranking_id: r.ranking_id,
           ranking_title: r.ranking_title,
-          ranking_category: r.ranking_category,
+          ranking_hashtags: r.ranking_hashtags,
           comment_id: r.comment_id,
           template_comment_id: r.template_comment_id,
           comment_content: r.comment_content,

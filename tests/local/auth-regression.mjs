@@ -5,6 +5,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { onRequest as authEndpoint } from '../../functions/api/auth.js';
 import { onRequest as apiMiddleware } from '../../functions/api/_middleware.js';
 import { digest } from '../../functions/lib/session.js';
+import { FACULTIES, UP_UNIVERSITY_NAME, getAdmissionYears } from '../../src/lib/university.js';
 
 const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
 const schemaStatements = schema
@@ -193,6 +194,29 @@ try {
     const googleSync = await callAuth(db, { body: { action: 'google_sync', idToken: 'synthetic-local-token' } });
     assert.equal(googleSync.response.status, 200);
     assert.equal(googleSync.body.success, true);
+    assert.equal(googleSync.body.isNewUser, true);
+    const returningGoogle = await callAuth(db, { body: { action: 'google_sync', idToken: 'synthetic-local-token' } });
+    assert.equal(returningGoogle.body.isNewUser, false);
+    assert.equal(returningGoogle.body.data.id, googleSync.body.data.id);
+    const googleCookie = sessionCookie(returningGoogle.response);
+    const education = {
+      university: UP_UNIVERSITY_NAME,
+      faculty: FACULTIES[0].name,
+      major: FACULTIES[0].majors[0],
+      year: getAdmissionYears().at(-1),
+    };
+    const completedProfile = await callAuth(db, {
+      cookie: googleCookie, body: { action: 'update_profile', ...education },
+    });
+    assert.equal(completedProfile.response.status, 200);
+    const restoredProfile = await callAuth(db, { method: 'GET', cookie: googleCookie });
+    for (const [key, value] of Object.entries(education)) assert.equal(restoredProfile.body.data[key], value);
+    const nonStudent = await callAuth(db, {
+      cookie: googleCookie,
+      body: { action: 'update_profile', university: null, faculty: null, major: null, year: null },
+    });
+    assert.equal(nonStudent.response.status, 200);
+    for (const key of Object.keys(education)) assert.equal(nonStudent.body.data[key], null);
     const googleProfile = await db.prepare('SELECT email FROM profiles WHERE id = ?').bind(googleSync.body.data.id).first();
     assert.equal(googleProfile.email, 'google.mixed@example.test');
   } finally {

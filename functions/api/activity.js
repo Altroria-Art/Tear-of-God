@@ -32,7 +32,7 @@ export async function onRequest({ request, env, data: auth }) {
           r.user_id AS actor_id,
           r.created_at AS occurred_at,
           r.title AS ranking_title,
-          r.category AS ranking_category,
+          r.hashtags AS ranking_hashtags,
           r.template_id,
           t.title AS template_title,
           r.user_id AS target_user_id
@@ -49,7 +49,7 @@ export async function onRequest({ request, env, data: auth }) {
           v.user_id AS actor_id,
           v.created_at AS occurred_at,
           r.title AS ranking_title,
-          r.category AS ranking_category,
+          r.hashtags AS ranking_hashtags,
           r.template_id,
           t.title AS template_title,
           r.user_id AS target_user_id
@@ -85,7 +85,7 @@ export async function onRequest({ request, env, data: auth }) {
       ranking: {
         id: event.ranking_id,
         title: event.ranking_title || 'Untitled',
-        category: event.ranking_category || 'general',
+        hashtags: event.ranking_hashtags || '',
         author: event.target_user_id ? {
           id: event.target_user_id,
           username: event.target_username || 'Unknown',

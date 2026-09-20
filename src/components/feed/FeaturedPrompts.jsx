@@ -1,3 +1,4 @@
+import { formatHashtags } from '../../lib/hashtags';
 import { useEffect, useState } from 'react';
 import { ArrowRight, CalendarDays, Clock3, Users } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -61,7 +62,7 @@ function PromptCard({ kind, prompt, tick, onUse, compact = false }) {
             </Link>
           </div>
           <span className="shrink-0 rounded-full border border-line-soft bg-surface-glass px-2 py-1 text-[10px] font-bold text-ink-soft">
-            {template.category || t('spotlights.general')}
+            {formatHashtags(template.hashtags) || t('spotlights.general')}
           </span>
         </div>
 

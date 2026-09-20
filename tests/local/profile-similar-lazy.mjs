@@ -71,12 +71,12 @@ async function createSeededD1() {
     db.prepare(`INSERT INTO profiles (id, username, email) VALUES (?, ?, ?)`).bind('legacy', 'Legacy', 'legacy@local.test'),
     db.prepare(`INSERT INTO follows (follower_id, following_id) VALUES (?, ?)`).bind('bob', 'alice'),
     // alice: gaming/anime taste + one template + one pin target.
-    db.prepare(`INSERT INTO templates (id, creator_id, title, category, hashtags, tiers, use_count) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .bind('tplA', 'alice', 'Alice template', 'gaming', '#gaming', JSON.stringify([{ label: 'S', color: '#fff' }]), 30),
-    db.prepare(`INSERT INTO rankings (id, title, user_id, template_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`).bind('rkA1', 'Alice one', 'alice', 'tplA', 'gaming', '#gaming,#rpg', 5),
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind('rkA2', 'Alice two', 'alice', 'anime', '#anime', 3),
+    db.prepare(`INSERT INTO templates (id, creator_id, title, hashtags, tiers, use_count) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind('tplA', 'alice', 'Alice template', '#gaming', JSON.stringify([{ label: 'S', color: '#fff' }]), 30),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, template_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind('rkA1', 'Alice one', 'alice', 'tplA', '#gaming,#rpg', 5),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('rkA2', 'Alice two', 'alice', '#anime', 3),
     db.prepare(`INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?, ?, ?, ?, ?)`)
       .bind('riA1', 'rkA1', 'slime', 'S', 0),
     db.prepare(`INSERT INTO items (id, name) VALUES (?, ?)`).bind('slime', 'Slime'),
@@ -84,15 +84,15 @@ async function createSeededD1() {
       .bind('scA1', 'rkA1', 'tplA', 'slime', 0, 1),
     db.prepare(`INSERT INTO profile_pins (user_id, ranking_id, position) VALUES (?, ?, ?)`).bind('alice', 'rkA1', 0),
     // bob shares alice's gaming taste; carol is disjoint (cooking).
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind('rkB1', 'Bob one', 'bob', 'gaming', '#gaming', 2),
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind('rkC1', 'Carol one', 'carol', 'cooking', '#cooking', 2),
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind('rkE1', 'Eve one', 'eve', 'gaming', '#gaming', 4),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('rkB1', 'Bob one', 'bob', '#gaming', 2),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('rkC1', 'Carol one', 'carol', '#cooking', 2),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('rkE1', 'Eve one', 'eve', '#gaming', 4),
     // legacy: rankings but no frozen scores -> legacy fallback path must still run.
-    db.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`).bind('rkL1', 'Legacy one', 'legacy', 'gaming', '#gaming', 1),
+    db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('rkL1', 'Legacy one', 'legacy', '#gaming', 1),
     db.prepare(`INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?, ?, ?, ?, ?)`)
       .bind('riL1', 'rkL1', 'slime', 'S', 0),
   ];
@@ -119,7 +119,7 @@ try {
     const { body } = await callUsers(trackingDb(rawDb, log), { id: 'alice' }, null);
     assert.equal(body.success, true);
     assert.equal(body.data.username, 'Alice');
-    assert.ok(Array.isArray(body.data.taste_identity.category_distribution));
+    assert.ok(Array.isArray(body.data.taste_identity.hashtag_distribution));
     assert.ok(Array.isArray(body.data.taste_identity.top_items));
     assert.ok(Array.isArray(body.data.taste_identity.pinned_rankings));
     assert.equal(body.data.taste_identity.similar_users, null);
@@ -155,7 +155,7 @@ try {
     const log = [];
     const { body } = await callUsers(trackingDb(rawDb, log), { id: 'dave' }, null);
     assert.equal(body.success, true);
-    assert.deepEqual(body.data.taste_identity.category_distribution, []);
+    assert.deepEqual(body.data.taste_identity.hashtag_distribution, []);
     assert.deepEqual(body.data.taste_identity.top_items, []);
     assert.deepEqual(body.data.taste_identity.pinned_rankings, []);
     assert.ok(!log.some((sql) => sql.includes('json_valid')), 'empty profile must skip the legacy fallback query');
@@ -204,7 +204,7 @@ try {
     const bobView = await callUsers(rawDb, { id: 'alice', fields: 'similar' }, 'bob');
     const carolView = await callUsers(rawDb, { id: 'alice', fields: 'similar' }, 'carol');
     assert.ok(bobView.body.data.taste_match.score > carolView.body.data.taste_match.score);
-    assert.deepEqual(carolView.body.data.taste_match.shared_categories, []);
+    assert.deepEqual(carolView.body.data.taste_match.shared_hashtags, []);
     const guestView = await callUsers(rawDb, { id: 'alice', fields: 'similar' }, null);
     assert.equal(guestView.body.data.taste_match, null);
     const selfView = await callUsers(rawDb, { id: 'alice', fields: 'similar' }, 'alice');
@@ -215,8 +215,8 @@ try {
   // CASE 8 — no shared server cache: one viewer acting never changes another's.
   {
     const before = await callUsers(rawDb, { id: 'alice', fields: 'similar' }, 'bob');
-    await rawDb.prepare(`INSERT INTO rankings (id, title, user_id, category, hashtags, created_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))`).bind('rkC2', 'Carol two', 'carol', 'cooking', '#ramen').run();
+    await rawDb.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, created_at)
+      VALUES (?, ?, ?, ?, datetime('now'))`).bind('rkC2', 'Carol two', 'carol', '#ramen').run();
     const afterBob = await callUsers(rawDb, { id: 'alice', fields: 'similar' }, 'bob');
     assert.deepEqual(afterBob.body.data, before.body.data, 'unrelated viewer activity changes nothing');
     const afterCarol = await callUsers(rawDb, { id: 'alice', fields: 'similar' }, 'carol');
@@ -229,7 +229,7 @@ try {
   {
     const inserts = [];
     for (let i = 0; i < 60; i += 1) {
-      inserts.push(rawDb.prepare(`INSERT INTO rankings (id, title, user_id, category, created_at)
+      inserts.push(rawDb.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, created_at)
         VALUES (?, ?, ?, ?, datetime('now'))`).bind(`prolific-${i}`, `P${i}`, 'eve', 'gaming'));
     }
     await rawDb.batch(inserts);

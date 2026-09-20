@@ -10,7 +10,6 @@ import { useToast } from '../ui/Toast';
 function canonicalKey(topicType, topicKey) {
   const text = String(topicKey ?? '').trim();
   if (topicType === 'hashtag') return text.replace(/^#+/, '').trim().toLowerCase();
-  if (topicType === 'category') return text.toLowerCase();
   return text;
 }
 

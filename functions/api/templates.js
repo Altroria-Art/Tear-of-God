@@ -25,8 +25,7 @@ export async function onRequestGet(context) {
     // ==========================================
     if (!templateId) {
       const suggest = url.searchParams.get('suggest') === '1';
-      const hashtag = url.searchParams.get('hashtag');
-      const category = url.searchParams.get('category');
+      const hashtag = url.searchParams.get('hashtag') || url.searchParams.get('category'); // legacy filter alias
       const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
       const savedOnly = !suggest && url.searchParams.get('saved') === 'true';
       const viewerId = context.data.user?.id || null;
@@ -40,22 +39,21 @@ export async function onRequestGet(context) {
       const whereParams = [];
       if (q) { whereSql += " AND (instr(lower(t.title), lower(?)) > 0 OR instr(lower(COALESCE(t.description, '')), lower(?)) > 0 OR instr(lower(COALESCE(t.hashtags, '')), lower(?)) > 0)"; whereParams.push(q, q, q); }
       if (savedOnly) { whereSql += ' AND EXISTS (SELECT 1 FROM template_bookmarks b WHERE b.template_id = t.id AND b.user_id = ?)'; whereParams.push(viewerId); }
-      if (category && category !== 'null') { whereSql += ` AND t.category = ?`; whereParams.push(category); }
       if (hashtag) {
         // แมตช์แท็กแบบเป๊ะ (ไม่ใช่ substring) — ลบ '#' ออกจากทั้งสองฝั่ง (ข้อมูลเก่าเก็บ '#anime'
         // ข้อมูลที่เขียนมาใหม่อาจเก็บ 'anime' ได้) แล้วห่อทั้งสองฝั่งด้วย ',' ค้นหา ',tag,' — กัน
         // ปัญหา LIKE '%tag%' ที่ 'Pop' จะไปแมตช์ '#TPop' ด้วย (ดู docs/feature-discover-view-all-pages.md §4)
         // และทำให้ count จาก /api/hashtags กับ list นี้ใช้ source/filter เดียวกันเสมอ
-        whereSql += ` AND instr(',' || lower(replace(t.hashtags, '#', '')) || ',', ',' || lower(replace(?, '#', '')) || ',') > 0`;
+        whereSql += ` AND EXISTS (SELECT 1 FROM template_hashtags th WHERE th.template_id = t.id AND th.hashtag = lower(trim(ltrim(trim(?), '#'))))`;
         whereParams.push(hashtag);
       }
 
       // 📍 Lightweight suggestion path for Navbar autocomplete (P2-B1):
-      // Only runs a single query for id, title, category, and live_uses.
+      // Only runs a single query for id, title, hashtags, and live_uses.
       // Skips profiles JOIN, is_saved, live_views, total count, and template_items.
       if (suggest) {
         const suggestQuery = `
-          SELECT t.id, t.title, t.category,
+          SELECT t.id, t.title, t.hashtags,
             (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses
           FROM templates t
           ${whereSql}
@@ -66,7 +64,7 @@ export async function onRequestGet(context) {
         const data = templates.map(t => ({
           id: t.id,
           title: t.title,
-          category: t.category,
+          hashtags: t.hashtags,
           use_count: t.live_uses || 0,
           stats: { uses: t.live_uses || 0 }
         }));
@@ -144,7 +142,6 @@ export async function onRequestGet(context) {
         is_saved: !!t.is_saved,
         title: t.title,
         description: t.description,
-        category: t.category,
         hashtags: t.hashtags,
         tiers: parseTiers(t.tiers),
         use_count: t.live_uses || 0,
@@ -315,7 +312,6 @@ export async function onRequestGet(context) {
       id: template.id,
       title: template.title,
       description: template.description,
-      category: template.category,
       hashtags: template.hashtags,
       tiers: tiersDef,
       profile: {

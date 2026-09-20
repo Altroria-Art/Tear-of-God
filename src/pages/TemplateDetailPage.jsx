@@ -189,7 +189,7 @@ function RankingCard({ ranking, tiersDef }) {
             authorName={ranking.profile?.username}
             authorAvatar={ranking.profile?.avatar_url}
             postedAt={timeAgo(ranking.created_at)}
-            category={ranking.category}
+            hashtags={ranking.hashtags}
             tiers={tierRows.map(({ tier, color, items }) => ({
               tier: tier,
               color: color,
@@ -670,7 +670,7 @@ export default function TemplateDetailPage() {
         preview={
           <CommunityAvgExportPreview
             title={template.title ? `${template.title} · ${t('template.communityAverage')}` : t('template.communityAverage')}
-            category={template.category}
+            hashtags={template.hashtags}
             updatedText={t('template.updated', { time: timeAgo(template.community_average?.updated_at ?? '') })}
             tiers={tiersDef.map((t) => {
               const avgTier = template.community_average?.tiers?.find((x) => x.label === t.label)

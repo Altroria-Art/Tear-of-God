@@ -86,6 +86,7 @@ export async function onRequest({ request, env, data: auth }) {
       const googleEmail = normalizeEmail(account.email);
       const identity = await db.prepare("SELECT user_id FROM auth_identities WHERE provider = 'google' AND subject = ?").bind(account.localId).first();
       let user = identity ? await db.prepare('SELECT * FROM profiles WHERE id = ?').bind(identity.user_id).first() : await findByEmail(db, googleEmail);
+      const isNewUser = !user;
       if (!user) {
         const id = 'user_' + crypto.randomUUID();
         await db.prepare('INSERT INTO profiles (id, username, email, avatar_url) VALUES (?, ?, ?, ?)')
@@ -95,7 +96,7 @@ export async function onRequest({ request, env, data: auth }) {
       await db.prepare("INSERT OR IGNORE INTO auth_identities (provider, subject, user_id) VALUES ('google', ?, ?)").bind(account.localId, user.id).run();
       const linked = await db.prepare("SELECT user_id FROM auth_identities WHERE provider = 'google' AND subject = ?").bind(account.localId).first();
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(linked.user_id).first();
-      return reply({ success: true, data: profile }, 200, { 'Set-Cookie': await createSession(request, db, profile.id) });
+      return reply({ success: true, data: profile, isNewUser }, 200, { 'Set-Cookie': await createSession(request, db, profile.id) });
     }
     if (action === 'forgot_password') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return fail('อีเมลไม่ถูกต้อง');

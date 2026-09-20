@@ -240,8 +240,6 @@ export default function Rankings() {
                     <span className="font-medium text-ink">{detail.post.profile?.username || t('common.unknownUser')}</span>
                   </div>
                   <span>·</span>
-                  <span>{t('admin.category')}: {detail.post.category || '—'}</span>
-                  <span>·</span>
                   <span>{timeAgo(detail.post.created_at)}</span>
                 </div>
               </div>
@@ -259,14 +257,10 @@ export default function Rankings() {
               <p className="text-sm text-ink-soft mb-4">{detail.post.description}</p>
             )}
 
-            {detail.post.hashtags && (
-              <div className="flex flex-wrap gap-2 mb-4 text-sm">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted mr-1">{t('admin.hashtags')}:</span>
-                {detail.post.hashtags.split(',').filter(Boolean).map((h) => (
-                  <span key={h} className="rounded-full bg-surface px-2 py-0.5 text-xs font-semibold text-brand">{h.trim()}</span>
-                ))}
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted mr-1">{t('admin.hashtags')}:</span>
+              <HashtagCell hashtags={detail.post.hashtags} />
+            </div>
 
             {/* ตาราง Visual Tier List พร้อมรูปภาพ */}
             <div className="space-y-2 rounded-2xl border border-line-soft p-3 bg-surface shadow-inner">

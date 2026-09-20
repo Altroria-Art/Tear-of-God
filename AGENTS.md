@@ -33,4 +33,11 @@ Auth for email/password lives in `functions/api/auth.js` against the `profiles` 
 
 ## Repo state / gotchas
 
+- Classification uses `hashtags` only; do not read/write a `category` column or
+  infer a primary category from the first hashtag. `ranking_hashtags` and
+  `template_hashtags` are normalized SQL views for per-tag queries. Existing DBs
+  require staged migrations 0009 then app deployment then 0010; see
+  `docs/hashtags-only-migration.md`. Legacy category URLs/filters are compatibility
+  aliases only. Historical migrations/fixtures intentionally retain old columns.
+
 - Feature work happens on branches merged via PRs (`Create`, `Feed`, `Main_Page`, `Profile.v2`, `backend`, `create.v2`, `discover`, `docker`, `home.v1/longin.v1`, `intemplate`, `profile/create`, `template`), not directly on `main`.

@@ -1,3 +1,4 @@
+import { formatHashtags } from '../../lib/hashtags';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TrendingUp, LayoutTemplate, ArrowRight } from 'lucide-react';
@@ -136,7 +137,7 @@ export default function HomeRightSidebar() {
                       {tpl.title || t('common.untitled')}
                     </div>
                     <div className="text-[11px] text-muted truncate">
-                      {t(`category.${tpl.category || 'general'}.title`, { defaultValue: t('spotlights.general') })}
+                      {formatHashtags(tpl.hashtags) || t('spotlights.general')}
                     </div>
                   </div>
                 </div>

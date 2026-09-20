@@ -184,8 +184,7 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
         return jsonResponse({ success: true, data: result });
       } 
       else {
-        const category = url.searchParams.get('category');
-        const hashtag = url.searchParams.get('hashtag');
+        const hashtag = url.searchParams.get('hashtag') || url.searchParams.get('category'); // legacy filter alias
         const currentUserId = auth.user?.id || null;
         // author_id = "กรองเฉพาะโพสต์ของคนนี้" (หน้าโปรไฟล์) — ต่างจาก user_id ที่แปลว่า "คนกำลังดู"
         const authorId = url.searchParams.get('author_id');
@@ -264,8 +263,6 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
           orderExpr = `r.likes_count DESC, r.created_at DESC, r.id DESC`;
         } else if (sort === 'recent') {
           orderExpr = `r.created_at DESC, r.id DESC`;
-        } else if (usePersonalized) {
-          orderExpr = `COALESCE(aff.affinity, 0) DESC, r.created_at DESC, r.id DESC`;
         } else {
           orderExpr = `r.created_at DESC, r.id DESC`;
         }
@@ -274,14 +271,13 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
 
         let pageWhere = `WHERE 1=1`;
         const pageWhereParams = [];
-        if (category && category !== 'null') { pageWhere += ` AND r.category = ?`; pageWhereParams.push(category); }
-        if (hashtag) { pageWhere += ` AND instr(',' || lower(replace(r.hashtags, '#', '')) || ',', ',' || lower(replace(?, '#', '')) || ',') > 0`; pageWhereParams.push(hashtag); }
+        if (hashtag && hashtag !== 'null') { pageWhere += ` AND EXISTS (SELECT 1 FROM ranking_hashtags rh WHERE rh.ranking_id = r.id AND rh.hashtag = lower(trim(ltrim(trim(?), '#'))))`; pageWhereParams.push(hashtag); }
         if (authorId) { pageWhere += ` AND r.user_id = ?`; pageWhereParams.push(authorId); }
         if (templateId) { pageWhere += ` AND r.template_id = ?`; pageWhereParams.push(templateId); }
 
         // Home Feed (feedType != null) builds one ordered id pool, then slices it per page:
         //   trending: freshness + likes/comments/dislikes, with a stable tiebreaker
-        //   for_you: posts matching at least 2 of category/template/hashtag signals
+        //   for_you: posts matching hashtag interests or template history
         //   following: newest posts from accounts the viewer follows
         // Guests may browse Trending; the other two feeds intentionally require login.
         // rows-read: pool อ่านแค่ id (≤ HOME_POOL_CAP) ต่อหน้าใหม่; หน้าถัดๆ ไปอ่านแต่ detail ของ 1 หน้า
@@ -302,13 +298,6 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
             if (feedType === 'for_you' && !currentUserId) {
               personalizationFallback = true;
             } else if (feedType === 'for_you' && currentUserId) {
-              const { results: followedTopicRows } = await db.prepare(`
-                SELECT topic_type, topic_key
-                FROM topic_follows
-                WHERE user_id = ?
-                LIMIT 500
-              `).bind(currentUserId).all();
-              const hasFollowedTopics = (followedTopicRows || []).length > 0;
               // normalize แฮชแท็กจากโพสต์ที่ฉันสร้าง ∪ โพสต์ที่ฉันไลก์ (ตัด '#')
               // — ใช้เป็นสัญญาณที่ (3) ของเกณฑ์ความเกี่ยวข้อง
               const tagRows = await db.prepare(`
@@ -326,52 +315,28 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
               });
               // จำกัดแฮชแท็กไม่เกิน 50 อันเพื่อป้องกัน SQLite/D1 bound parameter limit
               const myTags = [...tagSet].slice(0, 50);
-              // 3 สัญญาณ แต่ละอัน (CASE) ให้ 1 แต้ม — คงเฉพาะโพสต์ที่ผลรวม >= 2:
-              //   1) r.category ตรงกับหมวดที่เคยสร้าง/เคยไลก์
-              //   2) r.template_id ตรงกับ template ที่เคยจัด/เคยไลก์
-              //   3) มีแฮชแท็กที่เคยใช้อยู่ด้วย หรือหัวข้อที่กดติดตาม
-              const tagCond = myTags.length > 0
-                ? `(${myTags.map(() => `instr(',' || replace(lower(replace(r.hashtags, '#', '')), ' ', '') || ',', ?) > 0`).join(' OR ')})`
+              // Hashtag interests and template history are independent signals.
+              const tagCond = myTags.length
+                ? `EXISTS (SELECT 1 FROM ranking_hashtags rh WHERE rh.ranking_id = r.id AND rh.hashtag IN (${myTags.map(() => '?').join(',')}))`
                 : '0';
               const scoreExpr = `
-                CASE WHEN lower(r.category) IN (
-                  SELECT lower(category) FROM rankings WHERE user_id = ?
-                  UNION
-                  SELECT lower(fav.category) FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
-                  WHERE v.user_id = ? AND v.vote_type = 'like'
-                  UNION
-                  SELECT topic_key FROM topic_follows
-                  WHERE user_id = ? AND topic_type = 'category'
-                ) THEN 1 ELSE 0 END
-                +
                 CASE WHEN r.template_id IS NOT NULL AND r.template_id IN (
                   SELECT template_id FROM rankings WHERE user_id = ? AND template_id IS NOT NULL
                   UNION
                   SELECT fav.template_id FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
                   WHERE v.user_id = ? AND v.vote_type = 'like' AND fav.template_id IS NOT NULL
                   UNION
-                  SELECT topic_key FROM topic_follows
-                  WHERE user_id = ? AND topic_type = 'template'
+                  SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'template'
                 ) THEN 1 ELSE 0 END
-                +
-                CASE WHEN ${tagCond}
-                  OR EXISTS (
-                    SELECT 1 FROM topic_follows tf
-                    WHERE tf.user_id = ? AND tf.topic_type = 'hashtag'
-                      AND instr(',' || replace(lower(replace(r.hashtags, '#', '')), ' ', '') || ',', ',' || lower(tf.topic_key) || ',') > 0
-                  ) THEN 1 ELSE 0 END
+                + CASE WHEN ${tagCond}
+                  OR EXISTS (SELECT 1 FROM topic_follows tf JOIN ranking_hashtags rh ON rh.hashtag = tf.topic_key
+                    WHERE tf.user_id = ? AND tf.topic_type = 'hashtag' AND rh.ranking_id = r.id)
+                  THEN 1 ELSE 0 END
               `;
-
-              // การติดตามหัวข้อเป็นสัญญาณที่ผู้ใช้เลือกเอง จึงเพียงสัญญาณเดียวก็พอโพสต์เข้า For You
-              // ได้; บัญชีที่ยังไม่ติดตามหัวข้อใช้เกณฑ์เดิมที่ต้องตรงอย่างน้อย 2 สัญญาณ
-              poolWhere += `\n              AND (${scoreExpr}) >= ${hasFollowedTopics ? 1 : 2}`;
-              // ลำดับ "?": pageWhere -> category(3) -> template_id(3) -> tags -> followed hashtag
-              poolParams.push(
-                currentUserId, currentUserId, currentUserId,
-                currentUserId, currentUserId, currentUserId,
-                ...myTags.map((tg) => `,${tg.toLowerCase()},`),
-                currentUserId,
-              );
+              // One matching hashtag or template is sufficient after removing category.
+              poolWhere += ` AND (${scoreExpr}) >= 1`;
+              poolParams.push(currentUserId, currentUserId, currentUserId,
+                ...myTags.map(tag => tag.toLowerCase()), currentUserId);
             }
 
             if (feedType === 'following' && currentUserId) {
@@ -424,12 +389,12 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
             let poolOutcome = null;
             if (feedType === 'trending') {
               const poolKey = buildTrendingPoolKey({
-                feedType, seed, category, hashtag, authorId, templateId, days,
+                feedType, seed, hashtag, authorId, templateId, days,
                 poolCap: HOME_POOL_CAP,
               });
               const poolCache = typeof caches !== 'undefined' ? caches.default : null;
               const poolCacheRequest = trendingPoolCacheRequest(url.origin, poolKey);
-              const eligible = isSharedHomeTrendingEligible({ feedType, category, hashtag, authorId, templateId, days });
+              const eligible = isSharedHomeTrendingEligible({ feedType, hashtag, authorId, templateId, days });
               let l1 = 'MISS';
               let l2 = 'SKIP';
               let d1Build = false;
@@ -488,7 +453,7 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
             }
 
             // A new account has no useful interest signals yet. Show Trending until its
-            // category/template/hashtag history is strong enough; Following stays empty.
+            // hashtag/template history is strong enough; Following stays empty.
             if (feedType === 'for_you' && poolIds.length === 0) {
               personalizationFallback = true;
               let fbWhere = pageWhere;
@@ -547,7 +512,7 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
 
         // แก้ปัญหา row-read สูงผิดปกติ (ดู docs/row-read-optimization-plan.md §3, §8):
         // เดิม query นี้ห่อด้วย "page" CTE + ROW_NUMBER() OVER (ORDER BY ...) เสมอ แม้แต่ตอน
-        // ORDER BY เป็นคอลัมน์ตรงๆ ที่มี index รองรับอยู่แล้ว (created_at/category/user_id/
+        // ORDER BY เป็นคอลัมน์ตรงๆ ที่มี index รองรับอยู่แล้ว (created_at/user_id/
         // template_id+likes_count จาก migrations/0004) — ทำให้ SQLite ต้อง SCAN ทั้งตาราง
         // แล้ว sort ลง temp B-tree 2 รอบ (ครั้งในและครั้งนอก page.rn) ก่อนค่อยตัด LIMIT
         // วัดจริงจาก D1 trace (.wrangler observability): ~2,718 rows เพื่อคืนแค่ 5 แถว
@@ -596,7 +561,7 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
             mine AS (
               -- 📍 [ใหม่]: โพสต์ล่าสุดของ "คนที่กำลังดู" เอง ถ้าสร้างมาไม่เกิน 24 ชม. — pin ให้
               -- ขึ้นบนสุดเสมอในฟีดของตัวเอง กันปัญหา "สร้าง Tier List ใหม่แล้วไม่เห็นในฟีด"
-              -- (affinity ตาม category คำนวณจาก like เก่า ไม่รู้จัก category ใหม่ที่เพิ่งสร้าง
+              -- (affinity ตาม hashtag คำนวณจาก like เก่า ไม่รู้จัก hashtag ใหม่ที่เพิ่งสร้าง
               -- เลยเรียงโพสต์ใหม่ไปอยู่ลึกได้) ตั้งเพดาน 24 ชม. กันไม่ให้โพสต์เก่าค้างบนสุดถาวร
               -- ถ้า pin ไม่ตรงกับ cand ด้านล่าง (เช่นโดน pageWhere กรองออก) จะไม่มีผลอะไรเลย
               -- เพราะใช้แค่เทียบเท่ากันใน ORDER BY ไม่ได้ยัดแถวเพิ่ม
@@ -606,13 +571,13 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
               LIMIT 1
             ),
             aff AS (
-              SELECT fav_r.category AS cat, COUNT(*) AS affinity
-              FROM votes v JOIN rankings fav_r ON v.ranking_id = fav_r.id
+              SELECT rh.hashtag, COUNT(*) AS affinity
+              FROM votes v JOIN ranking_hashtags rh ON v.ranking_id = rh.ranking_id
               WHERE v.user_id = ? AND v.vote_type = 'like'
-              GROUP BY fav_r.category
+              GROUP BY rh.hashtag
             ),
             cand AS (
-              SELECT r.id, r.category, r.created_at
+              SELECT r.id, r.created_at
               FROM rankings r
               ${pageWhere}
               ORDER BY r.created_at DESC, r.id DESC
@@ -622,9 +587,10 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
               (SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?) as user_vote
             FROM cand c
             JOIN rankings r ON r.id = c.id
-            LEFT JOIN aff ON aff.cat = c.category
             LEFT JOIN profiles p ON r.user_id = p.id
-            ORDER BY (c.id = (SELECT id FROM mine)) DESC, COALESCE(aff.affinity, 0) DESC, c.created_at DESC, c.id DESC
+            ORDER BY (c.id = (SELECT id FROM mine)) DESC,
+              (SELECT COALESCE(SUM(aff.affinity), 0) FROM ranking_hashtags rh JOIN aff ON aff.hashtag = rh.hashtag WHERE rh.ranking_id = c.id) DESC,
+              c.created_at DESC, c.id DESC
             LIMIT ? OFFSET ?
           `;
           // ลำดับ "?" ในข้อความ query: mine.user_id -> aff.user_id -> cand(pageWhere, candLimit) ->
@@ -639,7 +605,7 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
         }
 
         // Home path: rankings = แถวในลำดับ homePoolIds ที่ slice ได้ (เรียงคืนตาม sliceIds)
-        // path เก่า: rankings = ผลจาก query ตามปกติ (author/category/template/sort …)
+        // path เก่า: rankings = ผลจาก query ตามปกติ (author/hashtag/template/sort …)
         let rankings;
         if (homePoolIds) {
           const sliceIds = homePoolIds.slice(offset, offset + limit);
@@ -842,7 +808,6 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
       const cleanPayload = {
         title: payload.title == null ? 'Untitled' : assertString(payload.title, 'payload.title', { min: 1, max: INPUT_LIMITS.title, trim: true }),
         description: payload.description == null ? '' : assertString(payload.description, 'payload.description', { max: INPUT_LIMITS.description }),
-        category: payload.category == null ? 'general' : assertString(payload.category, 'payload.category', { min: 1, max: INPUT_LIMITS.category, trim: true }),
         hashtags: payload.hashtags == null ? '' : assertString(payload.hashtags, 'payload.hashtags', { max: INPUT_LIMITS.hashtags * (INPUT_LIMITS.hashtag + 2) }),
         template_id: assertId(payload.template_id, 'payload.template_id', { optional: true }) || null,
         user_id: auth.user.id,
@@ -884,7 +849,6 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
         cleanTemplate = {
           title: assertString(template.title, 'template.title', { min: 1, max: INPUT_LIMITS.title, trim: true }),
           description: template.description == null ? '' : assertString(template.description, 'template.description', { max: INPUT_LIMITS.description }),
-          category: template.category == null ? 'general' : assertString(template.category, 'template.category', { min: 1, max: INPUT_LIMITS.category, trim: true }),
           hashtags: template.hashtags == null ? '' : assertString(template.hashtags, 'template.hashtags', { max: INPUT_LIMITS.hashtags * (INPUT_LIMITS.hashtag + 2) }),
           tiers: template.tiers.map((tier, index) => {
             if (!isPlainObject(tier)) throw new RequestError(`template.tiers[${index}] must be an object`);
@@ -938,13 +902,12 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
       if (cleanTemplate) {
         templateId = crypto.randomUUID();
         statements.push(db.prepare(
-          `INSERT INTO templates (id, creator_id, title, description, category, hashtags, tiers) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+          `INSERT INTO templates (id, creator_id, title, description, hashtags, tiers) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
         ).bind(
           templateId,
           cleanPayload.user_id,
           cleanTemplate.title,
           cleanTemplate.description,
-          cleanTemplate.category,
           cleanTemplate.hashtags,
           JSON.stringify(cleanTemplate.tiers)
         ));
@@ -970,10 +933,10 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
       }
 
       statements.push(db.prepare(
-        `INSERT INTO rankings (id, template_id, title, description, category, hashtags, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+        `INSERT INTO rankings (id, template_id, title, description, hashtags, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
       ).bind(
         rankingId, cleanPayload.template_id || templateId, cleanPayload.title, cleanPayload.description,
-        cleanPayload.category, cleanPayload.hashtags, cleanPayload.user_id
+        cleanPayload.hashtags, cleanPayload.user_id
       ));
 
       const effectiveTemplateId = cleanPayload.template_id || templateId;
@@ -991,22 +954,18 @@ export async function onRequest({ request, env, data: auth, waitUntil }) {
           UNION
           SELECT tf.user_id AS recipient_id
           FROM topic_follows tf
-          WHERE tf.topic_type = 'category' AND tf.topic_key = lower(?)
-          UNION
-          SELECT tf.user_id AS recipient_id
-          FROM topic_follows tf
           WHERE tf.topic_type = 'template' AND tf.topic_key = ?
           UNION
           SELECT tf.user_id AS recipient_id
           FROM topic_follows tf
           WHERE tf.topic_type = 'hashtag'
-            AND instr(',' || replace(lower(replace(?, '#', '')), ' ', '') || ',', ',' || lower(tf.topic_key) || ',') > 0
+            AND EXISTS (SELECT 1 FROM ranking_hashtags rh WHERE rh.ranking_id = ? AND rh.hashtag = tf.topic_key)
         ) recipients
         WHERE recipient_id != ?
       `).bind(
         cleanPayload.user_id, rankingId,
-        cleanPayload.user_id, cleanPayload.category, effectiveTemplateId,
-        cleanPayload.hashtags, cleanPayload.user_id
+        cleanPayload.user_id, effectiveTemplateId,
+        rankingId, cleanPayload.user_id
       ));
 
       if (effectiveTemplateId) {

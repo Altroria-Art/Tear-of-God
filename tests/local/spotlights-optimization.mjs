@@ -99,8 +99,8 @@ async function createSeededD1() {
     db.prepare(`INSERT INTO profiles (id, username, email) VALUES (?, ?, ?)`).bind('u2', 'U2', 'u2@local.test'),
   ]);
   const tplInserts = TEMPLATES.map((t) => db.prepare(
-    `INSERT INTO templates (id, creator_id, title, category, hashtags, tiers, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-  ).bind(t.id, t.creator, t.title, 'general', t.tags, JSON.stringify([{ label: 'S', color: '#fff' }]), t.created));
+    `INSERT INTO templates (id, creator_id, title, hashtags, tiers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+  ).bind(t.id, t.creator, t.title, t.tags, JSON.stringify([{ label: 'S', color: '#fff' }]), t.created));
   await db.batch(tplInserts);
   const itemInserts = [];
   for (const t of TEMPLATES) {
@@ -114,7 +114,7 @@ async function createSeededD1() {
   }
   await db.batch(itemInserts);
   const rankInserts = RANKINGS.map(([id, tpl, user, likes, dislikes, comments, offset, title]) => db.prepare(
-    `INSERT INTO rankings (id, title, user_id, template_id, category, likes_count, dislikes_count, comments_count, created_at)
+    `INSERT INTO rankings (id, title, user_id, template_id, hashtags, likes_count, dislikes_count, comments_count, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', ?))`,
   ).bind(id, title, user, tpl, 'general', likes, dislikes, comments, offset));
   await db.batch(rankInserts);
@@ -136,7 +136,7 @@ async function createSeededD1() {
 // via the exported pure helpers. Any intentional future change to these must
 // update this block explicitly — that is the point.
 const RANKING_SELECT_FROZEN = `
-  SELECT r.id, r.title, r.category, r.template_id, r.created_at,
+  SELECT r.id, r.title, r.hashtags, r.template_id, r.created_at,
          r.likes_count, r.dislikes_count, r.comments_count,
          p.id AS user_id, p.username, p.avatar_url,
          t.title AS template_title

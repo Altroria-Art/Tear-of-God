@@ -24,10 +24,10 @@ CREATE TABLE IF NOT EXISTS follows (
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
 
 -- ผู้ใช้สามารถติดตามหัวข้อเพื่อปรับ For You ให้ตรงความสนใจยิ่งขึ้น
--- topic_key: hashtag (ไม่รวม # และเก็บเป็น lowercase), หรือ template id
+-- topic_key: hashtag (ไม่รวม # และเก็บเป็น lowercase), category (lowercase), หรือ template id
 CREATE TABLE IF NOT EXISTS topic_follows (
   user_id TEXT NOT NULL,
-  topic_type TEXT NOT NULL CHECK(topic_type IN ('hashtag', 'template')),
+  topic_type TEXT NOT NULL CHECK(topic_type IN ('hashtag', 'category', 'template')),
   topic_key TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, topic_type, topic_key),
@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS rankings (
   id TEXT PRIMARY KEY,
   title TEXT,
   description TEXT,
+  category TEXT,
   hashtags TEXT,
   user_id TEXT,
   template_id TEXT,
@@ -131,6 +132,7 @@ CREATE TABLE IF NOT EXISTS templates (
   creator_id TEXT,
   title TEXT,
   description TEXT,
+  category TEXT,
   hashtags TEXT,
   tiers TEXT,
   use_count INTEGER DEFAULT 0,
@@ -170,12 +172,14 @@ CREATE TABLE IF NOT EXISTS ranking_item_scores (
 );
 
 CREATE INDEX IF NOT EXISTS idx_rankings_user_id ON rankings(user_id);
+CREATE INDEX IF NOT EXISTS idx_rankings_category ON rankings(category);
 CREATE INDEX IF NOT EXISTS idx_rankings_template_id ON rankings(template_id);
 CREATE INDEX IF NOT EXISTS idx_ranking_items_ranking_id ON ranking_items(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_votes_ranking_id ON votes(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_votes_user_id ON votes(user_id, vote_type);
 CREATE INDEX IF NOT EXISTS idx_comments_ranking_id ON comments(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
+CREATE INDEX IF NOT EXISTS idx_templates_category ON templates(category);
 CREATE INDEX IF NOT EXISTS idx_template_items_template_id ON template_items(template_id);
 
 -- ผู้ใช้เลือก Tier List ที่สะท้อนรสนิยมของตัวเองไว้บนโปรไฟล์ได้สูงสุด 3 รายการ
@@ -255,6 +259,7 @@ CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles(created_at DESC, id DESC);
 
 CREATE INDEX IF NOT EXISTS idx_rankings_created_at   ON rankings(created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_rankings_cat_created  ON rankings(category, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_rankings_tpl_likes    ON rankings(template_id, likes_count DESC, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_rankings_user_created ON rankings(user_id, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_templates_use_count   ON templates(use_count DESC, created_at DESC, id DESC);
@@ -323,15 +328,3 @@ CREATE TABLE IF NOT EXISTS password_resets (
 );
 CREATE INDEX IF NOT EXISTS idx_password_resets_token_hash ON password_resets(token_hash);
 CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_resets(user_id);
-
--- Canonical hashtag rows derived from CSV. DISTINCT avoids duplicate tag counts.
-CREATE VIEW IF NOT EXISTS ranking_hashtags AS
-SELECT DISTINCT r.id AS ranking_id, r.user_id,
-  lower(trim(ltrim(trim(tag.value), '#'))) AS hashtag
-FROM rankings r, json_each('[' || replace(json_quote(COALESCE(r.hashtags, '')), ',', '","') || ']') tag
-WHERE trim(ltrim(trim(tag.value), '#')) <> '';
-CREATE VIEW IF NOT EXISTS template_hashtags AS
-SELECT DISTINCT t.id AS template_id, t.creator_id,
-  lower(trim(ltrim(trim(tag.value), '#'))) AS hashtag
-FROM templates t, json_each('[' || replace(json_quote(COALESCE(t.hashtags, '')), ',', '","') || ']') tag
-WHERE trim(ltrim(trim(tag.value), '#')) <> '';

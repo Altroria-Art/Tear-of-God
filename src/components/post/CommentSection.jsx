@@ -1,12 +1,13 @@
 import { useState, useMemo, useRef } from 'react'
-import { Reply, Flag, X } from 'lucide-react'
+import { Reply, Flag, X, Trash2 } from 'lucide-react'
+import Modal from '../ui/Modal'
 import Avatar from '../ui/Avatar'
 import { timeAgo } from '../../lib/format'
 import { createPendingGuard } from '../../lib/pendingGuard'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '../../context/UserContext'
 
-function Comment({ id, author, createdAt, body, onReply, onReport, isReply = false }) {
+function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isReply = false }) {
   const { t } = useTranslation()
   const { currentUser } = useUser()
   
@@ -24,6 +25,11 @@ function Comment({ id, author, createdAt, body, onReply, onReport, isReply = fal
               <Flag size={14} />
             </button>
           )}
+          {currentUser && currentUser.id === author?.id && onDelete && (
+            <button type="button" onClick={() => onDelete(id)} className="text-muted hover:text-status-error transition-colors p-1 rounded-md" aria-label={t('post.deleteComment')} title={t('post.deleteComment')}>
+              <Trash2 size={14} />
+            </button>
+          )}
         </div>
         <p className="mt-0.5 text-sm text-ink-soft leading-relaxed break-words">{body}</p>
         <div className="mt-1">
@@ -39,10 +45,27 @@ function Comment({ id, author, createdAt, body, onReply, onReport, isReply = fal
   )
 }
 
-export default function CommentSection({ comments = [], onSubmit, onReportComment, inputRef }) {
+export default function CommentSection({ comments = [], onSubmit, onReportComment, onDeleteComment, inputRef }) {
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState(null) // { id, name }
   const { t } = useTranslation()
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const deletingRef = useRef(false)
+  async function handleDelete() {
+    if (!deleteTarget || deletingRef.current) return
+    deletingRef.current = true
+    setIsDeleting(true)
+    try {
+      if (await onDeleteComment(deleteTarget)) {
+        if (replyingTo?.id === deleteTarget) setReplyingTo(null)
+        setDeleteTarget(null)
+      }
+    } finally {
+      deletingRef.current = false
+      setIsDeleting(false)
+    }
+  }
   // M4-C1: guard แบบ synchronous กัน double-click/double-Enter/click+Enter ที่ยิง onSubmit
   // ซ้อนกันใน tick ใกล้กัน — release ใน finally เสมอ failure จะได้ retry ได้, success ส่งใหม่ได้
   // (ไม่ dedup ตาม text: ส่งข้อความเดิมหลัง request แรกจบยังได้ตามปกติ)
@@ -137,13 +160,20 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
         )}
         {parents.map((parent) => (
           <div key={parent.id} className="divide-y divide-line-soft/30">
-            <Comment {...parent} onReply={handleReply} onReport={onReportComment} />
+            <Comment {...parent} onReply={handleReply} onReport={onReportComment} onDelete={onDeleteComment ? setDeleteTarget : undefined} />
             {(childrenByParentId[parent.id] || []).map(child => (
-              <Comment key={child.id} {...child} onReply={() => handleReply(parent.id, child.author?.name)} onReport={onReportComment} isReply={true} />
+              <Comment key={child.id} {...child} onReply={() => handleReply(parent.id, child.author?.name)} onReport={onReportComment} onDelete={onDeleteComment ? setDeleteTarget : undefined} isReply={true} />
             ))}
           </div>
         ))}
       </div>
+      <Modal open={deleteTarget !== null} onClose={() => { if (!deletingRef.current) setDeleteTarget(null) }} title={t('post.deleteComment')}
+        footer={<>
+          <button type="button" disabled={isDeleting} onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm text-muted disabled:opacity-50">{t('common.cancel')}</button>
+          <button type="button" disabled={isDeleting} onClick={handleDelete} className="rounded-lg bg-status-error px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{t(isDeleting ? 'post.deletingComment' : 'common.delete')}</button>
+        </>}>
+        <p className="text-sm text-ink-soft">{t('post.confirmDeleteComment')}</p>
+      </Modal>
     </section>
   )
 }

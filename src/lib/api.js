@@ -154,20 +154,17 @@ export async function uploadImage(file, userId) {
 // ส่วนที่ 2: ระบบโพสต์จัดอันดับ (Rankings)
 // ==========================================
 
-export async function fetchRankings(categoryParam) {
+export async function fetchRankings(filters) {
   try {
     let url = `${API_URL}/api/rankings`;
     
-    if (typeof categoryParam === 'object' && categoryParam !== null) {
+    if (typeof filters === 'object' && filters !== null) {
       // M1: ไม่เติม `_t=Date.now()` สำหรับ manual refresh แล้ว — HomeFeed สุ่ม seed ใหม่
       // + exclude ใหม่ทุกครั้งที่ refresh (refreshFeed) ทำให้ URL ต่างกันอยู่แล้ว dedup ไม่กลืน
       // และ browser cache ไม่ชน ของใหม่ยังได้ทุกรอบเหมือนเดิม
-      const { category, hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, exclude } = categoryParam;
+      const { hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, exclude } = filters;
       const params = new URLSearchParams();
 
-      if (category && category !== 'For You' && category !== 'Trending' && category !== 'All') {
-        params.append('category', category.toLowerCase());
-      }
       if (feedType) params.append('feed_type', feedType);
       if (seed != null) params.append('seed', seed);
       if (pin) params.append('pin', pin);
@@ -184,8 +181,8 @@ export async function fetchRankings(categoryParam) {
       const queryStr = params.toString();
       if (queryStr) url += `?${queryStr}`;
     } 
-    else if (typeof categoryParam === 'string' && categoryParam) {
-      url += `?category=${encodeURIComponent(categoryParam.toLowerCase())}`;
+    else if (typeof filters === 'string' && filters) {
+      url += `?hashtag=${encodeURIComponent(filters.toLowerCase())}`;
     }
       
     return await getJSON(url);
@@ -431,6 +428,21 @@ export async function voteRanking({ rankingId, userId: _userId, voteType }) {
   }
 }
 
+export async function deleteComment(id, isTemplateComment = false) {
+  try {
+    const response = await apiFetch(`/api/${isTemplateComment ? 'template-comments' : 'comments'}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    const result = await response.json();
+    if (!response.ok) return { success: false, error: result.error || i18n.t('errors.commentDeleteFailed') };
+    return result;
+  } catch {
+    return { success: false, error: i18n.t('errors.commentDeleteFailed') };
+  }
+}
+
 export async function fetchComments(rankingId) {
   try {
     return await getJSON(`${API_URL}/api/comments?ranking_id=${rankingId}`);
@@ -472,14 +484,13 @@ export async function fetchTemplate(templateId, { light = false, period = null }
   }
 }
 
-export async function fetchTemplates({ hashtag, category, limit, page, sort, q, saved, suggest, signal } = {}, options = {}) {
+export async function fetchTemplates({ hashtag, limit, page, sort, q, saved, suggest, signal } = {}, options = {}) {
   try {
     const params = new URLSearchParams();
     if (suggest) params.set('suggest', '1');
     if (q) params.set('q', q);
     if (saved) params.set('saved', 'true');
     if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
-    if (category) params.append('category', category.toLowerCase());
     if (limit) params.append('limit', limit);
     if (page) params.append('page', page);
     if (sort) params.append('sort', sort);
@@ -506,19 +517,6 @@ export async function fetchSpotlights(refreshKey = null) {
 }
 
 // ดึงรายการ hashtag ทั้งหมด พร้อมจำนวน template ที่ติดแท็กนั้น (แบ่งหน้า)
-export async function fetchCategories({ limit } = {}) {
-  const queryStr = new URLSearchParams();
-  if (limit) queryStr.append('limit', limit);
-  try {
-    const qs = queryStr.toString();
-    const res = await getJSON(`${API_URL}/api/categories${qs ? `?${qs}` : ''}`);
-    return Array.isArray(res?.data) ? res.data : [];
-  } catch (error) {
-    console.error('fetchCategories error:', error);
-    return [];
-  }
-}
-
 export async function fetchHashtags({ page, limit, sort, q, suggest, signal } = {}, options = {}) {
   try {
     const params = new URLSearchParams();

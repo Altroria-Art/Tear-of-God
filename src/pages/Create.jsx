@@ -377,8 +377,6 @@ const CreateTierList = () => {
       payload: {
         title: title,
         description: description,
-        // ใช้ Hashtag อันแรกเป็น Category หลักไปเลยแบบเนียนๆ
-        category: selectedHashtags[0].replace('#', '').toLowerCase(),
         hashtags: selectedHashtags.join(','),
         user_id: currentUser.id,
         // ส่งข้อมูลโปรไฟล์ไปด้วย เผื่อ DB เอาไปใช้บันทึก
@@ -390,7 +388,6 @@ const CreateTierList = () => {
       template: {
         title: title.trim(),
         description: description,
-        category: selectedHashtags[0].replace('#', '').toLowerCase(),
         hashtags: selectedHashtags.join(','),
         tiers: tiers.map(({ id, label, color }) => ({ id, label, color })),
         items: items.map((item, index) => ({ name: item.content, position: index }))

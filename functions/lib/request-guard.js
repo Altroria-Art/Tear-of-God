@@ -7,7 +7,6 @@ export const INPUT_LIMITS = Object.freeze({
   uploadRequestBytes: 5 * 1024 * 1024 + 256 * 1024,
   title: 200,
   description: 5000,
-  category: 100,
   tiers: 20,
   tierLabel: 50,
   tierColor: 100,

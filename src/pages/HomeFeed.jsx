@@ -347,7 +347,7 @@ function HomeTierCard({ post, onRequireAuth }) {
               authorName={post.profile?.username}
               authorAvatar={post.profile?.avatar_url}
               postedAt={timeAgo(post.created_at)}
-              category={post.category}
+              hashtags={post.hashtags}
               tiers={tierRows.map((row) => ({
                 tier: row.tier,
                 color: row.color,

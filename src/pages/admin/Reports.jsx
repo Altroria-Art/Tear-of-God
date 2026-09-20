@@ -1,3 +1,4 @@
+import { formatHashtags } from '../../lib/hashtags';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { Trash2, Flag, ExternalLink } from 'lucide-react';
@@ -158,32 +159,32 @@ export default function Reports() {
                   
                   let targetUrl = null;
                   let titleText = '—';
-                  let categoryText = '';
+                  let contextText = '';
                   let labelText = '';
                   let labelCls = '';
 
                   if (r.kind === 'comment') {
                     targetUrl = r.ranking_id ? `/post/${r.ranking_id}` : null;
                     titleText = r.comment_content || '—';
-                    categoryText = r.ranking_title || '—';
+                    contextText = r.ranking_title || '—';
                     labelText = 'Comment (Post)';
                     labelCls = 'bg-amber-500/10 text-amber-600';
                   } else if (r.kind === 'template_comment') {
                     targetUrl = r.template_id ? `/template/${r.template_id}` : null;
                     titleText = r.template_comment_content || '—';
-                    categoryText = r.template_title || '—';
+                    contextText = r.template_title || '—';
                     labelText = 'Comment (Template)';
                     labelCls = 'bg-amber-500/10 text-amber-600';
                   } else if (r.kind === 'post') {
                     targetUrl = r.ranking_id ? `/post/${r.ranking_id}` : null;
                     titleText = r.ranking_title || '—';
-                    categoryText = r.ranking_category || '';
+                    contextText = formatHashtags(r.ranking_hashtags) || '';
                     labelText = t('admin.contentPost', 'Post');
                     labelCls = 'bg-brand/10 text-brand-accent';
                   } else {
                     targetUrl = r.template_id ? `/template/${r.template_id}` : null;
                     titleText = r.template_title || '—';
-                    categoryText = r.template_category || '';
+                    contextText = formatHashtags(r.template_hashtags) || '';
                     labelText = t('admin.contentTemplate', 'Template');
                     labelCls = 'bg-surface-glass text-muted';
                   }
@@ -211,7 +212,7 @@ export default function Reports() {
                           )}
                         </div>
                         <div className="text-xs text-muted truncate">
-                          {categoryText}
+                          {contextText}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-ink-soft max-w-[220px]">{r.reason}</td>

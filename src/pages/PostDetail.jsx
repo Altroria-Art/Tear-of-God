@@ -14,7 +14,7 @@ import ExportCard from '../components/ui/ExportCard'
 import UserFollowButton from '../components/user/UserFollowButton'
 
 // 📍 นำเข้า createComment มาใช้งาน
-import { fetchRanking, createComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking, deleteAdminRanking } from '../lib/api'
+import { fetchRanking, createComment, deleteComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking, deleteAdminRanking } from '../lib/api'
 import { buildTierRows } from '../lib/tiers'
 import { createPendingGuard } from '../lib/pendingGuard'
 import { formatDbDate } from '../lib/format'
@@ -72,7 +72,6 @@ export default function PostDetail() {
             avatarUrl: data.profile?.avatar_url
           },
           postedAt: formatDbDate(data.created_at) ?? '',
-          category: data.category,
           title: data.title,
           description: data.description,
           hashtags: data.hashtags || '',
@@ -167,6 +166,18 @@ export default function PostDetail() {
   }
 
   // 📍 [แก้ไขแล้ว]: ใช้ createComment จาก api.js แทนการ fetch ดิบๆ
+  const handleDeleteComment = async (id) => {
+    const result = await deleteComment(id, false);
+    if (!result.success) {
+      toast.error(t('errors.commentDeleteFailed'));
+      return false;
+    }
+    setComments(previous => previous.filter(comment => comment.id !== id)
+      .map(comment => comment.parentId === id ? { ...comment, parentId: null } : comment));
+    setPost(previous => previous ? { ...previous, stats: { ...previous.stats, comments: result.comments_count } } : previous);
+    return true;
+  };
+
   const handleAddComment = async (body, parentId) => {
     if (!currentUser) {
       toast.warning(t('post.warnLoginComment'));
@@ -290,7 +301,7 @@ export default function PostDetail() {
     )
   }
 
-  const { author, authorId, postedAt, category, title, description, tiers, stats } = post
+  const { author, authorId, postedAt, hashtags, title, description, tiers, stats } = post
   const itemCount = tiers.reduce((n, { items }) => n + items.length, 0)
   const justPublished = searchParams.get('published') === '1' && currentUser?.id === authorId
   // ใช้เฉพาะ template ที่ตรงกับโพสต์ปัจจุบัน — กัน metadata ของ template เก่าค้างจอตอนสลับโพสต์
@@ -387,10 +398,6 @@ export default function PostDetail() {
               </div>
             </div>
 
-            <p className="mt-4 inline-block rounded-md bg-surface-glass border border-line-soft px-2 py-1 text-[10px] font-bold tracking-wider text-ink-soft uppercase">
-              {category}
-            </p>
-
             <h1 className="mt-2 text-2xl font-bold text-ink">{title}</h1>
             {description && <p className="mt-2 text-sm text-ink-soft">{description}</p>}
             
@@ -461,7 +468,7 @@ export default function PostDetail() {
                 authorName={author?.name}
                 authorAvatar={author?.avatarUrl}
                 postedAt={postedAt}
-                category={category}
+                hashtags={hashtags}
                 tiers={tiers.map((t) => ({
                   tier: t.tier,
                   color: t.color,
@@ -476,6 +483,7 @@ export default function PostDetail() {
             comments={comments} 
             onSubmit={handleAddComment} 
             onReportComment={handleReportComment}
+            onDeleteComment={handleDeleteComment}
             inputRef={commentInputRef} 
           />
         </div>

@@ -1,3 +1,4 @@
+import { formatHashtags } from '../../lib/hashtags';
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import {
@@ -107,7 +108,7 @@ export default function Dashboard() {
   const pendingCount = stats?.pending_reports || 0;
   const recentPosts = stats?.recent_posts || [];
   const recentReports = stats?.recent_reports || [];
-  const topCategories = stats?.top_categories || [];
+  const topHashtags = stats?.top_hashtags || [];
   const topTemplates = stats?.top_templates || [];
   const funnel = analytics?.funnel || [];
   const dailyActivity = analytics?.daily_activity || [];
@@ -380,7 +381,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
                             <span>{post.author?.username || t('common.unknownUser')}</span>
                             <span>·</span>
-                            <span className="capitalize">{post.category}</span>
+                            <span className="capitalize">{formatHashtags(post.hashtags)}</span>
                             <span>·</span>
                             <span>{timeAgo(post.created_at)}</span>
                           </div>
@@ -467,29 +468,29 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold text-ink uppercase tracking-wider flex items-center gap-2">
                   <TrendingUp size={16} className="text-brand" />
-                  {t('admin.topCategories')}
+                  {t('admin.topHashtags')}
                 </h3>
-                {topCategories.length > 0 && (
+                {topHashtags.length > 0 && (
                   <span className="text-[11px] font-bold text-muted bg-surface-glass px-2.5 py-0.5 rounded-full border border-line-soft">
-                    {topCategories.length} {t('common.categories') || 'หมวดหมู่'}
+                    {topHashtags.length} {t('common.hashtags')}
                   </span>
                 )}
               </div>
 
-              {topCategories.length === 0 ? (
+              {topHashtags.length === 0 ? (
                 <p className="text-xs text-muted py-6 text-center">—</p>
               ) : (
                 <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
-                  {topCategories.map((c) => {
+                  {topHashtags.map((c) => {
                     const totalRankings = stats?.rankings || 1;
                     const percentOfTotal = Math.min(100, Math.round((c.count / totalRankings) * 100));
-                    const maxCategoryCount = topCategories[0]?.count || 1;
-                    const barWidth = Math.min(100, Math.round((c.count / maxCategoryCount) * 100));
+                    const maxHashtagCount = topHashtags[0]?.count || 1;
+                    const barWidth = Math.min(100, Math.round((c.count / maxHashtagCount) * 100));
                     return (
-                      <div key={c.category} className="group">
+                      <div key={c.hashtag} className="group">
                         <div className="flex items-center justify-between text-xs mb-1">
                           <span className="font-semibold text-ink capitalize group-hover:text-brand transition-colors">
-                            {c.category}
+                            #{c.hashtag}
                           </span>
                           <span className="text-muted">
                             {c.count} {t('admin.posts')} ({percentOfTotal}%)
@@ -544,7 +545,7 @@ export default function Dashboard() {
                           {tpl.title}
                         </Link>
                         <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
-                          <span className="capitalize">{tpl.category}</span>
+                          <span className="capitalize">{formatHashtags(tpl.hashtags)}</span>
                           <span>·</span>
                           <span>{t('admin.createdBy', { name: tpl.author || t('common.unknownUser') })}</span>
                         </div>
@@ -629,7 +630,7 @@ export default function Dashboard() {
                               {report.kind === 'post' ? t('admin.contentPost') : t('admin.contentTemplate')}
                             </span>
                             <span className="text-xs text-muted capitalize">
-                              {report.kind === 'post' ? report.ranking_category : report.template_category}
+                              {formatHashtags(report.kind === 'post' ? report.ranking_hashtags : report.template_hashtags)}
                             </span>
                             <span className="text-xs text-muted">·</span>
                             <span className="text-xs text-muted">{timeAgo(report.created_at)}</span>
