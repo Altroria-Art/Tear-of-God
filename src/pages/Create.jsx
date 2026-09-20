@@ -385,12 +385,17 @@ const CreateTierList = () => {
       },
       // 📍 [ใหม่]: สร้าง Template ไปพร้อมกันตอน publish — ทำให้ tier list นี้มี template_id,
       // เข้าหน้า Discover และ hashtag ที่เลือก/สร้างใหม่ถูกนับบน PopularHashtags (API นับจาก templates.hashtags)
+      // ส่ง tier ของแต่ละ item ไปด้วย (label ที่ user จัดไว้บนหน้า Create) — ฝั่งเซิร์ฟเวอร์เก็บลง
+      // template_items.tier ให้ TemplateCard พรีวิวใน Discover เรียงเป็น tier rows เหมือน template เก่า
       template: {
         title: title.trim(),
         description: description,
         hashtags: selectedHashtags.join(','),
         tiers: tiers.map(({ id, label, color }) => ({ id, label, color })),
-        items: items.map((item, index) => ({ name: item.content, position: index }))
+        items: items.map((item, index) => {
+          const tierObj = tiers.find((tier) => tier.id === item.tierId);
+          return { name: item.content, position: index, tier: tierObj ? tierObj.label : null };
+        })
       },
       items: rankedItems.map((item, index) => {
         const tierObj = tiers.find((tier) => tier.id === item.tierId);

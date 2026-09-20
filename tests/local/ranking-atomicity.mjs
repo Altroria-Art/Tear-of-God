@@ -205,7 +205,10 @@ async function testNewTemplate(count) {
     assert.equal(templateItems.length, count);
     templateItems.forEach((row, index) => {
       assert.equal(row.item_id, `item-${index}`);
-      assert.equal(row.tier, null);
+      // Template items now persist the tier label the creator arranged (legacy
+      // payload without tier is mapped by name from the same batch's ranking
+      // items) so the Discover preview renders tier rows, not the item-count chip.
+      assert.equal(row.tier, tiers[index % tiers.length].label);
       assert.equal(row.position, index);
     });
     console.log(`new template + first ranking: ${count} items, single atomic batch of ${result.instrumented.batchSizes[0]} statements`);
