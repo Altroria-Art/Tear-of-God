@@ -10,6 +10,14 @@ import { useUser } from '../../context/UserContext'
 function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isReply = false }) {
   const { t } = useTranslation()
   const { currentUser } = useUser()
+
+  // Admin ลบคอมเมนต์ใดก็ได้ (backend อนุญาตอยู่แล้ว) — ไม่ต้องง้อ Report อีก, แสดงแค่ Delete
+  // user ทั่วไปเห็นได้แค่: Report บนคอมเมนต์คนอื่น / Delete บนคอมเมนต์ตัวเอง เสมอรายการเดียว
+  // จึงอยู่ตำแหน่ง action ด้านขวาเดียวกันทุกคอมเมนต์ (ห้ามให้ user ปกติลบคอมเมนต์คนอื่น)
+  const isAdmin = currentUser?.role === 'admin'
+  const isAuthor = currentUser?.id === author?.id
+  const canReport = !!currentUser && !isAdmin && !isAuthor && !!onReport
+  const canDelete = !!currentUser && (isAdmin || isAuthor) && !!onDelete
   
   return (
     <div className={`flex gap-3 py-3 ${isReply ? 'ml-8 sm:ml-12 border-l-2 border-line-soft pl-3' : ''}`}>
@@ -20,12 +28,12 @@ function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isR
             <p className="text-sm font-bold text-ink">{author?.name}</p>
             <p className="text-xs text-muted">{timeAgo(createdAt)}</p>
           </div>
-          {currentUser && currentUser.id !== author?.id && onReport && (
+          {canReport && (
             <button onClick={() => onReport(id)} className="text-muted hover:text-status-error transition-colors p-1 rounded-md" aria-label={t('common.report')} title={t('common.report')}>
               <Flag size={14} />
             </button>
           )}
-          {currentUser && (currentUser.id === author?.id || currentUser.role === 'admin') && onDelete && (
+          {canDelete && (
             <button type="button" onClick={() => onDelete(id)} className="text-muted hover:text-status-error transition-colors p-1 rounded-md" aria-label={t('post.deleteComment')} title={t('post.deleteComment')}>
               <Trash2 size={14} />
             </button>
