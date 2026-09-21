@@ -38,7 +38,11 @@ export async function onRequest({ request, env, data: auth }) {
           ORDER BY n.created_at DESC, n.id DESC
           LIMIT ?2
         `).bind(userId, limit).all(),
-        db.prepare(`
+        // Opt in only after the transactional counter migration. The default
+        // remains compatible with existing databases; counters are never cached.
+        db.prepare(env.NOTIFICATION_UNREAD_COUNTS === 'true' ? `
+          SELECT unread_count AS count FROM notification_unread_counts WHERE user_id = ?
+        ` : `
           SELECT COUNT(*) AS count FROM notifications
           WHERE user_id = ? AND is_read = 0
         `).bind(userId).first(),

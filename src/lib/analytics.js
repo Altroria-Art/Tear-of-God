@@ -1,6 +1,34 @@
 const SESSION_KEY = 'tog-analytics-session';
 const trackedOnce = new Set();
 let memorySessionId = null;
+let pendingEvents = [];
+
+function sendEvent(payload, scopedKey) {
+  pendingEvents.push({ payload, scopedKey });
+  if (pendingEvents.length === 1) queueMicrotask(flushEvents);
+}
+
+function flushEvents() {
+  const events = pendingEvents;
+  pendingEvents = [];
+  for (let offset = 0; offset < events.length; offset += 20) {
+    const batch = events.slice(offset, offset + 20);
+    const payload = batch.length === 1 ? batch[0].payload : { events: batch.map(event => event.payload) };
+    // Same-tick batching only: no timer or unload buffer, and no event sampling.
+    void fetch('/api/analytics', {
+      method: 'POST', credentials: 'same-origin', keepalive: true,
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    }).then(response => {
+      for (const { scopedKey } of batch) {
+        if (!scopedKey) continue;
+        if (response.ok) markOncePersisted(scopedKey);
+        else trackedOnce.delete(scopedKey);
+      }
+    }).catch(() => {
+      for (const { scopedKey } of batch) if (scopedKey) trackedOnce.delete(scopedKey);
+    });
+  }
+}
 
 function randomId(prefix) {
   if (globalThis.crypto?.randomUUID) return `${prefix}_${globalThis.crypto.randomUUID()}`;
@@ -85,27 +113,7 @@ export function trackEvent(eventName, { entityType = null, entityId = null, once
     entity_id: entityId == null ? null : String(entityId),
   };
 
-  // Analytics must never block the user flow. keepalive lets publish/share
-  // events finish while React is navigating to the next screen.
-  void fetch('/api/analytics', {
-    method: 'POST',
-    credentials: 'same-origin',
-    keepalive: true,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-    .then((response) => {
-      if (response.ok) {
-        if (scopedKey) markOncePersisted(scopedKey);
-      } else if (scopedKey) {
-        // Failed on server; release in-memory key so subsequent reload/revisit can retry
-        trackedOnce.delete(scopedKey);
-      }
-    })
-    .catch(() => {
-      // Network failure; release in-memory key so subsequent reload/revisit can retry
-      if (scopedKey) trackedOnce.delete(scopedKey);
-    });
+  sendEvent(payload, scopedKey);
 }
 
 function entityFromUrl(target) {

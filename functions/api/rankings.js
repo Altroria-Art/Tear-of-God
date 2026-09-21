@@ -142,7 +142,7 @@ export async function onRequest(context) {
           FROM ranking_items ri
           LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)
           WHERE ri.ranking_id = ?
-          ORDER BY ri.position ASC
+          ORDER BY ri.position ASC, ri.rowid ASC
         `).bind(id).all();
 
         // 📍 [ใหม่]: เอา tier definition (label+color+id) ของ template ที่ผูกกับ ranking นี้มาด้วย
@@ -246,7 +246,7 @@ export async function onRequest(context) {
             FROM ranking_items ri
             LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)
             WHERE ri.ranking_id = ?
-            ORDER BY ri.position ASC
+            ORDER BY ri.position ASC, ri.rowid ASC
           `).bind(mineRow.id).all();
           return jsonResponse({
             success: true,
@@ -328,25 +328,34 @@ export async function onRequest(context) {
               // จำกัดแฮชแท็กไม่เกิน 50 อันเพื่อป้องกัน SQLite/D1 bound parameter limit
               const myTags = [...tagSet].slice(0, 50);
               // Hashtag interests and template history are independent signals.
+              // Eligibility is boolean, so a template match can skip tag work.
+              // EXISTS needs no DISTINCT view; tokenize this candidate once using
+              // the exact ranking_hashtags normalization, without re-reading r.
+              const normalizedTag = `lower(trim(ltrim(trim(tag.value), '#')))`;
               const tagCond = myTags.length
-                ? `EXISTS (SELECT 1 FROM ranking_hashtags rh WHERE rh.ranking_id = r.id AND rh.hashtag IN (${myTags.map(() => '?').join(',')}))`
+                ? `${normalizedTag} IN (${myTags.map(() => '?').join(',')})`
                 : '0';
               const scoreExpr = `
-                CASE WHEN r.template_id IS NOT NULL AND r.template_id IN (
+                /* for-you eligibility */
+                (r.template_id IS NOT NULL AND r.template_id IN (
                   SELECT template_id FROM rankings WHERE user_id = ? AND template_id IS NOT NULL
                   UNION
                   SELECT fav.template_id FROM votes v JOIN rankings fav ON v.ranking_id = fav.id
                   WHERE v.user_id = ? AND v.vote_type = 'like' AND fav.template_id IS NOT NULL
                   UNION
                   SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'template'
-                ) THEN 1 ELSE 0 END
-                + CASE WHEN ${tagCond}
-                  OR EXISTS (SELECT 1 FROM topic_follows tf JOIN ranking_hashtags rh ON rh.hashtag = tf.topic_key
-                    WHERE tf.user_id = ? AND tf.topic_type = 'hashtag' AND rh.ranking_id = r.id)
-                  THEN 1 ELSE 0 END
+                )) OR EXISTS (
+                  SELECT 1
+                  FROM json_each('[' || replace(json_quote(COALESCE(r.hashtags, '')), ',', '","') || ']') tag
+                  WHERE trim(ltrim(trim(tag.value), '#')) <> ''
+                    AND (${tagCond} OR ${normalizedTag} IN (
+                      SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'hashtag'
+                    ))
+                )
+                /* end for-you eligibility */
               `;
               // One matching hashtag or template is sufficient after removing category.
-              poolWhere += ` AND (${scoreExpr}) >= 1`;
+              poolWhere += ` AND (${scoreExpr})`;
               poolParams.push(currentUserId, currentUserId, currentUserId,
                 ...myTags.map(tag => tag.toLowerCase()), currentUserId);
             }
@@ -659,7 +668,7 @@ export async function onRequest(context) {
               FROM ranking_items ri
               LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)
               WHERE ri.ranking_id IN (${placeholders})
-              ORDER BY ri.position ASC
+              ORDER BY ri.position ASC, ri.rowid ASC
             `).bind(...rankingIds).all(),
             templateIds.length > 0
               ? db.prepare(

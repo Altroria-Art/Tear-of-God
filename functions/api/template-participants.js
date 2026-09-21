@@ -75,7 +75,7 @@ export async function onRequestGet(context) {
       INNER JOIN rankings r ON r.id = ri.ranking_id
       LEFT JOIN items i ON ri.item_id = i.id
       WHERE r.template_id = ?
-      ORDER BY ri.ranking_id, ri.position ASC
+      ORDER BY ri.ranking_id, ri.position ASC, ri.rowid ASC
     `).bind(templateId).all();
 
     // 4. Group items by ranking_id

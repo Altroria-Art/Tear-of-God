@@ -1,0 +1,10 @@
+# Production migration-only config. Excludes pending 0010 and all historical files.
+name = "tear-of-god-quota-0012-0015"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tear-of-god-db"
+database_id = "69d366f1-55ba-43cf-a492-882e137786f4"
+migrations_dir = "migrations-active"
+migrations_pattern = "migrations-active/001[2-5]_*.sql"

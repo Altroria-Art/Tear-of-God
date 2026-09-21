@@ -11,6 +11,7 @@ import {
   shouldReuseFreshFetch,
 } from '../../lib/notificationFeed';
 import { timeAgo } from '../../lib/format';
+import { createPollActivity, watchPollActivity } from '../../lib/pollActivity';
 
 const notificationIcon = {
   comment: MessageCircle,
@@ -79,19 +80,20 @@ export default function NotificationMenu({ userId }) {
 
   useEffect(() => {
     if (!userId) return undefined;
-    refresh();
+    const activity = createPollActivity();
+    if (document.visibilityState === 'visible') refresh();
 
     // 5-minute polling is for the active tab only: the interval is stopped
     // while hidden (not merely skipped inside) and restarted on return.
-    // Cadence while visible stays ~5 minutes; the 60s freshness guard below
-    // is unchanged, so a return-to-tab refresh still happens when stale.
+    // Active use retains the five-minute cadence; after five minutes without
+    // interaction, skip polls until activity or tab return. The 60s guard stays.
     let interval = null;
     const startPolling = () => {
       if (interval) return;
       interval = window.setInterval(() => {
         if (shouldPollTick({
           userId,
-          visible: document.visibilityState === 'visible',
+          visible: document.visibilityState === 'visible' && activity.active(),
           now: Date.now(),
           lastRefreshAt: lastRefreshedAtRef.current,
         })) {
@@ -105,10 +107,17 @@ export default function NotificationMenu({ userId }) {
         interval = null;
       }
     };
-    startPolling();
+    if (document.visibilityState === 'visible') startPolling();
+    const stopWatching = watchPollActivity(window, activity, () => {
+      if (document.visibilityState === 'visible' &&
+          shouldRefreshOnVisible({ now: Date.now(), lastRefreshAt: lastRefreshedAtRef.current })) {
+        refresh({ quiet: true });
+      }
+    });
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        activity.touch();
         if (shouldRefreshOnVisible({ now: Date.now(), lastRefreshAt: lastRefreshedAtRef.current })) {
           refresh({ quiet: true });
         }
@@ -121,6 +130,7 @@ export default function NotificationMenu({ userId }) {
 
     return () => {
       stopPolling();
+      stopWatching();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       // Logout / user switch / unmount: drop shared in-flight state so a
       // pending response can never fill the next identity's state (the

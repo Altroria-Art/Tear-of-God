@@ -43,3 +43,4 @@ bucket_name = "tear-of-god"
 [env.production.vars]
 APP_ENV = "production"
 APP_URL = "https://tear-of-god.pages.dev"
+NOTIFICATION_UNREAD_COUNTS = "true"
