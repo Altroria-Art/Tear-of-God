@@ -170,14 +170,11 @@ CREATE TABLE IF NOT EXISTS ranking_item_scores (
   FOREIGN KEY (ranking_id) REFERENCES rankings(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_rankings_user_id ON rankings(user_id);
 CREATE INDEX IF NOT EXISTS idx_rankings_template_id ON rankings(template_id);
-CREATE INDEX IF NOT EXISTS idx_ranking_items_ranking_id ON ranking_items(ranking_id);
-CREATE INDEX IF NOT EXISTS idx_votes_ranking_id ON votes(ranking_id);
+CREATE INDEX IF NOT EXISTS idx_ranking_items_ranking_tier ON ranking_items(ranking_id, tier, item_id);
 CREATE INDEX IF NOT EXISTS idx_votes_user_id ON votes(user_id, vote_type);
 CREATE INDEX IF NOT EXISTS idx_comments_ranking_id ON comments(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
-CREATE INDEX IF NOT EXISTS idx_template_items_template_id ON template_items(template_id);
 
 -- ผู้ใช้เลือก Tier List ที่สะท้อนรสนิยมของตัวเองไว้บนโปรไฟล์ได้สูงสุด 3 รายการ
 -- position ใช้สำหรับเรียงลำดับการแสดงผล (ไม่บังคับให้แต่ละรายการมี position ไม่ซ้ำกัน
@@ -219,9 +216,7 @@ CREATE TABLE IF NOT EXISTS template_comments (
   FOREIGN KEY (parent_id) REFERENCES template_comments(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_ris_ranking ON ranking_item_scores(ranking_id);
 CREATE INDEX IF NOT EXISTS idx_ris_template_time ON ranking_item_scores(template_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_template_reactions_template ON template_reactions(template_id);
 CREATE INDEX IF NOT EXISTS idx_template_comments_template ON template_comments(template_id, created_at);
 
 -- 📍 รายงานผู้ใช้ต่อ template — แจ้งแอดมินให้ช่วยตรวจสอบเนื้อหาไม่เหมาะสม
@@ -262,8 +257,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles(created_at DESC, 
 CREATE INDEX IF NOT EXISTS idx_rankings_created_at   ON rankings(created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_rankings_tpl_likes    ON rankings(template_id, likes_count DESC, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_rankings_user_created ON rankings(user_id, created_at DESC, id DESC);
-CREATE INDEX IF NOT EXISTS idx_templates_use_count   ON templates(use_count DESC, created_at DESC, id DESC);
-CREATE INDEX IF NOT EXISTS idx_templates_view_count  ON templates(view_count DESC, use_count DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_templates_created ON templates(created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_template_items_tpl_position ON template_items(template_id, position);
 
 
@@ -299,6 +293,8 @@ CREATE INDEX IF NOT EXISTS idx_template_bookmarks_template_id ON template_bookma
 -- First-party product analytics. Store only the event taxonomy and anonymous
 -- session/entity identifiers needed for funnel analysis; no IP, user agent,
 -- free-form text, or form values are persisted.
+-- WITHOUT ROWID stores the event UUID once as the primary key. Existing databases
+-- require the separately reviewed 0014 rebuild; CREATE IF NOT EXISTS cannot convert them.
 CREATE TABLE IF NOT EXISTS analytics_events (
   id TEXT PRIMARY KEY,
   event_name TEXT NOT NULL,
@@ -308,15 +304,15 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   entity_id TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE SET NULL
-);
+) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS idx_analytics_event_created
   ON analytics_events(event_name, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_analytics_created
   ON analytics_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_session_created
   ON analytics_events(session_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_analytics_user_created
-  ON analytics_events(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_user_created_nonnull
+  ON analytics_events(user_id, created_at DESC) WHERE user_id IS NOT NULL;
 
 
 -- Password Resets

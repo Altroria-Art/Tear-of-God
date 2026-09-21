@@ -5,6 +5,7 @@ import { useUser } from '../../context/UserContext';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../ui/Toast';
 import { fetchAdminPendingCount } from '../../lib/api';
+import { createPollActivity, watchPollActivity } from '../../lib/pollActivity';
 
 const NAV_ITEMS = [
   { to: '/admin', labelKey: 'admin.dashboard', icon: LayoutDashboard, end: true },
@@ -40,24 +41,37 @@ export default function AdminLayout() {
   }, [currentUser?.id, currentUser?.role, toast, t]);
 
   useEffect(() => {
+    if (!currentUser?.id || currentUser.role !== 'admin') return;
+    const activity = createPollActivity();
+    let pending = false;
+    let lastAttempt = null;
+    const poll = async (isPolling = true) => {
+      if (document.hidden || !activity.active() || pending ||
+          (lastAttempt !== null && Date.now() - lastAttempt < 60000)) return;
+      pending = true;
+      lastAttempt = Date.now();
+      try { await fetchPending(isPolling); } finally { pending = false; }
+    };
     let interval;
     const schedule = () => {
       clearInterval(interval);
-      if (!document.hidden) interval = setInterval(() => fetchPending(true), 60000);
+      if (!document.hidden) interval = setInterval(() => poll(), 60000);
     };
     const handleVisibility = () => {
-      if (!document.hidden) fetchPending(true);
+      if (!document.hidden) { activity.touch(); poll(); }
       schedule();
     };
 
-    fetchPending(false);
+    poll(false);
+    const stopWatching = watchPollActivity(window, activity, () => poll());
     schedule();
     document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       clearInterval(interval);
+      stopWatching();
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [fetchPending]);
+  }, [fetchPending, currentUser?.id, currentUser?.role]);
 
   // กันไม่ให้คนที่ไม่ใช่ admin เข้าใช้หน้า /admin (UI-level; backend ยังตรวจ requireAdmin เสมอ)
   if (currentUser?.role !== 'admin') {
