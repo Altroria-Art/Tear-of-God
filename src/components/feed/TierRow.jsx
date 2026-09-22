@@ -2,6 +2,7 @@ import { useState } from 'react';
 import TierLabel from '../tier/TierLabel';
 import { useTranslation } from 'react-i18next';
 import Modal from '../ui/Modal';
+import { normalizeImageUrl } from '../../lib/images';
 
 function TierItem({ item, idx, onClick, compact = false }) {
   const { t } = useTranslation();
@@ -9,9 +10,7 @@ function TierItem({ item, idx, onClick, compact = false }) {
 
   const itemName = typeof item === 'object' ? (item.name || item.title || item.item_id || t('common.unknownItem')) : (item || t('common.unknownItem'));
   const itemId = typeof item === 'object' ? (item.id ?? idx) : idx;
-  const rawImg = typeof item === 'object' ? (item.image_url || item.image) : null;
-  // Treat string "null" or "undefined" as no image
-  const itemImg = (rawImg === 'null' || rawImg === 'undefined') ? null : rawImg;
+  const itemImg = typeof item === 'object' ? normalizeImageUrl(item.image_url || item.image) : null;
 
   return (
     <div

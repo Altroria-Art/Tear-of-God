@@ -122,21 +122,13 @@ function entityFromUrl(target) {
     const segments = url.pathname.split('/').filter(Boolean);
     if (segments[0] === 'post' && segments[1]) return { entityType: 'ranking', entityId: segments[1] };
     if (segments[0] === 'template' && segments[1]) return { entityType: 'template', entityId: segments[1] };
-    if (segments[0] === 'compare' && segments[1] && segments[2]) {
-      return { entityType: 'comparison', entityId: `${segments[1]}:${segments[2]}` };
-    }
-    const challengeId = url.searchParams.get('challenge');
-    if (segments[0] === 'rank' && challengeId) return { entityType: 'challenge', entityId: challengeId };
   } catch {
     // A malformed target still records a generic share without including it.
   }
   return {};
 }
 
-export function trackShare(target, kind = 'share') {
+export function trackShare(target) {
   const entity = entityFromUrl(target);
   trackEvent('share_complete', entity);
-  if (kind === 'challenge' && entity.entityId) {
-    trackEvent('challenge_share', { entityType: 'challenge', entityId: entity.entityId });
-  }
 }

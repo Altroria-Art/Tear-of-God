@@ -2,7 +2,7 @@ import { useState, useMemo, useRef } from 'react'
 import { Reply, Flag, X, Trash2 } from 'lucide-react'
 import Modal from '../ui/Modal'
 import Avatar from '../ui/Avatar'
-import { timeAgo } from '../../lib/format'
+import { timeAgo, shortTimeAgo } from '../../lib/format'
 import { createPendingGuard } from '../../lib/pendingGuard'
 import { useTranslation } from 'react-i18next'
 import { useUser } from '../../context/UserContext'
@@ -24,9 +24,12 @@ function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isR
       <Avatar name={author?.name} src={author?.avatarUrl} size="sm" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-baseline gap-2">
-            <p className="text-sm font-bold text-ink">{author?.name}</p>
-            <p className="text-xs text-muted">{timeAgo(createdAt)}</p>
+          <div className="flex min-w-0 items-baseline gap-2">
+            <p className="min-w-0 truncate text-sm font-bold text-ink">{author?.name}</p>
+            <p className="whitespace-nowrap text-xs text-muted">
+              <span className="sm:hidden">{shortTimeAgo(createdAt)}</span>
+              <span className="hidden sm:inline">{timeAgo(createdAt)}</span>
+            </p>
           </div>
           {canReport && (
             <button onClick={() => onReport(id)} className="text-muted hover:text-status-error transition-colors p-1 rounded-md" aria-label={t('common.report')} title={t('common.report')}>

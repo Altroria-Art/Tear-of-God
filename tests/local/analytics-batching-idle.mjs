@@ -34,7 +34,7 @@ const {trackEvent}=await import('../../src/lib/analytics.js');
 const drain=()=>new Promise(resolve=>setImmediate(resolve));
 try {
   trackEvent('ranking_start',{entityType:'template',entityId:'t',onceKey:'start'});
-  trackEvent('challenge_start',{entityType:'challenge',entityId:'r',onceKey:'challenge'});
+  trackEvent('post_view',{entityType:'feed',entityId:'p',onceKey:'post'});
   await drain();
   assert.equal(requests.length,1);
   assert.equal(requests[0].events.length,2);

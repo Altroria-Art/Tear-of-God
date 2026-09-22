@@ -15,12 +15,9 @@ function routeEvents(pathname, search) {
   if (pathname === '/rank') {
     const params = new URLSearchParams(search);
     const templateId = params.get('template');
-    const challengeId = params.get('challenge');
-    const events = templateId
+    return templateId
       ? [{ name: 'ranking_start', entityType: 'template', entityId: templateId }]
       : [];
-    if (challengeId) events.push({ name: 'challenge_start', entityType: 'challenge', entityId: challengeId });
-    return events;
   }
 
   return [];

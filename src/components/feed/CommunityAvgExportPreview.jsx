@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { formatHashtags } from '../../lib/hashtags';
+import { normalizeImageUrl } from '../../lib/images';
 import TierLabel from '../tier/TierLabel';
 import ShareQr from '../ui/ShareQr';
 
 function AvgExportItem({ item }) {
   const [imgError, setImgError] = useState(false);
   const itemName = typeof item === 'object' ? (item.name || item.title) : item;
-  const rawImg = typeof item === 'object' ? (item.image_url || item.image) : null;
-  const itemImg = (rawImg && rawImg !== 'null' && rawImg !== 'undefined') ? String(rawImg).trim() : null;
+  const itemImg = typeof item === 'object' ? normalizeImageUrl(item.image_url || item.image) : null;
 
   return (
     <div

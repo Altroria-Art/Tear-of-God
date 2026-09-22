@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { normalizeImageUrl } from '../../lib/images';
 
 export default function EditorItem({ item, position, count, onMove, onShift, onDelete, onDragStart, onDragEnd }) {
   const { t } = useTranslation();
@@ -10,8 +11,7 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
     setImgError(false);
   }, [item?.id, item?.image_url]);
 
-  const rawImg = item?.image_url || item?.image;
-  const itemImg = (rawImg && rawImg !== 'null' && rawImg !== 'undefined') ? String(rawImg).trim() : null;
+  const itemImg = normalizeImageUrl(item?.image_url || item?.image);
   const hasValidImage = Boolean(itemImg && !imgError);
   const itemText = item?.content || item?.name || item?.title || t('common.unknownItem');
 

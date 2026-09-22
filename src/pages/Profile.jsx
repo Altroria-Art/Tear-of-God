@@ -8,6 +8,7 @@ import { useUser } from '../context/UserContext';
 import { fetchRankings, updateProfile, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
+import { normalizeImageUrl } from '../lib/images';
 import { getBadgeStates } from '../lib/badges';
 import { FACULTIES, UP_UNIVERSITY_NAME, getMajorsForFaculty, getAdmissionYears } from '../lib/university';
 import TierLabel from '../components/tier/TierLabel';
@@ -21,8 +22,7 @@ function MiniTierItem({ item, t }) {
   const rawName = item?.item?.name || item?.item?.title || item?.name || item?.title || item?.item_id || t('common.unknownItem');
   const itemName = typeof rawName === 'object' ? t('common.unknownItem') : String(rawName || '');
 
-  const rawImg = item?.item?.image_url || item?.image_url || item?.image;
-  const itemImg = (rawImg && rawImg !== 'null' && rawImg !== 'undefined') ? String(rawImg).trim() : null;
+  const itemImg = normalizeImageUrl(item?.item?.image_url || item?.image_url || item?.image);
 
   return (
     <div
@@ -55,16 +55,19 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
       onClick={onSelect}
       className="group relative flex flex-col rounded-2xl overflow-hidden glass border border-line-soft hover:border-brand/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer text-left select-none bg-surface/60"
     >
-      {/* Top Visual Thumbnail Area */}
-      <div className="h-36 sm:h-40 relative bg-canvas/40 pt-9 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 overflow-hidden border-b border-line-soft/50">
-        {/* TikTok-style Pinned Tag, Type Badge, and Category */}
-        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 max-w-[calc(100%-3rem)] flex-wrap">
-          {isPinned && (
-            <span className="inline-flex items-center gap-1 bg-brand text-canvas text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-xs shrink-0">
-              <Pin size={10} fill="currentColor" />
-              <span>{t('profile.pinnedTag')}</span>
-            </span>
-          )}
+      {/* Top Visual Thumbnail Area — pt-13 reserves a CONSTANT slot for the pinned + type/hashtag
+          badges so tier rows never shift whether the list is pinned or not */}
+      <div className="h-36 sm:h-40 relative bg-canvas/40 pt-13 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 overflow-hidden border-b border-line-soft/50">
+        {/* Pinned badge — own absolute layer at top-left, never pushes the other badges */}
+        {isPinned && (
+          <span className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 bg-brand text-canvas text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-xs shrink-0">
+            <Pin size={10} fill="currentColor" />
+            <span>{t('profile.pinnedTag')}</span>
+          </span>
+        )}
+
+        {/* TikTok-style Type + Hashtag badges — fixed slot, identical position pinned or not */}
+        <div className="absolute left-2 top-8 z-10 flex items-center gap-1 max-w-[calc(100%-3rem)] flex-wrap">
           {post.is_original !== false ? (
             <span
               title={t('profile.badgeOriginal')}
@@ -97,7 +100,7 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
             className={`absolute top-2 right-2 z-10 p-1.5 rounded-full backdrop-blur-md border border-line-soft transition-all shadow-sm ${
               isPinned
                 ? 'bg-brand text-canvas'
-                : 'bg-surface/90 text-muted opacity-0 group-hover:opacity-100 hover:text-brand hover:bg-brand/10'
+                : 'bg-surface/90 text-muted sm:opacity-0 sm:group-hover:opacity-100 hover:text-brand hover:bg-brand/10'
             }`}
           >
             <Pin size={11} fill={isPinned ? 'currentColor' : 'none'} />

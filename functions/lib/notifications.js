@@ -57,6 +57,7 @@ export async function recordLikeDigest(db, rankingId, actorId) {
         aggregate_count = notifications.aggregate_count + 1,
         ranking_id = excluded.ranking_id,
         is_read = 0,
+        read_at = NULL,
         created_at = CURRENT_TIMESTAMP
     `).bind(crypto.randomUUID(), ranking.user_id, rankingId, digestKey).run();
   } catch (error) {

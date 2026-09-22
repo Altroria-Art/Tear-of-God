@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, Download, Flag, X, Trash2, Swords } from 'lucide-react'
+import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Download, Flag, X, Trash2 } from 'lucide-react'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import AboutTemplateCard from '../components/post/AboutTemplateCard'
@@ -18,13 +18,12 @@ import { fetchRanking, createComment, deleteComment, voteRanking, fetchTemplate,
 import { buildTierRows } from '../lib/tiers'
 import { createPendingGuard } from '../lib/pendingGuard'
 import { formatDbDate } from '../lib/format'
-import { challengeUrl, shareUrl } from '../lib/share'
+import { shareUrl } from '../lib/share'
 import { useTranslation } from 'react-i18next'
 
 export default function PostDetail() {
   const { postId } = useParams()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
   const { currentUser } = useUser()
   const toast = useToast()
   const { t } = useTranslation()
@@ -305,61 +304,28 @@ export default function PostDetail() {
 
   const { author, authorId, postedAt, hashtags, title, description, tiers, stats } = post
   const itemCount = tiers.reduce((n, { items }) => n + items.length, 0)
-  const justPublished = searchParams.get('published') === '1' && currentUser?.id === authorId
   // ใช้เฉพาะ template ที่ตรงกับโพสต์ปัจจุบัน — กัน metadata ของ template เก่าค้างจอตอนสลับโพสต์
   const tpl = template?.id === post.templateId ? template : null
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-6">
+    <main className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div>
+        <div className="min-w-0">
           <Link to="/" className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
 
-          {justPublished && post.templateId && (
-            <section className="mt-4 overflow-hidden rounded-2xl border border-highlight/40 bg-highlight/10 p-5 shadow-sm sm:p-6" aria-labelledby="post-publish-challenge-title">
-              <div className="flex items-start gap-3">
-                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-status-success text-canvas shadow-sm">
-                  <CheckCircle2 size={25} strokeWidth={2.5} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h1 id="post-publish-challenge-title" className="text-xl font-black text-ink">{t('challenge.publishedTitle')}</h1>
-                  <p className="mt-1 text-sm leading-6 text-muted">{t('challenge.publishedHint')}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModal('share')}
-                className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-highlight px-5 py-3 text-base font-black text-canvas shadow-md transition-all hover:-translate-y-0.5 hover:brightness-110 hover:shadow-lg active:scale-[0.98]"
-              >
-                <Swords size={22} strokeWidth={2.5} /> {t('challenge.challengeFriend')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const next = new URLSearchParams(searchParams)
-                  next.delete('published')
-                  setSearchParams(next, { replace: true })
-                }}
-                className="mt-3 w-full text-center text-xs font-bold text-muted hover:text-ink"
-              >
-                {t('challenge.maybeLater')}
-              </button>
-            </section>
-          )}
-
           <article className="mt-4 rounded-2xl border border-line-soft glass p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 <Link
                   to={authorId ? `/profile/${authorId}` : '#'}
-                  className={`flex items-center gap-3 w-fit ${!authorId ? 'pointer-events-none' : ''}`}
+                  className={`flex min-w-0 items-center gap-3 ${!authorId ? 'pointer-events-none' : ''}`}
                 >
                   <Avatar name={author.name} src={author.avatarUrl} />
-                  <div>
-                    <p className="text-sm font-bold text-ink hover:text-highlight transition-colors">{author.name}</p>
+<div className="min-w-0 lg:col-start-1 lg:row-start-1">
+                    <p className="truncate text-sm font-bold text-ink hover:text-highlight transition-colors">{author.name}</p>
                     <p className="text-xs text-muted">{postedAt}</p>
                   </div>
                 </Link>
@@ -367,12 +333,13 @@ export default function PostDetail() {
                   <UserFollowButton
                     targetUserId={authorId}
                     initialIsFollowing={post.profile?.is_following}
+                    className="shrink-0"
                   />
                 )}
               </div>
 
-              {/* 📍 บนขวา: เมนูจัดการโพสต์ (รายงาน / ลบ) */}
-              <div className="flex shrink-0 items-center gap-2">
+              {/* 📍 แถวจัดการโพสต์ (รายงาน / ลบ) — mobile ลงบรรทัดใหม่, desktop กลับชิดขวา */}
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
                 {(isOwner || isAdmin) && (
                   <button
                     type="button"
@@ -400,8 +367,8 @@ export default function PostDetail() {
               </div>
             </div>
 
-            <div className="mt-2 flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl font-bold text-ink">{title}</h1>
+            <div className="mt-2 flex min-w-0 items-center gap-2.5 flex-wrap">
+              <h1 className="min-w-0 text-xl font-bold text-ink break-words sm:text-2xl">{title}</h1>
               {post.isOriginal ? (
                 <span
                   title={t('profile.badgeOriginal')}
@@ -414,11 +381,11 @@ export default function PostDetail() {
                   <Link
                     to={`/template/${encodeURIComponent(post.templateId)}`}
                     title={t('profile.usedTemplateTooltip', { title: post.templateTitle || tpl?.title || title })}
-                    className="px-2.5 py-0.5 rounded-full border border-highlight/40 bg-highlight/15 text-highlight text-xs font-bold shadow-2xs hover:bg-highlight/25 transition-colors inline-flex items-center gap-1"
+                    className="max-w-full min-w-0 px-2.5 py-0.5 rounded-full border border-highlight/40 bg-highlight/15 text-highlight text-xs font-bold shadow-2xs hover:bg-highlight/25 transition-colors inline-flex items-center gap-1"
                   >
                     <span>{t('profile.badgeTemplate')}</span>
                     {(post.templateTitle || tpl?.title) && (
-                      <span className="text-[11px] font-medium opacity-85 max-w-[160px] truncate">
+                      <span className="min-w-0 text-[11px] font-medium opacity-85 max-w-[160px] truncate">
                         : {post.templateTitle || tpl?.title}
                       </span>
                     )}
@@ -452,14 +419,14 @@ export default function PostDetail() {
               </div>
             )}
 
-            <div ref={tableRef} className="mt-4 space-y-2 rounded-xl border border-line-soft p-2 glass">
+            <div ref={tableRef} className="mt-4 min-w-0 max-w-full space-y-2 rounded-xl border border-line-soft p-2 glass">
               {tiers.map(({ tier, color, index, items }) => (
                 <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}
             </div>
 
-            <div className="mt-4 flex items-center border-t border-line-soft pt-3">
-              <div className="flex items-center gap-5">
+            <div className="mt-4 flex flex-wrap items-center gap-y-3 border-t border-line-soft pt-3">
+              <div className="flex items-center gap-4 sm:gap-5">
                 <ActionButton 
                   icon={ThumbsUpIcon} 
                   count={stats.likes} 
@@ -494,7 +461,6 @@ export default function PostDetail() {
             mode={modal}
             onClose={() => setModal(null)}
             link={shareUrl(`/post/${postId}`)}
-            challengeLink={post.templateId ? challengeUrl(post.templateId, postId) : null}
             preview={
               <ExportCard
                 title={title}
@@ -512,6 +478,19 @@ export default function PostDetail() {
             filename={`post-${postId}.png`}
           />
 
+          </div>
+
+        {/* 📍 About this template — mobile เรียงต่อจากโพสต์, desktop เป็น sticky sidebar ขวา */}
+        <aside className="lg:sticky lg:top-6 lg:self-start lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <AboutTemplateCard
+            templateId={post.templateId}
+            name={tpl?.title ?? title}
+            description={tpl?.description ?? description}
+            itemCount={tpl?.template_items?.length ?? itemCount}
+          />
+        </aside>
+
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
           <CommentSection 
             comments={comments} 
             onSubmit={handleAddComment} 
@@ -520,15 +499,6 @@ export default function PostDetail() {
             inputRef={commentInputRef} 
           />
         </div>
-
-        <aside className="lg:sticky lg:top-6 lg:self-start">
-          <AboutTemplateCard
-            templateId={post.templateId}
-            name={tpl?.title ?? title}
-            description={tpl?.description ?? description}
-            itemCount={tpl?.template_items?.length ?? itemCount}
-          />
-        </aside>
       </div>
 
       {/* 📍 Modal รายงานโพสต์ */}
