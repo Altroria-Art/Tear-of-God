@@ -200,10 +200,14 @@ const Navbar = () => {
           <button 
             aria-label={t('nav.menu')}
             aria-expanded={isMobileMenuOpen}
-            className="md:hidden p-2 text-ink-soft hover:text-brand" 
+            className={`md:hidden grid h-11 w-11 shrink-0 place-items-center rounded-xl border shadow-sm transition-all ${
+              isMobileMenuOpen
+                ? 'bg-brand text-canvas border-brand'
+                : 'bg-surface text-ink border-line-soft hover:bg-surface-glass hover:text-brand'
+            }`}
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+            {isMobileMenuOpen ? <X size={22} strokeWidth={2.75} /> : <Menu size={22} strokeWidth={2.75} />}
           </button>
           <Link to="/" onClick={handleHomeClick} className="whitespace-nowrap text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
             Tear of God
@@ -351,7 +355,7 @@ const Navbar = () => {
 
       {/* Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full glass border-t border-line-soft p-4 flex flex-col gap-4 shadow-lg z-50">
+        <div className="md:hidden absolute top-full left-0 w-full bg-canvas border-t border-line-soft p-4 flex flex-col gap-4 shadow-xl z-50">
           <div ref={mobileSearchRef} className="relative w-full">
             <form onSubmit={handleSearch}>
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />

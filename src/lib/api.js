@@ -372,6 +372,25 @@ export async function markNotificationRead(id) {
   }
 }
 
+export async function deleteNotification(id) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/notifications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'delete',
+        id,
+      }),
+    });
+    return await response.json();
+  } catch {
+    return {
+      success: false,
+      error: i18n.t('errors.actionFailed'),
+    };
+  }
+}
+
 export async function createRanking(rankingData) {  try {
     const response = await apiFetch(`${API_URL}/api/rankings`, {
       method: 'POST',

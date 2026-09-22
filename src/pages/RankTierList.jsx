@@ -4,13 +4,12 @@ import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
 import React, { useState, useEffect } from 'react';
-import { Share2, Shuffle, ArrowDownAZ, Swords, Hash } from 'lucide-react';
+import { Share2, Shuffle, ArrowDownAZ, Hash } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
-import { fetchTemplate, createRanking, fetchRanking } from '../lib/api';
+import { fetchTemplate, createRanking } from '../lib/api';
 import { markLastPublished } from '../lib/lastPublished';
-import { challengePath } from '../lib/share';
 import useDragAutoScroll from '../lib/useDragAutoScroll';
 import TierLabel from '../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
@@ -35,7 +34,6 @@ const RankTierList = () => {
   const { beginDrag, endDrag } = useDragAutoScroll();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
-  const challengeId = searchParams.get('challenge');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -45,14 +43,10 @@ const RankTierList = () => {
   const [loadedKey, setLoadedKey] = useState(null);
   const [templateError, setTemplateError] = useState('');
   const [draftStatus, setDraftStatus] = useState('');
-  const challengeDraftSuffix = challengeId ? ':challenge:' + challengeId : '';
-  const draftKey = 'tog-rank-draft:' + (currentUser?.id || 'guest') + ':' + templateId + challengeDraftSuffix;
-  const guestDraftKey = 'tog-rank-draft:guest:' + templateId + challengeDraftSuffix;
+  const draftKey = 'tog-rank-draft:' + (currentUser?.id || 'guest') + ':' + templateId;
+  const guestDraftKey = 'tog-rank-draft:guest:' + templateId;
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateId);
   const [isSaving, setIsSaving] = useState(false);
-  const [challengeSource, setChallengeSource] = useState(null);
-  const [challengeError, setChallengeError] = useState('');
-  const [isLoadingChallenge, setIsLoadingChallenge] = useState(!!challengeId);
 
   
 
@@ -95,30 +89,6 @@ const RankTierList = () => {
     load();
     return () => { cancelled = true; };
   }, [templateId, draftKey, guestDraftKey, navigate, resetItems, t]);
-
-  useEffect(() => {
-    if (!challengeId) {
-      setChallengeSource(null);
-      setChallengeError('');
-      setIsLoadingChallenge(false);
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingChallenge(true);
-    setChallengeError('');
-    fetchRanking(challengeId).then(({ data }) => {
-      if (cancelled) return;
-      if (!data || data.template_id !== templateId) {
-        setChallengeSource(null);
-        setChallengeError(t('challenge.invalid'));
-      } else {
-        setChallengeSource(data);
-      }
-      setIsLoadingChallenge(false);
-    });
-    return () => { cancelled = true; };
-  }, [challengeId, templateId, t]);
 
   useEffect(() => {
     if (loadedKey?.key !== draftKey) return;
@@ -242,7 +212,7 @@ const RankTierList = () => {
   const handleSaveRanking = async () => {
     if (!currentUser) {
       toast.warning(t('rank.warnLoginSave'));
-      navigate(loginPath(challengePath(templateId, challengeId)));
+      navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}`));
       return;
     }
     if (isSaving || isLoadingTemplate || templateError) return;
@@ -261,7 +231,6 @@ const RankTierList = () => {
 
     setIsSaving(true);
     const rankingData = {
-      challenge_source_id: challengeSource?.id || null,
       payload: {
         title,
         description,
@@ -284,18 +253,11 @@ const RankTierList = () => {
       toast.error(t('rank.error', { msg: error }));
     } else {
       if (data?.id) trackEvent('ranking_publish', { entityType: 'ranking', entityId: data.id });
-      if (challengeSource?.id) {
-        trackEvent('challenge_complete', { entityType: 'challenge', entityId: challengeSource.id });
-      }
       // 📍 จำโพสต์ที่เพิ่ง publish ไว้ ให้ Home Feed ดันขึ้นการ์ดแรก (transient — รีหน้าแล้วหาย)
       setLoadedKey(null);
       try { localStorage.removeItem(draftKey); localStorage.removeItem(guestDraftKey); } catch { /* Storage may be disabled. */ }
       markLastPublished(data?.id, currentUser.id);
-      if (challengeSource?.id && data?.id) {
-        navigate(`/compare/${encodeURIComponent(challengeSource.id)}/${encodeURIComponent(data.id)}`);
-      } else {
-        navigate(data?.id ? `/post/${encodeURIComponent(data.id)}?published=1` : '/');
-      }
+      navigate(data?.id ? `/post/${encodeURIComponent(data.id)}` : '/');
     }
   };
 
@@ -307,37 +269,6 @@ const RankTierList = () => {
   return (
     <div className="min-h-screen font-sans text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-8 sm:pb-32 flex-1 flex flex-col gap-6">
-
-        {challengeId && (
-          <section className="rounded-2xl border border-highlight/40 bg-highlight/10 p-4 sm:p-5" aria-live="polite">
-            <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-highlight text-canvas shadow-sm">
-                <Swords size={22} strokeWidth={2.5} />
-              </span>
-              <div className="min-w-0">
-                <p className="font-black text-ink">
-                  {isLoadingChallenge
-                    ? t('challenge.loading')
-                    : challengeSource
-                      ? t('challenge.invitedBy', { name: challengeSource.profile?.username || t('common.unknownUser') })
-                      : t('challenge.unavailable')}
-                </p>
-                <p className="mt-1 text-sm text-muted">
-                  {challengeError || t('challenge.rankHint')}
-                </p>
-                {challengeSource && (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/post/${challengeSource.id}`)}
-                    className="mt-2 text-xs font-bold text-ink underline decoration-highlight underline-offset-4"
-                  >
-                    {t('challenge.viewOriginal')}
-                  </button>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Top Info Card: Title, Description & Hashtags */}
         <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col gap-4 shadow-sm border border-line-soft">

@@ -20,7 +20,7 @@ function initialsFrom(name) {
 /**
  * Three variants, in fallback order: photo, initials, generic person glyph.
  */
-export default function Avatar({ name, src, initials, size = 'md' }) {
+export default function Avatar({ name, src, initials, size = 'md', style }) {
   const sizeClass = SIZES[size] ?? SIZES.md
   const label = initials ?? initialsFrom(name)
 
@@ -30,6 +30,7 @@ export default function Avatar({ name, src, initials, size = 'md' }) {
         src={src}
         alt={name}
         className={`${sizeClass} shrink-0 rounded-full object-cover`}
+        style={style}
       />
     )
   }
@@ -40,6 +41,7 @@ export default function Avatar({ name, src, initials, size = 'md' }) {
         aria-label={name}
         role="img"
         className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-avatar font-semibold text-avatar-ink`}
+        style={style}
       >
         {label}
       </span>
@@ -49,6 +51,7 @@ export default function Avatar({ name, src, initials, size = 'md' }) {
   return (
     <span
       className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-search text-ink-soft`}
+      style={style}
     >
       <UserIcon className="h-1/2 w-1/2" />
     </span>

@@ -14,6 +14,16 @@ export async function onRequest({ request, env, data: auth }) {
     if (request.method === 'GET') {
       const url = new URL(request.url);
       const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20), 50);
+      // Lazy per-user purge: read notifications are kept 24h from read_at, then
+      // physically deleted from D1. Deletes only is_read=1 rows, so the exact
+      // unread counter (trigger fires on OLD.is_read = 0 only) never changes.
+      await db.prepare(`
+        DELETE FROM notifications
+        WHERE user_id = ?1
+          AND is_read = 1
+          AND read_at IS NOT NULL
+          AND read_at <= datetime('now', '-24 hours')
+      `).bind(userId).run();
       const [{ results }, unreadRow] = await Promise.all([
         db.prepare(`
           WITH recent AS (
@@ -23,17 +33,17 @@ export async function onRequest({ request, env, data: auth }) {
             )
             UNION ALL
             SELECT * FROM (
-              SELECT * FROM notifications WHERE user_id = ?1 AND is_read = 1
+              SELECT * FROM notifications
+              WHERE user_id = ?1 AND is_read = 1
+                AND (read_at IS NULL OR read_at > datetime('now', '-24 hours'))
               ORDER BY created_at DESC, id DESC LIMIT ?2
             )
           )
           SELECT n.*, actor.username AS actor_username, actor.avatar_url AS actor_avatar_url,
-                 target.title AS ranking_title, source.title AS source_ranking_title,
-                 topic_template.title AS template_title
+                 target.title AS ranking_title, topic_template.title AS template_title
           FROM recent n
           LEFT JOIN profiles actor ON actor.id = n.actor_id
           LEFT JOIN rankings target ON target.id = n.ranking_id
-          LEFT JOIN rankings source ON source.id = n.source_ranking_id
           LEFT JOIN templates topic_template ON topic_template.id = n.template_id
           ORDER BY n.created_at DESC, n.id DESC
           LIMIT ?2
@@ -58,16 +68,40 @@ export async function onRequest({ request, env, data: auth }) {
 
       if (action === 'read') {
         const notificationId = assertId(body.id, 'id');
+        // read_at is stamped on the first read only (unread -> read). Re-opening
+        // an already-read row is a no-op here, so the 24h window never extends.
         await db.prepare(`
-          UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ? AND is_read = 0
+          UPDATE notifications
+          SET
+            is_read = 1,
+            read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+          WHERE id = ? AND user_id = ? AND is_read = 0
         `).bind(notificationId, userId).run();
         return jsonResponse({ success: true });
       }
 
       if (action === 'read_all') {
         await db.prepare(`
-          UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0
+          UPDATE notifications
+          SET
+            is_read = 1,
+            read_at = CURRENT_TIMESTAMP
+          WHERE user_id = ? AND is_read = 0
         `).bind(userId).run();
+        return jsonResponse({ success: true });
+      }
+
+      if (action === 'delete') {
+        const notificationId = assertId(body.id, 'id');
+        // User-scoped hard delete. No counter math here: the exact unread
+        // counter belongs to the notification_unread_counts triggers
+        // (WHEN OLD.is_read = 0), so deleting an unread row decrements and
+        // deleting a read row does not. idempotent: a row already removed by
+        // the lazy 24h purge or the cron worker makes this a no-op success.
+        await db.prepare(`
+          DELETE FROM notifications
+          WHERE id = ? AND user_id = ?
+        `).bind(notificationId, userId).run();
         return jsonResponse({ success: true });
       }
 

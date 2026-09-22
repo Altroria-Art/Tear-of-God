@@ -26,7 +26,6 @@ const TemplateDetailPage = lazy(() => import('./pages/TemplateDetailPage'));
 const CommunityAveragePage = lazy(() => import('./pages/CommunityAveragePage'));
 const CommunityParticipants = lazy(() => import('./pages/CommunityParticipants'));
 const PostDetail = lazy(() => import('./pages/PostDetail'));
-const ChallengeCompare = lazy(() => import('./pages/ChallengeCompare'));
 const Create = lazy(() => import('./pages/Create'));
 const RankTierList = lazy(() => import('./pages/RankTierList'));
 const Profile = lazy(() => import('./pages/Profile'));
@@ -80,7 +79,6 @@ function App() {
                 <Route path="/template/:templateId/community" element={<CommunityAveragePage />} />
                 <Route path="/template/:templateId/participants" element={<CommunityParticipants />} />
                 <Route path="/post/:postId" element={<PostDetail />} />
-                <Route path="/compare/:sourceId/:responseId" element={<ChallengeCompare />} />
                 <Route path="/profile/:userId" element={<Profile />} />
 
                 {/* Protected routes requiring authentication */}

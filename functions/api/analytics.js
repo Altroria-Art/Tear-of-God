@@ -17,13 +17,9 @@ const EVENT_NAMES = [
   'ranking_start',
   'ranking_publish',
   'share_complete',
-  'challenge_start',
-  'challenge_share',
-  'challenge_complete',
-  'comparison_view',
 ];
 
-const ENTITY_TYPES = ['feed', 'template', 'ranking', 'challenge', 'comparison'];
+const ENTITY_TYPES = ['feed', 'template', 'ranking'];
 
 function shouldRunCleanup() {
   const sample = new Uint8Array(1);

@@ -329,11 +329,6 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 divide-x divide-line-soft rounded-xl border border-line-soft bg-surface/60 py-2 text-center">
-                    <div><p className="text-sm font-black text-ink">{analytics.challenge.starts}</p><p className="text-[9px] font-semibold text-muted">{t('admin.challengeStarts')}</p></div>
-                    <div><p className="text-sm font-black text-ink">{analytics.challenge.completions}</p><p className="text-[9px] font-semibold text-muted">{t('admin.challengeCompletes')}</p></div>
-                    <div><p className="text-sm font-black text-ink">{analytics.challenge.shares}</p><p className="text-[9px] font-semibold text-muted">{t('admin.challengeShares')}</p></div>
-                  </div>
                 </div>
               </div>
             </section>

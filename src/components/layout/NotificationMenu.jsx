@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Swords, TrendingUp, UserPlus } from 'lucide-react';
+import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Trash2, TrendingUp, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { fetchNotifications, markNotificationRead } from '../../lib/api';
+import { deleteNotification, fetchNotifications, markNotificationRead } from '../../lib/api';
 import {
   POLL_INTERVAL_MS,
   createRequestDeduper,
@@ -16,7 +16,6 @@ import { createPollActivity, watchPollActivity } from '../../lib/pollActivity';
 const notificationIcon = {
   comment: MessageCircle,
   follow: UserPlus,
-  challenge: Swords,
   template_use: LayoutTemplate,
   following_rank: UserPlus,
   trending: TrendingUp,
@@ -27,9 +26,6 @@ const notificationIcon = {
 function notificationPath(notification) {
   if (notification.type === 'follow' && notification.actor_id) {
     return `/profile/${encodeURIComponent(notification.actor_id)}`;
-  }
-  if (notification.type === 'challenge' && notification.source_ranking_id && notification.ranking_id) {
-    return `/compare/${encodeURIComponent(notification.source_ranking_id)}/${encodeURIComponent(notification.ranking_id)}`;
   }
   if (notification.type === 'template_use' && notification.template_id) {
     return `/template/${encodeURIComponent(notification.template_id)}`;
@@ -189,6 +185,31 @@ export default function NotificationMenu({ userId }) {
     if (path) navigate(path);
   };
 
+  // Optimistic delete: row disappears (and the unread badge drops) before the
+  // server answers; only a failure rolls the local snapshot back and re-syncs
+  // from the server truth. The server-side unread counter is untouched here —
+  // the D1 trigger owns it.
+  const handleDeleteNotification = async (notification) => {
+    const previousNotifications = notifications;
+    const previousUnreadCount = unreadCount;
+
+    setNotifications(items =>
+      items.filter(item => item.id !== notification.id)
+    );
+
+    if (!notification.is_read) {
+      setUnreadCount(count => Math.max(0, count - 1));
+    }
+
+    const result = await deleteNotification(notification.id);
+
+    if (result.success === false) {
+      setNotifications(previousNotifications);
+      setUnreadCount(previousUnreadCount);
+      refresh({ quiet: true });
+    }
+  };
+
   const notificationText = (notification) => {
     const name = notification.actor_username || t('common.unknownUser');
     if (notification.type === 'trending') {
@@ -200,9 +221,7 @@ export default function NotificationMenu({ userId }) {
     if (notification.type === 'like_digest') {
       return t('notifications.like_digest', { count: notification.aggregate_count || 1 });
     }
-    const rankingTitle = notification.type === 'challenge'
-      ? notification.source_ranking_title
-      : notification.template_title || notification.ranking_title;
+    const rankingTitle = notification.template_title || notification.ranking_title;
     return t(`notifications.${notification.type}`, {
       name,
       title: rankingTitle || t('notifications.aTierList'),
@@ -258,30 +277,43 @@ export default function NotificationMenu({ userId }) {
             {notifications.map(notification => {
               const Icon = notificationIcon[notification.type] || Bell;
               return (
-                <button
+                <div
                   key={notification.id}
-                  type="button"
-                  onClick={() => openNotification(notification)}
-                  className={`flex w-full items-start gap-3 border-b border-line-soft px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-surface-glass ${notification.is_read ? '' : 'bg-brand/5'}`}
+                  className={`flex w-full items-start gap-3 border-b border-line-soft px-4 py-3 transition-colors last:border-b-0 ${notification.is_read ? '' : 'bg-brand/5'}`}
                 >
-                  <div className="relative shrink-0">
-                    {notification.actor_avatar_url ? (
-                      <img src={notification.actor_avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-surface-glass flex items-center justify-center text-brand">
-                        <Icon size={18} />
-                      </div>
-                    )}
-                    <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-brand text-canvas ring-2 ring-surface flex items-center justify-center">
-                      <Icon size={11} />
+                  <button
+                    type="button"
+                    onClick={() => openNotification(notification)}
+                    className="min-w-0 flex flex-1 items-start gap-3 rounded-lg text-left hover:bg-surface-glass"
+                  >
+                    <span className="relative shrink-0">
+                      {notification.actor_avatar_url ? (
+                        <img src={notification.actor_avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" />
+                      ) : (
+                        <span className="h-10 w-10 rounded-full bg-surface-glass flex items-center justify-center text-brand">
+                          <Icon size={18} />
+                        </span>
+                      )}
+                      <span className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-brand text-canvas ring-2 ring-surface flex items-center justify-center">
+                        <Icon size={11} />
+                      </span>
                     </span>
-                  </div>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm leading-5 text-ink">{notificationText(notification)}</span>
-                    <span className="mt-1 block text-[11px] text-muted">{timeAgo(notification.created_at)}</span>
-                  </span>
-                  {!notification.is_read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand" aria-label={t('notifications.new')} />}
-                </button>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm leading-5 text-ink">{notificationText(notification)}</span>
+                      <span className="mt-1 block text-[11px] text-muted">{timeAgo(notification.created_at)}</span>
+                    </span>
+                    {!notification.is_read && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand" aria-label={t('notifications.new')} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteNotification(notification)}
+                    aria-label={t('notifications.delete')}
+                    title={t('notifications.delete')}
+                    className="shrink-0 self-center rounded-lg p-3 text-muted transition-colors hover:bg-red-500/10 hover:text-red-400"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               );
             })}
           </div>

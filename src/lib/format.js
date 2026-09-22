@@ -93,3 +93,26 @@ export function timeAgo(dateString) {
 
   return `${dateFormatted} • ${relative}`;
 }
+
+/** Compact relative time for tight/mobile UIs — number + short unit, same for th/en. */
+export function shortTimeAgo(dateString) {
+  const date = parseDbDate(dateString);
+  if (!date) return 'now';
+
+  // Clamp negatives exactly like timeAgo() does.
+  const seconds = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000));
+
+  if (seconds < 45) return 'now';
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d`;
+  const weeks = Math.round(days / 7);
+  if (weeks < 5) return `${weeks}w`;
+  const months = Math.round(days / 30);
+  if (months < 12) return `${months}mo`;
+  return `${Math.round(days / 365)}y`;
+}

@@ -130,7 +130,7 @@ export async function onRequest({ request, env, data: auth }) {
     const dailyStartModifier = `-${days - 1} days`;
 
     try {
-      const [funnel, activity, dailyRows, challenge] = await Promise.all([
+      const [funnel, activity, dailyRows] = await Promise.all([
         db.prepare(`
           WITH feed_step AS (
             SELECT session_id, MIN(created_at) AS reached_at
@@ -215,14 +215,6 @@ export async function onRequest({ request, env, data: auth }) {
           GROUP BY dates.day
           ORDER BY dates.day ASC
         `).bind(dailyStartModifier).all(),
-        db.prepare(`
-          SELECT
-            COUNT(DISTINCT CASE WHEN event_name = 'challenge_start' THEN session_id END) AS starts,
-            COUNT(DISTINCT CASE WHEN event_name = 'challenge_complete' THEN session_id END) AS completions,
-            COUNT(DISTINCT CASE WHEN event_name = 'challenge_share' THEN session_id END) AS shares
-          FROM analytics_events
-          WHERE created_at >= datetime('now', ?)
-        `).bind(periodModifier).first(),
       ]);
 
       const stageDefinitions = [
@@ -256,11 +248,6 @@ export async function onRequest({ request, env, data: auth }) {
             previous_users: previousUsers,
             returning_users: returningUsers,
             return_rate: previousUsers > 0 ? Math.round((returningUsers / previousUsers) * 100) : 0,
-          },
-          challenge: {
-            starts: Number(challenge?.starts) || 0,
-            completions: Number(challenge?.completions) || 0,
-            shares: Number(challenge?.shares) || 0,
           },
           daily_activity: (dailyRows?.results || []).map((row) => ({
             day: row.day,

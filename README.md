@@ -6,7 +6,6 @@
 
 - Create and share tier lists from community templates
 - Guest-first Create flow — start ranking immediately with Quick Add, then add metadata at publish; optional pairwise mode turns head-to-head choices into tiers automatically
-- Challenge friends to rank the same template, compare taste, and share an exportable result card
 - Drag-and-drop tier list editor with auto-scroll and in-tier reorder
 - Community Average — aggregated rankings per template with time-period filtering
 - Home feed with Trending, For You, and Following tabs
@@ -18,8 +17,8 @@
 - Like/dislike voting on posts and Community Average
 - Comments on posts and Community Average
 - Follow other users
-- In-app notifications for replies, template usage, followed creators/topics' new rankings, trending posts, Community Average changes, daily like digests, and completed challenges
-- Rich social link previews for posts, templates, Community Average, and challenges; downloadable share cards in landscape, square, and story formats with QR/CTA
+- In-app notifications for replies, template usage, followed creators/topics' new rankings, trending posts, Community Average changes, and daily like digests
+- Rich social link previews for posts, templates, and Community Average; downloadable share cards in landscape, square, and story formats with QR/CTA
 - First-party product funnel and returning-user analytics in the admin dashboard
 - User profiles with University of Phayao faculty/major info, Taste Identity (hashtag distribution, favorite S-tier items, badges, similar users), and up to three pinned rankings
 - Admin panel — dashboard, user/ranking/template/report management

@@ -817,16 +817,6 @@ export async function onRequest(context) {
       };
       assertHashtags(cleanPayload.hashtags, 'payload.hashtags');
       cleanPayload.hashtags = canonicalizeHashtags(cleanPayload.hashtags);
-      const challengeSourceId = assertId(body.challenge_source_id, 'challenge_source_id', { optional: true }) || null;
-      let challengeSource = null;
-      if (challengeSourceId) {
-        challengeSource = await db.prepare(`
-          SELECT id, user_id, template_id FROM rankings WHERE id = ?
-        `).bind(challengeSourceId).first();
-        if (!challengeSource || !cleanPayload.template_id || challengeSource.template_id !== cleanPayload.template_id) {
-          return jsonResponse({ success: false, error: 'Invalid challenge source' }, 400);
-        }
-      }
 
       const cleanItems = items.map((item, index) => {
         if (!isPlainObject(item)) throw new RequestError(`items[${index}] must be an object`);
@@ -1013,16 +1003,6 @@ export async function onRequest(context) {
         `).bind(
           cleanPayload.user_id, rankingId, effectiveTemplateId,
           effectiveTemplateId, effectiveTemplateId, cleanPayload.user_id
-        ));
-      }
-
-      if (challengeSource?.user_id && challengeSource.user_id !== cleanPayload.user_id) {
-        statements.push(db.prepare(`
-          INSERT OR IGNORE INTO notifications
-            (id, user_id, actor_id, type, ranking_id, source_ranking_id)
-          VALUES (?, ?, ?, 'challenge', ?, ?)
-        `).bind(
-          crypto.randomUUID(), challengeSource.user_id, cleanPayload.user_id, rankingId, challengeSource.id
         ));
       }
 

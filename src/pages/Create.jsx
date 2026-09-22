@@ -68,7 +68,6 @@ const CreateTierList = () => {
   const [draft] = useState(loadDraft);
 
   const [quickAddText, setQuickAddText] = useState('');
-  const [detailsOpen, setDetailsOpen] = useState(Boolean(draft?.title));
 
   const [title, setTitle] = useState(draft?.title ?? '');
   const [description, setDescription] = useState(draft?.description ?? '');
@@ -352,8 +351,8 @@ const CreateTierList = () => {
   const handlePublish = async () => {
     if (!currentUser) { toast.warning(t('create.warnLoginPublish')); navigate(loginPath('/create')); return; }
     if (isPublishing) return;
-    if (!title.trim()) { setDetailsOpen(true); return toast.warning(t('create.warnName')); }
-    if (selectedHashtags.length === 0) { setDetailsOpen(true); return toast.warning(t('create.warnHashtag')); }
+    if (!title.trim()) { return toast.warning(t('create.warnName')); }
+    if (selectedHashtags.length === 0) { return toast.warning(t('create.warnHashtag')); }
 
     // 📍 [เพิ่มใหม่]: ต้องมี item และจัด tier แล้วเท่านั้น — ไม่งั้นจะได้โพสต์เปล่า
     const rankedItems = items.filter(item => item.tierId !== null);
@@ -413,7 +412,7 @@ const CreateTierList = () => {
       toast.success(t('create.successPublish'));
       // 📍 จำโพสต์ที่เพิ่ง publish ไว้ ให้ Home Feed ดันขึ้นการ์ดแรก (transient — รีหน้าแล้วหาย)
       markLastPublished(data?.id, currentUser.id);
-      navigate(data?.id ? `/post/${encodeURIComponent(data.id)}?published=1` : '/');
+      navigate(data?.id ? `/post/${encodeURIComponent(data.id)}` : '/');
     }
   };
 
@@ -494,7 +493,9 @@ const CreateTierList = () => {
         
         {/* LEFT SIDEBAR */}
         <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          <details open={detailsOpen} onToggle={e => setDetailsOpen(e.currentTarget.open)} className="order-1 glass p-4 sm:p-6 rounded-2xl"><summary className="font-bold cursor-pointer">{t('editor.details')}</summary><div className="flex flex-col gap-5 mt-4">
+          <section className="order-1 glass p-4 sm:p-6 rounded-2xl">
+            <h2 className="font-bold">{t('editor.details')}</h2>
+            <div className="flex flex-col gap-5 mt-4">
             <div>
               <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.templateName')}</label>
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('create.templateNamePh')} className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
@@ -573,7 +574,8 @@ const CreateTierList = () => {
               <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.description')} <span className="text-muted font-medium text-xs normal-case">{t('create.optional')}</span></label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('create.descriptionPh')} rows="3" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none"></textarea>
             </div>
-          </div></details>
+          </div>
+          </section>
 
           <div className="order-2 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4">
             <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>

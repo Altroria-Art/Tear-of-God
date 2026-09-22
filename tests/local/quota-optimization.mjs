@@ -31,11 +31,12 @@ try {
     } };
   } };
   const originalSql = `SELECT n.*, actor.username AS actor_username, actor.avatar_url AS actor_avatar_url,
-    target.title AS ranking_title, source.title AS source_ranking_title, topic_template.title AS template_title
+    target.title AS ranking_title, topic_template.title AS template_title
     FROM notifications n LEFT JOIN profiles actor ON actor.id=n.actor_id
-    LEFT JOIN rankings target ON target.id=n.ranking_id LEFT JOIN rankings source ON source.id=n.source_ranking_id
+    LEFT JOIN rankings target ON target.id=n.ranking_id
     LEFT JOIN templates topic_template ON topic_template.id=n.template_id
-    WHERE n.user_id=? ORDER BY n.created_at DESC, n.id DESC LIMIT ?`;
+    WHERE n.user_id=? AND (n.is_read=0 OR n.read_at IS NULL OR n.read_at > datetime('now','-24 hours'))
+    ORDER BY n.created_at DESC, n.id DESC LIMIT ?`;
   for (const limit of [1, 20, 50]) {
     const before = await db.prepare(originalSql).bind('u', limit).all();
     const response = await notifications({ request: new Request(`https://test/api/notifications?limit=${limit}`), env: { tear_of_god_db: measuredDb }, data: { user: { id: 'u' } } });

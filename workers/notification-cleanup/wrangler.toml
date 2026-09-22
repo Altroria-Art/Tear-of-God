@@ -1,0 +1,19 @@
+# Standalone scheduled Worker for global notification cleanup. Deliberately
+# separate from the root Pages wrangler.toml: Pages has no Cron Trigger
+# support, so this Worker owns the schedule and binds the SAME production D1
+# (tear-of-god-db) that the Pages app uses. Never add [triggers] to the root
+# Pages config.
+name = "tear-of-god-notification-cleanup"
+main = "index.js"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "tear_of_god_db"
+database_name = "tear-of-god-db"
+database_id = "69d366f1-55ba-43cf-a492-882e137786f4"
+
+# Run every minute so the worst-case delay between a notification reaching
+# 24h and its actual deletion is ~1 minute. SQLite CURRENT_TIMESTAMP /
+# datetime('now') are UTC, so the cron schedule needs no timezone conversion.
+[triggers]
+crons = ["* * * * *"]

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api'; // 📍 นำเข้า voteRanking สำหรับบันทึกโหวตลง Cloudflare
 import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, BarChart3 } from 'lucide-react';
-import { challengeUrl, shareUrl } from '../lib/share';
+import { shareUrl } from '../lib/share';
 import ShareExportModal from '../components/ui/ShareExportModal';
 import ExportCard from '../components/ui/ExportCard';
 import BookmarkButton from '../components/template/BookmarkButton';
@@ -346,7 +346,6 @@ function HomeTierCard({ post, onRequireAuth }) {
           mode={modal}
           onClose={() => setModal(null)}
           link={shareUrl(`/post/${post.id}`)}
-          challengeLink={post.template_id ? challengeUrl(post.template_id, post.id) : null}
           preview={
             <ExportCard
               title={post.title}
@@ -688,13 +687,6 @@ export default function HomeFeed() {
         </aside>
         <main className="w-full max-w-2xl shrink">
         <div className="space-y-6">
-          {activeTab === 'trending' && !isLg && <div className="lg:hidden"><FeaturedPrompts /></div>}
-          {activeTab === 'trending' && !isXl && (
-            <div className="xl:hidden">
-              <FreshnessHub />
-            </div>
-          )}
-
           {activeTab === 'for_you' && !currentUser && (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-line-soft bg-surface/80 p-3.5 text-xs text-muted shadow-xs">
               <div className="flex items-center gap-2.5">

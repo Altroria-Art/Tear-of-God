@@ -57,7 +57,7 @@
 
 | Test Case ID | Module / Feature | ความสำคัญ (Priority) | คำอธิบาย (Test Case Description) | เงื่อนไขเบื้องต้น (Pre-Condition) | ขั้นตอนการทดสอบ (Test Steps) | ผลลัพธ์ที่คาดหวัง (Expected Result) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-18** | Notifications | **High** | รับและเปิดการแจ้งเตือนในแอป | มีผู้ใช้อีกบัญชีหนึ่ง | 1. ให้อีกบัญชีกดติดตาม<br>2. คอมเมนต์และตอบกลับใน Ranking<br>3. ใช้ Template ของผู้รับ<br>4. สร้าง Ranking ใหม่หลังติดตามผู้สร้าง<br>5. ทำ Challenge ของผู้รับสำเร็จ<br>6. กด Like ให้ Ranking ถึงเกณฑ์ Trending และกดหลายโพสต์ภายในวันเดียว<br>7. เปิดไอคอนกระดิ่ง<br>8. กดแต่ละรายการและกด "อ่านทั้งหมดแล้ว" | Badge แสดงจำนวน unread ที่ถูกต้อง; มี notification สำหรับ Follow, Comment/Reply, Template Use, Following Ranking, Like Digest และ Challenge; เมื่อ Ranking ถึงเกณฑ์ Trending และ Community Average เปลี่ยนจะมีรายการที่เกี่ยวข้อง; กดแล้วไปยังโปรไฟล์/โพสต์/Template/หน้าเปรียบเทียบ/Community Average ที่ถูกต้อง; Like หลายครั้งในวันเดียวถูกรวมเป็น Digest เดียว; จำนวน unread ลดลง; action ของตัวเองและการ Follow ซ้ำไม่สร้าง notification เพิ่ม |
+| **TC-18** | Notifications | **High** | รับและเปิดการแจ้งเตือนในแอป | มีผู้ใช้อีกบัญชีหนึ่ง | 1. ให้อีกบัญชีกดติดตาม<br>2. คอมเมนต์และตอบกลับใน Ranking<br>3. ใช้ Template ของผู้รับ<br>4. สร้าง Ranking ใหม่หลังติดตามผู้สร้าง<br>5. กด Like ให้ Ranking ถึงเกณฑ์ Trending และกดหลายโพสต์ภายในวันเดียว<br>6. เปิดไอคอนกระดิ่ง<br>7. กดแต่ละรายการและกด "อ่านทั้งหมดแล้ว" | Badge แสดงจำนวน unread ที่ถูกต้อง; มี notification สำหรับ Follow, Comment/Reply, Template Use, Following Ranking และ Like Digest; เมื่อ Ranking ถึงเกณฑ์ Trending และ Community Average เปลี่ยนจะมีรายการที่เกี่ยวข้อง; กดแล้วไปยังโปรไฟล์/โพสต์/Template/Community Average ที่ถูกต้อง; Like หลายครั้งในวันเดียวถูกรวมเป็น Digest เดียว; จำนวน unread ลดลง; action ของตัวเองและการ Follow ซ้ำไม่สร้าง notification เพิ่ม |
 
 ## 8. โจทย์ประจำวันและสัปดาห์ (Featured Prompts)
 
@@ -70,14 +70,14 @@
 
 | Test Case ID | Module / Feature | ความสำคัญ (Priority) | คำอธิบาย (Test Case Description) | เงื่อนไขเบื้องต้น (Pre-Condition) | ขั้นตอนการทดสอบ (Test Steps) | ผลลัพธ์ที่คาดหวัง (Expected Result) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-20** | Open Graph / Twitter Card | **High** | แชร์ลิงก์แล้วได้ชื่อและคำอธิบายตามเนื้อหา | มี Post, Template และ Challenge ที่เข้าถึงได้ | 1. ตรวจ HTML ของ `/post/:id`<br>2. ตรวจ `/template/:id` และ `/template/:id/community`<br>3. ตรวจลิงก์คำท้า `/rank?template=...&challenge=...`<br>4. ตรวจ `/compare/:sourceId/:responseId`<br>5. นำ URL Production ไปทดสอบกับ Social Sharing Debugger | ทุกหน้าโหลด React SPA ได้ตามเดิม; `<title>`, description, Open Graph, Twitter Card และ canonical เป็น URL/เนื้อหาของหน้านั้น; `og:image` เป็น URL แบบ absolute และรูป PNG ขนาด 1200×630; ข้อมูลจากผู้ใช้ถูก HTML-escape; ลิงก์ Challenge แสดงชื่อผู้ท้าและหน้าผลแสดงเปอร์เซ็นต์ที่ตรงกัน |
-| **TC-20A** | Share Card Export | **High** | สร้างภาพแชร์หลายขนาดพร้อม QR และคำชวนให้จัดอันดับ | มี Post, Template หรือ Challenge ที่เปิด Share modal ได้ | 1. กด Share แล้วเลือก "ดูตัวอย่างการ์ดแชร์"<br>2. สลับรูปแบบแนวนอน, สี่เหลี่ยม และสตอรี่<br>3. ตรวจชื่อ/Avatar/หมวดหมู่/ข้อมูลสรุป, QR และ CTA<br>4. กดดาวน์โหลดการ์ดแชร์ แล้วเปิดไฟล์ที่ได้ | Preview เปลี่ยนสัดส่วนตาม 1200×630, 1080×1080 และ 1080×1920; QR เปิดลิงก์ของหน้านั้นได้; CTA ชวนผู้รับไปจัดอันดับต่อ; ชื่อไฟล์ระบุรูปแบบภาพ; โหมดส่งออกตารางเดิมยังใช้งานได้ |
+| **TC-20** | Open Graph / Twitter Card | **High** | แชร์ลิงก์แล้วได้ชื่อและคำอธิบายตามเนื้อหา | มี Post และ Template ที่เข้าถึงได้ | 1. ตรวจ HTML ของ `/post/:id`<br>2. ตรวจ `/template/:id` และ `/template/:id/community`<br>3. นำ URL Production ไปทดสอบกับ Social Sharing Debugger | ทุกหน้าโหลด React SPA ได้ตามเดิม; `<title>`, description, Open Graph, Twitter Card และ canonical เป็น URL/เนื้อหาของหน้านั้น; `og:image` เป็น URL แบบ absolute และรูป PNG ขนาด 1200×630; ข้อมูลจากผู้ใช้ถูก HTML-escape |
+| **TC-20A** | Share Card Export | **High** | สร้างภาพแชร์หลายขนาดพร้อม QR และคำชวนให้จัดอันดับ | มี Post หรือ Template ที่เปิด Share modal ได้ | 1. กด Share แล้วเลือก "ดูตัวอย่างการ์ดแชร์"<br>2. สลับรูปแบบแนวนอน, สี่เหลี่ยม และสตอรี่<br>3. ตรวจชื่อ/Avatar/หมวดหมู่/ข้อมูลสรุป, QR และ CTA<br>4. กดดาวน์โหลดการ์ดแชร์ แล้วเปิดไฟล์ที่ได้ | Preview เปลี่ยนสัดส่วนตาม 1200×630, 1080×1080 และ 1080×1920; QR เปิดลิงก์ของหน้านั้นได้; CTA ชวนผู้รับไปเปิด Tier List ต่อ; ชื่อไฟล์ระบุรูปแบบภาพ; โหมดส่งออกตารางเดิมยังใช้งานได้ |
 
 ## 10. Product Analytics
 
 | Test Case ID | Module / Feature | ความสำคัญ (Priority) | คำอธิบาย (Test Case Description) | เงื่อนไขเบื้องต้น (Pre-Condition) | ขั้นตอนการทดสอบ (Test Steps) | ผลลัพธ์ที่คาดหวัง (Expected Result) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-21** | Analytics Funnel | **High** | บันทึก Funnel และดูจุดที่ผู้ใช้หลุดใน Admin | ใช้ Schema/Migration ล่าสุด และมีบัญชี Admin | 1. เปิด Feed<br>2. เปิด Template<br>3. กดเริ่มจัดอันดับ<br>4. Publish<br>5. คัดลอกลิงก์แชร์<br>6. เปิด Admin Dashboard | ระบบบันทึกเฉพาะชื่อ Event, Session, User ID เมื่อ Login และ Entity ID โดยไม่เก็บ IP/User Agent/ข้อความในฟอร์ม; Strict Mode ไม่สร้าง Route Event ซ้ำใน Session เดียว; Dashboard แสดง Funnel ตามลำดับ Feed → Template → Start → Publish → Share, Conversion จากขั้นก่อน, Active Session/User, Returning User, Return Rate, Activity รายวัน และผลลัพธ์ Challenge |
+| **TC-21** | Analytics Funnel | **High** | บันทึก Funnel และดูจุดที่ผู้ใช้หลุดใน Admin | ใช้ Schema/Migration ล่าสุด และมีบัญชี Admin | 1. เปิด Feed<br>2. เปิด Template<br>3. กดเริ่มจัดอันดับ<br>4. Publish<br>5. คัดลอกลิงก์แชร์<br>6. เปิด Admin Dashboard | ระบบบันทึกเฉพาะชื่อ Event, Session, User ID เมื่อ Login และ Entity ID โดยไม่เก็บ IP/User Agent/ข้อความในฟอร์ม; Strict Mode ไม่สร้าง Route Event ซ้ำใน Session เดียว; Dashboard แสดง Funnel ตามลำดับ Feed → Template → Start → Publish → Share, Conversion จากขั้นก่อน, Active Session/User, Returning User, Return Rate และ Activity รายวัน |
 
 ## 11. Guest Access Gate
 
@@ -85,19 +85,13 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TC-22** | Guest Access | **High** | Guest ดู Feed ได้อย่างเดียวและถูกชวนสมัครเมื่อเริ่มใช้งาน | ออกจากระบบแล้ว | 1. เปิดหน้า Home และเลื่อน Feed<br>2. กดแท็บ Feed, โพสต์, โปรไฟล์, Hashtag, Vote, Comment, Bookmark, Share, Export, Search หรือ Use Template<br>3. เลือก Login และ Signup จาก Popup<br>4. เปิด `/create`, `/post/:id` หรือ `/rank?...` โดยตรง<br>5. ล็อกอินแล้วลองเส้นทางเดิม | การเลื่อนไม่ถูกขัดขวาง; ทุก interaction ใน Feed เปิด Popup โดยไม่ทำ action เดิม; Search และ deep link ของ Guest redirect ผ่าน Login; Login/Signup จำ URL ปลายทาง; หลัง Login กลับ URL เดิม; สมาชิกใช้งานทุกหน้าได้ตามปกติ |
 
-## 12. จัดแข่งกับเพื่อน (Friend Challenge)
-
-| Test Case ID | Module / Feature | ความสำคัญ (Priority) | คำอธิบาย (Test Case Description) | เงื่อนไขเบื้องต้น (Pre-Condition) | ขั้นตอนการทดสอบ (Test Steps) | ผลลัพธ์ที่คาดหวัง (Expected Result) |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-23** | Friend Challenge | **Critical** | ท้าเพื่อน จัดอันดับ และดูผลเปรียบเทียบครบวงจร | มีสมาชิก 2 บัญชี และ Template ที่มี Item อย่างน้อย 2 รายการ | 1. บัญชี A Publish Ranking ปกติ<br>2. กด “ท้าเพื่อนจัดลิสต์นี้” จากแถบเผยแพร่สำเร็จ<br>3. เปิดลิงก์คำท้าด้วยบัญชี B<br>4. จัดอันดับและ Publish<br>5. ตรวจหน้าเปรียบเทียบ<br>6. ดาวน์โหลดการ์ดผล กดแชร์ผล และสร้างคำท้าต่อ<br>7. กลับไปเปิด Notification ของบัญชี A | หลัง Publish ปกติไปหน้าโพสต์พร้อม CTA คำท้า; ลิงก์เก็บ Ranking ต้นทางและเปิดตัวจัดอันดับ Template เดียวกัน; หลังบัญชี B Publish ไป `/compare/:sourceId/:responseId`; แสดงเปอร์เซ็นต์ที่ตรงกัน Item ที่เห็นต่างที่สุด Item ที่ทั้งคู่ให้อยู่ Tier บนสุด และคะแนนความใจดี; การ์ดผลดาวน์โหลดได้; แชร์ผลและท้าเพื่อนคนถัดไปได้; บัญชี A ได้รับ Notification ที่เปิดกลับมายังผลคู่นี้; Guest ที่เปิดลิงก์ถูก Login ก่อนและกลับมาลิงก์เดิม |
-
-## 13. Following Activity Feed
+## 12. Following Activity Feed
 
 | Test Case ID | Module / Feature | ความสำคัญ (Priority) | คำอธิบาย (Test Case Description) | เงื่อนไขเบื้องต้น (Pre-Condition) | ขั้นตอนการทดสอบ (Test Steps) | ผลลัพธ์ที่คาดหวัง (Expected Result) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TC-24** | Following Activity | **High** | ดูกิจกรรมล่าสุดของบัญชีที่ติดตาม | ล็อกอินแล้วและติดตามผู้ใช้อย่างน้อย 1 บัญชีที่มี Ranking/Like ภายใน 90 วัน | 1. เปิด Home → Following<br>2. ตรวจส่วน “กิจกรรมจากคนที่คุณติดตาม”<br>3. ตรวจรายการสร้าง Ranking, กด Like และเข้าร่วม Template<br>4. เปิดแท็บอื่นแล้วกลับมา Following | แสดงชื่อ Avatar เวลากิจกรรม และข้อความแยกประเภท; กิจกรรมเรียงใหม่ไปเก่า; กดกิจกรรมสร้าง Ranking ไป Post และกิจกรรมใช้ Template ไป Template; จำกัดรายการไม่เกิน 12 รายการ; หากไม่มีผู้ติดตามหรือไม่มีกิจกรรม แสดง Empty State; Guest ถูกขอ Login ก่อนดูแท็บนี้ |
 
-## 14. ติดตามหัวข้อ (Topic Follows)
+## 13. ติดตามหัวข้อ (Topic Follows)
 
 | Test Case ID | Module / Feature | ความสำคัญ (Priority) | คำอธิบาย (Test Case Description) | เงื่อนไขเบื้องต้น (Pre-Condition) | ขั้นตอนการทดสอบ (Test Steps) | ผลลัพธ์ที่คาดหวัง (Expected Result) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |

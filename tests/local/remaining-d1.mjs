@@ -31,7 +31,7 @@ try {
     's'||(n/5),CASE WHEN n%3=0 THEN NULL ELSE 'viewer' END,datetime('now','-12 hours','-'||(n%40)||' days') FROM seq`).run();
   async function endpoint(handler,path,enabled=false) {
     let reads=0;
-    const traced={prepare(sql){const wrap=s=>({bind:(...args)=>wrap(s.bind(...args)),all:async()=>{const r=await s.all();reads+=r.meta.rows_read;return r;},first:async()=>{const r=await s.all();reads+=r.meta.rows_read;return r.results[0]??null;}});return wrap(db.prepare(sql));}};
+    const traced={prepare(sql){const wrap=s=>({bind:(...args)=>wrap(s.bind(...args)),all:async()=>{const r=await s.all();reads+=r.meta.rows_read;return r;},first:async()=>{const r=await s.all();reads+=r.meta.rows_read;return r.results[0]??null;},run:async()=>s.run()});return wrap(db.prepare(sql));}};
     const response=await handler({request:new Request('https://test'+path),env:{tear_of_god_db:traced,NOTIFICATION_UNREAD_COUNTS:enabled?'true':'false'},data:{user:{id:'viewer'}}});
     assert.equal(response.status,200);return {body:await response.json(),reads};
   }
