@@ -1,6 +1,7 @@
 import { requireAdmin } from './_check.js';
 import { assertAllowedFields, assertBoolean } from '../../lib/request-guard.js';
 import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
+import { invalidateSpotlightsCache } from '../../lib/spotlight-cache.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -37,6 +38,7 @@ export async function onRequest({ request, env, data: auth }) {
               db.prepare('DELETE FROM comments WHERE id = ?').bind(targetId),
               db.prepare('UPDATE rankings SET comments_count = MAX(0, comments_count - ?) WHERE id = ?').bind(totalDeleted, comment.ranking_id)
             ]);
+            await invalidateSpotlightsCache(request);
           }
         }
         return jsonResponse({ success: true });

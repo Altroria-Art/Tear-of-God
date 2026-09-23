@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, CalendarDays, Clock3, Users } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { fetchSpotlights } from '../../lib/api';
+import { fetchSpotlights, getSpotlightsCycleToken } from '../../lib/api';
 import { formatCount } from '../../lib/format';
 import { loginPath } from '../../lib/navigation';
 import { useUser } from '../../context/UserContext';
@@ -116,24 +116,30 @@ export default function FeaturedPrompts({ compact = false }) {
   const [spotlights, setSpotlights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
-  const [refreshKey, setRefreshKey] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    // M1: refreshKey เป็นแค่ตัว retrigger — ไม่ส่งเป็น ?cycle เพื่อให้ URL ตรงกับ
-    // FreshnessHub แล้ว inFlightGET รวมเหลือ 1 request (backend cacheKey ตัด query ทิ้งอยู่แล้ว)
-    fetchSpotlights().then((result) => {
+    fetchSpotlights(getSpotlightsCycleToken()).then((result) => {
       if (cancelled) return;
       setSpotlights(result?.data || null);
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [refreshKey]);
+  }, []);
 
   useEffect(() => {
-    const handleRefresh = () => setRefreshKey(Date.now());
+    const handleRefresh = (event) => {
+      const token = event?.detail?.token ?? Date.now();
+      fetchSpotlights(token).then((result) => {
+        setSpotlights(result?.data || null);
+      });
+    };
     window.addEventListener('tog-refresh-feed', handleRefresh);
-    return () => window.removeEventListener('tog-refresh-feed', handleRefresh);
+    window.addEventListener('tog-spotlights-refresh', handleRefresh);
+    return () => {
+      window.removeEventListener('tog-refresh-feed', handleRefresh);
+      window.removeEventListener('tog-spotlights-refresh', handleRefresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -147,7 +153,12 @@ export default function FeaturedPrompts({ compact = false }) {
     const delay = remaining > 0
       ? Math.min(remaining + 1000, 2147483647)
       : 60000;
-    const timer = window.setTimeout(() => setRefreshKey(Date.now()), delay);
+    const timer = window.setTimeout(() => {
+      const token = Date.now();
+      fetchSpotlights(token).then((result) => {
+        setSpotlights(result?.data || null);
+      });
+    }, delay);
     return () => window.clearTimeout(timer);
   }, [spotlights]);
 

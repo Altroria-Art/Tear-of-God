@@ -171,12 +171,14 @@ export async function onRequestGet(context) {
     // ดึงรายการ Community Rankings แบบแบ่งหน้าจาก GET /api/rankings?template_id=..&sort=..&page=..
     // แทน ส่วนตารางนี้คืนแค่ meta + Community Average ที่คำนวณด้วย query เดียว
     // ==========================================
+    const viewerId = context.data?.user?.id || null;
     const { results: templateResults } = await db.prepare(
-      `SELECT t.*, p.username, p.avatar_url
+      `SELECT t.*, p.username, p.avatar_url,
+         EXISTS(SELECT 1 FROM template_bookmarks b WHERE b.template_id = t.id AND b.user_id = ?) AS is_saved
        FROM templates t
        LEFT JOIN profiles p ON t.creator_id = p.id
        WHERE t.id = ?`
-    ).bind(templateId).all();
+    ).bind(viewerId, templateId).all();
 
     if (templateResults.length === 0) {
       return Response.json({ success: false, error: 'Template not found' }, { status: 404 });
@@ -311,6 +313,7 @@ export async function onRequestGet(context) {
 
     const responseData = {
       id: template.id,
+      is_saved: !!template.is_saved,
       title: template.title,
       description: template.description,
       hashtags: template.hashtags,

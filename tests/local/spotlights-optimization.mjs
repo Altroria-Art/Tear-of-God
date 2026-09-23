@@ -126,8 +126,18 @@ async function createSeededD1() {
   viewInserts.push(db.prepare(`INSERT INTO template_views (template_id, user_id) VALUES (?, ?)`).bind('tpl_hot', 'viewer0'));
   viewInserts.push(db.prepare(`INSERT INTO template_views (template_id, user_id) VALUES (?, ?)`).bind('tpl_hot', 'viewer1'));
   viewInserts.push(db.prepare(`INSERT INTO template_views (template_id, user_id) VALUES (?, ?)`).bind('tpl_hot', 'viewer2'));
-  viewInserts.push(db.prepare(`INSERT INTO template_views (template_id, user_id) VALUES (?, ?)`).bind('tpl_both', 'viewer0'));
   await db.batch(viewInserts);
+  const commentInserts = [
+    db.prepare(`INSERT INTO comments (id, ranking_id, user_id, content, created_at) VALUES (?, ?, ?, ?, datetime('now', ?))`)
+      .bind('c_deb1', 'r_deb1', 'u1', 'Active debate comment', '-1 hour'),
+    db.prepare(`INSERT INTO comments (id, ranking_id, user_id, content, created_at) VALUES (?, ?, ?, ?, datetime('now', ?))`)
+      .bind('c_split1', 'r_split1', 'u2', 'Split comment 1', '-2 hours'),
+    db.prepare(`INSERT INTO comments (id, ranking_id, user_id, content, created_at) VALUES (?, ?, ?, ?, datetime('now', ?))`)
+      .bind('c_split2', 'r_split2', 'u2', 'Split comment 2', '-3 hours'),
+    db.prepare(`INSERT INTO comments (id, ranking_id, user_id, content, created_at) VALUES (?, ?, ?, ?, datetime('now', ?))`)
+      .bind('c_b1', 'r_b1', 'u2', 'Big comment 1', '-4 hours'),
+  ];
+  await db.batch(commentInserts);
   return { mf, db };
 }
 
@@ -173,10 +183,23 @@ async function referenceSpotlights(db) {
       ORDER BY (COALESCE(r.likes_count, 0) * 3 + COALESCE(r.comments_count, 0) * 2 - COALESCE(r.dislikes_count, 0)) DESC,
                r.created_at DESC, r.id DESC LIMIT 6`).all(),
     db.prepare(`${RANKING_SELECT_FROZEN} ORDER BY r.created_at DESC, r.id DESC LIMIT 6`).all(),
-    db.prepare(`${RANKING_SELECT_FROZEN}
-      WHERE r.created_at >= datetime('now', '-30 days') AND COALESCE(r.comments_count, 0) > 0
-      ORDER BY COALESCE(r.comments_count, 0) DESC, (COALESCE(r.likes_count, 0) + COALESCE(r.dislikes_count, 0)) DESC,
-               r.created_at DESC, r.id DESC LIMIT 6`).all(),
+    db.prepare(`
+      SELECT r.id, r.title, r.hashtags, r.template_id, r.created_at,
+             r.likes_count, r.dislikes_count, r.comments_count,
+             p.id AS user_id, p.username, p.avatar_url,
+             t.title AS template_title,
+             MAX(c.created_at) AS last_comment_at
+      FROM rankings r
+      JOIN comments c ON c.ranking_id = r.id
+      LEFT JOIN profiles p ON p.id = r.user_id
+      LEFT JOIN templates t ON t.id = r.template_id
+      GROUP BY r.id
+      HAVING last_comment_at >= datetime('now', '-24 hours')
+      ORDER BY last_comment_at DESC,
+               COALESCE(r.comments_count, 0) DESC,
+               r.created_at DESC,
+               r.id DESC
+      LIMIT 6`).all(),
     db.prepare(`${RANKING_SELECT_FROZEN}
       WHERE (COALESCE(r.likes_count, 0) + COALESCE(r.dislikes_count, 0)) >= 3
         AND ABS(COALESCE(r.likes_count, 0) - COALESCE(r.dislikes_count, 0)) <= MAX(1, (COALESCE(r.likes_count, 0) + COALESCE(r.dislikes_count, 0)) * 0.35)

@@ -80,9 +80,14 @@ export function getExportFilename({
   if (shortTitle) parts.push(shortTitle)
 
   const isAvg = !participantName || String(participantName).toLowerCase() === 'avg'
+  const isAll = String(participantName).toLowerCase() === 'all'
 
   if (isAvg) {
     parts.push('avg')
+    const facultyShort = getFacultyShortName(faculty)
+    if (facultyShort) parts.push(facultyShort)
+  } else if (isAll) {
+    parts.push('all')
     const facultyShort = getFacultyShortName(faculty)
     if (facultyShort) parts.push(facultyShort)
   } else {
@@ -113,7 +118,48 @@ export function getExportFilename({
 }
 
 /**
+ * ดึงรายการไอเทมใน tier ที่ระบุของผู้เข้าร่วม
+ */
+export function getUserTierItems(participant, tierLabel) {
+  if (!participant) return '-'
+  const normLabel = String(tierLabel || '').trim().toLowerCase()
+
+  // 1. กรณี participant มี tiers array ที่จัดกลุ่มไอเทมไว้แล้ว
+  if (Array.isArray(participant.tiers)) {
+    const foundTier = participant.tiers.find(
+      t => String(t.label || t.name || '').trim().toLowerCase() === normLabel
+    )
+    if (foundTier && Array.isArray(foundTier.items) && foundTier.items.length > 0) {
+      const names = foundTier.items
+        .map(i => (typeof i === 'string' ? i : i.name || i.item_name || i.item_id || ''))
+        .filter(Boolean)
+      if (names.length > 0) return names.join(', ')
+    }
+  }
+
+  // 2. กรณี participant มี ranking_items หรือ items แบบ flat array
+  const flatItems = participant.ranking_items || participant.items || []
+  if (Array.isArray(flatItems) && flatItems.length > 0) {
+    const matching = flatItems
+      .filter(i => String(i.tier || '').trim().toLowerCase() === normLabel)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map(i => i.item_name || i.name || i.item_id || '')
+      .filter(Boolean)
+
+    if (matching.length > 0) {
+      return matching.join(', ')
+    }
+  }
+
+  return '-'
+}
+
+/**
  * สร้าง Workbook พร้อม metadata ก่อนตาราง Tier | Items และ styling ครบถ้วน
+ * รองรับทั้ง:
+ * 1. participantFilter === 'all' -> วางแต่ละ block ไปทางขวา (User A block, User B block...)
+ * 2. participantFilter === '' (Avg) -> บล็อกค่าเฉลี่ยชุมชนเดี่ยว
+ * 3. participantFilter === 'user_id' -> บล็อกผู้ใช้เดี่ยว
  */
 export function buildCommunityExcelWorkbook(XLSX, {
   template,
@@ -123,18 +169,194 @@ export function buildCommunityExcelWorkbook(XLSX, {
   majorFilter = '',
   yearFilter = '',
   displayTiers = [],
+  filteredRankings = [],
+  participants = [],
 }) {
-  // ดึงชื่อผู้เข้าร่วม: ถ้าเลือกคนใดให้ใช้ username/display name ห้ามใช้ user_id
+  const isAllMode = String(participantFilter).toLowerCase() === 'all'
+  const templateTitle = template?.title || template?.name || template?.id || '-'
+  const facultyDisplay = facultyFilter || 'All'
+  const majorDisplay = majorFilter || 'All'
+  const yearDisplay = yearFilter ? String(yearFilter) : 'All'
+
+  const thinBorder = {
+    top: { style: 'thin', color: { rgb: '000000' } },
+    bottom: { style: 'thin', color: { rgb: '000000' } },
+    left: { style: 'thin', color: { rgb: '000000' } },
+    right: { style: 'thin', color: { rgb: '000000' } },
+  }
+
+  const wb = XLSX.utils.book_new()
+
+  // ─────────────────────────────────────────────────────────────
+  // โหมด Participant = All: วางแต่ละ user block ต่อกันไปทางขวา (แนวนอน)
+  // ─────────────────────────────────────────────────────────────
+  if (isAllMode) {
+    // รวมรายชื่อ participants จาก filteredRankings > participants > participantOptions
+    const candidateList = filteredRankings.length > 0
+      ? filteredRankings
+      : (participants.length > 0 ? participants : participantOptions)
+
+    // กรองตาม faculty, major, year
+    const matching = candidateList.filter(p => {
+      if (facultyFilter && p.faculty && p.faculty !== facultyFilter) return false
+      if (majorFilter && p.major && p.major !== majorFilter) return false
+      if (yearFilter && p.year && String(p.year) !== String(yearFilter)) return false
+      return true
+    })
+
+    // Deduplicate ตาม user_id
+    const seenUserIds = new Set()
+    const targetParticipants = []
+    for (const p of matching) {
+      const uid = p.user_id || p.id || p.username
+      if (uid && !seenUserIds.has(uid)) {
+        seenUserIds.add(uid)
+        targetParticipants.push(p)
+      }
+    }
+
+    // เรียงตาม username ก-ฮ เพื่อความเป็นระเบียบและคาดเดาได้
+    targetParticipants.sort((a, b) =>
+      String(a.username || '').localeCompare(String(b.username || ''))
+    )
+
+    // กรณีไม่มีข้อมูล ให้มี 1 block แสดง empty state
+    const effectiveParticipants = targetParticipants.length > 0 ? targetParticipants : [
+      {
+        username: 'All',
+        faculty: facultyDisplay,
+        major: majorDisplay,
+        year: yearDisplay,
+        ranking_items: [],
+      }
+    ]
+
+    const N = effectiveParticipants.length
+    const totalRowsCount = 7 + displayTiers.length
+    const aoaRows = Array.from({ length: totalRowsCount }, () => [])
+
+    effectiveParticipants.forEach((p, k) => {
+      const startCol = k * 3
+      const username = p.username || p.display_name || p.name || 'Unknown'
+      const faculty = p.faculty || facultyDisplay
+      const major = p.major || majorDisplay
+      const year = p.year ? String(p.year) : yearDisplay
+
+      // แถว 0-4 Metadata ของผู้ใช้แต่ละคน
+      aoaRows[0][startCol] = 'Template'
+      aoaRows[0][startCol + 1] = templateTitle
+      aoaRows[0][startCol + 2] = ''
+
+      aoaRows[1][startCol] = 'Participant'
+      aoaRows[1][startCol + 1] = username
+      aoaRows[1][startCol + 2] = ''
+
+      aoaRows[2][startCol] = 'Faculty'
+      aoaRows[2][startCol + 1] = faculty
+      aoaRows[2][startCol + 2] = ''
+
+      aoaRows[3][startCol] = 'Major'
+      aoaRows[3][startCol + 1] = major
+      aoaRows[3][startCol + 2] = ''
+
+      aoaRows[4][startCol] = 'Academic Year'
+      aoaRows[4][startCol + 1] = year
+      aoaRows[4][startCol + 2] = ''
+
+      // แถว 5 ช่องว่างคั่นระหว่าง metadata กับตาราง
+      aoaRows[5][startCol] = ''
+      aoaRows[5][startCol + 1] = ''
+      aoaRows[5][startCol + 2] = ''
+
+      // แถว 6 Header ตาราง: Tier | Items
+      aoaRows[6][startCol] = 'Tier'
+      aoaRows[6][startCol + 1] = 'Items'
+      aoaRows[6][startCol + 2] = ''
+
+      // แถว 7+ Tier Data rows
+      displayTiers.forEach((tier, tIdx) => {
+        const rIdx = 7 + tIdx
+        aoaRows[rIdx][startCol] = tier.label
+        aoaRows[rIdx][startCol + 1] = getUserTierItems(p, tier.label)
+        aoaRows[rIdx][startCol + 2] = ''
+      })
+    })
+
+    const ws = XLSX.utils.aoa_to_sheet(aoaRows)
+
+    // Column widths: แต่ละ block กว้างเท่ากัน (Tier 18 wch, Items 60 wch, spacer 4 wch)
+    const colWidths = []
+    for (let k = 0; k < N; k++) {
+      colWidths.push({ wch: 18 })
+      colWidths.push({ wch: 60 })
+      colWidths.push({ wch: 4 })
+    }
+    ws['!cols'] = colWidths
+
+    // Styling สำหรับแต่ละบล็อก
+    effectiveParticipants.forEach((_, k) => {
+      const startCol = k * 3
+
+      // 1. Metadata labels bold (Col startCol, แถว 0-4)
+      for (let r = 0; r < 5; r++) {
+        const labelCell = XLSX.utils.encode_cell({ r, c: startCol })
+        if (ws[labelCell]) {
+          ws[labelCell].s = { font: { bold: true } }
+        }
+      }
+
+      // 2. Table Header bold + border (แถว 6: Col startCol และ startCol + 1)
+      for (let c = startCol; c <= startCol + 1; c++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: 6, c })
+        if (!ws[cellAddress]) ws[cellAddress] = {}
+        ws[cellAddress].s = {
+          border: thinBorder,
+          font: { bold: true },
+        }
+      }
+
+      // 3. Table data rows (แถว 7+): tier color fill + border
+      displayTiers.forEach((tier, tIdx) => {
+        const rowIdx = 7 + tIdx
+
+        // Tier cell (Col startCol)
+        const tierCell = XLSX.utils.encode_cell({ r: rowIdx, c: startCol })
+        if (!ws[tierCell]) ws[tierCell] = {}
+        const hexColor = (tier.color || '').replace('#', '').toUpperCase()
+        ws[tierCell].s = {
+          border: thinBorder,
+          fill: hexColor ? { fgColor: { rgb: 'FF' + hexColor } } : undefined,
+          font: { bold: true },
+        }
+
+        // Items cell (Col startCol + 1)
+        const itemsCell = XLSX.utils.encode_cell({ r: rowIdx, c: startCol + 1 })
+        if (!ws[itemsCell]) ws[itemsCell] = {}
+        ws[itemsCell].s = { border: thinBorder }
+      })
+    })
+
+    XLSX.utils.book_append_sheet(wb, ws, 'All Participants')
+
+    const filename = getExportFilename({
+      template,
+      participantName: 'All',
+      faculty: facultyDisplay,
+      major: majorDisplay,
+      year: yearDisplay,
+    })
+
+    return { wb, ws, filename }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // โหมด Avg หรือ เลือกผู้ใช้คนเดียว (1 block ที่คอลัมน์ A & B)
+  // ─────────────────────────────────────────────────────────────
   let participantDisplay = 'Avg'
   if (participantFilter) {
     const found = participantOptions.find(p => p.user_id === participantFilter)
     participantDisplay = found?.username || found?.display_name || found?.name || 'Unknown'
   }
-
-  const templateTitle = template?.title || template?.name || template?.id || '-'
-  const facultyDisplay = facultyFilter || 'All'
-  const majorDisplay = majorFilter || 'All'
-  const yearDisplay = yearFilter ? String(yearFilter) : 'All'
 
   // Metadata แถว 0-4
   // แถว 5 ว่าง 1 แถว
@@ -150,22 +372,14 @@ export function buildCommunityExcelWorkbook(XLSX, {
     ['Tier', 'Items'],
     ...displayTiers.map(tier => [
       tier.label,
-      tier.items.map(i => i.name).join(', ') || '-',
+      tier.items.map(i => i.name || i.item_name || i.item_id).join(', ') || '-',
     ]),
   ]
 
-  const wb = XLSX.utils.book_new()
   const ws = XLSX.utils.aoa_to_sheet(aoaRows)
 
   // Column widths: A ให้พอดีกับ label, B กว้างพอให้อ่านชื่อคณะ/สาขา/items ได้สบาย
   ws['!cols'] = [{ wch: 18 }, { wch: 80 }]
-
-  const thinBorder = {
-    top: { style: 'thin', color: { rgb: '000000' } },
-    bottom: { style: 'thin', color: { rgb: '000000' } },
-    left: { style: 'thin', color: { rgb: '000000' } },
-    right: { style: 'thin', color: { rgb: '000000' } },
-  }
 
   // 1. Metadata labels (Column A, rows 0-4): font bold
   for (let r = 0; r < 5; r++) {

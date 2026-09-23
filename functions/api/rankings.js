@@ -257,6 +257,8 @@ export async function onRequest(context) {
         // รายการ ranking IDs ที่เพิ่งแสดงผลไปในการรีเฟรชครั้งล่าสุด เพื่อนำมาคัดออกจากหน้าแรกไม่ให้วนซ้ำ
         const excludeParam = url.searchParams.get('exclude');
         const excludeIds = excludeParam ? new Set(excludeParam.split(',').filter(Boolean)) : null;
+        const seenParam = url.searchParams.get('seen');
+        const seenIds = seenParam ? new Set(seenParam.split(',').filter(Boolean)) : null;
 
         // 📍 mine=1: ranking ล่าสุดของ "ตัวเอง" บน template นี้ (CommunityAveragePage
         // "ของฉัน vs ชุมชน" — เดิมใช้ template_id+author_id+limit=1 ซึ่งรัน enrich
@@ -397,7 +399,14 @@ export async function onRequest(context) {
               poolParams.push(currentUserId);
             }
 
-            if (days) {
+            if (feedType === 'trending') {
+              if (days && days <= 180) {
+                poolWhere += ` AND r.created_at >= datetime('now', '-' || ? || ' days')`;
+                poolParams.push(String(days));
+              } else {
+                poolWhere += ` AND r.created_at >= datetime('now', '-180 days')`;
+              }
+            } else if (days) {
               poolWhere += ` AND r.created_at >= datetime('now', '-' || ? || ' days')`;
               poolParams.push(String(days));
             }
@@ -439,11 +448,12 @@ r.created_at DESC, r.id DESC`;
             const runPoolQuery = async () => {
               // freshness_tier mirrors the ORDER BY CASE so the pool cache can
               // shuffle WITHIN a freshness bucket (see tierBucketShuffle).
+              // age_tier: 0 (<= 7d), 1 (8-30d primary), 2 (31-180d fallback).
               const { results: poolRows } = await db.prepare(`
                 SELECT r.id,
                   CASE
-                    WHEN r.created_at >= datetime('now', '-1 day') THEN 0
-                    WHEN r.created_at >= datetime('now', '-7 day') THEN 1
+                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0
+                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1
                     ELSE 2
                   END AS age_tier,
                   ${trendingTier} AS freshness_tier FROM rankings r
@@ -454,7 +464,7 @@ r.created_at DESC, r.id DESC`;
               const rows = poolRows || [];
               return {
                 ids: rows.map((row) => row.id),
-                tiers: rows.map((row) => Number(row.freshness_tier) || 1),
+                tiers: rows.map((row) => (Number(row.age_tier) || 0) * 10 + (Number(row.freshness_tier) || 1)),
               };
             };
             // Batch 3 L1 (per-seed) + Batch 4 L2 (shared unfiltered home
@@ -581,8 +591,78 @@ r.created_at DESC, r.id DESC`;
                   ? tierBucketShuffle(poolIds, poolTiers, windowSize, seed ^ fnv1a(feedType))
                   : windowedShuffle(poolIds, windowSize, seed ^ fnv1a(feedType)))
               : poolIds;
-            const strictTrending = feedType === 'trending' && excludeIds?.size > 0;
-            const orderedIds = prioritizeUnseen(stillShuffle, excludeIds, { fallback: !strictTrending });
+
+            let orderedIds;
+            if (feedType === 'trending') {
+              const ageTierById = new Map();
+              if (poolIds && poolTiers) {
+                for (let i = 0; i < poolIds.length; i++) {
+                  ageTierById.set(poolIds[i], Math.floor((poolTiers[i] || 0) / 10));
+                }
+              }
+
+              // 1. Exclude any IDs in active cooldown (< 6h) or explicitly excluded
+              const eligible = excludeIds?.size
+                ? stillShuffle.filter((id) => !excludeIds.has(id))
+                : stillShuffle;
+
+              // Primary content (<= 30 days): age_tier <= 1
+              // Older Fallback (2-6 months): age_tier === 2
+              const primary = eligible.filter((id) => (ageTierById.get(id) ?? 0) <= 1);
+              const oldFallback = eligible.filter((id) => (ageTierById.get(id) ?? 0) === 2);
+
+              let primaryOrdered;
+              if (seenIds?.size) {
+                // Priority 1 & 2: Unseen posts (<=7d then 8-30d from poolOrder)
+                const unseenPrimary = primary.filter((id) => !seenIds.has(id));
+                // Priority 3 & 4: Seen posts (>=6h cooldown passed, <=7d then 8-30d from poolOrder)
+                const seenPrimary = primary.filter((id) => seenIds.has(id));
+                primaryOrdered = [...unseenPrimary, ...seenPrimary];
+              } else {
+                primaryOrdered = primary;
+              }
+
+              let fallbackOrdered;
+              if (seenIds?.size) {
+                const unseenFallback = oldFallback.filter((id) => !seenIds.has(id));
+                const seenFallback = oldFallback.filter((id) => seenIds.has(id));
+                fallbackOrdered = [...unseenFallback, ...seenFallback];
+              } else {
+                fallbackOrdered = oldFallback;
+              }
+
+              // Pacing:
+              // - When primary content exists: inject at most 1 old fallback per 15 primary cards
+              // - When primary content runs low/out: fill with remaining old fallback cards
+              if (fallbackOrdered.length === 0) {
+                orderedIds = primaryOrdered;
+              } else if (primaryOrdered.length === 0) {
+                orderedIds = fallbackOrdered;
+              } else {
+                const combined = [];
+                let pIdx = 0;
+                let fIdx = 0;
+                const PACING_INTERVAL = 15;
+                while (pIdx < primaryOrdered.length || fIdx < fallbackOrdered.length) {
+                  const pChunk = primaryOrdered.slice(pIdx, pIdx + PACING_INTERVAL);
+                  combined.push(...pChunk);
+                  pIdx += pChunk.length;
+
+                  if (fIdx < fallbackOrdered.length) {
+                    combined.push(fallbackOrdered[fIdx]);
+                    fIdx += 1;
+                  }
+
+                  if (pIdx >= primaryOrdered.length && fIdx < fallbackOrdered.length) {
+                    combined.push(...fallbackOrdered.slice(fIdx));
+                    break;
+                  }
+                }
+                orderedIds = combined;
+              }
+            } else {
+              orderedIds = prioritizeUnseen(stillShuffle, excludeIds, { fallback: true });
+            }
 
             // A freshly published ranking is pinned once at the top of Trending. Ownership
             // is checked server-side so an arbitrary URL cannot pin somebody else's post.

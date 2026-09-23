@@ -1,4 +1,4 @@
-import { formatHashtags } from '../lib/hashtags';
+import { parseHashtags } from '../lib/hashtags';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { returnPath } from '../lib/navigation';
@@ -49,13 +49,14 @@ function MiniTierItem({ item, t }) {
 function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSelect, t }) {
   const rows = buildTierRows(post.ranking_items, post.tiers);
   const previewRows = rows.slice(0, 2);
+  const hashtags = parseHashtags(post.hashtags);
 
   return (
     <article
       onClick={onSelect}
-      className="group relative flex flex-col rounded-2xl overflow-hidden glass border border-line-soft hover:border-brand/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer text-left select-none bg-surface/60"
+      className="group relative flex flex-col rounded-2xl overflow-hidden glass border border-line-soft hover:border-brand/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer text-left select-none bg-surface/60 min-w-0"
     >
-      {/* Top Visual Thumbnail Area — pt-13 reserves a CONSTANT slot for the pinned + type/hashtag
+      {/* Top Visual Thumbnail Area — pt-13 reserves a CONSTANT slot for the pinned + type
           badges so tier rows never shift whether the list is pinned or not */}
       <div className="h-36 sm:h-40 relative bg-canvas/40 pt-13 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 overflow-hidden border-b border-line-soft/50">
         {/* Pinned badge — own absolute layer at top-left, never pushes the other badges */}
@@ -66,8 +67,8 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
           </span>
         )}
 
-        {/* TikTok-style Type + Hashtag badges — fixed slot, identical position pinned or not */}
-        <div className="absolute left-2 top-8 z-10 flex items-center gap-1 max-w-[calc(100%-3rem)] flex-wrap">
+        {/* TikTok-style Type badge (Original / From Template) — separate from hashtag row */}
+        <div className="absolute left-2 top-8 z-10 flex items-center">
           {post.is_original !== false ? (
             <span
               title={t('profile.badgeOriginal')}
@@ -81,11 +82,6 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
               className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border border-highlight/40 bg-highlight/15 text-highlight shadow-2xs backdrop-blur-xs shrink-0"
             >
               {t('profile.badgeTemplate')}
-            </span>
-          )}
-          {post.hashtags && (
-            <span className="text-[9px] font-bold uppercase tracking-wider text-muted bg-surface/90 backdrop-blur-xs px-1.5 py-0.5 rounded border border-line-soft/80 shadow-2xs truncate">
-              {formatHashtags(post.hashtags)}
             </span>
           )}
         </div>
@@ -140,13 +136,29 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
       </div>
 
       {/* Bottom Metadata & Stats */}
-      <div className="p-2.5 sm:p-3 flex flex-col justify-between flex-1 gap-2">
-        <h4
-          className="font-bold text-xs sm:text-sm text-ink line-clamp-2 leading-snug group-hover:text-brand transition-colors"
-          title={post.title}
-        >
-          {post.title}
-        </h4>
+      <div className="p-2.5 sm:p-3 flex flex-col justify-between flex-1 gap-2 min-w-0">
+        <div className="space-y-1.5 min-w-0">
+          <h4
+            className="font-bold text-xs sm:text-sm text-ink line-clamp-2 leading-snug group-hover:text-brand transition-colors"
+            title={post.title}
+          >
+            {post.title}
+          </h4>
+
+          {hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-1 min-w-0 overflow-hidden">
+              {hashtags.map((tag) => (
+                <span
+                  key={tag}
+                  title={tag}
+                  className="max-w-full truncate rounded border border-line-soft/80 bg-surface/90 text-muted px-2 py-0.5 text-xs font-semibold select-none"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-muted pt-1.5 border-t border-line-soft/40">
           <span>{timeAgo(post.created_at)}</span>
@@ -617,7 +629,7 @@ export default function Profile() {
               {isOwnProfile && (
                 <button
                   onClick={() => setIsEditOpen(true)}
-                  className="w-full py-2 bg-brand-accent hover:bg-surface border border-line text-ink font-bold rounded-xl text-sm transition-colors shadow-xs"
+                  className="w-full py-2.5 bg-brand hover:bg-brand-accent text-canvas font-bold rounded-xl text-sm transition-colors shadow-sm cursor-pointer"
                 >
                   {t('profile.editProfile')}
                 </button>

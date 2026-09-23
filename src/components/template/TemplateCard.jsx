@@ -36,7 +36,7 @@ function PreviewItemBox({ item }) {
   );
 }
 
-export default function TemplateCard({ template, onUse }) {
+export default function TemplateCard({ template, onUse, inSavedView = false }) {
   const { t } = useTranslation();
   const [shareOpen, setShareOpen] = useState(false);
   const preview = useMemo(() => normalizePreviewRows(template), [template]);
@@ -131,10 +131,27 @@ export default function TemplateCard({ template, onUse }) {
           <Link to={detailHref}>
             <h3 className="text-base font-bold leading-6 text-ink mb-2 line-clamp-2 min-h-12 hover:underline">{template.title}</h3>
           </Link>
-          <div className="flex items-center gap-2 mb-4">
-            <Avatar name={template.profile?.username} src={template.profile?.avatar_url} size="sm" />
-            <span className="text-sm text-muted">@{template.profile?.username || t('common.unknownUser')}</span>
-          </div>
+          {(() => {
+            const creatorId = template.profile?.id || template.creator_id || template.user_id || template.creator?.id;
+            const username = template.profile?.username || t('common.unknownUser');
+            return creatorId ? (
+              <Link
+                to={`/profile/${encodeURIComponent(creatorId)}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-2 mb-4 group cursor-pointer max-w-full"
+              >
+                <Avatar name={template.profile?.username} src={template.profile?.avatar_url} size="sm" />
+                <span className="text-sm text-muted group-hover:text-ink group-hover:underline transition-colors truncate">
+                  @{username}
+                </span>
+              </Link>
+            ) : (
+              <div className="flex items-center gap-2 mb-4 max-w-full">
+                <Avatar name={template.profile?.username} src={template.profile?.avatar_url} size="sm" />
+                <span className="text-sm text-muted truncate">@{username}</span>
+              </div>
+            );
+          })()}
         </div>
         <div className="flex gap-2 flex-wrap">
           <button
@@ -143,7 +160,7 @@ export default function TemplateCard({ template, onUse }) {
           >
             {t('template.use')}
           </button>
-          <BookmarkButton template={template} />
+          <BookmarkButton template={template} inSavedView={inSavedView} />
           <button
             type="button"
             onClick={handleShare}

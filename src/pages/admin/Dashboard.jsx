@@ -362,7 +362,18 @@ export default function Dashboard() {
                       className="p-3 rounded-xl border border-line-soft bg-surface/50 hover:bg-surface transition-colors flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <Avatar name={post.author?.username} src={post.author?.avatar_url} size="sm" />
+                        {post.author?.id ? (
+                          <Link
+                            to={`/profile/${post.author.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 hover:opacity-80 transition-opacity"
+                          >
+                            <Avatar name={post.author?.username} src={post.author?.avatar_url} size="sm" />
+                          </Link>
+                        ) : (
+                          <Avatar name={post.author?.username} src={post.author?.avatar_url} size="sm" />
+                        )}
                         <div className="min-w-0">
                           <Link
                             to={`/post/${post.id}`}
@@ -374,7 +385,18 @@ export default function Dashboard() {
                             {post.title}
                           </Link>
                           <div className="flex items-center gap-2 text-xs text-muted mt-0.5">
-                            <span>{post.author?.username || t('common.unknownUser')}</span>
+                            {post.author?.id ? (
+                              <Link
+                                to={`/profile/${post.author.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-ink hover:underline transition-colors truncate"
+                              >
+                                {post.author?.username || t('common.unknownUser')}
+                              </Link>
+                            ) : (
+                              <span>{post.author?.username || t('common.unknownUser')}</span>
+                            )}
                             <span>·</span>
                             <span className="capitalize">{formatHashtags(post.hashtags)}</span>
                             <span>·</span>

@@ -1,6 +1,7 @@
 import { UserIcon } from './Icons'
 
 const SIZES = {
+  xs: 'h-5 w-5 text-[10px]',
   sm: 'h-8 w-8 text-xs',
   md: 'h-10 w-10 text-sm',
   lg: 'h-14 w-14 text-base',

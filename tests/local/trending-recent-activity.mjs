@@ -51,6 +51,10 @@ function makeFakeCache() {
       const maxAge = /max-age=(\d+)/.exec(response.headers.get('Cache-Control') || '');
       store.set(key, { ids: body.ids, tiers: body.tiers, expiresAt: now + (maxAge ? Number(maxAge[1]) * 1000 : 60000) });
     },
+    async delete(request) {
+      const key = new URL(request.url).search;
+      return store.delete(key);
+    },
   };
 }
 
@@ -176,7 +180,7 @@ try {
   // C — a RECENT comment lifts similarly, and replies bump too (see G).
   // -------------------------------------------------------------------------
   await insertRanking({ id: 'c1', user: 'authorA', hashtag: 'cc', comments: 3, createdMod: '-20 days' });
-  await insertRanking({ id: 'c2', user: 'authorA', hashtag: 'cc', likes: 80, createdMod: '-30 days' });
+  await insertRanking({ id: 'c2', user: 'authorA', hashtag: 'cc', likes: 80, createdMod: '-28 days' });
   const cBefore = await feedIds({ hashtag: 'cc' });
   assert.ok(cBefore.indexOf('c2') < cBefore.indexOf('c1'), 'stale high-likes lead before the comment');
   await comment('userA', 'c1', 'bump me');
@@ -190,7 +194,7 @@ try {
   // -------------------------------------------------------------------------
   // D — 7d+/inactive high-like posts fall below active low-engagement posts.
   // -------------------------------------------------------------------------
-  await insertRanking({ id: 'd1', user: 'authorA', hashtag: 'dd', likes: 60, createdMod: '-30 days' });
+  await insertRanking({ id: 'd1', user: 'authorA', hashtag: 'dd', likes: 60, createdMod: '-28 days' });
   await insertRanking({ id: 'd2', user: 'authorA', hashtag: 'dd', createdMod: '-1 hours' });
   await insertRanking({ id: 'd3', user: 'authorA', hashtag: 'dd', likes: 8, createdMod: '-2 hours' });
   const dOrder = await feedIds({ hashtag: 'dd' });
@@ -280,9 +284,9 @@ try {
   // -------------------------------------------------------------------------
   await insertRanking({ id: 'j-a-fresh', user: 'authorA', hashtag: 'jj', createdMod: '-5 minutes' });
   await insertRanking({ id: 'j-b-like', user: 'authorA', hashtag: 'jj', likes: 1, createdMod: '-20 days', lastMod: '-2 minutes' });
-  await insertRanking({ id: 'j-c-comment', user: 'authorA', hashtag: 'jj', likes: 10, createdMod: '-30 days', lastMod: '-1 minutes' });
+  await insertRanking({ id: 'j-c-comment', user: 'authorA', hashtag: 'jj', likes: 10, createdMod: '-28 days', lastMod: '-1 minutes' });
   await insertRanking({ id: 'j-d-medium', user: 'authorA', hashtag: 'jj', createdMod: '-2 days', lastMod: '-10 hours' });
-  await insertRanking({ id: 'j-e-stale', user: 'authorA', hashtag: 'jj', likes: 100, createdMod: '-30 days', lastMod: '-10 days' });
+  await insertRanking({ id: 'j-e-stale', user: 'authorA', hashtag: 'jj', likes: 100, createdMod: '-28 days', lastMod: '-10 days' });
   const freshIds = ['j-a-fresh', 'j-b-like', 'j-c-comment'];
   const jOrders = [];
   for (const seed of [0, 314159]) {
@@ -306,7 +310,7 @@ try {
     await insertRanking({ id: `k-hot-${String(i).padStart(2, '0')}`, user: 'authorA', hashtag: 'kk', createdMod: `-${i + 1} minutes` });
   }
   for (let i = 0; i < 5; i += 1) {
-    await insertRanking({ id: `k-old-${i}`, user: 'authorA', hashtag: 'kk', createdMod: '-40 days' });
+    await insertRanking({ id: `k-old-${i}`, user: 'authorA', hashtag: 'kk', createdMod: '-20 days' });
   }
   const hotSet = Array.from({ length: 15 }, (_, i) => `k-hot-${String(i).padStart(2, '0')}`);
   const kOrders = [];

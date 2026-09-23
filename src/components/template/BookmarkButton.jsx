@@ -1,27 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Bookmark } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '../../context/UserContext';
-import { useToast } from '../ui/Toast';
-import { saveTemplate } from '../../lib/api';
+import { useBookmarks } from '../../context/BookmarkContext';
 import { loginPath } from '../../lib/navigation';
 
-export default function BookmarkButton({ template, className, children, onRequireAuth }) {
+export default function BookmarkButton({ template, className, children, onRequireAuth, inSavedView = false }) {
   const { t } = useTranslation();
   const { currentUser } = useUser();
-  const toast = useToast();
+  const { isSaved, toggleBookmark } = useBookmarks();
   const navigate = useNavigate();
   const location = useLocation();
-  const [saved, setSaved] = useState(!!template.is_saved);
   const [busy, setBusy] = useState(false);
-  useEffect(() => setSaved(!!template.is_saved), [template.is_saved, currentUser?.id]);
-  useEffect(() => {
-    const update = event => { if (event.detail.id === template.id) setSaved(event.detail.saved); };
-    window.addEventListener('tog-bookmark', update);
-    return () => window.removeEventListener('tog-bookmark', update);
-  }, [template.id]);
-  const toggle = async () => {
+
+  const fallback = inSavedView || (template?.is_saved !== undefined ? !!template.is_saved : false);
+  const saved = isSaved(template?.id, fallback);
+
+  const toggle = async (e) => {
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
     if (!currentUser) {
       if (onRequireAuth) {
         onRequireAuth(location.pathname + location.search);
@@ -30,20 +28,33 @@ export default function BookmarkButton({ template, className, children, onRequir
       }
       return;
     }
+    if (busy || !template?.id) return;
     setBusy(true);
-    const result = await saveTemplate(template.id, !saved);
+    await toggleBookmark(template.id, saved);
     setBusy(false);
-    if (!result.success) { toast.error(result.error); return; }
-    setSaved(result.saved);
-    window.dispatchEvent(new CustomEvent('tog-bookmark', { detail: { id: template.id, saved: result.saved } }));
-    toast.success(t(result.saved ? 'discover.bookmarked' : 'discover.bookmarkRemoved'));
   };
-  
-  const btnClass = className || "shrink-0 min-w-11 min-h-11 grid place-items-center rounded-lg border border-line-soft text-ink-soft hover:bg-tag disabled:opacity-50";
-  
+
+  const btnClass = className || `shrink-0 min-w-11 min-h-11 grid place-items-center rounded-lg border transition-colors disabled:opacity-50 ${
+    saved
+      ? 'border-brand/40 bg-brand/10 text-brand'
+      : 'border-line-soft text-ink-soft hover:bg-tag hover:text-ink'
+  }`;
+
   return (
-    <button type="button" onClick={toggle} disabled={busy} aria-pressed={saved} aria-label={t(saved ? 'discover.unsave' : 'discover.save')} title={t(saved ? 'discover.unsave' : 'discover.save')} className={btnClass}>
-      <Bookmark size={18} fill={saved ? 'currentColor' : 'none'} />
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={busy}
+      aria-pressed={saved}
+      aria-label={t(saved ? 'discover.unsave' : 'discover.save')}
+      title={t(saved ? 'discover.unsave' : 'discover.save')}
+      className={btnClass}
+    >
+      <Bookmark
+        size={18}
+        fill={saved ? 'currentColor' : 'none'}
+        className={saved ? 'text-brand' : ''}
+      />
       {children}
     </button>
   );

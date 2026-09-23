@@ -65,6 +65,13 @@ assert(
   'Academic year dropdown must retain All option at top'
 )
 
+// Check Export Image button is hidden when participantFilter === 'all'
+assert(
+  compFile.includes("participantFilter !== 'all' && (") &&
+  compFile.includes('onClick={handleExportImage}'),
+  'Export Image button must be conditionally rendered only when participantFilter !== "all"'
+)
+
 console.log('✔ CommunityParticipants.jsx code structure verified')
 
 // 3. Check locales

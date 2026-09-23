@@ -1,4 +1,5 @@
 import { assertId, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody } from './request-guard.js';
+import { invalidateSpotlightsCache } from './spotlight-cache.js';
 
 export async function deleteComment(request, db, user, isTemplate = false) {
   if (!user) return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
@@ -28,5 +29,8 @@ export async function deleteComment(request, db, user, isTemplate = false) {
     (SELECT COUNT(*) FROM comments WHERE ranking_id = ?) WHERE id = ?`).bind(comment.scope_id, comment.scope_id));
   statements.push(db.prepare(`SELECT COUNT(*) AS comments_count FROM ${table} WHERE ${scope} = ?`).bind(comment.scope_id));
   const result = await db.batch(statements);
+  if (!isTemplate) {
+    await invalidateSpotlightsCache(request);
+  }
   return Response.json({ success: true, comments_count: result.at(-1).results[0].comments_count });
 }
