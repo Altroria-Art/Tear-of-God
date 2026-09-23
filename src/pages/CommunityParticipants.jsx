@@ -11,6 +11,7 @@ import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPrev
 import { fetchTemplateParticipants, fetchTemplate } from '../lib/api'
 import { FACULTIES, getMajorsForFaculty, getAdmissionYears, getFacultyByName, isValidAdmissionYear } from '../lib/university'
 import { ArrowLeftIcon, AlertTriangleIcon } from '../components/ui/Icons'
+import Avatar from '../components/ui/Avatar'
 import { buildCommunityExcelWorkbook } from '../lib/communityExcelExport'
 
 const EMPTY_TIERS = []
@@ -168,10 +169,75 @@ function CommunityParticipantsContent() {
   }, [filteredRankings, tiersDef])
 
   // 3. เลือก tier ที่ต้องการแสดง (display filter)
+  const activeTiers = useMemo(() => {
+    if (selectedTiers.length === 0) return tiersDef
+    return tiersDef.filter(t => selectedTiers.includes(t.label))
+  }, [tiersDef, selectedTiers])
+
   const displayTiers = useMemo(() => {
     if (selectedTiers.length === 0) return calculatedAverage // แสดงทุก tier
     return calculatedAverage.filter(t => selectedTiers.includes(t.label))
   }, [calculatedAverage, selectedTiers])
+
+  // Template items map สำหรับดึงข้อมูลรูปภาพ (image_url) ของแต่ละ item
+  const templateItemMap = useMemo(() => {
+    const map = {}
+    if (Array.isArray(template?.items)) {
+      template.items.forEach(it => {
+        if (it?.id) map[it.id] = it
+      })
+    }
+    return map
+  }, [template])
+
+  // รายชื่อผู้เข้าร่วมที่ผ่านการ filter แบบ 1 ranking ต่อ 1 participant
+  const uniqueFilteredParticipants = useMemo(() => {
+    const seen = new Set()
+    const list = []
+    filteredRankings.forEach(p => {
+      const uid = p.user_id || p.ranking_id || p.username
+      if (uid && !seen.has(uid)) {
+        seen.add(uid)
+        list.push(p)
+      }
+    })
+    return list
+  }, [filteredRankings])
+
+  // ดึงไอเทมของแต่ละคนใน tier ที่ระบุ
+  const getParticipantItems = useCallback((p, tierLabel) => {
+    const normLabel = String(tierLabel || '').trim().toLowerCase()
+
+    if (Array.isArray(p.tiers)) {
+      const foundTier = p.tiers.find(
+        t => String(t.label || t.name || '').trim().toLowerCase() === normLabel
+      )
+      if (foundTier && Array.isArray(foundTier.items)) {
+        return foundTier.items.map(it => {
+          if (typeof it === 'string') return { name: it }
+          const tplItem = templateItemMap[it.id || it.item_id]
+          return {
+            id: it.id || it.item_id,
+            name: it.name || it.item_name || tplItem?.name || 'Item',
+            image_url: it.image_url || tplItem?.image_url || tplItem?.image,
+          }
+        })
+      }
+    }
+
+    const flatItems = p.ranking_items || p.items || []
+    return flatItems
+      .filter(i => String(i.tier || '').trim().toLowerCase() === normLabel)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map(i => {
+        const tplItem = templateItemMap[i.item_id]
+        return {
+          id: i.item_id,
+          name: i.item_name || i.name || tplItem?.name || i.item_id,
+          image_url: tplItem?.image_url || tplItem?.image || i.image_url,
+        }
+      })
+  }, [templateItemMap])
 
   const toggleTier = useCallback((tierLabel) => {
     setSelectedTiers(prev =>
@@ -438,7 +504,7 @@ function CommunityParticipantsContent() {
         </span>
       </div>
 
-      {/* ── Tier List (ค่าเฉลี่ย) ── */}
+      {/* ── Tier List (ค่าเฉลี่ย / ผู้เข้าร่วม) ── */}
       {!hasData ? (
         <div className="mt-6 rounded-2xl border border-line-soft glass p-8 text-center">
           <Users className="mx-auto h-10 w-10 text-muted" />
@@ -449,7 +515,62 @@ function CommunityParticipantsContent() {
             </button>
           )}
         </div>
+      ) : participantFilter === 'all' ? (
+        /* เมื่อเลือก All: แสดง Tier List ของแต่ละคนแยกเป็นบล็อก */
+        <div className="mt-5 space-y-5">
+          {uniqueFilteredParticipants.map((p) => (
+            <div
+              key={p.user_id || p.ranking_id}
+              className="rounded-2xl border border-line-soft glass p-4 shadow-sm"
+            >
+              {/* Header: Avatar, Username, Faculty, Major, Academic Year */}
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b border-line-soft">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Avatar name={p.username} src={p.avatar_url} size="sm" />
+                  <Link
+                    to={p.user_id ? `/profile/${encodeURIComponent(p.user_id)}` : '#'}
+                    className="font-bold text-sm text-ink hover:text-brand hover:underline truncate"
+                  >
+                    {p.username || 'Unknown'}
+                  </Link>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted">
+                  {p.faculty && (
+                    <span className="rounded-md bg-surface-glass border border-line-soft px-2 py-0.5 font-medium text-ink-soft">
+                      {p.faculty}
+                    </span>
+                  )}
+                  {p.major && (
+                    <span className="rounded-md bg-surface-glass border border-line-soft px-2 py-0.5 font-medium text-ink-soft">
+                      {p.major}
+                    </span>
+                  )}
+                  {p.year && (
+                    <span className="rounded-md bg-surface-glass border border-line-soft px-2 py-0.5 font-medium text-ink-soft">
+                      {t('participants.year', 'Year')} {p.year}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Tiers ของผู้ใช้คนนั้นจริง ๆ */}
+              <div className="space-y-2">
+                {activeTiers.map((tier, idx) => (
+                  <TierRow
+                    key={tier.label}
+                    tier={tier.label}
+                    color={tier.color}
+                    index={idx}
+                    items={getParticipantItems(p, tier.label)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
+        /* เมื่อเลือก Avg หรือเลือกคนใดคนหนึ่ง: แสดง Tier List เดี่ยวแบบเดิม */
         <div className="mt-5 rounded-2xl border border-line-soft glass p-3 shadow-sm space-y-2">
           {displayTiers.map(({ label, color, index, items }) => (
             <TierRow key={label} tier={label} color={color} index={index} items={items} />
