@@ -100,7 +100,7 @@ async function createSeededD1() {
   }
   for (let i = 16; i <= 30; i += 1) {
     inserts.push(db.prepare(`INSERT INTO rankings (id, title, user_id, hashtags, likes_count, created_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now', '-100 days'))`).bind(`r${i}`, `Old ${i}`, 'author2', '#food', 1));
+      VALUES (?, ?, ?, ?, ?, datetime('now', '-20 days'))`).bind(`r${i}`, `Old ${i}`, 'author2', '#food', 1));
   }
   await db.batch(inserts);
   await db.prepare(`INSERT INTO votes (id, ranking_id, user_id, vote_type) VALUES (?, ?, ?, ?)`)

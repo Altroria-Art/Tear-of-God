@@ -261,6 +261,7 @@
   },
   "feed": {
     "allSeen": "You're all caught up",
+    "allSeenSubtitle": "No new rankings right now. Check back later",
     "trending": "Trending",
     "forYou": "For You",
     "following": "Following",

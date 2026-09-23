@@ -1,9 +1,10 @@
 import { Activity, ChevronRight, Clock3, MessageCircle, ThumbsUp } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useEffect, useRef, useState } from 'react';
-import { fetchSpotlights } from '../../lib/api';
+import { fetchSpotlights, getSpotlightsCycleToken } from '../../lib/api';
 import { formatCount, timeAgo } from '../../lib/format';
+import Avatar from '../ui/Avatar';
 
 const RANKING_SECTIONS = [
   { key: 'recent', Icon: Clock3, tone: 'text-brand', border: 'border-brand/25' },
@@ -12,12 +13,24 @@ const RANKING_SECTIONS = [
 
 function RankingCard({ ranking, compact = false }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const next = `/post/${ranking.id}`;
+  const userId = ranking.profile?.id || ranking.user_id;
+  const username = ranking.profile?.username || t('common.unknownUser');
+
   return (
-    <Link
-      to={next}
+    <div
+      onClick={() => navigate(next)}
       data-auth-next={next}
-      className={`block ${
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(next);
+        }
+      }}
+      className={`block cursor-pointer ${
         compact
           ? 'w-full rounded-xl border border-line-soft bg-surface/80 p-2.5 transition-colors hover:border-highlight hover:bg-surface-glass shadow-2xs'
           : 'min-w-[17rem] snap-start rounded-xl border border-line-soft bg-surface/80 p-3 transition-colors hover:border-highlight'
@@ -26,15 +39,31 @@ function RankingCard({ ranking, compact = false }) {
       <p className={`line-clamp-2 ${compact ? 'text-[13px]' : 'text-sm'} font-extrabold leading-snug text-ink`}>
         {ranking.title}
       </p>
-      <p className="mt-1 truncate text-[11px] font-semibold text-muted">
-        {ranking.profile?.username || t('common.unknownUser')} · {timeAgo(ranking.created_at)}
-      </p>
+      <div className="mt-1 flex items-center gap-1.5 min-w-0 text-[11px] font-semibold text-muted">
+        {userId ? (
+          <Link
+            to={`/profile/${encodeURIComponent(userId)}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 min-w-0 hover:underline hover:text-ink transition-colors group/user truncate max-w-full"
+          >
+            <Avatar name={username} src={ranking.profile?.avatar_url} size="xs" />
+            <span className="truncate">{username}</span>
+          </Link>
+        ) : (
+          <div className="inline-flex items-center gap-1.5 min-w-0 truncate max-w-full">
+            <Avatar name={username} src={ranking.profile?.avatar_url} size="xs" />
+            <span className="truncate">{username}</span>
+          </div>
+        )}
+        <span className="shrink-0">·</span>
+        <span className="shrink-0">{timeAgo(ranking.created_at)}</span>
+      </div>
       <div className={`${compact ? 'mt-2' : 'mt-3'} flex items-center gap-3 text-[11px] font-semibold text-muted`}>
         <span className="inline-flex items-center gap-1"><ThumbsUp size={12} /> {formatCount(ranking.stats?.likes || 0)}</span>
         <span className="inline-flex items-center gap-1"><MessageCircle size={12} /> {formatCount(ranking.stats?.comments || 0)}</span>
         {ranking.disagreement > 0 && <span className="ml-auto text-rose-500">{t('freshness.splitScore', { score: ranking.disagreement })}</span>}
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -161,7 +190,7 @@ export default function FreshnessHub({ compact = false }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchSpotlights().then((result) => {
+    fetchSpotlights(getSpotlightsCycleToken()).then((result) => {
       if (cancelled) return;
       setData(result?.data || null);
       setLoading(false);
@@ -170,15 +199,20 @@ export default function FreshnessHub({ compact = false }) {
   }, []);
 
   useEffect(() => {
-    const handleRefresh = () => {
+    const handleRefresh = (event) => {
       // M1: ใช้ URL เดียวกับ FeaturedPrompts (ไม่มี ?cycle) เพื่อให้ inFlightGET ใน
       // api.js รวม 2 calls ที่ยิงพร้อมกันจาก event เดียวกันเหลือ 1 request
-      fetchSpotlights().then((result) => {
+      const token = event?.detail?.token ?? Date.now();
+      fetchSpotlights(token).then((result) => {
         setData(result?.data || null);
       });
     };
     window.addEventListener('tog-refresh-feed', handleRefresh);
-    return () => window.removeEventListener('tog-refresh-feed', handleRefresh);
+    window.addEventListener('tog-spotlights-refresh', handleRefresh);
+    return () => {
+      window.removeEventListener('tog-refresh-feed', handleRefresh);
+      window.removeEventListener('tog-spotlights-refresh', handleRefresh);
+    };
   }, []);
 
   const freshness = data?.freshness || {};

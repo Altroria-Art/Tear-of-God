@@ -1,6 +1,7 @@
 import { INPUT_LIMITS, assertId, assertString, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 import { maybeNotifyTrending } from '../lib/notifications.js';
 import { deleteComment } from '../lib/comment-delete.js';
+import { invalidateSpotlightsCache } from '../lib/spotlight-cache.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -68,6 +69,7 @@ export async function onRequest({ request, env, data: auth }) {
       }
       await db.batch(statements);
       await maybeNotifyTrending(db, ranking_id, user_id);
+      await invalidateSpotlightsCache(request);
 
       // ดึงข้อมูลที่เพิ่งสร้างส่งกลับไปให้หน้าเว็บแสดงผลทันที
       const { results } = await db.prepare(`

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bookmark, ArrowRight, X } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import { useBookmarks } from '../context/BookmarkContext';
 import { useToast } from '../components/ui/Toast';
 import { fetchTemplates, fetchHashtags } from '../lib/api';
 import { loginPath } from '../lib/navigation';
@@ -43,6 +44,7 @@ function TemplateCardSkeleton() {
 export default function Discover() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
+  const { addSavedIds } = useBookmarks();
   const viewerId = currentUser?.id;
   const toast = useToast();
   const { t } = useTranslation();
@@ -89,6 +91,9 @@ export default function Discover() {
         setTemplates(tpl.data || []);
         setTotal(tpl.total || 0);
         setLoadError(tpl.error || '');
+        if (saved && tpl.data?.length) {
+          addSavedIds(tpl.data.map((t) => t.id));
+        }
       } else {
         const [tpl, tags] = await Promise.all([
           fetchTemplates({ limit: 4 }),
@@ -107,7 +112,7 @@ export default function Discover() {
     return () => {
       cancelled = true;
     };
-  }, [q, saved, page, browsingResults, viewerId, retry]);
+  }, [q, saved, page, browsingResults, viewerId, retry, addSavedIds]);
 
   // M1: arm การโหลด sections เมื่อ sentinel ใกล้เข้า viewport (rootMargin 400px ล่วงหน้า)
   // ไม่มี IntersectionObserver (เบราว์เซอร์เก่า) = โหลดทันทีเหมือนพฤติกรรมเดิม
@@ -159,7 +164,10 @@ export default function Discover() {
 
   useEffect(() => {
     const update = (event) => {
-      if (saved && !event.detail.saved) setRetry((n) => n + 1);
+      if (saved && !event.detail?.saved) {
+        setTemplates((prev) => prev.filter((t) => String(t.id) !== String(event.detail?.id)));
+        setTotal((n) => Math.max(0, n - 1));
+      }
     };
     window.addEventListener('tog-bookmark', update);
     return () => window.removeEventListener('tog-bookmark', update);
@@ -185,7 +193,12 @@ export default function Discover() {
   const grid = (list) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
       {list.map((template) => (
-        <TemplateCard key={template.id} template={template} onUse={useTemplate} />
+        <TemplateCard
+          key={template.id}
+          template={template}
+          onUse={useTemplate}
+          inSavedView={saved}
+        />
       ))}
     </div>
   );

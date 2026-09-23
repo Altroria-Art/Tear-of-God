@@ -4,6 +4,7 @@ import {
   shouldSampleMetric,
   spotlightsMetric,
 } from '../lib/pool-cache.js';
+import { getSpotlightsCacheKey } from '../lib/spotlight-cache.js';
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const CANDIDATE_LIMIT = 40;
@@ -178,8 +179,7 @@ async function loadTemplateItems(db, templates) {
 export async function onRequestGet(context) {
   const { request, env } = context;
 
-  const url = new URL(request.url);
-  const cacheKey = new Request(`${url.origin}${url.pathname}?schema=hashtags-v1`, { method: 'GET' });
+  const cacheKey = getSpotlightsCacheKey(request);
   const cache = typeof caches !== 'undefined' ? caches.default : null;
 
   if (cache) {
@@ -240,13 +240,24 @@ export async function onRequestGet(context) {
       db.prepare(`${RANKING_SELECT}
         ORDER BY r.created_at DESC, r.id DESC
         LIMIT ?`).bind(RANKING_SPOTLIGHT_LIMIT).all(),
-      db.prepare(`${RANKING_SELECT}
-        WHERE r.created_at >= datetime('now', '-30 days')
-          AND COALESCE(r.comments_count, 0) > 0
-        ORDER BY COALESCE(r.comments_count, 0) DESC,
-                 (COALESCE(r.likes_count, 0) + COALESCE(r.dislikes_count, 0)) DESC,
-                 r.created_at DESC, r.id DESC
-        LIMIT ?`).bind(RANKING_SPOTLIGHT_LIMIT).all(),
+      db.prepare(`
+        SELECT r.id, r.title, r.hashtags, r.template_id, r.created_at,
+               r.likes_count, r.dislikes_count, r.comments_count,
+               p.id AS user_id, p.username, p.avatar_url,
+               t.title AS template_title,
+               MAX(c.created_at) AS last_comment_at
+        FROM rankings r
+        JOIN comments c ON c.ranking_id = r.id
+        LEFT JOIN profiles p ON p.id = r.user_id
+        LEFT JOIN templates t ON t.id = r.template_id
+        GROUP BY r.id
+        HAVING last_comment_at >= datetime('now', '-24 hours')
+        ORDER BY last_comment_at DESC,
+                 COALESCE(r.comments_count, 0) DESC,
+                 r.created_at DESC,
+                 r.id DESC
+        LIMIT ?
+      `).bind(RANKING_SPOTLIGHT_LIMIT).all(),
       db.prepare(`${RANKING_SELECT}
         WHERE (COALESCE(r.likes_count, 0) + COALESCE(r.dislikes_count, 0)) >= 3
           AND ABS(COALESCE(r.likes_count, 0) - COALESCE(r.dislikes_count, 0)) <= MAX(1, (COALESCE(r.likes_count, 0) + COALESCE(r.dislikes_count, 0)) * 0.35)

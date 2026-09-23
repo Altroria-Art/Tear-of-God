@@ -192,7 +192,20 @@ export default function Templates() {
                   </Link>
                 </div>
                 <p className="text-sm text-muted mt-1">
-                  {t('admin.createdBy', { name: detail.template?.profile?.username || detail.template?.creator?.username || t('common.unknownUser') })}
+                  {(() => {
+                    const creatorId = detail.template?.user_id || detail.template?.profile?.id || detail.template?.creator_id;
+                    const name = detail.template?.profile?.username || detail.template?.creator?.username || t('common.unknownUser');
+                    return creatorId ? (
+                      <span>
+                        {t('admin.createdBy', { name: '' })}
+                        <Link to={`/profile/${creatorId}`} target="_blank" rel="noopener noreferrer" className="text-brand hover:underline font-medium">
+                          {name}
+                        </Link>
+                      </span>
+                    ) : (
+                      t('admin.createdBy', { name })
+                    );
+                  })()}
                 </p>
               </div>
               <button

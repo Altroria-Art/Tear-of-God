@@ -235,10 +235,22 @@ export default function Rankings() {
                   </Link>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted mt-1.5 flex-wrap">
-                  <div className="flex items-center gap-1.5">
-                    <Avatar name={detail.post.profile?.username} src={detail.post.profile?.avatar_url} size="sm" />
-                    <span className="font-medium text-ink">{detail.post.profile?.username || t('common.unknownUser')}</span>
-                  </div>
+                  {detail.post.user_id ? (
+                    <Link
+                      to={`/profile/${detail.post.user_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 hover:underline"
+                    >
+                      <Avatar name={detail.post.profile?.username} src={detail.post.profile?.avatar_url} size="sm" />
+                      <span className="font-medium text-ink">{detail.post.profile?.username || t('common.unknownUser')}</span>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <Avatar name={detail.post.profile?.username} src={detail.post.profile?.avatar_url} size="sm" />
+                      <span className="font-medium text-ink">{detail.post.profile?.username || t('common.unknownUser')}</span>
+                    </div>
+                  )}
                   <span>·</span>
                   <span>{timeAgo(detail.post.created_at)}</span>
                 </div>

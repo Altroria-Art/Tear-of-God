@@ -86,7 +86,7 @@ function CommunityParticipantsContent() {
 
   // Filter states
   const [selectedTiers, setSelectedTiers] = useState([]) // tiers ที่ต้องการแสดง (display filter)
-  const [participantFilter, setParticipantFilter] = useState('') // user_id ที่เลือก ('' = ทุกคน)
+  const [participantFilter, setParticipantFilter] = useState('all') // ค่าเริ่มต้นคือ 'all' (แสดงทุกคน)
   const [facultyFilter, setFacultyFilter] = useState('')
   const [majorFilter, setMajorFilter] = useState('')
   const [yearFilter, setYearFilter] = useState('')
@@ -154,7 +154,7 @@ function CommunityParticipantsContent() {
   // 1. Filter rankings ตาม Participant + Faculty/Major/Year (ไม่ใช่ filter คน → filter ว่าจะเอาข้อมูลใครมาคำนวณ)
   const filteredRankings = useMemo(() => {
     return participants.filter(p => {
-      if (participantFilter && p.user_id !== participantFilter) return false
+      if (participantFilter && participantFilter !== 'all' && p.user_id !== participantFilter) return false
       if (facultyFilter && p.faculty !== facultyFilter) return false
       if (majorFilter && p.major !== majorFilter) return false
       if (yearFilter && String(p.year) !== yearFilter) return false
@@ -183,7 +183,7 @@ function CommunityParticipantsContent() {
   // ค่าที่ไม่มี/ไม่ถูกต้องในโปรไฟล์จะปล่อยเป็น All — ไม่เดาหรือเติมข้อมูล
   const applyParticipantSelection = useCallback((userId) => {
     setParticipantFilter(userId)
-    if (!userId) return
+    if (!userId || userId === 'all') return
 
     const participant = participantOptions.find(p => p.user_id === userId)
     if (!participant) return
@@ -203,28 +203,28 @@ function CommunityParticipantsContent() {
   const handleFacultyChange = useCallback((value) => {
     setFacultyFilter(value)
     setMajorFilter('')
-    setParticipantFilter('')
+    setParticipantFilter('all')
   }, [])
 
   const handleMajorChange = useCallback((value) => {
     setMajorFilter(value)
-    setParticipantFilter('')
+    setParticipantFilter('all')
   }, [])
 
   const handleYearChange = useCallback((value) => {
     setYearFilter(value)
-    setParticipantFilter('')
+    setParticipantFilter('all')
   }, [])
 
   const clearAllFilters = useCallback(() => {
     setSelectedTiers([])
-    setParticipantFilter('')
+    setParticipantFilter('all')
     setFacultyFilter('')
     setMajorFilter('')
     setYearFilter('')
   }, [])
 
-  const hasActiveFilters = selectedTiers.length > 0 || participantFilter || facultyFilter || majorFilter || yearFilter
+  const hasActiveFilters = selectedTiers.length > 0 || (participantFilter !== 'all') || facultyFilter || majorFilter || yearFilter
   const hasData = filteredRankings.length > 0
 
   // ── Export: Image ──
@@ -246,6 +246,8 @@ function CommunityParticipantsContent() {
         majorFilter,
         yearFilter,
         displayTiers,
+        filteredRankings,
+        participants,
       })
 
       XLSX.writeFile(wb, filename)
@@ -253,7 +255,7 @@ function CommunityParticipantsContent() {
     }).catch(() => {
       toast.error(t('participants.exportFailed'))
     })
-  }, [displayTiers, template, participantOptions, participantFilter, facultyFilter, majorFilter, yearFilter, toast, t])
+  }, [displayTiers, template, participantOptions, participantFilter, facultyFilter, majorFilter, yearFilter, filteredRankings, participants, toast, t])
 
   // ── Loading ──
   if (isLoading) {
@@ -356,6 +358,7 @@ function CommunityParticipantsContent() {
             onChange={(e) => applyParticipantSelection(e.target.value)}
             className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand"
           >
+            <option value="all">{t('participants.all', 'All')}</option>
             <option value="">{t('participants.avg', 'Avg')}</option>
             {participantOptions.map(p => (
               <option key={p.user_id} value={p.user_id}>{p.username}</option>
@@ -412,13 +415,15 @@ function CommunityParticipantsContent() {
 
       {/* ── Participant count + Export ── */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={handleExportImage}
-          className="flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3.5 py-1.5 text-xs font-bold text-ink transition-all hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.95]"
-        >
-          <Download size={14} /> {t('participants.exportImage')}
-        </button>
+        {participantFilter !== 'all' && (
+          <button
+            type="button"
+            onClick={handleExportImage}
+            className="flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-3.5 py-1.5 text-xs font-bold text-ink transition-all hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.95]"
+          >
+            <Download size={14} /> {t('participants.exportImage')}
+          </button>
+        )}
         <button
           type="button"
           onClick={handleExportExcel}

@@ -12,7 +12,7 @@ export async function onRequestPost({ request, env, data: auth }) {
     const db = env.tear_of_god_db;
     if (!await db.prepare('SELECT id FROM templates WHERE id = ?').bind(template_id).first()) return Response.json({ success: false, error: 'Template not found' }, { status: 404 });
     await db.prepare(saved ? 'INSERT OR IGNORE INTO template_bookmarks (user_id, template_id) VALUES (?, ?)' : 'DELETE FROM template_bookmarks WHERE user_id = ? AND template_id = ?').bind(auth.user.id, template_id).run();
-    return Response.json({ success: true, saved });
+    return Response.json({ success: true, saved }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     const invalid = requestErrorResponse(error);
     if (invalid) return invalid;
@@ -20,3 +20,28 @@ export async function onRequestPost({ request, env, data: auth }) {
     return Response.json({ success: false, error: 'Service temporarily unavailable' }, { status: 500 });
   }
 }
+
+export async function onRequestGet({ env, data: auth }) {
+  try {
+    const user = auth?.user;
+    if (!user) {
+      return Response.json(
+        { success: true, data: [] },
+        { headers: { 'Cache-Control': 'private, no-store' } }
+      );
+    }
+    const db = env.tear_of_god_db;
+    const { results } = await db.prepare(
+      'SELECT template_id FROM template_bookmarks WHERE user_id = ?'
+    ).bind(user.id).all();
+    const ids = (results || []).map((r) => r.template_id);
+    return Response.json(
+      { success: true, data: ids },
+      { headers: { 'Cache-Control': 'private, no-store' } }
+    );
+  } catch (error) {
+    console.error('Bookmark fetch failed:', error.message);
+    return Response.json({ success: false, error: 'Service temporarily unavailable' }, { status: 500 });
+  }
+}
+

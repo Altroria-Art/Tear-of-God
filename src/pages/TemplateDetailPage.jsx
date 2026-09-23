@@ -44,11 +44,29 @@ function groupItemsByTierOrder(rankingItems, tiersDef) {
   }))
 }
 
-function UserTopBar({ username, avatarUrl, timeLabel }) {
+function UserTopBar({ userId, username, avatarUrl, timeLabel }) {
+  const content = (
+    <>
+      <Avatar size="sm" name={username} src={avatarUrl} />
+      <span className="text-sm font-semibold text-ink group-hover:underline">{username}</span>
+    </>
+  )
+
   return (
     <div className="flex items-center gap-2 px-4 py-3 border-b border-line-soft/50">
-      <Avatar size="sm" name={username} src={avatarUrl} />
-      <span className="text-sm font-semibold text-ink">{username}</span>
+      {userId ? (
+        <Link
+          to={`/profile/${encodeURIComponent(userId)}`}
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity group cursor-pointer"
+        >
+          {content}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-2">
+          {content}
+        </div>
+      )}
       <span className="text-sm text-muted">·</span>
       <span className="text-sm text-muted">{timeLabel}</span>
     </div>
@@ -124,6 +142,7 @@ function RankingCard({ ranking, tiersDef }) {
     <div className="mb-6">
       <div className="rounded-lg glass shadow-sm overflow-hidden">
       <UserTopBar
+        userId={ranking.profile?.id || ranking.user_id}
         username={ranking.profile?.username || t('common.unknownUser')}
         avatarUrl={ranking.profile?.avatar_url}
         timeLabel={timeAgo(ranking.created_at)}
@@ -442,7 +461,7 @@ export default function TemplateDetailPage() {
   })
   const hasAvgData = communityAvgRows.some((r) => r.items.length > 0)
 
-  const CreatorLink = template.profile?.id ? Link : 'span'
+  const creatorId = template.profile?.id || template.creator_id || template.user_id || template.creator?.id
   return (
     <main className="min-h-screen text-ink">
       <div className="mx-auto max-w-5xl px-4 py-8">
@@ -451,10 +470,20 @@ export default function TemplateDetailPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <CreatorLink to={template.profile?.id ? `/profile/${encodeURIComponent(template.profile.id)}` : undefined} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
-                <span className="font-medium text-ink">@{template.profile?.username || t('common.unknownUser')}</span>
-              </CreatorLink>
+              {creatorId ? (
+                <Link
+                  to={`/profile/${encodeURIComponent(creatorId)}`}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity group cursor-pointer"
+                >
+                  <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
+                  <span className="font-medium text-ink group-hover:underline">@{template.profile?.username || t('common.unknownUser')}</span>
+                </Link>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Avatar size="sm" name={template.profile?.username} src={template.profile?.avatar_url} />
+                  <span className="font-medium text-ink">@{template.profile?.username || t('common.unknownUser')}</span>
+                </div>
+              )}
               <span className="text-muted">|</span>
               <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
                 <Users size={14} /> {formatCount(template.stats?.uses)} {t('template.uses')}

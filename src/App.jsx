@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import Navbar from './components/layout/Navbar';
 import ToastProvider from './components/ui/Toast';
 import { UserProvider } from './context/UserContext';
+import { BookmarkProvider } from './context/BookmarkContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ScrollToTop from './components/layout/ScrollToTop';
 import ErrorBoundary from './components/layout/ErrorBoundary';
@@ -57,7 +58,8 @@ function App() {
       <ToastProvider>
         <ThemeProvider>
           <UserProvider>
-            <Navbar />
+            <BookmarkProvider>
+              <Navbar />
 
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
@@ -98,6 +100,7 @@ function App() {
             </Suspense>
             </ErrorBoundary>
             <MobileBottomNav />
+            </BookmarkProvider>
           </UserProvider>
         </ThemeProvider>
       </ToastProvider>

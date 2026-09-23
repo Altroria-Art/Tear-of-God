@@ -67,7 +67,7 @@ export default function PostDetail() {
           templateId: data.template_id ?? null,
           isOriginal: data.is_original ?? (!data.template_id),
           templateTitle: data.template_title ?? null,
-          authorId: data.profile?.id ?? null,
+          authorId: data.profile?.id ?? data.user_id ?? null,
           author: {
             name: data.profile?.username || t('common.unknownUser'),
             avatarUrl: data.profile?.avatar_url
@@ -319,16 +319,26 @@ export default function PostDetail() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
               <div className="flex min-w-0 items-center gap-3">
-                <Link
-                  to={authorId ? `/profile/${authorId}` : '#'}
-                  className={`flex min-w-0 items-center gap-3 ${!authorId ? 'pointer-events-none' : ''}`}
-                >
-                  <Avatar name={author.name} src={author.avatarUrl} />
-<div className="min-w-0 lg:col-start-1 lg:row-start-1">
-                    <p className="truncate text-sm font-bold text-ink hover:text-highlight transition-colors">{author.name}</p>
-                    <p className="text-xs text-muted">{postedAt}</p>
+                {authorId ? (
+                  <Link
+                    to={`/profile/${encodeURIComponent(authorId)}`}
+                    className="flex min-w-0 items-center gap-3 group cursor-pointer"
+                  >
+                    <Avatar name={author.name} src={author.avatarUrl} />
+                    <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+                      <p className="truncate text-sm font-bold text-ink group-hover:text-highlight group-hover:underline transition-colors">{author.name}</p>
+                      <p className="text-xs text-muted">{postedAt}</p>
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar name={author.name} src={author.avatarUrl} />
+                    <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+                      <p className="truncate text-sm font-bold text-ink">{author.name}</p>
+                      <p className="text-xs text-muted">{postedAt}</p>
+                    </div>
                   </div>
-                </Link>
+                )}
                 {authorId && (
                   <UserFollowButton
                     targetUserId={authorId}

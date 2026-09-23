@@ -18,7 +18,7 @@
 // depends on user-specific state and must not use this path.
 // Internal pool cache only — API response Cache-Control headers are untouched.
 
-export const TRENDING_POOL_CACHE_VERSION = 'v4';
+export const TRENDING_POOL_CACHE_VERSION = 'v5';
 
 // Seed lifetime = one HomeFeed mount (a few minutes of scrolling; refresh or a
 // new mount mints a new seed and therefore misses by construction). 60s bounds
@@ -33,7 +33,7 @@ export const TRENDING_POOL_CACHE_TTL_SECONDS = 60;
 // by at most 5s — but shuffle still uses its own fresh seed, so ordering is
 // always per-session.
 export const SHARED_HOME_TRENDING_TTL_SECONDS = 5;
-export const SHARED_HOME_TRENDING_VERSION = 'v5';
+export const SHARED_HOME_TRENDING_VERSION = 'v6';
 
 // Recent-result memory bridge (Phase 0 fix): covers the post-D1/pre-put
 // window where the in-flight entry is already gone but the Cache API write

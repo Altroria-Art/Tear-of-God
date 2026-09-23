@@ -131,7 +131,14 @@ export default function Users() {
                 return (
                   <tr key={u.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
                     <td className="px-4 py-3 flex items-center gap-3">
-                      <Avatar name={u.username} src={u.avatar_url} size="sm" />
+                      <Link
+                        to={`/profile/${u.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 hover:opacity-80 transition-opacity"
+                      >
+                        <Avatar name={u.username} src={u.avatar_url} size="sm" />
+                      </Link>
                       <div className="flex items-center gap-2 min-w-0">
                         <Link
                           to={`/profile/${u.id}`}

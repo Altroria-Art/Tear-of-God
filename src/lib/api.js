@@ -162,7 +162,7 @@ export async function fetchRankings(filters) {
       // M1: ไม่เติม `_t=Date.now()` สำหรับ manual refresh แล้ว — HomeFeed สุ่ม seed ใหม่
       // + exclude ใหม่ทุกครั้งที่ refresh (refreshFeed) ทำให้ URL ต่างกันอยู่แล้ว dedup ไม่กลืน
       // และ browser cache ไม่ชน ของใหม่ยังได้ทุกรอบเหมือนเดิม
-      const { hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, exclude, fresh } = filters;
+      const { hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, exclude, fresh, seen } = filters;
       const params = new URLSearchParams();
 
       if (feedType) params.append('feed_type', feedType);
@@ -170,6 +170,7 @@ export async function fetchRankings(filters) {
       if (seed != null) params.append('seed', seed);
       if (pin) params.append('pin', pin);
       if (exclude) params.append('exclude', Array.isArray(exclude) ? exclude.join(',') : String(exclude));
+      if (seen) params.append('seen', Array.isArray(seen) ? seen.join(',') : String(seen));
       if (days != null) params.append('days', days);
       if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
       // authorId = กรองเฉพาะโพสต์ของผู้ใช้คนนี้ (ใช้ตอนดูโปรไฟล์คนอื่น)
@@ -448,6 +449,22 @@ export async function voteRanking({ rankingId, userId: _userId, voteType }) {
   }
 }
 
+let latestSpotlightsCycleToken = null;
+
+export function getSpotlightsCycleToken() {
+  return latestSpotlightsCycleToken;
+}
+
+export function dispatchSpotlightsRefresh(token = Date.now()) {
+  latestSpotlightsCycleToken = token;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('tog-spotlights-refresh', {
+      detail: { token }
+    }));
+  }
+  return token;
+}
+
 export async function deleteComment(id, isTemplateComment = false) {
   try {
     const response = await apiFetch(`/api/${isTemplateComment ? 'template-comments' : 'comments'}`, {
@@ -457,6 +474,9 @@ export async function deleteComment(id, isTemplateComment = false) {
     });
     const result = await response.json();
     if (!response.ok) return { success: false, error: result.error || i18n.t('errors.commentDeleteFailed') };
+    if (!isTemplateComment && result.success !== false) {
+      dispatchSpotlightsRefresh();
+    }
     return result;
   } catch {
     return { success: false, error: i18n.t('errors.commentDeleteFailed') };
@@ -478,7 +498,11 @@ export async function createComment({ ranking_id, user_id, content, parentId }) 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ranking_id, user_id, content, parent_id: parentId })
     });
-    return await response.json();
+    const result = await response.json();
+    if (response.ok && result.success !== false) {
+      dispatchSpotlightsRefresh();
+    }
+    return result;
   } catch {
     return { success: false, error: i18n.t('errors.commentFailed') };
   }
@@ -868,6 +892,16 @@ export async function deleteAdminReport({ userId: _userId, targetId }) {
   }
 }
 
+export async function fetchBookmarkedTemplateIds() {
+  try {
+    const res = await getJSON(`${API_URL}/api/bookmarks`);
+    return res?.data || [];
+  } catch (err) {
+    console.error('fetchBookmarkedTemplateIds error:', err);
+    return [];
+  }
+}
+
 export async function saveTemplate(templateId, saved) {
   try {
     const response = await apiFetch("/api/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template_id: templateId, saved }) });
@@ -901,7 +935,11 @@ export async function deleteAdminComment(commentId, isTemplateComment) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', target_id: commentId, is_template_comment: isTemplateComment })
     });
-    return await response.json();
+    const result = await response.json();
+    if (response.ok && result.success !== false && !isTemplateComment) {
+      dispatchSpotlightsRefresh();
+    }
+    return result;
   } catch {
     return { success: false, error: i18n.t('errors.commentDeleteFailed') };
   }

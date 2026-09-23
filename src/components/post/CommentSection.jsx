@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { Reply, Flag, X, Trash2 } from 'lucide-react'
 import Modal from '../ui/Modal'
 import Avatar from '../ui/Avatar'
@@ -18,14 +19,35 @@ function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isR
   const isAuthor = currentUser?.id === author?.id
   const canReport = !!currentUser && !isAdmin && !isAuthor && !!onReport
   const canDelete = !!currentUser && (isAdmin || isAuthor) && !!onDelete
+  const authorId = author?.id || author?.user_id
   
   return (
     <div className={`flex gap-3 py-3 ${isReply ? 'ml-8 sm:ml-12 border-l-2 border-line-soft pl-3' : ''}`}>
-      <Avatar name={author?.name} src={author?.avatarUrl} size="sm" />
+      {authorId ? (
+        <Link
+          to={`/profile/${encodeURIComponent(authorId)}`}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0 hover:opacity-80 transition-opacity"
+        >
+          <Avatar name={author?.name} src={author?.avatarUrl} size="sm" />
+        </Link>
+      ) : (
+        <Avatar name={author?.name} src={author?.avatarUrl} size="sm" />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-baseline gap-2">
-            <p className="min-w-0 truncate text-sm font-bold text-ink">{author?.name}</p>
+            {authorId ? (
+              <Link
+                to={`/profile/${encodeURIComponent(authorId)}`}
+                onClick={(e) => e.stopPropagation()}
+                className="min-w-0 truncate text-sm font-bold text-ink hover:underline hover:text-highlight transition-colors"
+              >
+                {author?.name}
+              </Link>
+            ) : (
+              <p className="min-w-0 truncate text-sm font-bold text-ink">{author?.name}</p>
+            )}
             <p className="whitespace-nowrap text-xs text-muted">
               <span className="sm:hidden">{shortTimeAgo(createdAt)}</span>
               <span className="hidden sm:inline">{timeAgo(createdAt)}</span>
