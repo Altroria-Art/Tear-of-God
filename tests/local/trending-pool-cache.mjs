@@ -49,7 +49,7 @@ function makeFakeCache({ failMatch = false, failPut = false, gateFirstPut = fals
         store.delete(key);
         return null;
       }
-      return new Response(JSON.stringify({ ids: entry.ids }), {
+      return new Response(JSON.stringify({ ids: entry.ids, tiers: entry.tiers }), {
         headers: { 'Content-Type': 'application/json' },
       });
     },
@@ -60,7 +60,7 @@ function makeFakeCache({ failMatch = false, failPut = false, gateFirstPut = fals
       if (firstPutGate && puts++ === 0) await firstPutGate;
       const body = await response.json();
       const maxAge = /max-age=(\d+)/.exec(response.headers.get('Cache-Control') || '');
-      store.set(key, { ids: body.ids, expiresAt: now + (maxAge ? Number(maxAge[1]) * 1000 : 60000) });
+      store.set(key, { ids: body.ids, tiers: body.tiers, expiresAt: now + (maxAge ? Number(maxAge[1]) * 1000 : 60000) });
     },
   };
   return cache;
@@ -109,13 +109,13 @@ async function createSeededD1() {
   return { mf, db };
 }
 
-// Counts ONLY the candidate-pool SELECT (SELECT r.id FROM rankings r ...).
-// Slice (SELECT r.*, ... IN), enrich, pin-ownership and fallback queries do
-// not match this marker.
+// Counts ONLY the candidate-pool SELECT (SELECT r.id, … AS freshness_tier
+// FROM rankings r …). Slice (SELECT r.*, … IN), enrich, pin-ownership and
+// fallback queries do not match this marker.
 function countingDb(db, counter) {
   return {
     prepare(sql) {
-      if (/SELECT r\.id FROM rankings r/.test(sql)) counter.pool += 1;
+      if (/freshness_tier FROM rankings r/.test(sql)) counter.pool += 1;
       return db.prepare(sql);
     },
     batch(statements) {
@@ -196,6 +196,21 @@ try {
   assert.ok(excl.body.data.length > 0);
   assert.deepEqual(excl.body.data.map((row) => row.id).filter((id) => p1Ids.includes(id)), []);
   console.log('CASE 6 passed: exclude variation reused pool, excluded ids absent');
+
+  // CASE 6b — freshness buckets: shuffle must stay INSIDE a freshness tier.
+  // Pool = 16 recent (r_top/rA1/r02..r15, tier ≤1h) + 15 old (r16..r30,
+  // created -100d, tier older). Page 1 (12 cards) must contain ONLY recent ids
+  // for ANY seed — a refresh can vary order within the hot bucket but must
+  // never pull an old post up past fresh content.
+  const freshSet = ['r_top', 'rA1', ...Array.from({ length: 14 }, (_, i) => `r${String(i + 2).padStart(2, '0')}`)];
+  const page1a = await callFeed(db, { ...base, page: 1 }, null);
+  assert.equal(counter.pool, 2, 'warm L1 must serve page1 for the same seed');
+  assert.ok(page1a.body.data.every((row) => freshSet.includes(row.id)), 'page1 must be all fresh, not old');
+  const page1b = await callFeed(db, { ...base, seed: 889, page: 1 }, null);
+  assert.equal(counter.pool, 2, 'new seed must reuse the warm shared pool');
+  assert.ok(page1b.body.data.every((row) => freshSet.includes(row.id)), 'new seed page1 must also be all fresh');
+  assert.notDeepEqual(page1b.body.data.map((row) => row.id), page1a.body.data.map((row) => row.id), 'different seeds must vary order within the freshness bucket');
+  console.log('CASE 6b passed: shuffle stays inside freshness buckets (old posts never rise above fresh)');
 
   // CASE 7 — different pin, same seed: NO new pool query; owned pin jumps first.
   const pinned = await callFeed(db, { ...base, page: 1, pin: 'rA1' }, 'userA');
@@ -304,7 +319,14 @@ try {
     const stored = entry?.ids;
     assert.ok(Array.isArray(stored) && stored.length > 0, 'L2 must hold the shared id pool');
     assert.ok(stored.every((id) => typeof id === 'string'), 'L2 entries must be id strings');
-    const serialized = JSON.stringify({ ids: stored });
+    const storedTiers = entry?.tiers;
+    assert.ok(
+      Array.isArray(storedTiers) && storedTiers.length === stored.length
+        && storedTiers.every((t) => Number.isInteger(t) && t >= 1 && t <= 5),
+      'L2 must carry per-row freshness tiers aligned with the ids',
+    );
+    // SECURITY: the serialized shared payload must be ids + tiers only.
+    const serialized = JSON.stringify({ ids: stored, tiers: storedTiers });
     for (const forbidden of ['user_id', 'email', 'cookie', 'session', 'user_vote', 'is_following', 'profile', 'username']) {
       assert.ok(!serialized.includes(`"${forbidden}"`), `L2 payload must not contain ${forbidden}`);
     }
@@ -453,6 +475,7 @@ try {
   assert.notEqual(buildTrendingPoolKey({ ...l1Base, days: 7 }), keyA);
   assert.notEqual(buildTrendingPoolKey({ ...l1Base, poolCap: 100 }), keyA);
   assert.ok(TRENDING_POOL_CACHE_TTL_SECONDS >= 60 && TRENDING_POOL_CACHE_TTL_SECONDS <= 600);
+  assert.equal(TRENDING_POOL_CACHE_TTL_SECONDS, 60, 'trending pool cache TTL must stay 60s');
   // L2 eligibility mirrors the pool builder exactly.
   assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: null, authorId: null, templateId: null, days: 0 }), true);
   assert.equal(isSharedHomeTrendingEligible({ feedType: 'trending', hashtag: '', authorId: null, templateId: null, days: 0 }), true);

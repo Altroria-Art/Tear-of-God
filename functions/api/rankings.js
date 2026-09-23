@@ -1,5 +1,6 @@
 import { prioritizeUnseen } from '../lib/feed-refresh.js';
 import { feedCommunityStats } from '../lib/community-cache.js';
+import { templateDeleteStatements } from '../lib/templateDelete.js';
 // 📍 [ใหม่]: ranking_items.tier เก็บแค่ "ชื่อ tier" เป็นสตริง — สี/id ของ tier อยู่ที่
 // templates.tiers เท่านั้น (ดู functions/api/templates.js). ก่อนหน้านี้ endpoint นี้ไม่เคย
 // ส่ง tiers กลับมาเลย ทำให้ Home Feed / Feed Detailed โชว์ tier ไม่มีสี ต่างจาก Discover
@@ -105,6 +106,35 @@ function windowedShuffle(list, windowSize, seed) {
       chunk[k] = tmp;
     }
     result.push(...chunk);
+  }
+  return result;
+}
+
+// Freshness-bucket shuffle (Trending only): the pool SQL orders tier-first so
+// `ids` arrive as contiguous runs of the SAME freshness tier (`tiers` runs
+// parallel to `ids`, 5=≤1h … 1=older). Shuffle ONLY inside each run, never
+// across tiers — a refresh varies which cards show but can never lift an old
+// post above a fresh one (hot stays hot, old stays last). Engagement order
+// inside a tier is intentionally relaxed for variety. Falls back to the plain
+// windowed shuffle if tiers are ever missing (pool order is still tier-first).
+function tierBucketShuffle(ids, tiers, windowSize, seed) {
+  if (!seed || !ids || ids.length <= 1) return ids;
+  if (!tiers || tiers.length !== ids.length) return windowedShuffle(ids, windowSize, seed);
+  const rand = mulberry32((seed >>> 0) ^ 0x9e3779b9);
+  const result = [];
+  let runStart = 0;
+  for (let i = 1; i <= ids.length; i += 1) {
+    if (i === ids.length || tiers[i] !== tiers[runStart]) {
+      const chunk = ids.slice(runStart, i);
+      for (let j = chunk.length - 1; j > 0; j--) {
+        const k = Math.floor(rand() * (j + 1));
+        const tmp = chunk[j];
+        chunk[j] = chunk[k];
+        chunk[k] = tmp;
+      }
+      result.push(...chunk);
+      runStart = i;
+    }
   }
   return result;
 }
@@ -372,34 +402,65 @@ export async function onRequest(context) {
               poolParams.push(String(days));
             }
 
-            const trendingOrder = `(
+            // Recent-activity trending: freshness comes from
+            // COALESCE(last_activity_at, created_at) so a like or comment (or
+            // the original creation) bumps it, and old high like-counts decay
+            // on their own. Ordering is STRICT freshness-tier-first — five
+            // gates (≤1h → ≤6h → ≤24h → ≤3d → older) mean recent activity
+            // ALWAYS beats an old accumulated like-count, so a 30-day post
+            // with a 2-minute comment jumps back to the top while a stale
+            // 100-like post can only fill the fallback. Engagement is a
+            // capped within-tier tiebreaker, NOT a driver — `min()` caps the
+            // counts so it can reorder posts inside the same tier but can
+            // never lift a stale post above a fresh one (verified in
+            // tests/local/trending-recent-activity.mjs).
+            const activityExpr = 'COALESCE(r.last_activity_at, r.created_at)';
+            const trendingTier = `(
               CASE
-                WHEN r.created_at >= datetime('now', '-3 days') THEN 50
-                WHEN r.created_at >= datetime('now', '-7 days') THEN 35
-                WHEN r.created_at >= datetime('now', '-14 days') THEN 20
-                WHEN r.created_at >= datetime('now', '-30 days') THEN 10
-                WHEN r.created_at >= datetime('now', '-90 days') THEN 3
-                ELSE 0
+                WHEN ${activityExpr} >= datetime('now', '-1 hour') THEN 5
+                WHEN ${activityExpr} >= datetime('now', '-6 hours') THEN 4
+                WHEN ${activityExpr} >= datetime('now', '-1 day') THEN 3
+                WHEN ${activityExpr} >= datetime('now', '-3 days') THEN 2
+                ELSE 1
               END
-              + COALESCE(r.likes_count, 0) * 3
-              + COALESCE(r.comments_count, 0) * 2
+            )`;
+            const trendingEngagement = `(
+              min(COALESCE(r.likes_count, 0), 50)
+              + min(COALESCE(r.comments_count, 0), 25) * 2
               - COALESCE(r.dislikes_count, 0)
-            ) DESC, r.created_at DESC, r.id DESC`;
+            )`;
+            const trendingOrder = `${trendingTier} DESC,
+${trendingEngagement} DESC,
+${activityExpr} DESC,
+r.created_at DESC, r.id DESC`;
             const poolOrder = (feedType === 'trending' || personalizationFallback)
-              ? trendingOrder
+              ? `age_tier ASC, ${trendingOrder}`
               : `r.created_at DESC, r.id DESC`;
             const runPoolQuery = async () => {
+              // freshness_tier mirrors the ORDER BY CASE so the pool cache can
+              // shuffle WITHIN a freshness bucket (see tierBucketShuffle).
               const { results: poolRows } = await db.prepare(`
-                SELECT r.id FROM rankings r
+                SELECT r.id,
+                  CASE
+                    WHEN r.created_at >= datetime('now', '-1 day') THEN 0
+                    WHEN r.created_at >= datetime('now', '-7 day') THEN 1
+                    ELSE 2
+                  END AS age_tier,
+                  ${trendingTier} AS freshness_tier FROM rankings r
                 ${poolWhere}
                 ORDER BY ${poolOrder}
                 LIMIT ?
               `).bind(...poolParams, HOME_POOL_CAP).all();
-              return (poolRows || []).map((row) => row.id);
+              const rows = poolRows || [];
+              return {
+                ids: rows.map((row) => row.id),
+                tiers: rows.map((row) => Number(row.freshness_tier) || 1),
+              };
             };
             // Batch 3 L1 (per-seed) + Batch 4 L2 (shared unfiltered home
-            // trending): raw IDs only — for_you/following candidate selection
-            // is user-specific and keeps querying (see pool-cache.js).
+            // trending): raw IDs + per-row freshness tiers (for tier-bucket
+            // shuffle) — for_you/following candidate selection is user-specific
+            // and keeps querying (see pool-cache.js).
             // L1 key pins the seed so manual refresh (new seed) still misses
             // L1; page slicing, exclude, shuffle and pin below run on whatever
             // pool is returned, hit or miss.
@@ -407,6 +468,7 @@ export async function onRequest(context) {
             // pool size only) — cache/D1 behavior untouched.
             const poolStartedAt = Date.now();
             let poolIds;
+            let poolTiers = null;
             let poolOutcome = null;
             if (feedType === 'trending') {
               const poolKey = buildTrendingPoolKey({
@@ -419,48 +481,56 @@ export async function onRequest(context) {
               let l1 = 'MISS';
               let l2 = 'SKIP';
               let d1Build = false;
-              poolIds = await readTrendingPool(poolCache, poolCacheRequest);
+              // A new client Trending session must discover newly published IDs
+              // even when the shared pool still contains only seen candidates.
+              // Its subsequent pages keep the same L1 snapshot and stable offsets.
+              const freshSession = page === 1 && url.searchParams.get('fresh') === '1';
+              let pool = freshSession ? null : await readTrendingPool(poolCache, poolCacheRequest);
               // Phase 0 bridge: post-D1/pre-put window (in-flight entry gone,
               // Cache API write not committed yet) — memory only, falls back.
-              if (!poolIds) poolIds = getRecentPool(poolKey);
-              if (poolIds) {
+              if (!pool && !freshSession) pool = getRecentPool(poolKey);
+              if (pool) {
                 l1 = 'HIT';
-              } else if (eligible) {
+              } else if (eligible && !freshSession) {
                 const sharedKey = buildSharedHomeTrendingKey({ poolCap: HOME_POOL_CAP });
                 const sharedRequest = trendingPoolCacheRequest(url.origin, sharedKey);
-                let sharedIds = await readTrendingPool(poolCache, sharedRequest);
-                if (!sharedIds) sharedIds = getRecentPool(sharedKey);
-                if (sharedIds) {
+                let shared = await readTrendingPool(poolCache, sharedRequest);
+                if (!shared) shared = getRecentPool(sharedKey);
+                if (shared) {
                   l2 = 'HIT';
                 } else {
                   // Shared in-flight dedup keyed by the L2 key (not the
                   // seed): concurrent new seeds share one D1 pool query.
-                  sharedIds = await runPoolQueryDeduped(sharedKey, runPoolQuery);
+                  shared = await runPoolQueryDeduped(sharedKey, runPoolQuery);
                   d1Build = true;
                   l2 = 'MISS';
-                  setRecentPool(sharedKey, sharedIds);
+                  setRecentPool(sharedKey, shared);
                   const sharedStored = await writeTrendingPool(
-                    poolCache, sharedRequest, sharedIds, waitUntil,
+                    poolCache, sharedRequest, shared, waitUntil,
                     SHARED_HOME_TRENDING_TTL_SECONDS,
                   );
                   if (!sharedStored) removeRecentPool(sharedKey);
                 }
-                poolIds = sharedIds;
+                pool = shared;
                 // Populate L1(seed) so the session's next pages hit L1.
-                setRecentPool(poolKey, poolIds);
-                const l1Stored = await writeTrendingPool(poolCache, poolCacheRequest, poolIds, waitUntil);
+                setRecentPool(poolKey, pool);
+                const l1Stored = await writeTrendingPool(poolCache, poolCacheRequest, pool, waitUntil);
                 if (!l1Stored) removeRecentPool(poolKey);
               } else {
                 // Filtered trending: L1 per-seed only, exactly Batch 3.
-                poolIds = await runPoolQueryDeduped(poolKey, runPoolQuery);
+                pool = await runPoolQueryDeduped(poolKey, runPoolQuery);
                 d1Build = true;
-                setRecentPool(poolKey, poolIds);
-                const l1Stored = await writeTrendingPool(poolCache, poolCacheRequest, poolIds, waitUntil);
+                setRecentPool(poolKey, pool);
+                const l1Stored = await writeTrendingPool(poolCache, poolCacheRequest, pool, waitUntil);
                 if (!l1Stored) removeRecentPool(poolKey);
               }
               poolOutcome = { l1, l2, d1Build, eligible };
+              poolIds = pool.ids;
+              poolTiers = pool.tiers;
             } else {
-              poolIds = await runPoolQuery();
+              const pool = await runPoolQuery();
+              poolIds = pool.ids;
+              poolTiers = pool.tiers;
               poolOutcome = { l1: 'SKIP', l2: 'SKIP', d1Build: false, eligible: false };
             }
             if (poolOutcome && shouldSampleMetric(env)) {
@@ -489,21 +559,30 @@ export async function onRequest(context) {
               poolIds = (fbRows || []).map((row) => row.id);
             }
 
-            // เวลากด refresh (seed > 0):
-            // สุ่มสลับตำแหน่งแบบกลุ่มใหญ่ (windowed shuffle):
-            // - Trending: สุ่มสลับจากกลุ่ม Top 60 รายการยอดนิยม/สดใหม่ เพื่อให้เวลารีเฟรชไม่เห็นเฉพาะ 12 อันดับเดิมซ้ำๆ
-            // - For You: สุ่มสลับจากกลุ่ม 48 รายการที่ตรงกับความชอบของ account นั้น
-            // - Following: สุ่มสลับจากกลุ่ม 36 รายการล่าสุดจากคนที่ติดตาม
-            // ช่วยให้การรีเฟรชได้การ์ดชุดใหม่ที่หลากหลายขึ้นมาก ไม่วนซ้ำเฉพาะ 12 การ์ดเดิม
+            // เวลากด refresh (seed > 0): สุ่มสลับตำแหน่งเพื่อให้ไม่เห็นเฉพาะการ์ดชุดเดิมซ้ำๆ
+            // - Trending: tier-bucket shuffle — สับเปลี่ยนกันเฉพาะภายใน freshness bucket
+            //   เดียวกัน (hot ≤1 ชม. / fresh ≤24 ชม. / warm ≤3 วัน / old เก่ากว่า)
+            //   โพสต์ที่ active ใหม่ๆ จึงไม่มีทางโดน shuffle ดึงโพสต์เก่าๆ ขึ้นมาแซงได้
+            // - For You / Following: windowed shuffle เดิม (48/36) ไม่เปลี่ยน
+            // ช่วยให้การรีเฟรชได้การ์ดชุดใหม่ที่หลากหลายขึ้นมาก โดยที่ความสดใหม่ยังได้แต้มนำอยู่เสมอ
             const SHUFFLE_WINDOWS = {
               trending: 60,
               for_you: 48,
               following: 36,
             };
             const windowSize = SHUFFLE_WINDOWS[feedType] || 48;
-            const orderedIds = prioritizeUnseen(seed > 0
-              ? windowedShuffle(poolIds, windowSize, seed ^ fnv1a(feedType))
-              : poolIds, excludeIds);
+            // Strict unseen for Trending only: when the caller supplies a seen
+            // history (exclude IDs from localStorage) and the pool is FULLY seen,
+            // return [] — a Trending refresh must never recycle already-seen
+            // cards. New posts still surface (they aren't in the history yet).
+            // For You / Following keep the historical fallback-to-full behavior.
+            const stillShuffle = seed > 0
+              ? (feedType === 'trending'
+                  ? tierBucketShuffle(poolIds, poolTiers, windowSize, seed ^ fnv1a(feedType))
+                  : windowedShuffle(poolIds, windowSize, seed ^ fnv1a(feedType)))
+              : poolIds;
+            const strictTrending = feedType === 'trending' && excludeIds?.size > 0;
+            const orderedIds = prioritizeUnseen(stillShuffle, excludeIds, { fallback: !strictTrending });
 
             // A freshly published ranking is pinned once at the top of Trending. Ownership
             // is checked server-side so an arbitrary URL cannot pin somebody else's post.
@@ -938,7 +1017,7 @@ export async function onRequest(context) {
       }
 
       statements.push(db.prepare(
-        `INSERT INTO rankings (id, template_id, title, description, hashtags, user_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+        `INSERT INTO rankings (id, template_id, title, description, hashtags, user_id, last_activity_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, CURRENT_TIMESTAMP)`
       ).bind(
         rankingId, cleanPayload.template_id || templateId, cleanPayload.title, cleanPayload.description,
         cleanPayload.hashtags, cleanPayload.user_id
@@ -1070,7 +1149,12 @@ export async function onRequest(context) {
       if (!isPlainObject(payload)) return jsonResponse({ success: false, error: 'Invalid request' }, 400);
       const targetId = assertId(payload.id, 'id');
 
-      const ranking = await db.prepare('SELECT user_id FROM rankings WHERE id = ?').bind(targetId).first();
+      const ranking = await db.prepare(
+        `SELECT r.user_id, r.template_id, t.creator_id AS template_creator_id
+         FROM rankings r
+         LEFT JOIN templates t ON t.id = r.template_id
+         WHERE r.id = ? LIMIT 1`
+      ).bind(targetId).first();
       if (!ranking) return jsonResponse({ success: false, error: 'Not found' }, 404);
       if (ranking.user_id !== currentUserId) return jsonResponse({ success: false, error: 'Forbidden' }, 403);
 
@@ -1082,7 +1166,19 @@ export async function onRequest(context) {
         db.prepare('DELETE FROM reports WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM rankings WHERE id = ?').bind(targetId),
       ]);
-      return jsonResponse({ success: true });
+
+      // ถ้าเจ้าของเทมเพลต (creator) ลบ ranking ของตัวเองตัวสุดท้ายของเทมเพลตนั้น → เทมเพลตกลายเป็น orphan
+      // (ไม่มี ranking เหลือเลย) ให้ลบเทมเพลตด้วยผ่าน shared helper ชุดเดียวกับ /api/template-delete
+      const templateDeleted = ranking.template_id && ranking.template_creator_id === currentUserId
+        ? (await db
+            .prepare('SELECT 1 FROM rankings WHERE template_id = ? LIMIT 1')
+            .bind(ranking.template_id)
+            .first()) === null
+        : false;
+      if (templateDeleted) {
+        await db.batch(templateDeleteStatements(db, ranking.template_id));
+      }
+      return jsonResponse({ success: true, templateDeleted });
     }
 
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);

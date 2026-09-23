@@ -37,5 +37,22 @@
     "oxlint": "^1.71.0",
     "vite": "^8.1.1",
     "wrangler": "^4.136.1"
-  }
+  },
+  "description": "**Tear of God** is a social platform for creating, sharing, and debating tier lists. Think of it as a community-driven ranking tool — users pick a template (a set of items to rank), drag items into custom tiers (S/A/B/C/D or any labels they choose), and publish their rankings. Others can vote, comment, and follow creators. Each template also has a **Community Average** that aggregates every published ranking into a single consensus view. The app is built for University of Phayao students, with built-in faculty/major data, and supports both English and Thai interfaces.",
+  "main": "vite.config.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Altroria-Art/Tear-of-God.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Altroria-Art/Tear-of-God/issues"
+  },
+  "homepage": "https://github.com/Altroria-Art/Tear-of-God#readme"
 }

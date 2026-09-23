@@ -260,6 +260,7 @@
     "passwordsDoNotMatch": "Passwords do not match"
   },
   "feed": {
+    "allSeen": "You're all caught up",
     "trending": "Trending",
     "forYou": "For You",
     "following": "Following",
@@ -592,7 +593,7 @@
     "itemsText": "{{n}} items · Updated {{time}}",
     "usesLabel": "Uses: {{n}} · Views: {{v}}",
     "viewCommunityAverage": "View Community Average",
-    "viewParticipants": "Participants",
+    "viewParticipants": "View Details",
     "aboutDesc": "Ranked from the '{{name}}' community template. Contains {{n}} items."
   },
   "participants": {
@@ -604,6 +605,7 @@
     "major": "Major",
     "year": "Academic Year",
     "all": "All",
+    "avg": "Avg",
     "clearAll": "Clear all filters",
     "clearFilters": "Clear filters",
     "noUsers": "No one has used this template yet",

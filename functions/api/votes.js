@@ -64,6 +64,7 @@ export async function onRequest(context) {
           ];
           if (voteType === 'like') {
             statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1, dislikes_count = MAX(dislikes_count - 1, 0) WHERE id = ?`).bind(rankingId));
+            statements.push(db.prepare(`UPDATE rankings SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ? AND (last_activity_at IS NULL OR last_activity_at < datetime('now', '-60 seconds'))`).bind(rankingId));
           } else {
             statements.push(db.prepare(`UPDATE rankings SET likes_count = MAX(likes_count - 1, 0), dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
           }
@@ -78,6 +79,7 @@ export async function onRequest(context) {
         if (voteType === 'like') {
           likedTransition = true;
           statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1 WHERE id = ?`).bind(rankingId));
+          statements.push(db.prepare(`UPDATE rankings SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ? AND (last_activity_at IS NULL OR last_activity_at < datetime('now', '-60 seconds'))`).bind(rankingId));
         } else {
           statements.push(db.prepare(`UPDATE rankings SET dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
         }

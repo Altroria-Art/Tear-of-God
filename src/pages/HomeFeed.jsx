@@ -11,8 +11,16 @@ import ExportCard from '../components/ui/ExportCard';
 import BookmarkButton from '../components/template/BookmarkButton';
 import UserFollowButton from '../components/user/UserFollowButton';
 
-import { formatCount, timeAgo } from '../lib/format';
+import { formatCount, timeAgo, shortTimeAgo } from '../lib/format';
 import { takeLastPublished } from '../lib/lastPublished';
+import {
+  loadTrendingSeen,
+  persistTrendingSeen,
+  pruneTrendingSeen,
+  TRENDING_SEEN_EXCLUDE_MAX,
+  filterUnseenTrending,
+  fetchUnseenTrendingPage,
+} from '../lib/trendingSeen';
 import { createPendingGuard } from '../lib/pendingGuard';
 import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
 import FeaturedPrompts from '../components/feed/FeaturedPrompts';
@@ -107,27 +115,27 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   return (
     <div className="flex items-center justify-between pt-4 border-t border-line-soft">
       <div className="flex items-center gap-4 sm:gap-6">
-        <button type="button" aria-label={t('post.like')} aria-pressed={userVote === 'like'} onClick={() => handleVote('like')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'like' ? 'text-vote-up' : 'text-muted hover:text-ink'}`}>
+        <button type="button" aria-label={t('post.like')} aria-pressed={userVote === 'like'} onClick={() => handleVote('like')} className={`flex min-h-11 items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'like' ? 'text-vote-up' : 'text-muted hover:text-ink'}`}>
           <ThumbsUp size={18} className="group-hover:-translate-y-0.5 transition-transform" />
           <span className="text-[13px] font-bold">{likes}</span>
         </button>
 
-        <button type="button" aria-label={t('post.dislike')} aria-pressed={userVote === 'dislike'} onClick={() => handleVote('dislike')} className={`flex items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'dislike' ? 'text-vote-down' : 'text-muted hover:text-ink'}`}>
+        <button type="button" aria-label={t('post.dislike')} aria-pressed={userVote === 'dislike'} onClick={() => handleVote('dislike')} className={`flex min-h-11 items-center gap-1.5 cursor-pointer transition-colors group ${userVote === 'dislike' ? 'text-vote-down' : 'text-muted hover:text-ink'}`}>
           <ThumbsDown size={18} className="group-hover:translate-y-0.5 transition-transform" />
           <span className="text-[13px] font-bold">{dislikes}</span>
         </button>
 
-        <button type="button" data-auth-next={`/post/${id}#comments`} aria-label={t('post.comments')} onClick={() => navigate(`/post/${id}#comments`)} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
+        <button type="button" data-auth-next={`/post/${id}#comments`} aria-label={t('post.comments')} onClick={() => navigate(`/post/${id}#comments`)} className="flex min-h-11 items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <MessageSquare size={18} />
           <span className="text-[13px] font-bold">{initialComments}</span>
         </button>
       </div>
       <div className="flex items-center gap-3 sm:gap-4">
-        <button type="button" aria-label={t('common.export')} onClick={onExport} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
+        <button type="button" aria-label={t('common.export')} onClick={onExport} className="flex min-h-11 items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <Download size={18} />
           <span className="hidden text-[13px] font-bold sm:inline">{t('common.export')}</span>
         </button>
-        <button type="button" aria-label={t('common.share')} onClick={onShare} className="flex items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
+        <button type="button" aria-label={t('common.share')} onClick={onShare} className="flex min-h-11 items-center gap-1.5 text-muted hover:text-highlight cursor-pointer transition-colors">
           <Share2 size={18} />
           <span className="hidden text-[13px] font-bold sm:inline">{t('common.share')}</span>
         </button>
@@ -181,42 +189,94 @@ function HomeTierCard({ post, onRequireAuth }) {
     />
   );
 
+  const renderActions = () => (
+    <>
+      <BookmarkButton
+        template={{ id: post.template_id, is_saved: post.is_template_saved }}
+        onRequireAuth={onRequireAuth}
+        className="flex items-center gap-1.5 px-3 py-1.5 min-h-11 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+      />
+      <button
+        onClick={() => {
+          if (!currentUser) {
+            if (onRequireAuth) {
+              onRequireAuth(`/rank?template=${encodeURIComponent(post.template_id || '')}`);
+            } else {
+              navigate(`/login?next=${encodeURIComponent(`/rank?template=${post.template_id || ''}`)}`);
+            }
+            return;
+          }
+          navigate(`/rank?template=${post.template_id || ''}`);
+        }}
+        title={t('feed.useTemplate', { title: post.title })}
+        className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 min-h-11 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+      >
+        <Copy size={12} strokeWidth={2.5} />
+        <span>{t('feed.useTemplateShort')}</span>
+      </button>
+    </>
+  );
+
   return (
     <article className="bg-surface border border-line-soft rounded-[20px] p-4 sm:p-6 shadow-sm">
       {/* Header Profile & Use Template Button */}
-      <div className="flex items-start justify-between gap-2 mb-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <div
-            data-auth-next={`/profile/${post.user_id}`}
-            className="w-10 h-10 rounded-full overflow-hidden bg-surface-glass border border-line-soft cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
-          >
-            {post.profile?.avatar_url ? (
-              <img src={post.profile.avatar_url} alt={t('feed.avatarAlt')} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center font-bold text-muted">
-                {post.profile?.username?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-4">
+        <div className="flex min-w-0 items-start gap-3 sm:items-center">
+          <div className="flex shrink-0 flex-col items-center">
+            <div
+              data-auth-next={`/profile/${post.user_id}`}
+              className="w-10 h-10 rounded-full overflow-hidden bg-surface-glass border border-line-soft cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
+            >
+              {post.profile?.avatar_url ? (
+                <img src={post.profile.avatar_url} alt={t('feed.avatarAlt')} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-bold text-muted">
+                  {post.profile?.username?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              )}
+            </div>
+            <div className="sm:hidden -mt-2.5">
+              <UserFollowButton
+                compact
+                targetUserId={post.user_id}
+                initialIsFollowing={post.profile?.is_following}
+                onRequireAuth={onRequireAuth}
+                ariaLabel={post.profile?.username}
+              />
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-x-1.5 sm:gap-x-2">
               <h3
                 data-auth-next={`/profile/${post.user_id}`}
-                className="truncate text-[15px] font-bold text-ink leading-tight cursor-pointer hover:underline"
+                className="min-w-0 flex-1 truncate text-[15px] font-bold text-ink leading-tight cursor-pointer hover:underline"
                 onClick={(e) => { e.stopPropagation(); navigate(`/profile/${post.user_id}`); }}
               >
                 {post.profile?.username || t('common.unknownUser')}
               </h3>
-              <UserFollowButton
-                targetUserId={post.user_id}
-                initialIsFollowing={post.profile?.is_following}
-                onRequireAuth={onRequireAuth}
-              />
+              <div className="hidden sm:inline-flex">
+                <UserFollowButton
+                  targetUserId={post.user_id}
+                  initialIsFollowing={post.profile?.is_following}
+                  onRequireAuth={onRequireAuth}
+                  className="shrink-0"
+                />
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 sm:hidden">
+                {renderActions()}
+              </div>
+            </div>
+            <div
+              data-auth-next={`/post/${post.id}`}
+              className="mt-0 text-[13px] text-muted font-medium cursor-pointer sm:hidden"
+              onClick={() => navigate(`/post/${post.id}`)}
+            >
+              {shortTimeAgo(post.created_at)}
             </div>
             <p
               data-auth-next={`/post/${post.id}`}
-              className="text-[13px] text-muted font-medium cursor-pointer"
+              className="mt-1 hidden sm:block text-[13px] text-muted font-medium cursor-pointer"
               onClick={() => navigate(`/post/${post.id}`)}
             >
               {timeAgo(post.created_at)}
@@ -224,30 +284,8 @@ function HomeTierCard({ post, onRequireAuth }) {
           </div>
         </div>
 
-        <div className="flex shrink-0 gap-1.5">
-          <BookmarkButton 
-            template={{ id: post.template_id, is_saved: post.is_template_saved }} 
-            onRequireAuth={onRequireAuth}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
-          />
-          <button
-            onClick={() => {
-              if (!currentUser) {
-                if (onRequireAuth) {
-                  onRequireAuth(`/rank?template=${encodeURIComponent(post.template_id || '')}`);
-                } else {
-                  navigate(`/login?next=${encodeURIComponent(`/rank?template=${post.template_id || ''}`)}`);
-                }
-                return;
-              }
-              navigate(`/rank?template=${post.template_id || ''}`);
-            }}
-            title={t('feed.useTemplate', { title: post.title })}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
-          >
-            <Copy size={12} strokeWidth={2.5} />
-            <span>{t('feed.useTemplateShort')}</span>
-          </button>
+        <div className="hidden sm:flex items-center justify-end gap-1.5 sm:shrink-0">
+          {renderActions()}
         </div>
       </div>
 
@@ -312,7 +350,7 @@ function HomeTierCard({ post, onRequireAuth }) {
             type="button"
             aria-expanded={mobileExpanded}
             onClick={(e) => { e.stopPropagation(); setMobileExpanded((expanded) => !expanded); }}
-            className="mt-2.5 w-full rounded-xl border border-line-soft bg-surface-glass px-4 py-2.5 text-xs font-bold text-ink-soft transition-colors hover:bg-tag hover:text-ink"
+            className="mt-2.5 min-h-11 w-full rounded-xl border border-line-soft bg-surface-glass px-4 py-2.5 text-xs font-bold text-ink-soft transition-colors hover:bg-tag hover:text-ink"
           >
             {mobileExpanded
               ? t('feed.showLess')
@@ -387,6 +425,49 @@ function useMediaQuery(query) {
   return matches;
 }
 
+// Marks a ranking as "seen" only when its card is actually visible to the user
+// (>= 50% of the card inside the viewport for ~700ms). The feed may fetch 12
+// cards while the user only looked at 3; the other 9 must not count as seen.
+// Parent (HomeFeed) persists the result — this component only reports.
+function SeenCardObserver({ postId, onSeen, children }) {
+  const nodeRef = useRef(null);
+  useEffect(() => {
+    if (!nodeRef.current || typeof IntersectionObserver === 'undefined') return;
+    let timer = null;
+    let visible = false;
+    let marked = false;
+    const updateTimer = () => {
+      clearTimeout(timer);
+      timer = null;
+      if (visible && !document.hidden && !marked) {
+        timer = setTimeout(() => {
+          marked = true;
+          onSeen(postId);
+          observer.disconnect();
+        }, 701);
+      }
+    };
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const nextVisible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+        if (nextVisible !== visible) {
+          visible = nextVisible;
+          updateTimer();
+        }
+      }
+    }, { threshold: [0, 0.5] });
+    observer.observe(nodeRef.current);
+    document.addEventListener('visibilitychange', updateTimer);
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', updateTimer);
+    };
+  }, [postId, onSeen]);
+
+  return <div ref={nodeRef}>{children}</div>;
+}
+
 export default function HomeFeed() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
@@ -395,6 +476,8 @@ export default function HomeFeed() {
   const isXl = useMediaQuery('(min-width: 1280px)');
   const toast = useToast();
   const [posts, setPosts] = useState([]);
+  const [postsKey, setPostsKey] = useState(null);
+  const [trendingError, setTrendingError] = useState(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(true) // หน้าแรกเท่านั้น — กันจอกระพริบตอน append หน้าถัดไป
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -448,25 +531,71 @@ export default function HomeFeed() {
   // (ได้จาก src/lib/lastPublished.js; F5/เข้าหน้าใหม่ = module reset → null → สับสุ่มตามเดิม)
   // ส่ง pin ต่อทุกหน้า (loadMore) เพื่อให้ backend slice จาก shuffle ชุดเดียวกัน ไม่ซ้ำ/ไม่ข้าม
   const pinnedIdRef = useRef(null);
+  const pinSessionRef = useRef(null);
   const isManualRefreshRef = useRef(false);
   // บันทึก ID โพสต์ที่เพิ่งแสดงผลไปเพื่อส่ง exclude ตอนกดรีเฟรช ป้องกันการเห็นโพสต์ซ้ำเมื่อกดรีเฟรชรัวๆ
   const seenFeedIdsRef = useRef({});
   const currentExcludeRef = useRef('');
+  const trendingSeenRef = useRef([]);
+  const trendingSeenLoadedForRef = useRef(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  const ensureTrendingSeenLoaded = useCallback(() => {
+    const viewer = currentUser?.id ?? 'guest';
+    trendingSeenRef.current = pruneTrendingSeen([
+      ...(trendingSeenLoadedForRef.current === viewer ? trendingSeenRef.current : []),
+      ...loadTrendingSeen(currentUser?.id),
+    ]);
+    trendingSeenLoadedForRef.current = viewer;
+  }, [currentUser?.id]);
+
+  const markTrendingSeen = useCallback((ids, now = Date.now()) => {
+    if (!ids || ids.length === 0) return;
+    ensureTrendingSeenLoaded();
+    const latest = new Map(trendingSeenRef.current.map((entry) => [entry.id, Number(entry.seenAt) || now]));
+    let changed = false;
+    for (const id of ids) {
+      if (!id || latest.has(id)) continue;
+      latest.set(id, now);
+      changed = true;
+    }
+    if (!changed) return;
+    const pruned = pruneTrendingSeen([...latest].map(([id, seenAt]) => ({ id, seenAt })), now);
+    trendingSeenRef.current = pruned;
+    persistTrendingSeen(currentUser?.id, pruned);
+  }, [currentUser?.id, ensureTrendingSeenLoaded]);
+
+  const trendingExclude = useCallback(() => {
+    ensureTrendingSeenLoaded();
+    return trendingSeenRef.current.map((entry) => entry.id).slice(-TRENDING_SEEN_EXCLUDE_MAX).join(',');
+  }, [ensureTrendingSeenLoaded]);
+
+  const handleSeen = useCallback((postId) => {
+    if (!postId) return;
+    markTrendingSeen([postId]);
+  }, [markTrendingSeen]);
+
   const requestGenerationRef = useRef(0);
+  const lastRefreshRef = useRef(0);
+  const lastRefreshToastRef = useRef(0);
   const refreshFeed = useCallback(() => {
     if (loadingRef.current || feedLocked) return;
+    if (activeTab === 'trending' && Date.now() - lastRefreshRef.current < 3000) return;
+    lastRefreshRef.current = Date.now();
+    loadingRef.current = true;
+    if (activeTab === 'trending') setIsLoading(true);
     isManualRefreshRef.current = true;
-    const prevSeen = seenFeedIdsRef.current[cacheKey] || [];
     const currentIds = posts.map(post => post.id).filter(Boolean);
-    seenFeedIdsRef.current[cacheKey] = [...new Set([...prevSeen, ...currentIds])].slice(-60);
+    if (activeTab !== 'trending') {
+      const prevSeen = seenFeedIdsRef.current[cacheKey] || [];
+      seenFeedIdsRef.current[cacheKey] = [...new Set([...prevSeen, ...currentIds])].slice(-60);
+    }
     delete feedCacheRef.current[cacheKey];
     requestGenerationRef.current += 1;
     pageRef.current = 1;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setRefreshTrigger(prev => prev + 1);
-  }, [cacheKey, posts, feedLocked]);
+  }, [activeTab, cacheKey, posts, feedLocked]);
 
   // รองรับการกดรีเฟรชจาก Navbar (คลิก Home หรือ Logo) หรือ Mobile Bottom Nav
   useEffect(() => {
@@ -490,13 +619,14 @@ export default function HomeFeed() {
       setIsLoading(false);
       return () => { requestGenerationRef.current += 1; };
     }
-    const cached = feedCacheRef.current[cacheKey];
+    const cached = activeTab === 'trending' ? null : feedCacheRef.current[cacheKey];
     if (cached) {
       seedRef.current = cached.seed;
       currentExcludeRef.current = cached.exclude;
       pinnedIdRef.current = cached.pin;
       resolvedFeedTypeRef.current = cached.feedType;
       setPosts(cached.posts);
+      setPostsKey(cacheKey);
       pageRef.current = cached.page;
       setHasMore(cached.hasMore);
       setIsLoading(false);
@@ -505,29 +635,48 @@ export default function HomeFeed() {
 
     async function loadFirstPage() {
       setIsLoading(true);
+      setTrendingError(null);
       setPosts([]);
       pageRef.current = 1;
       setHasMore(true);
       loadingRef.current = true;
       // consume pin ครั้งเดียวตอน mount (ครั้งถัดไป/เข้าหน้าใหม่ = ไม่มีอีก → กลับสุ่ม)
-      pinnedIdRef.current = takeLastPublished(currentUser?.id);
+      const pinSession = `${cacheKey}:${refreshTrigger}`;
+      if (activeTab !== 'trending' || pinSessionRef.current !== pinSession) {
+        pinnedIdRef.current = takeLastPublished(currentUser?.id);
+        pinSessionRef.current = pinSession;
+      }
+      ensureTrendingSeenLoaded();
+      if (activeTab === 'trending' && trendingSeenRef.current.some(entry => entry.id === pinnedIdRef.current)) {
+        pinnedIdRef.current = null;
+      }
       resolvedFeedTypeRef.current = feedType;
       seedRef.current = Math.floor(Math.random() * 1e9);
-      currentExcludeRef.current = (seenFeedIdsRef.current[cacheKey] || []).join(',');
+      currentExcludeRef.current = activeTab === 'trending'
+        ? trendingExclude()
+        : (seenFeedIdsRef.current[cacheKey] || []).join(',');
       const isManual = isManualRefreshRef.current;
       isManualRefreshRef.current = false;
       try {
         const effectiveExclude = currentExcludeRef.current || undefined;
-        let result = await fetchRankings({
+        const fetchPage = (page) => fetchRankings({
           userId: currentUser?.id,
           feedType,
           seed: seedRef.current,
           pin: pinnedIdRef.current || undefined,
           exclude: effectiveExclude,
-          page: 1,
+          page,
           limit: PAGE_SIZE,
           refresh: isManual,
+          fresh: activeTab === 'trending' && page === 1,
         });
+        let result = activeTab === 'trending'
+          ? await fetchUnseenTrendingPage(fetchPage, {
+            limit: PAGE_SIZE,
+            getSeen: () => { ensureTrendingSeenLoaded(); return trendingSeenRef.current; },
+            cancelled: () => cancelled,
+          })
+          : await fetchPage(1);
         if (cancelled) return;
         // For You must always be useful. The API normally falls back to Trending
         // for accounts without enough taste signals; keep the same guarantee in
@@ -546,23 +695,39 @@ export default function HomeFeed() {
           if (cancelled) return;
           resolvedFeedTypeRef.current = 'trending';
         }
-        const data = result.data;
+        const data = activeTab === 'trending'
+          ? filterUnseenTrending(result.data, trendingSeenRef.current)
+          : result.data;
         if (cancelled) return;
-        const nextHasMore = (data?.length || 0) === PAGE_SIZE;
+        if (activeTab === 'trending' && (result.error || result.success === false)) {
+          setTrendingError(result.error || t('errors.fetchFailed'));
+          setHasMore(false);
+          return;
+        }
+        const nextHasMore = activeTab === 'trending' ? !!result.hasMore : (data?.length || 0) === PAGE_SIZE;
+        pageRef.current = result.page || 1;
         setPosts(data || []);
+        setPostsKey(cacheKey);
         setHasMore(nextHasMore);
         feedCacheRef.current[cacheKey] = { posts: data || [], page: 1, hasMore: nextHasMore, seed: seedRef.current, exclude: currentExcludeRef.current, pin: pinnedIdRef.current, feedType: resolvedFeedTypeRef.current };
 
-        // บันทึก ID หน้าแรกลงประวัติที่เคยเห็นของแท็บนี้ ป้องกันการขึ้นซ้ำในรอบถัดไป
-        const pageIds = (data || []).map((p) => p.id).filter(Boolean);
-        const tabKey = cacheKey;
-        const prevSeen = seenFeedIdsRef.current[tabKey] || [];
-        const nextSeen = [...prevSeen, ...pageIds.filter((id) => !prevSeen.includes(id))];
-        if (nextSeen.length > 60) nextSeen.splice(0, nextSeen.length - 60);
-        seenFeedIdsRef.current[tabKey] = nextSeen;
+        // For You / Following ยังคง behavior เดิม: backend ส่งการ์ดมา = นับว่า seen
+        // เพื่อกันการวนซ้ำตอนกด refresh (Trending จะ mark seen จาก viewport จริง
+        // ผ่าน SeenCardObserver แล้ว persist ลง localStorage — ดู ../lib/trendingSeen)
+        if (activeTab !== 'trending') {
+          const pageIds = (data || []).map((p) => p.id).filter(Boolean);
+          const tabKey = cacheKey;
+          const prevSeen = seenFeedIdsRef.current[tabKey] || [];
+          const nextSeen = [...prevSeen, ...pageIds.filter((id) => !prevSeen.includes(id))];
+          if (nextSeen.length > 60) nextSeen.splice(0, nextSeen.length - 60);
+          seenFeedIdsRef.current[tabKey] = nextSeen;
+        }
 
-        if (isManual) {
-          toast.success(t('feed.refreshed'));
+        if (isManual && !result.error && result.success !== false) {
+          if (activeTab !== 'trending' || Date.now() - lastRefreshToastRef.current >= 4500) {
+            toast.success(t('feed.refreshed'));
+            lastRefreshToastRef.current = Date.now();
+          }
         }
       } finally {
         if (!cancelled) {
@@ -573,7 +738,7 @@ export default function HomeFeed() {
     }
     loadFirstPage();
     return () => { cancelled = true; requestGenerationRef.current += 1; };
-  }, [currentUser, activeTab, cacheKey, feedType, feedLocked, refreshTrigger, t, toast]);
+  }, [currentUser, activeTab, cacheKey, feedType, feedLocked, refreshTrigger, t, toast, trendingExclude, ensureTrendingSeenLoaded]);
 
   // ไม่มี total จาก API สำหรับฟีดทั่วไป (เฉพาะ template_id เท่านั้นที่ API คำนวณ total ให้ —
   // ดู functions/api/rankings.js) เลยเช็คจบฟีดจากจำนวนที่ได้กลับมาน้อยกว่า PAGE_SIZE แทน
@@ -588,34 +753,45 @@ export default function HomeFeed() {
     const generation = requestGenerationRef.current;
     const currentExclude = currentExcludeRef.current || undefined;
     try {
-      const { data, success, error } = await fetchRankings({
+      const fetchPage = (page) => fetchRankings({
         userId: currentUser?.id,
         feedType: activeFeedType,
         seed: seedRef.current,
         pin: pinnedIdRef.current || undefined,
         exclude: currentExclude,
-        page: nextPage,
+        page,
         limit: PAGE_SIZE
       })
+      const result = activeTab === 'trending'
+        ? await fetchUnseenTrendingPage(fetchPage, {
+          page: nextPage, limit: PAGE_SIZE,
+          getSeen: () => { ensureTrendingSeenLoaded(); return trendingSeenRef.current; },
+          existingIds: posts.map(post => post.id),
+          cancelled: () => generation !== requestGenerationRef.current,
+        })
+        : await fetchPage(nextPage);
+      const { data, success, error } = result;
       if (generation !== requestGenerationRef.current) return;
       if (success === false || error) return;
-      pageRef.current = nextPage;
+      pageRef.current = result.page || nextPage;
+      const nextHasMore = activeTab === 'trending' ? !!result.hasMore : (data?.length || 0) === PAGE_SIZE;
       setPosts(prev => {
         const existingIds = new Set(prev.map(p => p.id));
-        const newPosts = (data || []).filter(p => !existingIds.has(p.id));
+        const newPosts = activeTab === 'trending'
+          ? filterUnseenTrending(data, trendingSeenRef.current, existingIds)
+          : (data || []).filter(p => !existingIds.has(p.id));
         const merged = [...prev, ...newPosts]
-        const nextHasMore = (data?.length || 0) === PAGE_SIZE
         feedCacheRef.current[cacheKey] = { ...feedCacheRef.current[cacheKey], posts: merged, page: nextPage, hasMore: nextHasMore }
         return merged
       })
-      setHasMore((data?.length || 0) === PAGE_SIZE)
+      setHasMore(nextHasMore)
     } finally {
       if (generation === requestGenerationRef.current) {
         setIsLoadingMore(false);
         loadingRef.current = false;
       }
     }
-  }, [hasMore, currentUser, cacheKey, feedLocked]);
+  }, [hasMore, currentUser, cacheKey, feedLocked, activeTab, posts, ensureTrendingSeenLoaded]);
 
   // callback ref แทน useRef+useEffect — React เรียก callback นี้เองทันทีที่ DOM node
   // ของ sentinel ถูกสร้าง/ถอดออกจริงๆ (ตอน commit) ไม่ต้องเดาว่า effect จะ rerun
@@ -634,7 +810,7 @@ export default function HomeFeed() {
     observerRef.current.observe(node)
   }, [loadMore]);
 
-  const displayData = posts;
+  const displayData = postsKey === cacheKey ? posts : [];
   const followingEmpty = !isLoading
     && !feedLocked
     && activeTab === 'following'
@@ -709,10 +885,14 @@ export default function HomeFeed() {
             </p>
           )}
 
-          {!isLoading && !feedLocked && !followingEmpty && displayData.length === 0 && (
+          {!isLoading && activeTab === 'trending' && trendingError && (
+            <p role="alert" className="text-center text-sm text-muted py-10">{trendingError}</p>
+          )}
+
+          {!isLoading && !feedLocked && !followingEmpty && !(activeTab === 'trending' && trendingError) && displayData.length === 0 && (
             <div className="text-center py-16 bg-surface rounded-2xl border border-line-soft shadow-sm">
-              <p className="text-muted font-medium">{t('feed.empty')}</p>
-              <button onClick={() => navigate('/create')} className="mt-4 text-sm font-bold text-brand hover:underline">
+              <p className="text-muted font-medium">{activeTab === 'trending' ? t('feed.allSeen') : t('feed.empty')}</p>
+              <button onClick={() => navigate('/create')} className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-brand hover:underline">
                 {t('feed.emptyCta')}
               </button>
             </div>
@@ -756,7 +936,15 @@ export default function HomeFeed() {
           )}
 
           {!isLoading && displayData.map((post) => (
-            <HomeTierCard key={post.id} post={post} onRequireAuth={(next) => setGuestPrompt({ open: true, next })} />
+            activeTab === 'trending'
+              ? (
+                <SeenCardObserver key={post.id} postId={post.id} onSeen={handleSeen}>
+                  <HomeTierCard post={post} onRequireAuth={(next) => setGuestPrompt({ open: true, next })} />
+                </SeenCardObserver>
+              )
+              : (
+                <HomeTierCard key={post.id} post={post} onRequireAuth={(next) => setGuestPrompt({ open: true, next })} />
+              )
           ))}
 
           {/* เงื่อนไขต้องไม่มี isLoading — ถ้ามี sentinel จะยังไม่ mount ตอนโหลดหน้าแรก
@@ -773,7 +961,7 @@ export default function HomeFeed() {
 
           {!isLoading && !hasMore && displayData.length > 0 && (
             <p className="text-center text-xs font-medium text-muted py-6">
-              {t('common.endOfFeed')}
+              {activeTab === 'trending' ? t('feed.allSeen') : t('common.endOfFeed')}
             </p>
           )}
         </div>

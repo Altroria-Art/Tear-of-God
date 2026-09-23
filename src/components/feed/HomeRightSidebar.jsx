@@ -8,12 +8,12 @@ import { useTranslation } from 'react-i18next';
 // Sidebar-scoped short-TTL client cache (exact queries only — not global getJSON).
 // TTLs are capped by the endpoints' own Cache-Control freshness, never longer:
 //   GET /api/templates list → `public, max-age=10`  (functions/api/templates.js)
-//   GET /api/hashtags (no q) → `public, max-age=300` (functions/api/hashtags.js)
+//   GET /api/hashtags (no q) → `public, max-age=30` (functions/api/hashtags.js)
 // Module-level so SPA remounts share entries; the in-flight map dedups mounts
 // that race before the first request resolves. Per-tab memory only — a logged-in
 // user's `private,no-store` overwrite at the middleware does not leak across
 // users here because nothing is shared across tabs/sessions.
-const SIDEBAR_TTL_MS = { templates: 10 * 1000, hashtags: 300 * 1000 };
+const SIDEBAR_TTL_MS = { templates: 10 * 1000, hashtags: 30 * 1000 };
 const sidebarCache = new Map(); // key -> { value, expiresAt }
 const sidebarInflight = new Map(); // key -> Promise
 

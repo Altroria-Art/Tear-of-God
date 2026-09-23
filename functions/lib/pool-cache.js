@@ -1,14 +1,16 @@
-// Trending candidate-pool cache (Batch 3 L1 + Batch 4 L2) — raw ranking IDs only.
-//
-// What is cached: `[rankingId, ...]` (≤ HOME_POOL_CAP entries), nothing else.
-// NEVER cached here: full responses, user_vote, is_following, session/user
-// data, profiles, affinity, or any personalized signal. After a hit the
-// caller still runs page slicing, detail SELECT, enrichment, and per-user
+// Trending candidate-pool cache (Batch 3 L1 + Batch 4 L2) — raw ranking IDs
+// plus a per-row freshness tier (`{ ids, tiers }`, ≤ HOME_POOL_CAP entries).
+// tiers[i] mirrors the freshness CASE of the pool ORDER BY (5=≤1h, 4=≤6h,
+// 3=≤24h, 2=≤3d, 1=older) so the caller can shuffle WITHIN a freshness bucket
+// without re-reading the DB, and can never pull a stale post above a fresh one.
+// Nothing else is cached here: full responses, user_vote, is_following,
+// session/user data, profiles, affinity, any personalized signal. After a hit
+// the caller still runs page slicing, detail SELECT, enrichment, and per-user
 // vote/follow lookups per request exactly as before, so authenticated
 // responses stay private,no-store via the existing middleware.
 //
 // Layers:
-//   L1 — per-seed (Batch 3): key pins the feed seed, TTL 180s. Serves page1→
+//   L1 — per-seed (Batch 3): key pins the feed seed, TTL 60s. Serves page1→
 //        page2→page3 of one feed session.
 //   L2 — shared unfiltered home-trending (Batch 4): key has NO seed, TTL 5s.
 //        Serves new seeds/sessions opened within seconds of each other.
@@ -16,12 +18,14 @@
 // depends on user-specific state and must not use this path.
 // Internal pool cache only — API response Cache-Control headers are untouched.
 
-export const TRENDING_POOL_CACHE_VERSION = 'v2';
+export const TRENDING_POOL_CACHE_VERSION = 'v4';
 
 // Seed lifetime = one HomeFeed mount (a few minutes of scrolling; refresh or a
-// new mount mints a new seed and therefore misses by construction). 180s
-// covers any realistic infinite-scroll session while bounding garbage.
-export const TRENDING_POOL_CACHE_TTL_SECONDS = 180;
+// new mount mints a new seed and therefore misses by construction). 60s bounds
+// how long a like/comment takes to appear in trending (~1 min, per the
+// recent-activity ranking change) while still covering any realistic
+// infinite-scroll session. Slow-feed correctness never depends on this TTL.
+export const TRENDING_POOL_CACHE_TTL_SECONDS = 60;
 
 // L2: shared unfiltered home-trending pool. 5s max (Batch 4 cap): L1 already
 // covers infinite scroll, so L2 only absorbs bursts of new seeds/sessions
@@ -29,7 +33,7 @@ export const TRENDING_POOL_CACHE_TTL_SECONDS = 180;
 // by at most 5s — but shuffle still uses its own fresh seed, so ordering is
 // always per-session.
 export const SHARED_HOME_TRENDING_TTL_SECONDS = 5;
-export const SHARED_HOME_TRENDING_VERSION = 'v3';
+export const SHARED_HOME_TRENDING_VERSION = 'v5';
 
 // Recent-result memory bridge (Phase 0 fix): covers the post-D1/pre-put
 // window where the in-flight entry is already gone but the Cache API write
@@ -38,7 +42,7 @@ export const SHARED_HOME_TRENDING_VERSION = 'v3';
 // never depends on this memory.
 const RECENT_POOL_TTL_MS = 5 * 1000;
 const MAX_RECENT_POOLS = 200;
-const recentPools = new Map(); // key -> { ids, expiresAt }
+const recentPools = new Map(); // key -> { ids, tiers, expiresAt }
 
 export function getRecentPool(key) {
   const entry = recentPools.get(key);
@@ -47,15 +51,19 @@ export function getRecentPool(key) {
     recentPools.delete(key);
     return null;
   }
-  return entry.ids;
+  return { ids: entry.ids, tiers: entry.tiers };
 }
 
-export function setRecentPool(key, ids) {
+export function setRecentPool(key, pool) {
   if (recentPools.size >= MAX_RECENT_POOLS) {
     const oldest = recentPools.keys().next().value;
     if (oldest !== undefined) recentPools.delete(oldest);
   }
-  recentPools.set(key, { ids, expiresAt: Date.now() + RECENT_POOL_TTL_MS });
+  recentPools.set(key, {
+    ids: pool.ids,
+    tiers: pool.tiers,
+    expiresAt: Date.now() + RECENT_POOL_TTL_MS,
+  });
 }
 
 export function removeRecentPool(key) {
@@ -118,7 +126,11 @@ export function trendingPoolCacheRequest(origin, key) {
   );
 }
 
-// Returns string[] on hit, null on miss/error. Cache failure never throws.
+// Returns { ids, tiers } on hit, null on miss/error. tiers is null when the
+// stored payload predates the {ids,tiers} format or is otherwise malformed —
+// the caller's shuffle then falls back to a windowed shuffle and the pool's
+// SQL order is already freshness-tier-first, so correctness never depends on
+// tiers being present. Cache failure never throws.
 export async function readTrendingPool(cache, cacheRequest) {
   try {
     if (!cache) return null;
@@ -126,7 +138,19 @@ export async function readTrendingPool(cache, cacheRequest) {
     if (!hit) return null;
     const body = await hit.json();
     if (!body || !Array.isArray(body.ids)) return null;
-    return body.ids.filter((id) => typeof id === 'string' && id.length > 0);
+    const ids = [];
+    const tiers = [];
+    for (let i = 0; i < body.ids.length; i += 1) {
+      const id = body.ids[i];
+      if (typeof id !== 'string' || id.length === 0) continue;
+      ids.push(id);
+      tiers.push(Number(body.tiers?.[i]) || null);
+    }
+    const tiersValid = Array.isArray(body.tiers)
+      && ids.length > 0
+      && tiers.length === ids.length
+      && tiers.every((tier) => tier !== null);
+    return { ids, tiers: tiersValid ? tiers : null };
   } catch {
     return null;
   }
@@ -136,10 +160,10 @@ export async function readTrendingPool(cache, cacheRequest) {
 // Returns true when the write was committed/initiated, false when there was
 // no cache or the synchronous put failed (callers evict their recent bridge
 // on false so the next request truly falls back to D1).
-export async function writeTrendingPool(cache, cacheRequest, ids, waitUntil, ttlSeconds = TRENDING_POOL_CACHE_TTL_SECONDS) {
+export async function writeTrendingPool(cache, cacheRequest, pool, waitUntil, ttlSeconds = TRENDING_POOL_CACHE_TTL_SECONDS) {
   try {
     if (!cache) return false;
-    const response = new Response(JSON.stringify({ ids }), {
+    const response = new Response(JSON.stringify({ ids: pool.ids, tiers: pool.tiers }), {
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': `public, max-age=${ttlSeconds}`,

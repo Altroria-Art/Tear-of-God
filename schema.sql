@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS rankings (
   dislikes_count INTEGER DEFAULT 0,
   comments_count INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_activity_at DATETIME,
   FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
   FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE
 );

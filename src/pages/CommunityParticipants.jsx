@@ -11,6 +11,7 @@ import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPrev
 import { fetchTemplateParticipants, fetchTemplate } from '../lib/api'
 import { FACULTIES, getMajorsForFaculty, getAdmissionYears, getFacultyByName, isValidAdmissionYear } from '../lib/university'
 import { ArrowLeftIcon, AlertTriangleIcon } from '../components/ui/Icons'
+import { buildCommunityExcelWorkbook } from '../lib/communityExcelExport'
 
 const EMPTY_TIERS = []
 
@@ -93,7 +94,13 @@ function CommunityParticipantsContent() {
   // Export modal
   const [modal, setModal] = useState(null) // 'image' | null
 
-  const admissionYears = useMemo(() => getAdmissionYears(), [])
+  const admissionYears = useMemo(() => {
+    return getAdmissionYears()
+      .map(Number)
+      .filter((y) => y >= 53)
+      .sort((a, b) => b - a)
+      .map(String)
+  }, [])
 
   const availableMajors = useMemo(() => {
     return facultyFilter ? getMajorsForFaculty(facultyFilter) : []
@@ -184,8 +191,12 @@ function CommunityParticipantsContent() {
     const faculty = getFacultyByName(participant.faculty)
     setFacultyFilter(faculty ? participant.faculty : '')
     setMajorFilter(faculty && participant.major && faculty.majors.includes(participant.major) ? participant.major : '')
-    setYearFilter(isValidAdmissionYear(participant.year) ? String(participant.year) : '')
-  }, [participantOptions])
+    setYearFilter(
+      isValidAdmissionYear(participant.year) && admissionYears.includes(String(participant.year))
+        ? String(participant.year)
+        : ''
+    )
+  }, [participantOptions, admissionYears])
 
   // สลับ filter profile ด้วยมือ → รีเซ็ต participant กลับเป็น All
   // (auto-populate ผ่าน applyParticipantSelection จึงไม่ชนกัน)
@@ -227,59 +238,22 @@ function CommunityParticipantsContent() {
         return
       }
 
-      // Format: Tier | Items
-      const rows = displayTiers.map(tier => ({
-        'Tier': tier.label,
-        'Items': tier.items.map(i => i.name).join(', ') || '-',
-      }))
-
-      const wb = XLSX.utils.book_new()
-      const ws = XLSX.utils.json_to_sheet(rows)
-      ws['!cols'] = [{ wch: 8 }, { wch: 80 }]
-
-      // ใส่ thin border ทุก cell
-      const thinBorder = [
-        { top: { style: 'thin', color: { rgb: '000000' } } },
-        { bottom: { style: 'thin', color: { rgb: '000000' } } },
-        { left: { style: 'thin', color: { rgb: '000000' } } },
-        { right: { style: 'thin', color: { rgb: '000000' } } },
-      ]
-
-      // ใส่ border ที่ header row (A1:B1)
-      const headerRange = XLSX.utils.decode_range(ws['!ref'])
-      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: headerRange.s.r, c: col })
-        if (!ws[cellAddress]) ws[cellAddress] = {}
-        ws[cellAddress].s = { border: thinBorder, font: { bold: true } }
-      }
-
-      // ใส่ border + สี tier ที่ data rows
-      displayTiers.forEach((tier, idx) => {
-        const rowIdx = idx + 1 // +1 เพราะ header อยู่ row 0
-
-        // Tier cell (column A) — ใส่สีพื้นหลังจาก tier.color
-        const tierCell = XLSX.utils.encode_cell({ r: rowIdx, c: 0 })
-        if (!ws[tierCell]) ws[tierCell] = {}
-        const hexColor = (tier.color || '').replace('#', '').toUpperCase()
-        ws[tierCell].s = {
-          border: thinBorder,
-          fill: hexColor ? { fgColor: { rgb: 'FF' + hexColor } } : undefined,
-          font: { bold: true },
-        }
-
-        // Items cell (column B)
-        const itemsCell = XLSX.utils.encode_cell({ r: rowIdx, c: 1 })
-        if (!ws[itemsCell]) ws[itemsCell] = {}
-        ws[itemsCell].s = { border: thinBorder }
+      const { wb, filename } = buildCommunityExcelWorkbook(XLSX, {
+        template,
+        participantOptions,
+        participantFilter,
+        facultyFilter,
+        majorFilter,
+        yearFilter,
+        displayTiers,
       })
 
-      XLSX.utils.book_append_sheet(wb, ws, 'Community Average')
-      XLSX.writeFile(wb, `template-${templateId}-community-average.xlsx`)
+      XLSX.writeFile(wb, filename)
       toast.success(t('participants.excelDownloaded'))
     }).catch(() => {
       toast.error(t('participants.exportFailed'))
     })
-  }, [displayTiers, templateId, toast, t])
+  }, [displayTiers, template, participantOptions, participantFilter, facultyFilter, majorFilter, yearFilter, toast, t])
 
   // ── Loading ──
   if (isLoading) {
@@ -382,7 +356,7 @@ function CommunityParticipantsContent() {
             onChange={(e) => applyParticipantSelection(e.target.value)}
             className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand"
           >
-            <option value="">{t('participants.all')}</option>
+            <option value="">{t('participants.avg', 'Avg')}</option>
             {participantOptions.map(p => (
               <option key={p.user_id} value={p.user_id}>{p.username}</option>
             ))}
@@ -486,6 +460,10 @@ function CommunityParticipantsContent() {
         preview={
           <CommunityAvgExportPreview
             title={`${template?.title} · ${t('participants.pageTitle')}`}
+            authorName={template?.profile?.username || template?.creator?.username || t('common.unknownUser')}
+            authorAvatar={template?.profile?.avatar_url || template?.creator?.avatar_url}
+            hashtags={template?.hashtags}
+            typeBadge={t('template.communityAverage')}
             updatedText={
               filteredRankings.length === participants.length
                 ? t('participants.calculatedFromSame', { count: participants.length })

@@ -260,6 +260,7 @@
     "passwordsDoNotMatch": "รหัสผ่านไม่ตรงกัน"
   },
   "feed": {
+    "allSeen": "ดูครบแล้ว",
     "trending": "กำลังมาแรง",
     "forYou": "สำหรับคุณ",
     "following": "กำลังติดตาม",
@@ -592,7 +593,7 @@
     "itemsText": "{{n}} ไอเทม · อัปเดตเมื่อ {{time}}",
     "usesLabel": "การใช้งาน: {{n}} · การเข้าชม: {{v}}",
     "viewCommunityAverage": "ดู Community Average",
-    "viewParticipants": "ผู้เข้าร่วม",
+    "viewParticipants": "ดูรายละเอียด",
     "aboutDesc": "จัดอันดับจากเทมเพลตชุมชน '{{name}}' มี {{n}} ไอเทม"
   },
   "participants": {
@@ -604,6 +605,7 @@
     "major": "สาขา",
     "year": "ชั้นปี",
     "all": "ทั้งหมด",
+    "avg": "Avg",
     "clearAll": "ล้างตัวกรองทั้งหมด",
     "clearFilters": "ล้างตัวกรอง",
     "noUsers": "ยังไม่มีใครใช้เทมเพลตนี้",
