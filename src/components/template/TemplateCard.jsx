@@ -7,22 +7,40 @@ import ShareExportModal from '../ui/ShareExportModal';
 import Avatar from '../ui/Avatar';
 import { formatCount } from '../../lib/format';
 import TierLabel from '../tier/TierLabel';
+import { normalizePreviewRows } from '../../lib/templatePreview';
 import { useTranslation } from 'react-i18next';
+
+function PreviewItemBox({ item }) {
+  const [imgError, setImgError] = useState(false);
+  const hasImage = Boolean(item.imageUrl && !imgError);
+
+  return (
+    <span
+      className="relative aspect-square w-8 h-8 shrink-0 rounded-md bg-item-card text-item-card-text backdrop-blur-md border border-line-soft p-0.5 flex items-center justify-center text-center overflow-hidden select-none shadow-2xs"
+      title={item.name}
+    >
+      {hasImage ? (
+        <img
+          src={item.imageUrl}
+          alt={item.name}
+          className="w-full h-full object-cover rounded-sm pointer-events-none"
+          loading="lazy"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <span className="w-full line-clamp-2 text-[8px] font-bold leading-[1.1] text-ink text-center break-words px-0.5">
+          {item.name}
+        </span>
+      )}
+    </span>
+  );
+}
 
 export default function TemplateCard({ template, onUse }) {
   const { t } = useTranslation();
   const [shareOpen, setShareOpen] = useState(false);
-  const tiersMap = useMemo(() => {
-    const map = {};
-    template.template_items?.forEach((ti) => {
-      if (!ti.tier) return;
-      if (!map[ti.tier]) map[ti.tier] = [];
-      map[ti.tier].push(ti.item?.name || ti.item_id);
-    });
-    return map;
-  }, [template.template_items]);
+  const preview = useMemo(() => normalizePreviewRows(template), [template]);
 
-  const previewTiers = (template.tiers || []).slice(0, 2);
   const detailHref = `/template/${template.id}`;
 
   const handleShare = (e) => {
@@ -33,7 +51,7 @@ export default function TemplateCard({ template, onUse }) {
 
   return (
     <div className="glass rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-      <Link to={detailHref} className="bg-surface-glass p-3 pt-9 h-36 flex flex-col gap-2 relative">
+      <Link to={detailHref} className="bg-surface-glass p-3 pt-9 h-36 flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
           <span className="flex items-center gap-1" title={t('common.uses')}>
             <Users size={14} /> {formatCount(template.use_count)}
@@ -43,40 +61,69 @@ export default function TemplateCard({ template, onUse }) {
           </span>
         </div>
 
-        {Object.keys(tiersMap).length === 0 && template.template_items?.length > 0 ? (
-          <div className="flex-1 bg-surface rounded flex flex-col items-center justify-center gap-2 p-2 overflow-hidden border border-line-soft">
-            <span className="text-xs font-semibold text-ink-soft">
-              {template.template_items.length} items
-            </span>
-            <div className="flex flex-wrap justify-center gap-1.5">
-              {template.template_items.slice(0, 10).map((ti, idx) => (
-                <span key={ti.item_id || idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft shadow-sm rounded-md p-1 flex items-center justify-center text-center text-[9px] aspect-square w-8 h-8 overflow-hidden">
-                  <span className="line-clamp-2 leading-tight break-all">{ti.item?.name || ti.item_id}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : (
-          previewTiers.map((tier) => {
-            const items = tiersMap[tier.label];
-            if (!items) return null;
-            return (
-              <div key={tier.id ?? tier.label} className="flex min-h-0 flex-1 gap-2">
-                <TierLabel
-                  label={tier.label}
-                  color={tier.color}
-                  className={`w-12 rounded-l font-bold px-1 ${tier.label.length > 2 ? 'text-[9px]' : 'text-sm'}`}
-                />
-                <div className="bg-surface min-w-0 flex-grow rounded-r opacity-80 flex items-center gap-1.5 px-2 overflow-hidden border-y border-r border-line-soft">
-                  {items.slice(0, 10).map((item, idx) => (
-                    <span key={item || idx} className="bg-item-card text-item-card-text backdrop-blur-md border border-line-soft font-medium rounded-md p-1 flex items-center justify-center text-center text-[9px] aspect-square w-8 h-8 overflow-hidden shrink-0">
-                      <span className="line-clamp-2 leading-tight break-all">{item}</span>
-                    </span>
+        {preview.mode === 'grid' ? (
+          <div className="w-full h-full rounded-lg border border-line-soft bg-surface/40 flex flex-col justify-center gap-2 p-2 overflow-hidden">
+            {preview.totalCount === 0 ? (
+              <div className="flex items-center justify-center h-full text-xs text-muted/60 select-none">
+                {t('template.noItems', 'No items')}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-center gap-1.5 min-w-0">
+                  {preview.rows[0].map((item) => (
+                    <PreviewItemBox key={item.key} item={item} />
                   ))}
                 </div>
+                {(preview.rows[1].length > 0 || preview.overflow > 0) && (
+                  <div className="flex items-center justify-center gap-1.5 min-w-0">
+                    {preview.rows[1].map((item) => (
+                      <PreviewItemBox key={item.key} item={item} />
+                    ))}
+                    {preview.overflow > 0 && (
+                      <span
+                        className="aspect-square w-8 h-8 shrink-0 rounded-md border border-line-soft bg-surface/80 text-ink-soft font-bold text-[10px] flex items-center justify-center select-none shadow-2xs"
+                        title={`+${preview.overflow}`}
+                      >
+                        +{preview.overflow}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="w-full h-full flex flex-col justify-center gap-2">
+            {preview.rows.map((row) => (
+              <div
+                key={row.key}
+                className="flex h-11 min-h-0 w-full rounded-lg border border-line-soft bg-surface/40 overflow-hidden items-stretch"
+              >
+                <TierLabel
+                  label={row.label}
+                  color={row.color}
+                  className={`w-14 h-full max-h-full min-h-0 shrink-0 border-r border-line-soft/40 font-bold px-1 select-none flex items-center justify-center text-center overflow-hidden ${
+                    row.label.length > 2
+                      ? 'text-[10px] leading-tight break-words line-clamp-2 truncate'
+                      : 'text-sm'
+                  }`}
+                />
+                <div className="flex-1 min-w-0 h-full flex items-center gap-1.5 px-2 overflow-hidden bg-surface/30">
+                  {row.items.map((item) => (
+                    <PreviewItemBox key={item.key} item={item} />
+                  ))}
+                  {row.overflow > 0 && (
+                    <span
+                      className="aspect-square w-8 h-8 shrink-0 rounded-md border border-line-soft bg-surface/80 text-ink-soft font-bold text-[10px] flex items-center justify-center select-none shadow-2xs"
+                      title={`+${row.overflow}`}
+                    >
+                      +{row.overflow}
+                    </span>
+                  )}
+                </div>
               </div>
-            );
-          })
+            ))}
+          </div>
         )}
       </Link>
       <div className="p-4 flex-grow flex flex-col justify-between bg-surface/50 border-t border-line-soft">
@@ -118,15 +165,3 @@ export default function TemplateCard({ template, onUse }) {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-

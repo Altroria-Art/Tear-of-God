@@ -4,6 +4,7 @@ import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 
 import { onRequest as rankings } from '../../functions/api/rankings.js';
 import { onRequestGet as templatesGet } from '../../functions/api/templates.js';
+import { normalizeTemplatePreview } from '../../src/lib/templatePreview.js';
 
 const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
 const schemaStatements = schema
@@ -79,9 +80,9 @@ function templateCardPreviewInfo(template) {
   return { tiersMap, tierRowCount };
 }
 
-async function seedProfile(db, userId) {
-  await db.prepare('INSERT INTO profiles (id, username, email) VALUES (?, ?, ?)')
-    .bind(userId, userId, `${userId}@local.test`).run();
+async function seedProfile(db, userId, username, avatarUrl) {
+  await db.prepare('INSERT INTO profiles (id, username, email, avatar_url) VALUES (?, ?, ?, ?)')
+    .bind(userId, username || userId, `${userId}@local.test`, avatarUrl || null).run();
 }
 
 async function run({ withTierOnTemplateItems, userId }) {
@@ -133,6 +134,13 @@ async function run({ withTierOnTemplateItems, userId }) {
     assert.ok(info.tierRowCount >= 1, 'at least one preview tier row must render');
     assert.ok((info.tiersMap['S'] || []).includes('preview-item-0'), 'S tier must show the intended item');
 
+    // Normalize preview using TemplateCard's normalizer
+    const preview = normalizeTemplatePreview(card);
+    assert.equal(preview.mode, 'tiered', 'Card with tiers must be in tiered mode');
+    assert.equal(preview.rows.length, 2, 'Top 2 tiers must be rendered');
+    assert.equal(preview.rows[0].label, 'S');
+    assert.equal(preview.rows[1].label, 'A');
+
     // Detail path keeps the same mapping for the template detail screen.
     const detailResponse = await templatesGet({
       request: new Request(`https://local.test/api/templates?id=${templateId}`),
@@ -149,6 +157,227 @@ async function run({ withTierOnTemplateItems, userId }) {
   }
 }
 
+async function testTemplateWithTiersAndNullItemTiers() {
+  const { mf, db } = await createLocalD1();
+  try {
+    const userId = 'creator-null-tier';
+    await seedProfile(db, userId, 'NullTierCreator');
+
+    const customTiers = [
+      { id: 'tier-1', label: 'เบรกอยู่ไหน', color: '#ef4444' },
+      { id: 'tier-2', label: 'ซิ่งนรก', color: '#f97316' },
+      { id: 'tier-3', label: 'ธรรมดา', color: '#eab308' },
+    ];
+
+    const templateId = 'tpl-null-tiers';
+    await db.prepare(
+      'INSERT INTO templates (id, creator_id, title, description, hashtags, tiers) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(
+      templateId,
+      userId,
+      'รถเมล์มอพะเยาสุดซิ่ง',
+      'เทมเพลตรถเมล์',
+      '#มพ,#bus',
+      JSON.stringify(customTiers)
+    ).run();
+
+    // Insert items with tier: null
+    const items = [
+      { item_id: 'bus-1', position: 0 },
+      { item_id: 'bus-2', position: 1 },
+      { item_id: 'bus-3', position: 2 },
+    ];
+    for (const item of items) {
+      await db.prepare(
+        'INSERT INTO template_items (id, template_id, item_id, position, tier) VALUES (?, ?, ?, ?, NULL)'
+      ).bind(`ti-${item.item_id}`, templateId, item.item_id, item.position).run();
+    }
+
+    // Fetch from /api/templates (Discover list)
+    const response = await templatesGet({
+      request: new Request('https://local.test/api/templates?limit=50'),
+      env: { tear_of_god_db: db },
+      data: { user: { id: userId } },
+    });
+    assert.equal(response.status, 200);
+    const list = (await response.json()).data;
+    const card = list.find((t) => t.id === templateId);
+    assert.ok(card, 'template with null-tier items must appear in discover list');
+    assert.equal(card.tiers.length, 3);
+    assert.ok(card.template_items.every((ti) => ti.tier === null));
+
+    // Test preview normalizer:
+    const preview = normalizeTemplatePreview(card);
+    // 1. Must be in 'tiered' mode, NOT 'grid'
+    assert.equal(preview.mode, 'tiered', 'Must NOT fallback to item-grid when tiers exist');
+    // 2. Exactly top 2 real tiers shown
+    assert.equal(preview.rows.length, 2);
+    assert.equal(preview.rows[0].label, 'เบรกอยู่ไหน');
+    assert.equal(preview.rows[1].label, 'ซิ่งนรก');
+    // 3. Lanes are empty because tier is null (no guessing / forcing into tiers)
+    assert.equal(preview.rows[0].items.length, 0);
+    assert.equal(preview.rows[1].items.length, 0);
+    assert.equal(preview.totalCount, 3);
+
+    console.log('ok - template with tiers and null item tiers correctly preserves real tier labels in tiered mode');
+  } finally {
+    await mf.dispose();
+  }
+}
+
+async function testTemplateCreatorIntegrityAcrossApiPaths() {
+  const { mf, db } = await createLocalD1();
+  try {
+    const creatorId = 'creator-alice';
+    const authorId = 'author-bob';
+    const viewerId = 'viewer-charlie';
+
+    await seedProfile(db, creatorId, 'AliceCreator', 'https://avatar.test/alice.png');
+    await seedProfile(db, authorId, 'BobRanker', 'https://avatar.test/bob.png');
+    await seedProfile(db, viewerId, 'CharlieViewer', 'https://avatar.test/charlie.png');
+
+    const templateId = 'tpl-alice-100';
+    const templateTiers = [
+      { id: 's', label: 'S', color: '#f87171' },
+      { id: 'a', label: 'A', color: '#fdba74' },
+    ];
+
+    // Alice creates the template
+    await db.prepare(
+      'INSERT INTO templates (id, creator_id, title, description, hashtags, tiers) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(
+      templateId,
+      creatorId,
+      'Alice Original Masterpiece',
+      'Description by Alice',
+      '#featured,#audit',
+      JSON.stringify(templateTiers)
+    ).run();
+
+    await db.prepare(
+      'INSERT INTO template_items (id, template_id, item_id, position, tier) VALUES (?, ?, ?, 0, ?)'
+    ).bind('ti-item-1', templateId, 'item-1', 'S').run();
+
+    // Bob creates a ranking referencing Alice's template (ranking author != template creator)
+    const rankingId = 'ranking-bob-999';
+    await db.prepare(
+      'INSERT INTO rankings (id, title, description, hashtags, user_id, template_id) VALUES (?, ?, ?, ?, ?, ?)'
+    ).bind(
+      rankingId,
+      'Bob Rankings of Alice Template',
+      'Ranking by Bob',
+      '#featured,#audit',
+      authorId,
+      templateId
+    ).run();
+
+    // Charlie bookmarks Alice's template
+    await db.prepare(
+      'INSERT INTO template_bookmarks (template_id, user_id) VALUES (?, ?)'
+    ).bind(templateId, viewerId).run();
+
+    // Helper to verify creator profile on a card
+    function verifyTemplateCreator(card, pathName) {
+      assert.ok(card, `Card must be present in ${pathName}`);
+      assert.equal(
+        card.profile.id,
+        creatorId,
+        `[${pathName}] TemplateCard creator id must be template.creator_id (${creatorId}), but was ${card.profile.id}`
+      );
+      assert.equal(
+        card.profile.username,
+        'AliceCreator',
+        `[${pathName}] TemplateCard username must be template creator username`
+      );
+      assert.equal(
+        card.profile.avatar_url,
+        'https://avatar.test/alice.png',
+        `[${pathName}] TemplateCard avatar must be template creator avatar`
+      );
+      assert.notEqual(
+        card.profile.id,
+        authorId,
+        `[${pathName}] TemplateCard creator must NEVER be ranking author (${authorId})`
+      );
+      assert.notEqual(
+        card.profile.username,
+        'BobRanker',
+        `[${pathName}] TemplateCard username must NEVER be ranking author username`
+      );
+    }
+
+    // Path 1: Discover list (default / no filter)
+    {
+      const res = await templatesGet({
+        request: new Request('https://local.test/api/templates?limit=50'),
+        env: { tear_of_god_db: db },
+        data: { user: { id: viewerId } },
+      });
+      assert.equal(res.status, 200);
+      const json = await res.json();
+      const card = json.data.find((t) => t.id === templateId);
+      verifyTemplateCreator(card, 'Discover (/api/templates)');
+    }
+
+    // Path 2: Hashtag Detail path (?hashtag=audit)
+    {
+      const res = await templatesGet({
+        request: new Request('https://local.test/api/templates?hashtag=audit'),
+        env: { tear_of_god_db: db },
+        data: { user: { id: viewerId } },
+      });
+      assert.equal(res.status, 200);
+      const json = await res.json();
+      const card = json.data.find((t) => t.id === templateId);
+      verifyTemplateCreator(card, 'Hashtag Detail (/api/templates?hashtag=audit)');
+    }
+
+    // Path 3: Popular Templates path (?sort=popular)
+    {
+      const res = await templatesGet({
+        request: new Request('https://local.test/api/templates?sort=popular'),
+        env: { tear_of_god_db: db },
+        data: { user: { id: viewerId } },
+      });
+      assert.equal(res.status, 200);
+      const json = await res.json();
+      const card = json.data.find((t) => t.id === templateId);
+      verifyTemplateCreator(card, 'Popular Templates (/api/templates?sort=popular)');
+    }
+
+    // Path 4: Saved Templates path (?saved=true)
+    {
+      const res = await templatesGet({
+        request: new Request('https://local.test/api/templates?saved=true'),
+        env: { tear_of_god_db: db },
+        data: { user: { id: viewerId } },
+      });
+      assert.equal(res.status, 200);
+      const json = await res.json();
+      const card = json.data.find((t) => t.id === templateId);
+      verifyTemplateCreator(card, 'Saved Templates (/api/templates?saved=true)');
+      assert.equal(card.is_saved, true);
+    }
+
+    // Extra Path: Template Detail path (?id=...)
+    {
+      const res = await templatesGet({
+        request: new Request(`https://local.test/api/templates?id=${templateId}`),
+        env: { tear_of_god_db: db },
+        data: { user: { id: viewerId } },
+      });
+      assert.equal(res.status, 200);
+      const json = await res.json();
+      const card = json.data;
+      verifyTemplateCreator(card, 'Template Detail (/api/templates?id=...)');
+    }
+
+    console.log('ok - template creator is strictly templates.creator_id across Discover, Hashtag, Popular, and Saved API paths');
+  } finally {
+    await mf.dispose();
+  }
+}
+
 // New-style payload (Create.jsx after the fix): tier is sent explicitly.
 const explicit = await run({ withTierOnTemplateItems: true, userId: 'preview-user-explicit' });
 console.log(`Create payload with explicit tier: ${explicit.tierRowCount} tier rows rendered (S, A)`);
@@ -158,4 +387,10 @@ console.log(`Create payload with explicit tier: ${explicit.tierRowCount} tier ro
 const fallback = await run({ withTierOnTemplateItems: false, userId: 'preview-user-legacy' });
 console.log(`Legacy payload without tier: ${fallback.tierRowCount} tier rows rendered (S, A)`);
 
-console.log('Template Discover preview checks passed against local Miniflare D1.');
+// Template with tiers defined but items having tier: null -> must show real tier labels
+await testTemplateWithTiersAndNullItemTiers();
+
+// Creator on TemplateCard must always be templates.creator_id -> profiles across all 4 paths
+await testTemplateCreatorIntegrityAcrossApiPaths();
+
+console.log('All Template Discover preview and creator checks passed against local Miniflare D1.');

@@ -6,7 +6,7 @@ Implemented locally after the quota deployment; not deployed. No migration requi
 |---|---|---|
 | Pause admin and notification polling after five minutes without pointer, keyboard or scroll activity | Simulated uninterrupted idle foreground hour: admin 60 → 4 periodic requests, notifications 12 → 0; initial load excluded. Each avoided request also avoids its authentication and endpoint D1 queries. | Badges stop updating while idle. Interaction/tab return refreshes stale data; opening notifications still uses the existing freshness checks. |
 | Guard admin polling against overlapping calls and returns within 60 seconds | Coalesces repeated visibility triggers and slow-request overlaps | Automatic retry waits for the existing polling freshness window. |
-| Batch same-microtask analytics events, maximum 20 per request | Challenge start/publish/share pairs: 2 → 1 Worker request and authenticated session lookup. All event rows remain; no D1 event-write reduction claimed. | Batch rejected as a unit for invalid events/rate limit. Dispatch waits one microtask, no timer. |
+| Batch same-microtask analytics events, maximum 20 per request | Publish/share pairs and template-view events: 2 → 1 Worker request and authenticated session lookup. All event rows remain; no D1 event-write reduction claimed. | Batch rejected as a unit for invalid events/rate limit. Dispatch waits one microtask, no timer. |
 
 Server preserves legacy single-event requests, validates all batched events before writing, derives user identity from the verified session, charges rate limits per event, and writes batches transactionally. Client preserves event IDs, once-per-session dedup and retry-on-revisit behavior.
 

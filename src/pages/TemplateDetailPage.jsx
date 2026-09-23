@@ -8,7 +8,6 @@ import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
-import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPreview'
 import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate, deleteTemplate } from '../lib/api'
 import { createPendingGuard } from '../lib/pendingGuard'
 import { formatCount, timeAgo } from '../lib/format'
@@ -423,8 +422,6 @@ export default function TemplateDetailPage() {
   const tiersDef = template.tiers || []
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
-  // ตรวจจาก field all-time ที่มากับ response รอบเดียว (ทุกช่วง)
-  const hasCommunityAverage = hasCommunityAverageAllTime
   const communityAvgRows = tiersDef.map((t, index) => {
     const found = template.community_average?.tiers?.find((x) => x.label === t.label)
     return {
@@ -443,6 +440,7 @@ export default function TemplateDetailPage() {
       }),
     }
   })
+  const hasAvgData = communityAvgRows.some((r) => r.items.length > 0)
 
   const CreatorLink = template.profile?.id ? Link : 'span'
   return (
@@ -533,7 +531,7 @@ export default function TemplateDetailPage() {
             />
           </div>
 
-          {hasCommunityAverage && (
+          {tiersDef.length > 0 && (
             <div className="mb-6 rounded-lg glass shadow-sm overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-line-soft/50">
                 <span className="flex items-center gap-1 rounded bg-brand px-2 py-1 text-xs text-canvas">
@@ -541,22 +539,44 @@ export default function TemplateDetailPage() {
                   {t('template.communityAverage')}
                 </span>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted">
-                    {periodDays
-                      ? t('template.lastPeriodDays', { days: periodDays }) + ' · '
-                      : ''}
-                    {t('template.updated', { time: timeAgo(template.community_average?.updated_at ?? '') })}
-                  </span>
-                  <select
-                    value={periodDays}
-                    onChange={(e) => setPeriodDays(Number(e.target.value))}
-                    className="rounded-lg border border-line-soft bg-surface-glass px-2 py-1.5 text-xs font-bold text-ink-soft outline-none transition-colors hover:bg-surface focus:ring-1 focus:ring-brand"
-                  >
-                    <option value={0}>{t('template.periodAllTime')}</option>
-                    <option value={7}>{t('template.periodDays', { days: 7 })}</option>
-                    <option value={30}>{t('template.periodDays', { days: 30 })}</option>
-                    <option value={90}>{t('template.periodDays', { days: 90 })}</option>
-                  </select>
+                  {hasAvgData ? (
+                    <>
+                      <span className="text-xs text-muted">
+                        {periodDays
+                          ? t('template.lastPeriodDays', { days: periodDays }) + ' · '
+                          : ''}
+                        {t('template.updated', { time: timeAgo(template.community_average?.updated_at ?? '') })}
+                      </span>
+                      <select
+                        value={periodDays}
+                        onChange={(e) => setPeriodDays(Number(e.target.value))}
+                        className="rounded-lg border border-line-soft bg-surface-glass px-2 py-1.5 text-xs font-bold text-ink-soft outline-none transition-colors hover:bg-surface focus:ring-1 focus:ring-brand"
+                      >
+                        <option value={0}>{t('template.periodAllTime')}</option>
+                        <option value={7}>{t('template.periodDays', { days: 7 })}</option>
+                        <option value={30}>{t('template.periodDays', { days: 30 })}</option>
+                        <option value={90}>{t('template.periodDays', { days: 90 })}</option>
+                      </select>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted italic">
+                        {t('template.noCommunityAverage')}
+                      </span>
+                      {(hasCommunityAverageAllTime || periodDays > 0) && (
+                        <select
+                          value={periodDays}
+                          onChange={(e) => setPeriodDays(Number(e.target.value))}
+                          className="rounded-lg border border-line-soft bg-surface-glass px-2 py-1.5 text-xs font-bold text-ink-soft outline-none transition-colors hover:bg-surface focus:ring-1 focus:ring-brand"
+                        >
+                          <option value={0}>{t('template.periodAllTime')}</option>
+                          <option value={7}>{t('template.periodDays', { days: 7 })}</option>
+                          <option value={30}>{t('template.periodDays', { days: 30 })}</option>
+                          <option value={90}>{t('template.periodDays', { days: 90 })}</option>
+                        </select>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div
@@ -566,6 +586,11 @@ export default function TemplateDetailPage() {
                 role="button"
                 aria-label={t('template.openCommunityAverage')}
               >
+                {!hasAvgData && (
+                  <div className="rounded-lg border border-line-soft/60 bg-surface/40 py-2.5 px-3 text-center text-xs font-medium text-muted">
+                    {t('template.noCommunityAverage')}
+                  </div>
+                )}
                 {communityAvgRows.map(({ tier, color, index, items }) => (
                   <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
                 ))}
@@ -635,22 +660,24 @@ export default function TemplateDetailPage() {
         onClose={() => setModal(null)}
         link={shareUrl(`/template/${templateId}`)}
         preview={
-          <CommunityAvgExportPreview
-            title={template.title ? `${template.title} · ${t('template.communityAverage')}` : t('template.communityAverage')}
+          <ExportCard
+            title={template.title}
+            authorName={template.profile?.username || template.creator?.username || t('common.unknownUser')}
+            authorAvatar={template.profile?.avatar_url || template.creator?.avatar_url}
+            postedAt={template.community_average?.updated_at ? t('template.updated', { time: timeAgo(template.community_average.updated_at) }) : (template.created_at ? timeAgo(template.created_at) : '')}
             hashtags={template.hashtags}
-            updatedText={t('template.updated', { time: timeAgo(template.community_average?.updated_at ?? '') })}
-            tiers={tiersDef.map((t) => {
+            typeBadge={t('template.communityAverage')}
+            tiers={tiersDef.map((t, index) => {
               const avgTier = template.community_average?.tiers?.find((x) => x.label === t.label)
               return {
-                label: t.label,
+                tier: t.label,
                 color: t.color,
+                index,
                 items: (avgTier?.items || []).map((it) => {
                   const tItem = template.template_items?.find((ti) => ti.item_id === it.name || ti.item?.name === it.name)
                   return {
                     name: it.name,
                     image_url: tItem?.item?.image_url || null,
-                    avg: it.avg,
-                    votes: it.votes ?? 0,
                   }
                 }),
               }

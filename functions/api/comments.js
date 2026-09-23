@@ -53,7 +53,8 @@ export async function onRequest({ request, env, data: auth }) {
       const commentId = crypto.randomUUID();
       const statements = [
         db.prepare('INSERT INTO comments (id, ranking_id, user_id, content, parent_id) VALUES (?1, ?2, ?3, ?4, ?5)').bind(commentId, ranking_id, user_id, content, parent_id),
-        db.prepare('UPDATE rankings SET comments_count = comments_count + 1 WHERE id = ?').bind(ranking_id)
+        db.prepare('UPDATE rankings SET comments_count = comments_count + 1 WHERE id = ?').bind(ranking_id),
+        db.prepare('UPDATE rankings SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?').bind(ranking_id)
       ];
       const recipients = new Set();
       if (ranking.user_id && ranking.user_id !== user_id) recipients.add(ranking.user_id);

@@ -51,6 +51,10 @@ try {
   await call(users, '/api/users?id=author', null);
   await db.batch(removal.map(s => db.prepare(s)));
   categoryRemoved = true;
+  // The legacy fixture predates the recent-activity column: apply the whole
+  // remaining migration chain (0019) so the "upgraded legacy DB" matches what
+  // a real prod DB runs, then assert exact schema parity with schema.sql.
+  await db.batch((await sql('../../migrations-active/0019_add_ranking_last_activity.sql')).map(s => db.prepare(s)));
   for (const table of ['rankings', 'templates', 'topic_follows']) {
     const migratedColumns = (await db.prepare(`PRAGMA table_info(${table})`).all()).results.map(c => c.name);
     const freshColumns = (await fresh.prepare(`PRAGMA table_info(${table})`).all()).results.map(c => c.name);

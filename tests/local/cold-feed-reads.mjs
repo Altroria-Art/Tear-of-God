@@ -56,7 +56,7 @@ try {
     const context={request:new Request('https://test'+path),env:{tear_of_god_db:traced,CACHE_METRIC_SAMPLE_RATE:'0'},data:{user:user?{id:user}:null}};
     const response=aggregate?await feedCommunityStats(context,traced,['t1','t2','missing'],{fresh:true}):await onRequest(context);
     if(!aggregate) assert.equal(response.status,200);
-    return {body:aggregate?response:await response.json(),read:queries.reduce((sum,q)=>sum+q.rows_read,0),pool:queries.filter(q=>q.sql.includes('SELECT r.id FROM rankings r')).reduce((sum,q)=>sum+q.rows_read,0)};
+    return {body:aggregate?response:await response.json(),read:queries.reduce((sum,q)=>sum+q.rows_read,0),pool:queries.filter(q=>q.sql.includes('freshness_tier FROM rankings r')).reduce((sum,q)=>sum+q.rows_read,0)};
   }
   async function writeCost() {
     const results=[];

@@ -162,10 +162,11 @@ export async function fetchRankings(filters) {
       // M1: ไม่เติม `_t=Date.now()` สำหรับ manual refresh แล้ว — HomeFeed สุ่ม seed ใหม่
       // + exclude ใหม่ทุกครั้งที่ refresh (refreshFeed) ทำให้ URL ต่างกันอยู่แล้ว dedup ไม่กลืน
       // และ browser cache ไม่ชน ของใหม่ยังได้ทุกรอบเหมือนเดิม
-      const { hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, exclude } = filters;
+      const { hashtag, userId: _userId, authorId, templateId, sort, page, limit, feedType, seed, days, pin, exclude, fresh } = filters;
       const params = new URLSearchParams();
 
       if (feedType) params.append('feed_type', feedType);
+      if (fresh && feedType === 'trending' && page === 1) params.append('fresh', '1');
       if (seed != null) params.append('seed', seed);
       if (pin) params.append('pin', pin);
       if (exclude) params.append('exclude', Array.isArray(exclude) ? exclude.join(',') : String(exclude));

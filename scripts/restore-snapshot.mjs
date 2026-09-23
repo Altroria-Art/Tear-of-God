@@ -385,21 +385,22 @@ function runSqlFile(
   );
 
   const result = spawnSync(
-    'npx',
-    [
-      'wrangler',
-      'd1',
-      'execute',
-      DATABASE,
-      '--local',
-      `--file=${file}`,
-      '--yes',
-    ],
-    {
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-    },
-  );
+  'npx',
+  [
+    'wrangler',
+    'd1',
+    'execute',
+    DATABASE,
+    '--local',
+    '--config=wrangler.toml',
+    `--file=${file}`,
+    '--yes',
+  ],
+  {
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  },
+);
 
   if (result.status !== 0) {
     console.error(
@@ -644,6 +645,25 @@ if (DDL_ONLY) {
     tempDir,
   );
 
+  // Remote snapshot รุ่นเก่าอาจยังไม่มี last_activity_at
+  const rankingsCreate = createTables.find(
+    (statement) => getCreateTableName(statement) === 'rankings',
+  );
+
+  const snapshotHasLastActivity =
+    rankingsCreate &&
+    /\blast_activity_at\b/i.test(rankingsCreate);
+
+  if (rankingsCreate && !snapshotHasLastActivity) {
+    runSqlFile(
+      [
+        'ALTER TABLE rankings ADD COLUMN last_activity_at DATETIME',
+      ],
+      '01b-add-rankings-last-activity',
+      tempDir,
+    );
+  }
+
   // --------------------------------
   // STEP 2: INSERT DATA
   // --------------------------------
@@ -695,6 +715,19 @@ if (DDL_ONLY) {
         `${totalInserted}/${inserts.length}`,
       );
     }
+  }
+
+  // เติม last_activity_at ให้ข้อมูลเก่าหลัง import เสร็จ
+  if (rankingsCreate) {
+    runSqlFile(
+      [
+        `UPDATE rankings
+         SET last_activity_at = created_at
+         WHERE last_activity_at IS NULL`,
+      ],
+      '02b-backfill-rankings-last-activity',
+      tempDir,
+    );
   }
 }
 
@@ -766,10 +799,17 @@ if (!DDL_ONLY) {
     );
   }
 }
-
 // --------------------------------------------------
 // STEP 5: ตรวจ Foreign Key
 // --------------------------------------------------
+
+runSqlFile(
+  [
+    'PRAGMA foreign_key_check',
+  ],
+  '05-foreign-key-check',
+  tempDir,
+);
 
 runSqlFile(
   [

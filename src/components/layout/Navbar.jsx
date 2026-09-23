@@ -209,19 +209,19 @@ const Navbar = () => {
           >
             {isMobileMenuOpen ? <X size={22} strokeWidth={2.75} /> : <Menu size={22} strokeWidth={2.75} />}
           </button>
-          <Link to="/" onClick={handleHomeClick} className="whitespace-nowrap text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
+          <Link to="/" onClick={handleHomeClick} className="inline-flex min-h-10 items-center whitespace-nowrap text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
             Tear of God
           </Link>
         </div>
 
         <div className="hidden md:flex items-center gap-1.5 text-sm">
-          <Link to="/" onClick={handleHomeClick} className={`px-3 py-1.5 rounded-lg transition-all ${isActive('/')}`}>
+          <Link to="/" onClick={handleHomeClick} className={`inline-flex min-h-10 items-center px-3 rounded-lg transition-all ${isActive('/')}`}>
             {t('nav.home')}
           </Link>
-          <Link to="/create" className={`px-3 py-1.5 rounded-lg transition-all ${isActive('/create')}`}>
+          <Link to="/create" className={`inline-flex min-h-10 items-center px-3 rounded-lg transition-all ${isActive('/create')}`}>
             {t('nav.create')}
           </Link>
-          <Link to="/discover" className={`px-3 py-1.5 rounded-lg transition-all ${isActive('/discover')}`}>
+          <Link to="/discover" className={`inline-flex min-h-10 items-center px-3 rounded-lg transition-all ${isActive('/discover')}`}>
             {t('nav.discover')}
           </Link>
         </div>

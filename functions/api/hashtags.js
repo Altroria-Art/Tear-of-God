@@ -7,11 +7,19 @@
 // ==========================================
 import { internalErrorResponse } from '../lib/request-guard.js';
 
+// Bumped whenever the catalog's shape/TTL policy changes so deployments
+// invalidate every previously-cached entry at once (the Cache API has no
+// wildcard/delete-by-prefix — keys are full URLs, one per page/limit/sort/q/
+// suggest variant). Included ONLY in the internal cache key, never sent to the
+// client or used as a filter.
+const CATALOG_CACHE_VERSION = 'v2';
+
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   // Only public catalog data. Normalize aliases/parameter ordering without
   // changing filter semantics; cookies never participate in this cache.
   url.pathname = '/api/hashtags';
+  url.searchParams.set('catalog', CATALOG_CACHE_VERSION);
   url.searchParams.sort();
   const cacheKey = new Request(url, { method: 'GET' });
   const cache = globalThis.caches?.default;
@@ -80,6 +88,7 @@ async function queryHashtags(context) {
             FROM split
            WHERE tag <> ''
            GROUP BY lower('#' || replace(tag, '#', ''))
+          HAVING COUNT(DISTINCT tid) > 0
         )
         SELECT tag, content_count
           FROM tags
@@ -116,6 +125,7 @@ async function queryHashtags(context) {
           FROM split
          WHERE tag <> ''
          GROUP BY lower('#' || replace(tag, '#', ''))
+        HAVING COUNT(DISTINCT tid) > 0
       )
     `;
 
@@ -143,9 +153,10 @@ async function queryHashtags(context) {
     }
 
     // M2: ข้อมูล public ล้วน (ไม่มี field เฉพาะผู้ชม; page/limit/sort/q อยู่ใน URL จึงแยก
-    // cache key กันอยู่แล้ว) — request ไม่มี q (รายการ browse หลักของ Discover/sidebar)
-    // เปลี่ยนนับเฉพาะตอน template สร้าง/ลบ จึง cache 300s ได้ ส่วน request มี q (ค้นหา/
-    // autocomplete) คง max-age=30 สั้นเดิมเพื่อให้ผลค้นหาสด ไม่แตะ recursive CTE
+    // cache key กันอยู่แล้ว) — ทุก variant ใช้ TTL สั้น 30s เท่ากันเพราะ catalog ถูก rebuild
+    // จาก templates.hashtags แบบ live: ลบ/สร้าง template แล้วต้องไม่ให้หน้า hashtag ค้างเกิน
+    // 30s (เดิม browse q ว่าง cache 300s — หลังลบ template count/แท็กเก่าค้าง 5 นาที จึงลดเหลือ
+    // 30s ซึ่งเท่ากับ search/suggest อยู่แล้ว; ดู docs/hashtag-catalog-cache-staleness-plan.md)
     // (เหตุผล TTL สั้นเดิม + การตัด SWR ดู docs/discover-template-view-refresh-and-tracking-plan.md)
     return Response.json(
       {
@@ -155,7 +166,7 @@ async function queryHashtags(context) {
         limit,
         total
       },
-      { headers: { 'Cache-Control': q ? 'public, max-age=30' : 'public, max-age=300' } }
+      { headers: { 'Cache-Control': 'public, max-age=30' } }
     );
   } catch (error) {
     console.error('Hashtag query failed:', { name: error?.name, message: error?.message });

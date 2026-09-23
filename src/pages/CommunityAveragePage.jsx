@@ -5,7 +5,7 @@ import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import CommentSection from '../components/post/CommentSection'
 import ShareExportModal from '../components/ui/ShareExportModal'
-import CommunityAvgExportPreview from '../components/feed/CommunityAvgExportPreview'
+import ExportCard from '../components/ui/ExportCard'
 import CommunityAvgStatsChart from '../components/ui/CommunityAvgStatsChart'
 import TierLabel from '../components/tier/TierLabel'
 import HashtagList from '../components/template/HashtagList'
@@ -302,6 +302,11 @@ export default function CommunityAveragePage() {
             <HashtagList hashtags={template.hashtags} className="mt-3" />
 
             <div className="mt-4 space-y-2">
+              {itemCount === 0 && (
+                <div className="rounded-lg border border-line-soft/60 bg-surface/40 py-2.5 px-3 text-center text-xs font-medium text-muted">
+                  {t('template.noCommunityAverage')}
+                </div>
+              )}
               {avgTiers.map(({ tier, color, index, items }) => (
                 <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}
@@ -353,14 +358,21 @@ export default function CommunityAveragePage() {
             onClose={() => setModal(null)}
             link={shareUrl(`/template/${templateId}/community`)}
             preview={
-              <CommunityAvgExportPreview
-                title={`${template.title} · ${t('template.communityAverage')}`}
+              <ExportCard
+                title={template.title}
+                authorName={template.profile?.username || template.creator?.username || t('common.unknownUser')}
+                authorAvatar={template.profile?.avatar_url || template.creator?.avatar_url}
+                postedAt={updatedAt ? t('template.updated', { time: timeAgo(updatedAt) }) : (template.created_at ? timeAgo(template.created_at) : '')}
                 hashtags={template.hashtags}
-                updatedText={t('template.updated', { time: updatedAt ? timeAgo(updatedAt) : '—' })}
+                typeBadge={t('template.communityAverage')}
                 tiers={avgTiers.map((row) => ({
-                  label: row.tier,
+                  tier: row.tier,
                   color: row.color,
-                  items: row.items,
+                  index: row.index,
+                  items: (row.items || []).map((it) => ({
+                    name: it.name,
+                    image_url: it.image_url || null,
+                  })),
                 }))}
               />
             }
