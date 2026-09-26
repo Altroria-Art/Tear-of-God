@@ -31,6 +31,7 @@ const Create = lazy(() => import('./pages/Create'));
 const RankTierList = lazy(() => import('./pages/RankTierList'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Login = lazy(() => import('./pages/Login'));
+const DuelResultPage = lazy(() => import('./pages/DuelResultPage'));
 
 // admin ทั้งโฟลเดอร์ lazy เป็นชุดเดียว — แยก admin chunk ออกจาก user chunk หลัก
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'));
@@ -82,6 +83,7 @@ function App() {
                 <Route path="/template/:templateId/participants" element={<CommunityParticipants />} />
                 <Route path="/post/:postId" element={<PostDetail />} />
                 <Route path="/profile/:userId" element={<Profile />} />
+                <Route path="/duel/:id" element={<DuelResultPage />} />
 
                 {/* Protected routes requiring authentication */}
                 <Route element={<RequireAuth />}>

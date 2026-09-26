@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
 
-export default function ActionButton({ icon: Icon, count, label, onClick, pressed, activeClass, to }) {
-  const className = `flex items-center gap-1.5 transition-colors ${
-    pressed ? `${activeClass} font-semibold` : 'text-action hover:text-ink-soft'
+export default function ActionButton({ icon: Icon, count, label, onClick, pressed, activeClass, className: customClassName, to }) {
+  const hoverClass = (activeClass && activeClass.includes('hover:')) ? activeClass : 'hover:text-ink-soft'
+  const className = customClassName || `flex items-center gap-1.5 transition-colors ${
+    pressed ? `${activeClass} font-semibold` : `text-action ${hoverClass}`
   }`
 
   const content = (
@@ -14,7 +15,7 @@ export default function ActionButton({ icon: Icon, count, label, onClick, presse
 
   if (to) {
     return (
-      <Link to={to} aria-label={label} className={className}>
+      <Link to={to} aria-label={label} title={label} className={className}>
         {content}
       </Link>
     )
@@ -24,6 +25,7 @@ export default function ActionButton({ icon: Icon, count, label, onClick, presse
     <button
       type="button"
       aria-label={label}
+      title={label}
       aria-pressed={pressed}
       onClick={onClick}
       className={className}

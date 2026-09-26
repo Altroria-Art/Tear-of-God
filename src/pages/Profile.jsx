@@ -2,10 +2,10 @@ import { parseHashtags } from '../lib/hashtags';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { returnPath } from '../lib/navigation';
-import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid } from 'lucide-react';
+import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid, Swords } from 'lucide-react';
 import BadgeGallery from '../components/user/BadgeGallery';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, updateProfile, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin } from '../lib/api';
+import { fetchRankings, updateProfile, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import { normalizeImageUrl } from '../lib/images';
@@ -13,6 +13,8 @@ import { getBadgeStates } from '../lib/badges';
 import { FACULTIES, UP_UNIVERSITY_NAME, getMajorsForFaculty, getAdmissionYears } from '../lib/university';
 import TierLabel from '../components/tier/TierLabel';
 import Modal from '../components/ui/Modal';
+import Pagination from '../components/ui/Pagination';
+import Avatar from '../components/ui/Avatar';
 import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
 
@@ -227,7 +229,26 @@ export default function Profile() {
   const [pinBusyId, setPinBusyId] = useState(null);
   const [isTasteDetailsOpen, setIsTasteDetailsOpen] = useState(false);
   const [isBadgesOpen, setIsBadgesOpen] = useState(false);
-  const [postTab, setPostTab] = useState('all'); // 'all' | 'pinned'
+  const [postTab, setPostTab] = useState('all'); // 'all' | 'pinned' | 'duels'
+  const [duels, setDuels] = useState([]);
+  const [duelTotal, setDuelTotal] = useState(0);
+  const [duelPage, setDuelPage] = useState(1);
+  const [isDuelsLoading, setIsDuelsLoading] = useState(false);
+
+  useEffect(() => {
+    if (postTab !== 'duels' || !profileUserId) return;
+    let cancelled = false;
+    setIsDuelsLoading(true);
+    fetchUserDuels({ userId: profileUserId, page: duelPage, limit: 10 }).then((res) => {
+      if (cancelled) return;
+      if (res?.success && Array.isArray(res.data)) {
+        setDuels(res.data);
+        setDuelTotal(res.total || 0);
+      }
+      setIsDuelsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [postTab, profileUserId, duelPage]);
 
   // Taste Details modal content (similar users + viewer match) loads on explicit
   // open only — never on mount. Core profile request no longer computes it.
@@ -882,6 +903,21 @@ export default function Profile() {
                     <span className="text-xs px-2 py-0.5 rounded-full bg-surface text-muted">{pinnedRankings.length}</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => { setPostTab('duels'); setDuelPage(1); }}
+                  className={`inline-flex items-center gap-2 pb-1 text-sm font-bold border-b-2 transition-colors ${
+                    postTab === 'duels'
+                      ? 'border-brand text-ink'
+                      : 'border-transparent text-muted hover:text-ink'
+                  }`}
+                >
+                  <Swords size={15} />
+                  <span>{t('duel.duelsTab')}</span>
+                  {duelTotal > 0 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-surface text-muted">{duelTotal}</span>
+                  )}
+                </button>
               </div>
               {isOwnProfile && (
                 <span className="text-xs text-muted">
@@ -890,8 +926,65 @@ export default function Profile() {
               )}
             </div>
 
-            {/* TikTok-style Squarish Grid of Posts */}
-            {visiblePosts.length === 0 ? (
+            {postTab === 'duels' ? (
+              isDuelsLoading ? (
+                <div className="text-center text-sm text-muted py-12 glass rounded-2xl animate-pulse">
+                  {t('common.loading')}
+                </div>
+              ) : duels.length === 0 ? (
+                <div className="text-center text-sm text-muted py-12 glass rounded-2xl">
+                  {t('duel.noDuels')}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {duels.map((d) => (
+                    <article
+                      key={d.id}
+                      onClick={() => navigate(`/duel/${encodeURIComponent(d.id)}`)}
+                      className="group flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl glass border border-line-soft hover:border-brand/40 hover:shadow-lg transition-all cursor-pointer bg-surface/60"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="flex -space-x-2 shrink-0">
+                          <Avatar size="sm" name={d.challenger_username} src={d.challenger_avatar_url} />
+                          <Avatar size="sm" name={d.owner_username} src={d.owner_avatar_url} />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-1.5 text-sm font-bold text-ink">
+                            <span className="truncate">@{d.challenger_username}</span>
+                            <span className="text-xs text-muted">vs</span>
+                            <span className="truncate">@{d.owner_username}</span>
+                          </div>
+                          <span className="text-xs text-muted truncate">
+                            {d.template_title}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 sm:gap-4 shrink-0 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-line-soft/60 pt-2 sm:pt-0">
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-highlight/15 text-highlight border border-highlight/30 text-xs font-bold shadow-2xs">
+                          <Swords size={13} />
+                          <span>{d.similarity_score}% Match</span>
+                        </div>
+                        {d.community_similarity_score !== null && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-surface border border-line-soft text-xs font-bold text-ink-soft">
+                            <span>{d.community_similarity_score}% Community</span>
+                          </div>
+                        )}
+                        <span className="text-xs text-muted">{timeAgo(d.created_at)}</span>
+                      </div>
+                    </article>
+                  ))}
+
+                  {duelTotal > 10 && (
+                    <Pagination
+                      currentPage={duelPage}
+                      totalPages={Math.ceil(duelTotal / 10)}
+                      onPageChange={setDuelPage}
+                    />
+                  )}
+                </div>
+              )
+            ) : visiblePosts.length === 0 ? (
               <div className="text-center text-sm text-muted py-12 glass rounded-2xl">
                 {postTab === 'pinned'
                   ? (isOwnProfile ? t('profile.pinnedHint') : t('profile.noPinned'))

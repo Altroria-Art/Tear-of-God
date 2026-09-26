@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   actor_id TEXT,
-  type TEXT NOT NULL CHECK(type IN ('comment', 'follow', 'template_use', 'following_rank', 'trending', 'community_average', 'like_digest')),
+  type TEXT NOT NULL CHECK(type IN ('comment', 'follow', 'template_use', 'following_rank', 'trending', 'community_average', 'like_digest', 'duel')),
   ranking_id TEXT,
   comment_id TEXT,
   template_id TEXT,
@@ -329,6 +329,28 @@ CREATE TABLE IF NOT EXISTS password_resets (
 );
 CREATE INDEX IF NOT EXISTS idx_password_resets_token_hash ON password_resets(token_hash);
 CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_resets(user_id);
+
+-- Duels: 1-to-1 taste comparison between challenger and template owner, and vs community average
+CREATE TABLE IF NOT EXISTS duels (
+  id TEXT PRIMARY KEY,
+  challenger_id TEXT NOT NULL,
+  template_id TEXT NOT NULL,
+  owner_id TEXT NOT NULL,
+  challenger_ranking_id TEXT NOT NULL,
+  owner_ranking_id TEXT,
+  similarity_score INTEGER NOT NULL CHECK(similarity_score >= 0 AND similarity_score <= 100),
+  community_similarity_score INTEGER CHECK(community_similarity_score IS NULL OR (community_similarity_score >= 0 AND community_similarity_score <= 100)),
+  community_sample_count INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (challenger_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (owner_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
+  FOREIGN KEY (challenger_ranking_id) REFERENCES rankings(id) ON DELETE CASCADE,
+  FOREIGN KEY (owner_ranking_id) REFERENCES rankings(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_duels_challenger ON duels(challenger_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_duels_owner ON duels(owner_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_duels_template ON duels(template_id, created_at DESC);
 
 -- Canonical hashtag rows derived from CSV. DISTINCT avoids duplicate tag counts.
 CREATE VIEW IF NOT EXISTS ranking_hashtags AS

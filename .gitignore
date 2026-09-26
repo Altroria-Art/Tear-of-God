@@ -32,6 +32,7 @@ dist-ssr
 # contains real user emails/password hashes exported from production D1
 .d1-snapshot.sql
 backup-*.sql
+backup_*.sql
 
 # k6 test reports
 tests/reports/*.html

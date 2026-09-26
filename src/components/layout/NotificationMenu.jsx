@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Trash2, TrendingUp, UserPlus } from 'lucide-react';
+import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Swords, Trash2, TrendingUp, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { deleteNotification, fetchNotifications, markNotificationRead } from '../../lib/api';
@@ -21,6 +21,7 @@ const notificationIcon = {
   trending: TrendingUp,
   community_average: BarChart3,
   like_digest: Heart,
+  duel: Swords,
 };
 
 function notificationPath(notification) {

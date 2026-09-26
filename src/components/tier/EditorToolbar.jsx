@@ -1,7 +1,7 @@
 import { Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-export default function EditorToolbar({ ranked, total, onSave, saving, disabled }) {
+export default function EditorToolbar({ ranked, total, onSave, saving, disabled, label, icon: Icon = Upload }) {
   const { t } = useTranslation();
   return (
     <div
@@ -24,8 +24,8 @@ export default function EditorToolbar({ ranked, total, onSave, saving, disabled 
           disabled={saving || disabled}
           className="flex items-center justify-center gap-1.5 sm:gap-2 rounded-full bg-brand hover:bg-brand-accent text-canvas px-4 sm:px-5 py-2 text-xs sm:text-sm font-bold whitespace-nowrap shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:hover:-translate-y-0 disabled:hover:shadow-md cursor-pointer"
         >
-          <Upload size={14} className="shrink-0" />
-          <span>{saving ? t('rank.saving') : t('editor.publish')}</span>
+          <Icon size={14} className="shrink-0" />
+          <span>{saving ? (label ? t('duel.submitting') : t('rank.saving')) : (label || t('editor.publish'))}</span>
         </button>
       </div>
     </div>

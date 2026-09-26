@@ -4,11 +4,11 @@ import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
 import React, { useState, useEffect } from 'react';
-import { Share2, Shuffle, ArrowDownAZ, Hash } from 'lucide-react';
+import { Share2, Shuffle, ArrowDownAZ, Hash, Swords } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
-import { fetchTemplate, createRanking } from '../lib/api';
+import { fetchTemplate, createRanking, submitDuel } from '../lib/api';
 import { markLastPublished } from '../lib/lastPublished';
 import useDragAutoScroll from '../lib/useDragAutoScroll';
 import TierLabel from '../components/tier/TierLabel';
@@ -34,6 +34,8 @@ const RankTierList = () => {
   const { beginDrag, endDrag } = useDragAutoScroll();
   const [searchParams] = useSearchParams();
   const templateId = searchParams.get('template');
+  const isDuel = searchParams.get('mode') === 'duel' || searchParams.get('duel') === '1';
+  const [templateOwner, setTemplateOwner] = useState(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -65,6 +67,13 @@ const RankTierList = () => {
       const { data, error } = await fetchTemplate(templateId, { light: true });
       if (cancelled) return;
       if (!data) { setTemplateError(error || t('errors.templateFetchFailed')); setIsLoadingTemplate(false); return; }
+      const creator = data.profile || data.creator || (data.creator_id ? { id: data.creator_id, username: t('common.unknownUser') } : null);
+      setTemplateOwner(creator);
+      if (isDuel && currentUser && (data.creator_id === currentUser.id || data.profile?.id === currentUser.id)) {
+        toast.warning(t('duel.warnSelfDuel'));
+        navigate(`/template/${encodeURIComponent(templateId)}`, { replace: true });
+        return;
+      }
       const definitions = data.tiers?.length ? data.tiers.map((tier, index) => ({ ...tier, id: 'tier-' + index })) : DEFAULT_TIERS;
       const pool = (data.template_items || []).map((ti, index) => ({ id: 'item-' + index, item_id: ti.item_id || ti.item?.name, content: ti.item?.name || ti.item_id, image_url: ti.item?.image_url || null, tierId: null }));
       const signature = JSON.stringify([definitions, pool.map(item => item.item_id)]);
@@ -88,7 +97,7 @@ const RankTierList = () => {
     }
     load();
     return () => { cancelled = true; };
-  }, [templateId, draftKey, guestDraftKey, navigate, resetItems, t]);
+  }, [templateId, draftKey, guestDraftKey, navigate, resetItems, t, currentUser, isDuel, toast]);
 
   useEffect(() => {
     if (loadedKey?.key !== draftKey) return;
@@ -246,6 +255,26 @@ const RankTierList = () => {
       })
     };
 
+    if (isDuel) {
+      const res = await submitDuel({
+        template_id: templateId,
+        items: rankingData.items,
+        title,
+        description,
+      });
+      setIsSaving(false);
+
+      if (!res.success) {
+        toast.error(res.error || t('common.error'));
+      } else {
+        setLoadedKey(null);
+        try { localStorage.removeItem(draftKey); localStorage.removeItem(guestDraftKey); } catch { /* Storage may be disabled. */ }
+        toast.success(t('duel.duelResult'));
+        navigate(`/duel/${encodeURIComponent(res.data.id)}`);
+      }
+      return;
+    }
+
     const { error, data } = await createRanking(rankingData);
     setIsSaving(false);
 
@@ -269,6 +298,22 @@ const RankTierList = () => {
   return (
     <div className="min-h-screen font-sans text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-8 sm:pb-32 flex-1 flex flex-col gap-6">
+
+        {isDuel && (
+          <div className="flex items-center gap-3.5 rounded-2xl bg-highlight/10 border border-highlight/30 p-4 sm:p-5 shadow-sm">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-highlight/20 text-highlight">
+              <Swords size={22} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-ink">
+                {templateOwner?.username ? t('duel.duelWith', { name: templateOwner.username }) : t('duel.duelMode')}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted truncate">
+                {t('duel.duelModeSubtitle', { name: templateOwner?.username || '' })}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Top Info Card: Title, Description & Hashtags */}
         <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col gap-4 shadow-sm border border-line-soft">
@@ -456,7 +501,15 @@ const RankTierList = () => {
       </div>
 
       <AssignTierModal item={selectedItemForModal} tiers={tiers} onClose={() => setSelectedItemForModal(null)} onAssign={handleAssignTier} />
-      <EditorToolbar ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handleSaveRanking} saving={isSaving} disabled={isLoadingTemplate || !!templateError} />
+      <EditorToolbar
+        ranked={items.filter(i => i.tierId !== null).length}
+        total={items.length}
+        onSave={handleSaveRanking}
+        saving={isSaving}
+        disabled={isLoadingTemplate || !!templateError}
+        label={isDuel ? t('duel.submitDuel') : undefined}
+        icon={isDuel ? Swords : undefined}
+      />
     </div>
   );
 };

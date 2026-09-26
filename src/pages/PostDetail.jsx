@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { Download, Flag, X, Trash2 } from 'lucide-react'
+import { Download, Flag, X, Trash2, Swords } from 'lucide-react'
+import { loginPath } from '../lib/navigation'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import AboutTemplateCard from '../components/post/AboutTemplateCard'
@@ -213,6 +214,21 @@ export default function PostDetail() {
     } else {
       toast.error(t('post.commentFailed', { msg: error }));
     }
+  }
+
+  const handleDuelPost = () => {
+    if (!post?.templateId) return
+    if (!currentUser) {
+      toast.warning(t('duel.warnLoginDuel'))
+      navigate(loginPath(`/rank?template=${encodeURIComponent(post.templateId)}&mode=duel`))
+      return
+    }
+    const creatorId = template?.creator_id || template?.profile?.id
+    if (creatorId && currentUser.id === creatorId) {
+      toast.warning(t('duel.warnSelfDuel'))
+      return
+    }
+    navigate(`/rank?template=${encodeURIComponent(post.templateId)}&mode=duel`)
   }
 
   const handleExport = async () => {
@@ -456,6 +472,14 @@ export default function PostDetail() {
                 <ActionButton icon={CommentIcon} count={stats.comments} label={t('post.comments')} onClick={handleCommentClick} />
               </div>
               <div className="ml-auto flex items-center gap-3">
+                {post.templateId && (
+                  <ActionButton
+                    icon={Swords}
+                    label={t('duel.duelButton')}
+                    onClick={handleDuelPost}
+                    activeClass="hover:text-highlight"
+                  />
+                )}
                 <ActionButton icon={Download} label={t('common.export')} onClick={handleExport} activeClass="hover:text-highlight" />
                 <ActionButton
                   icon={ShareIcon}

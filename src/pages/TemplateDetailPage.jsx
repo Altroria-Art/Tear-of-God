@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, Trash2 } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, Trash2, Swords } from 'lucide-react'
+import { loginPath } from '../lib/navigation'
 import Avatar from '../components/ui/Avatar'
 import Pagination from '../components/ui/Pagination'
 import SortDropdown from '../components/ui/SortDropdown'
@@ -326,6 +327,20 @@ export default function TemplateDetailPage() {
     if (templateId) loadRankings()
   }, [templateId, sort, page, currentUser])
 
+  const handleDuelTemplate = () => {
+    if (!currentUser) {
+      toast.warning(t('duel.warnLoginDuel'))
+      navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}&mode=duel`))
+      return
+    }
+    const creator = template.profile?.id || template.creator_id || template.user_id || template.creator?.id
+    if (creator && currentUser.id === creator) {
+      toast.warning(t('duel.warnSelfDuel'))
+      return
+    }
+    navigate(`/rank?template=${encodeURIComponent(templateId)}&mode=duel`)
+  }
+
   const handleUseTemplate = () => {
     if (!currentUser) {
       toast.warning(t('template.warnLoginUse'))
@@ -533,6 +548,19 @@ export default function TemplateDetailPage() {
                 showCount={false}
                 className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] disabled:cursor-wait disabled:opacity-60"
               />
+              <button
+                type="button"
+                onClick={handleDuelTemplate}
+                className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
+                  creatorId && currentUser?.id === creatorId
+                    ? 'border border-line bg-surface/50 text-muted opacity-70'
+                    : 'bg-highlight/15 text-highlight border border-highlight/40 hover:bg-highlight/25 hover:-translate-y-0.5 active:scale-[0.97]'
+                }`}
+                title={creatorId && currentUser?.id === creatorId ? t('duel.warnSelfDuel') : t('duel.duelButton')}
+              >
+                <Swords size={16} />
+                <span>{t('duel.duelButton')}</span>
+              </button>
               <button
                 type="button"
                 onClick={handleUseTemplate}

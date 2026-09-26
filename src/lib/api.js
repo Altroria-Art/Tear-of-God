@@ -973,3 +973,41 @@ export async function resetPassword({ token, password }) {
     return { success: false, error: i18n.t('errors.serverUnreachable') };
   }
 }
+
+// ==========================================
+// ส่วนที่ 8: ระบบดวลรสนิยม (Duel System)
+// ==========================================
+
+export async function submitDuel({ template_id, items, title, description }) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/duels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_id, items, title, description }),
+    });
+    const result = await response.json();
+    return result;
+  } catch {
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
+  }
+}
+
+export async function fetchDuel(duelId) {
+  try {
+    const res = await getJSON(`${API_URL}/api/duels?id=${encodeURIComponent(duelId)}`);
+    return res;
+  } catch {
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
+  }
+}
+
+export async function fetchUserDuels({ userId, page = 1, limit = 10 } = {}) {
+  try {
+    const res = await getJSON(
+      `${API_URL}/api/duels?user_id=${encodeURIComponent(userId)}&page=${page}&limit=${limit}`
+    );
+    return res;
+  } catch {
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
+  }
+}
