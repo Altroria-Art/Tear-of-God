@@ -64,7 +64,9 @@ export function pruneTrendingSeen(entries, now = Date.now()) {
     const prev = latestById.get(entry.id);
     if (!prev || seenAt > prev.seenAt) latestById.set(entry.id, { id: entry.id, seenAt });
   }
-  const list = [...latestById.values()].sort((a, b) => a.seenAt - b.seenAt);
+  const list = [...latestById.values()]
+    .sort((a, b) => a.seenAt - b.seenAt)
+    .slice(-2000); // cap max size to prevent localStorage bloat
   return list;
 }
 
