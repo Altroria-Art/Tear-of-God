@@ -234,7 +234,7 @@ function HomeTierCard({ post, onRequireAuth }) {
                 onClick={(e) => e.stopPropagation()}
               >
                 {post.profile?.avatar_url ? (
-                  <img src={post.profile.avatar_url} alt={t('feed.avatarAlt')} className="w-full h-full object-cover" />
+                  <img src={post.profile.avatar_url} alt={t('feed.avatarAlt')} loading="lazy" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center font-bold text-muted">
                     {post.profile?.username?.charAt(0).toUpperCase() || 'U'}
@@ -246,7 +246,7 @@ function HomeTierCard({ post, onRequireAuth }) {
                 className="w-10 h-10 rounded-full overflow-hidden bg-surface-glass border border-line-soft"
               >
                 {post.profile?.avatar_url ? (
-                  <img src={post.profile.avatar_url} alt={t('feed.avatarAlt')} className="w-full h-full object-cover" />
+                  <img src={post.profile.avatar_url} alt={t('feed.avatarAlt')} loading="lazy" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center font-bold text-muted">
                     {post.profile?.username?.charAt(0).toUpperCase() || 'U'}
