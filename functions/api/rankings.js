@@ -1,6 +1,13 @@
 import { prioritizeUnseen } from '../lib/feed-refresh.js';
 import { feedCommunityStats } from '../lib/community-cache.js';
 import { templateDeleteStatements } from '../lib/templateDelete.js';
+import {
+  checkTemplateCooldown,
+  cooldownResponse,
+  recordContributionStatement,
+  getDeleteReconcileStatement,
+  evictCommunityCache,
+} from '../lib/cooldown.js';
 // 📍 [ใหม่]: ranking_items.tier เก็บแค่ "ชื่อ tier" เป็นสตริง — สี/id ของ tier อยู่ที่
 // templates.tiers เท่านั้น (ดู functions/api/templates.js). ก่อนหน้านี้ endpoint นี้ไม่เคย
 // ส่ง tiers กลับมาเลย ทำให้ Home Feed / Feed Detailed โชว์ tier ไม่มีสี ต่างจาก Discover
@@ -144,6 +151,8 @@ export async function onRequest(context) {
   const url = new URL(request.url);
   const id = url.searchParams.get('id');
   const db = env.tear_of_god_db;
+  let cleanPayload = null;
+  let templateId = null;
 
   const jsonResponse = (data, status = 200, extraHeaders = {}) => {
     return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...extraHeaders } });
@@ -967,7 +976,7 @@ r.created_at DESC, r.id DESC`;
         return jsonResponse({ success: false, error: `จำนวนไอเทมเกิน ${INPUT_LIMITS.items}` }, 400);
       }
 
-      const cleanPayload = {
+      cleanPayload = {
         title: payload.title == null ? 'Untitled' : assertString(payload.title, 'payload.title', { min: 1, max: INPUT_LIMITS.title, trim: true }),
         description: payload.description == null ? '' : assertString(payload.description, 'payload.description', { max: INPUT_LIMITS.description }),
         hashtags: payload.hashtags == null ? '' : assertString(payload.hashtags, 'payload.hashtags', { max: INPUT_LIMITS.hashtags * (INPUT_LIMITS.hashtag + 2) }),
@@ -976,6 +985,13 @@ r.created_at DESC, r.id DESC`;
       };
       assertHashtags(cleanPayload.hashtags, 'payload.hashtags');
       cleanPayload.hashtags = canonicalizeHashtags(cleanPayload.hashtags);
+
+      if (cleanPayload.template_id) {
+        const cooldown = await checkTemplateCooldown(db, cleanPayload.template_id, cleanPayload.user_id);
+        if (cooldown.active) {
+          return cooldownResponse(cleanPayload.template_id, cooldown.cooldownUntil, cooldown.remainingSeconds);
+        }
+      }
 
       const cleanItems = items.map((item, index) => {
         if (!isPlainObject(item)) throw new RequestError(`items[${index}] must be an object`);
@@ -1029,7 +1045,7 @@ r.created_at DESC, r.id DESC`;
 
       const rankingId = crypto.randomUUID();
       const statements = [];
-      let templateId = null;
+      templateId = null;
 
       // tiers ปัจจุบันของ template (ตัวที่ใช้จัดอันดับ) — ใช้ map ชื่อ tier → index แล้วให้คะแนน
       // แถวบนสุดสูงสุด (score = tierCount - index) บันทึกลง ranking_item_scores ตอน publish
@@ -1169,6 +1185,7 @@ r.created_at DESC, r.id DESC`;
         statements.push(db.prepare(
           `UPDATE templates SET use_count = use_count + 1 WHERE id = ?`
         ).bind(effectiveTemplateId));
+        statements.push(recordContributionStatement(db, effectiveTemplateId, cleanPayload.user_id, rankingId));
       }
 
       if (cleanItems.length > 0) {
@@ -1216,6 +1233,9 @@ r.created_at DESC, r.id DESC`;
 
       // D1 batch is a transaction: one failed statement rolls back the entire publish.
       await db.batch(statements);
+      if (effectiveTemplateId) {
+        await evictCommunityCache(request, effectiveTemplateId);
+      }
       return jsonResponse({ success: true, data: { ...cleanPayload, id: rankingId, template_id: cleanPayload.template_id || templateId } }, 201);
     }
 
@@ -1238,14 +1258,27 @@ r.created_at DESC, r.id DESC`;
       if (!ranking) return jsonResponse({ success: false, error: 'Not found' }, 404);
       if (ranking.user_id !== currentUserId) return jsonResponse({ success: false, error: 'Forbidden' }, 403);
 
-      await db.batch([
+      const deleteStatements = [
         db.prepare('DELETE FROM ranking_items WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM reports WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM rankings WHERE id = ?').bind(targetId),
-      ]);
+      ];
+
+      if (ranking.template_id) {
+        const reconcileStmt = await getDeleteReconcileStatement(db, ranking.template_id, ranking.user_id, targetId);
+        if (reconcileStmt) {
+          deleteStatements.unshift(reconcileStmt);
+        }
+      }
+
+      await db.batch(deleteStatements);
+
+      if (ranking.template_id) {
+        await evictCommunityCache(request, ranking.template_id);
+      }
 
       // ถ้าเจ้าของเทมเพลต (creator) ลบ ranking ของตัวเองตัวสุดท้ายของเทมเพลตนั้น → เทมเพลตกลายเป็น orphan
       // (ไม่มี ranking เหลือเลย) ให้ลบเทมเพลตด้วยผ่าน shared helper ชุดเดียวกับ /api/template-delete
@@ -1265,6 +1298,11 @@ r.created_at DESC, r.id DESC`;
   } catch (err) {
     const invalid = requestErrorResponse(err);
     if (invalid) return invalid;
+    if (err && (String(err.message).includes('TEMPLATE_COOLDOWN_ACTIVE') || String(err).includes('TEMPLATE_COOLDOWN_ACTIVE'))) {
+      const effId = cleanPayload?.template_id || templateId;
+      const cooldown = await checkTemplateCooldown(db, effId, cleanPayload?.user_id);
+      return cooldownResponse(effId, cooldown.cooldownUntil, cooldown.remainingSeconds);
+    }
     console.error('Ranking request failed:', err.message);
     return jsonResponse({ success: false, error: 'Service temporarily unavailable' }, 500);
   }

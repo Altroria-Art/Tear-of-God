@@ -262,8 +262,12 @@ for (const [userId, t1, t2, t3, t4] of [
     db.prepare("INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?, ?, 'anime_2', ?, 1)").bind(`ri_2_${userId}`, rId, t2),
     db.prepare("INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?, ?, 'anime_3', ?, 2)").bind(`ri_3_${userId}`, rId, t3),
     db.prepare("INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?, ?, 'anime_4', ?, 3)").bind(`ri_4_${userId}`, rId, t4),
+    db.prepare("INSERT INTO template_user_contributions (template_id, user_id, current_ranking_id, cooldown_until, last_contributed_at) VALUES ('tpl_1', ?, ?, datetime(CURRENT_TIMESTAMP, '+7 days'), CURRENT_TIMESTAMP)").bind(userId, rId),
   ]);
 }
+
+// Expire Alice's cooldown so Alice can duel again after the 7-day cooldown period
+await db.prepare("UPDATE template_user_contributions SET cooldown_until = datetime(CURRENT_TIMESTAMP, '-1 hour') WHERE template_id = 'tpl_1' AND user_id = 'user_a'").run();
 
 // Now Alice duels again (or Eve duels Bob), community has 3 valid submissions (user_c, user_d, user_e)
 {
@@ -292,6 +296,7 @@ console.log('\n--- 5. Testing Client Spoofing Prevention ---');
 
 // Test: Client attempts to send fake similarity_score: 99 and fake owner_id: 'fake_user'
 {
+  await db.prepare("UPDATE template_user_contributions SET cooldown_until = datetime(CURRENT_TIMESTAMP, '-1 hour') WHERE template_id = 'tpl_1' AND user_id = 'user_e'").run();
   const { response, json } = await callDuelEndpoint(db, {
     method: 'POST',
     user: { id: 'user_e', username: 'eve' },

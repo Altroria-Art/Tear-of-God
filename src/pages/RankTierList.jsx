@@ -4,7 +4,7 @@ import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
 import React, { useState, useEffect } from 'react';
-import { Share2, Shuffle, ArrowDownAZ, Hash, Swords } from 'lucide-react';
+import { Share2, Shuffle, ArrowDownAZ, Hash, Swords, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
@@ -14,6 +14,7 @@ import useDragAutoScroll from '../lib/useDragAutoScroll';
 import TierLabel from '../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
 import { trackEvent } from '../lib/analytics';
+import { formatRemainingCooldown } from '../lib/format';
 
 const DEFAULT_TIERS = [
   { id: 't1', label: 'S', color: '#f87171' },
@@ -49,6 +50,7 @@ const RankTierList = () => {
   const guestDraftKey = 'tog-rank-draft:guest:' + templateId;
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateId);
   const [isSaving, setIsSaving] = useState(false);
+  const [templateCooldown, setTemplateCooldown] = useState(null);
 
   
 
@@ -67,6 +69,7 @@ const RankTierList = () => {
       const { data, error } = await fetchTemplate(templateId, { light: true });
       if (cancelled) return;
       if (!data) { setTemplateError(error || t('errors.templateFetchFailed')); setIsLoadingTemplate(false); return; }
+      setTemplateCooldown(data.cooldown || null);
       const creator = data.profile || data.creator || (data.creator_id ? { id: data.creator_id, username: t('common.unknownUser') } : null);
       setTemplateOwner(creator);
       if (isDuel && currentUser && (data.creator_id === currentUser.id || data.profile?.id === currentUser.id)) {
@@ -238,6 +241,11 @@ const RankTierList = () => {
       return toast.warning(t('rank.errUnrankedItems', { count: unrankedItems.length, names, more }));
     }
 
+    if (templateCooldown?.active) {
+      toast.warning(t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) }));
+      return;
+    }
+
     setIsSaving(true);
     const rankingData = {
       payload: {
@@ -265,7 +273,17 @@ const RankTierList = () => {
       setIsSaving(false);
 
       if (!res.success) {
-        toast.error(res.error || t('common.error'));
+        if (res.code === 'TEMPLATE_COOLDOWN_ACTIVE') {
+          const timeStr = formatRemainingCooldown(res.remaining_seconds, t);
+          toast.error(t('errors.templateCooldownActive', { time: timeStr }));
+          setTemplateCooldown({
+            active: true,
+            cooldownUntil: res.next_available_at,
+            remainingSeconds: res.remaining_seconds,
+          });
+        } else {
+          toast.error(res.error || t('common.error'));
+        }
       } else {
         setLoadedKey(null);
         try { localStorage.removeItem(draftKey); localStorage.removeItem(guestDraftKey); } catch { /* Storage may be disabled. */ }
@@ -275,12 +293,23 @@ const RankTierList = () => {
       return;
     }
 
-    const { error, data } = await createRanking(rankingData);
+    const res = await createRanking(rankingData);
     setIsSaving(false);
 
-    if (error) {
-      toast.error(t('rank.error', { msg: error }));
+    if (res.error) {
+      if (res.code === 'TEMPLATE_COOLDOWN_ACTIVE') {
+        const timeStr = formatRemainingCooldown(res.remaining_seconds, t);
+        toast.error(t('errors.templateCooldownActive', { time: timeStr }));
+        setTemplateCooldown({
+          active: true,
+          cooldownUntil: res.next_available_at,
+          remainingSeconds: res.remaining_seconds,
+        });
+      } else {
+        toast.error(t('rank.error', { msg: res.error }));
+      }
     } else {
+      const data = res.data;
       if (data?.id) trackEvent('ranking_publish', { entityType: 'ranking', entityId: data.id });
       // 📍 จำโพสต์ที่เพิ่ง publish ไว้ ให้ Home Feed ดันขึ้นการ์ดแรก (transient — รีหน้าแล้วหาย)
       setLoadedKey(null);
@@ -298,6 +327,21 @@ const RankTierList = () => {
   return (
     <div className="min-h-screen font-sans text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-8 sm:pb-32 flex-1 flex flex-col gap-6">
+        {templateCooldown?.active && (
+          <div className="flex items-center gap-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 sm:p-5 shadow-sm text-amber-200">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
+              <Clock size={22} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-amber-300">
+                {t('cooldown.activeNotice', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })}
+              </h2>
+              <p className="text-xs sm:text-sm text-amber-200/80">
+                {t('cooldown.activeBanner', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })}
+              </p>
+            </div>
+          </div>
+        )}
 
         {isDuel && (
           <div className="flex items-center gap-3.5 rounded-2xl bg-highlight/10 border border-highlight/30 p-4 sm:p-5 shadow-sm">
@@ -506,7 +550,7 @@ const RankTierList = () => {
         total={items.length}
         onSave={handleSaveRanking}
         saving={isSaving}
-        disabled={isLoadingTemplate || !!templateError}
+        disabled={isLoadingTemplate || !!templateError || templateCooldown?.active}
         label={isDuel ? t('duel.submitDuel') : undefined}
         icon={isDuel ? Swords : undefined}
       />

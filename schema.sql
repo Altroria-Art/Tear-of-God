@@ -352,6 +352,23 @@ CREATE INDEX IF NOT EXISTS idx_duels_challenger ON duels(challenger_id, created_
 CREATE INDEX IF NOT EXISTS idx_duels_owner ON duels(owner_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_duels_template ON duels(template_id, created_at DESC);
 
+-- Template User Contributions: 7-day cooldown tracking and 1-user-1-vote anti-pumping for Community Average
+CREATE TABLE IF NOT EXISTS template_user_contributions (
+  template_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  current_ranking_id TEXT,
+  cooldown_until DATETIME NOT NULL,
+  last_contributed_at DATETIME NOT NULL,
+  PRIMARY KEY (template_id, user_id),
+  FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (current_ranking_id) REFERENCES rankings(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tuc_template_current
+  ON template_user_contributions(template_id, current_ranking_id);
+CREATE INDEX IF NOT EXISTS idx_tuc_user_cooldown
+  ON template_user_contributions(user_id, cooldown_until);
+
 -- Canonical hashtag rows derived from CSV. DISTINCT avoids duplicate tag counts.
 CREATE VIEW IF NOT EXISTS ranking_hashtags AS
 SELECT DISTINCT r.id AS ranking_id, r.user_id,

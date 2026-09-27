@@ -19,6 +19,7 @@ export function templateDeleteStatements(db, templateId) {
     db.prepare('DELETE FROM template_bookmarks WHERE template_id = ?').bind(templateId),
     db.prepare('DELETE FROM reports WHERE template_id = ?').bind(templateId),
     db.prepare('DELETE FROM ranking_item_scores WHERE template_id = ?').bind(templateId),
+    db.prepare('DELETE FROM template_user_contributions WHERE template_id = ?').bind(templateId),
     db.prepare('DELETE FROM topic_follows WHERE topic_type = ? AND topic_key = ?').bind('template', templateId),
     db.prepare('DELETE FROM ranking_items WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(templateId),
     db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE template_id = ?)').bind(templateId),

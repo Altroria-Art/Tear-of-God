@@ -1,4 +1,5 @@
 import { assertId, consumeMemoryRateLimit, internalErrorResponse, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+import { checkTemplateCooldown } from '../lib/cooldown.js';
 
 function parseTiers(raw) {
   if (!raw) return null;
@@ -255,6 +256,7 @@ export async function onRequestGet(context) {
       const { results: histogram } = await db.prepare(
         `SELECT ris.item_id, ris.score, COUNT(*) as n
          FROM ranking_item_scores ris
+         JOIN template_user_contributions tuc ON tuc.current_ranking_id = ris.ranking_id
          ${whereSql}
          GROUP BY ris.item_id, ris.score`
       ).bind(...whereParams).all();
@@ -305,11 +307,17 @@ export async function onRequestGet(context) {
           (communityAverage?.tiers || []).some((t) => (t.items || []).length > 0);
       } else {
         const existsRow = await db.prepare(
-          `SELECT 1 AS one FROM ranking_item_scores WHERE template_id = ? LIMIT 1`
+          `SELECT 1 AS one FROM ranking_item_scores ris
+           JOIN template_user_contributions tuc ON tuc.current_ranking_id = ris.ranking_id
+           WHERE ris.template_id = ? LIMIT 1`
         ).bind(templateId).first();
         hasCommunityAverageAllTime = tierCount > 0 && !!existsRow;
       }
     }
+
+    const cooldown = viewerId
+      ? await checkTemplateCooldown(db, templateId, viewerId)
+      : { active: false, cooldownUntil: null, remainingSeconds: 0 };
 
     const responseData = {
       id: template.id,
@@ -335,7 +343,8 @@ export async function onRequestGet(context) {
         item: { id: ti.item_id, name: ti.item_name || ti.item_id, image_url: ti.item_image || null }
       })),
       community_average: communityAverage,
-      has_community_average_all_time: hasCommunityAverageAllTime
+      has_community_average_all_time: hasCommunityAverageAllTime,
+      cooldown
     };
 
     // 📍 เช่นเดียวกับโหมด list — ไม่มี field เฉพาะผู้ชมเลย cache ที่ edge ได้ปลอดภัย แต่ใช้ max-age
@@ -343,7 +352,7 @@ export async function onRequestGet(context) {
     // (ไม่มี overlay จาก POST) เห็นเลข views ที่ใกล้เคียงปัจจุบันด้วย
     return Response.json(
       { success: true, data: responseData },
-      { headers: { 'Cache-Control': 'public, max-age=10' } }
+      { headers: { 'Cache-Control': viewerId ? 'private, no-store' : 'public, max-age=10' } }
     );
 
   } catch (error) {

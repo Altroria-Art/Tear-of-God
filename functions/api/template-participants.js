@@ -42,7 +42,7 @@ export async function onRequestGet(context) {
       tiersDef = [];
     }
 
-    // 2. Get all rankings for this template with user profile data
+    // 2. Get all effective rankings for this template with user profile data (anti-pumped)
     const { results: rankings } = await db.prepare(`
       SELECT
         r.id as ranking_id,
@@ -54,6 +54,7 @@ export async function onRequestGet(context) {
         p.major,
         p.year
       FROM rankings r
+      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id
       LEFT JOIN profiles p ON r.user_id = p.id
       WHERE r.template_id = ?
       ORDER BY r.created_at DESC
@@ -73,6 +74,7 @@ export async function onRequestGet(context) {
         i.name as item_name
       FROM ranking_items ri
       INNER JOIN rankings r ON r.id = ri.ranking_id
+      INNER JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id
       LEFT JOIN items i ON ri.item_id = i.id
       WHERE r.template_id = ?
       ORDER BY ri.ranking_id, ri.position ASC, ri.rowid ASC

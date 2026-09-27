@@ -960,7 +960,8 @@
     "reportStatusFailed": "Could not update the status",
     "reportDeleteFailed": "Could not delete the report",
     "commentFailed": "Could not create comment",
-    "commentDeleteFailed": "Failed to delete comment"
+    "commentDeleteFailed": "Failed to delete comment",
+    "templateCooldownActive": "You can only contribute to this template once every 7 days. Next contribution available in {{time}}."
   },
   "shareExport": {
     "shareLinkTitle": "Share Link",
@@ -1005,5 +1006,15 @@
     "draftRestored": "Your draft has been restored.",
     "draftUnavailable": "Draft could not be saved on this device. Keep this page open.",
     "tapHelp": "Tap any item to choose a tier. You can change your mind anytime."
+  },
+  "cooldown": {
+    "activeBanner": "You recently contributed to this template. You can submit a new ranking or duel in {{time}}.",
+    "activeNotice": "Cooldown active: {{time}} remaining",
+    "activeWarning": "You can only contribute to this template once every 7 days. Next available in {{time}}.",
+    "buttonDisabled": "Available in {{time}}",
+    "days": "days",
+    "hours": "hours",
+    "minutes": "minutes",
+    "seconds": "seconds"
   }
 }

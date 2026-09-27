@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, Trash2, Swords } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, Trash2, Swords, Clock } from 'lucide-react'
 import { loginPath } from '../lib/navigation'
 import Avatar from '../components/ui/Avatar'
 import Pagination from '../components/ui/Pagination'
@@ -11,7 +11,7 @@ import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
 import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate, deleteTemplate } from '../lib/api'
 import { createPendingGuard } from '../lib/pendingGuard'
-import { formatCount, timeAgo } from '../lib/format'
+import { formatCount, timeAgo, formatRemainingCooldown } from '../lib/format'
 import { shareUrl } from '../lib/share'
 import TierRow from '../components/feed/TierRow'
 import HashtagList from '../components/template/HashtagList'
@@ -338,6 +338,10 @@ export default function TemplateDetailPage() {
       toast.warning(t('duel.warnSelfDuel'))
       return
     }
+    if (template?.cooldown?.active) {
+      toast.warning(t('cooldown.activeWarning', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) }))
+      return
+    }
     navigate(`/rank?template=${encodeURIComponent(templateId)}&mode=duel`)
   }
 
@@ -345,6 +349,10 @@ export default function TemplateDetailPage() {
     if (!currentUser) {
       toast.warning(t('template.warnLoginUse'))
       navigate('/login')
+      return
+    }
+    if (template?.cooldown?.active) {
+      toast.warning(t('cooldown.activeWarning', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) }))
       return
     }
     navigate(`/rank?template=${templateId}`)
@@ -551,12 +559,21 @@ export default function TemplateDetailPage() {
               <button
                 type="button"
                 onClick={handleDuelTemplate}
+                disabled={template?.cooldown?.active}
                 className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
                   creatorId && currentUser?.id === creatorId
                     ? 'border border-line bg-surface/50 text-muted opacity-70'
+                    : template?.cooldown?.active
+                    ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
                     : 'bg-highlight/15 text-highlight border border-highlight/40 hover:bg-highlight/25 hover:-translate-y-0.5 active:scale-[0.97]'
                 }`}
-                title={creatorId && currentUser?.id === creatorId ? t('duel.warnSelfDuel') : t('duel.duelButton')}
+                title={
+                  template?.cooldown?.active
+                    ? t('cooldown.activeWarning', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) })
+                    : creatorId && currentUser?.id === creatorId
+                    ? t('duel.warnSelfDuel')
+                    : t('duel.duelButton')
+                }
               >
                 <Swords size={16} />
                 <span>{t('duel.duelButton')}</span>
@@ -564,12 +581,31 @@ export default function TemplateDetailPage() {
               <button
                 type="button"
                 onClick={handleUseTemplate}
-                className="flex items-center gap-2 rounded-xl bg-brand text-canvas px-5 py-3 text-sm font-bold hover:bg-brand-accent"
+                disabled={template?.cooldown?.active}
+                className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
+                  template?.cooldown?.active
+                    ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
+                    : 'bg-brand text-canvas hover:bg-brand-accent'
+                }`}
+                title={
+                  template?.cooldown?.active
+                    ? t('cooldown.activeWarning', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) })
+                    : t('template.use')
+                }
               >
-                {t('template.use')}
+                {template?.cooldown?.active
+                  ? t('cooldown.buttonDisabled', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) })
+                  : t('template.use')}
               </button>
             </div>
           </div>
+
+          {template?.cooldown?.active && (
+            <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+              <Clock size={18} className="shrink-0 text-amber-400" />
+              <span>{t('cooldown.activeBanner', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) })}</span>
+            </div>
+          )}
 
           <p className="mt-4 max-w-3xl text-muted">{template.description}</p>
 

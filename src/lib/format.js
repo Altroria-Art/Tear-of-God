@@ -116,3 +116,33 @@ export function shortTimeAgo(dateString) {
   if (months < 12) return `${months}mo`;
   return `${Math.round(days / 365)}y`;
 }
+
+/**
+ * Format remaining cooldown duration in human-readable terms.
+ * e.g., "5 days 4 hours", "3 hours", "45 minutes", "10 seconds"
+ */
+export function formatRemainingCooldown(totalSeconds, t = (k, fallback) => fallback) {
+  const sec = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+  if (sec <= 0) return '';
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+  const seconds = sec % 60;
+
+  if (days > 0) {
+    if (hours > 0) {
+      return `${days} ${t('cooldown.days', 'days')} ${hours} ${t('cooldown.hours', 'hours')}`;
+    }
+    return `${days} ${t('cooldown.days', 'days')}`;
+  }
+  if (hours > 0) {
+    if (minutes > 0) {
+      return `${hours} ${t('cooldown.hours', 'hours')} ${minutes} ${t('cooldown.minutes', 'minutes')}`;
+    }
+    return `${hours} ${t('cooldown.hours', 'hours')}`;
+  }
+  if (minutes > 0) {
+    return `${minutes} ${t('cooldown.minutes', 'minutes')}`;
+  }
+  return `${seconds} ${t('cooldown.seconds', 'seconds')}`;
+}

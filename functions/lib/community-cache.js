@@ -11,7 +11,9 @@ async function loadCommunityEntries(db, ids) {
     db.prepare(`SELECT template_id, COUNT(*) AS uses FROM rankings
       WHERE template_id IN (${placeholders}) GROUP BY template_id`).bind(...ids).all(),
     db.prepare(`SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements
-      FROM ranking_items ri JOIN rankings r ON r.id = ri.ranking_id
+      FROM ranking_items ri
+      JOIN rankings r ON r.id = ri.ranking_id
+      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id
       WHERE r.template_id IN (${placeholders}) AND ri.tier IS NOT NULL
       GROUP BY r.template_id, ri.item_id, ri.tier`).bind(...ids).all(),
   ]);

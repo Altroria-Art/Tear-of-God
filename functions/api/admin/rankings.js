@@ -4,6 +4,7 @@
 import { requireAdmin } from './_check.js';
 import { assertAllowedFields } from '../../lib/request-guard.js';
 import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
+import { getDeleteReconcileStatement, evictCommunityCache } from '../../lib/cooldown.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -76,13 +77,22 @@ export async function onRequest({ request, env, data: auth }) {
       assertAllowedFields(payload, ['action', 'target_id']);
 
       if (action === 'delete') {
-        await db.batch([
+        const ranking = await db.prepare('SELECT template_id, user_id FROM rankings WHERE id = ?').bind(targetId).first();
+        const batchStmts = [
           db.prepare('DELETE FROM ranking_items WHERE ranking_id = ?').bind(targetId),
           db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(targetId),
           db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(targetId),
           db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id = ?').bind(targetId),
           db.prepare('DELETE FROM rankings WHERE id = ?').bind(targetId)
-        ]);
+        ];
+        if (ranking?.template_id && ranking?.user_id) {
+          const reconcileStmt = await getDeleteReconcileStatement(db, ranking.template_id, ranking.user_id, targetId);
+          if (reconcileStmt) batchStmts.unshift(reconcileStmt);
+        }
+        await db.batch(batchStmts);
+        if (ranking?.template_id) {
+          await evictCommunityCache(request, ranking.template_id);
+        }
         return jsonResponse({ success: true, data: { id: targetId } });
       }
 

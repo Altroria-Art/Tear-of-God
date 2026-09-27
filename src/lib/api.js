@@ -406,8 +406,16 @@ export async function createRanking(rankingData) {  try {
     }
 
     const result = await response.json();
-    if (result.error) {
-       return { data: null, error: result.error };
+    if (result.error || !response.ok) {
+       return {
+         data: null,
+         error: result.error,
+         code: result.code,
+         template_id: result.template_id,
+         next_available_at: result.next_available_at,
+         remaining_seconds: result.remaining_seconds,
+         status: response.status,
+       };
     }
     
     return { data: result.data, error: null };

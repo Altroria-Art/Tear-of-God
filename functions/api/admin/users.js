@@ -108,6 +108,7 @@ export async function onRequest({ request, env, data: auth }) {
           db.prepare('DELETE FROM votes WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(targetId),
           db.prepare('DELETE FROM comments WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(targetId),
           db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id IN (SELECT id FROM rankings WHERE user_id = ?)').bind(targetId),
+          db.prepare('DELETE FROM template_user_contributions WHERE user_id = ?').bind(targetId),
           db.prepare('DELETE FROM rankings WHERE user_id = ?').bind(targetId),
           db.prepare('UPDATE templates SET creator_id = NULL WHERE creator_id = ?').bind(targetId),
           db.prepare('DELETE FROM votes WHERE user_id = ?').bind(targetId),

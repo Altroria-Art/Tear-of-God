@@ -12,6 +12,12 @@ import {
   calculateCommunitySimilarity,
   MIN_COMMUNITY_SAMPLES,
 } from '../lib/similarity.js';
+import {
+  checkTemplateCooldown,
+  cooldownResponse,
+  recordContributionStatement,
+  evictCommunityCache,
+} from '../lib/cooldown.js';
 
 const jsonResponse = (data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -70,6 +76,11 @@ export async function onRequestPost({ request, env, data: auth }) {
         { success: false, error: 'Cannot duel your own template' },
         400
       );
+    }
+
+    const cooldown = await checkTemplateCooldown(db, templateId, currentUserId);
+    if (cooldown.active) {
+      return cooldownResponse(templateId, cooldown.cooldownUntil, cooldown.remainingSeconds);
     }
 
     // 2. Parse & validate template tiers
@@ -139,10 +150,13 @@ export async function onRequestPost({ request, env, data: auth }) {
     const comparison = calculateTierSimilarity(items, ownerPlacements, tiersDef);
     const similarityScore = comparison.score;
 
-    // 5. Calculate Community Average similarity (excluding Challenger A)
+    // 5. Calculate Community Average similarity (excluding Challenger A, anti-pumped)
     const communityRankingsCountRow = await db
       .prepare(
-        'SELECT COUNT(DISTINCT r.id) AS total FROM rankings r WHERE r.template_id = ? AND r.user_id != ?'
+        `SELECT COUNT(DISTINCT r.user_id) AS total
+         FROM rankings r
+         JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id
+         WHERE r.template_id = ? AND r.user_id != ?`
       )
       .bind(templateId, currentUserId)
       .first();
@@ -156,6 +170,7 @@ export async function onRequestPost({ request, env, data: auth }) {
           `SELECT ri.item_id, ri.tier, COUNT(*) AS placements
            FROM ranking_items ri
            JOIN rankings r ON r.id = ri.ranking_id
+           JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id
            WHERE r.template_id = ? AND r.user_id != ? AND ri.tier IS NOT NULL
            GROUP BY ri.item_id, ri.tier`
         )
@@ -298,7 +313,11 @@ export async function onRequestPost({ request, env, data: auth }) {
         .bind(crypto.randomUUID(), ownerId, currentUserId, rankingId, templateId)
     );
 
+    // Push cooldown and anti-pumping contribution record
+    statements.push(recordContributionStatement(db, templateId, currentUserId, rankingId));
+
     await db.batch(statements);
+    await evictCommunityCache(request, templateId);
 
     return jsonResponse(
       {
@@ -320,6 +339,10 @@ export async function onRequestPost({ request, env, data: auth }) {
   } catch (error) {
     const invalid = requestErrorResponse(error);
     if (invalid) return invalid;
+    if (error && (String(error.message).includes('TEMPLATE_COOLDOWN_ACTIVE') || String(error).includes('TEMPLATE_COOLDOWN_ACTIVE'))) {
+      const cooldown = await checkTemplateCooldown(db, templateId, currentUserId);
+      return cooldownResponse(templateId, cooldown.cooldownUntil, cooldown.remainingSeconds);
+    }
     console.error('Duel creation failed:', error?.name, error?.message);
     return jsonResponse(
       { success: false, error: 'Failed to complete duel' },
