@@ -443,18 +443,41 @@ export default function Profile() {
     setPinBusyId(null);
   };
 
-  const handleEquipBadge = async (badgeId) => {
+  const handleEquipBadge = async (badgeId, badgeMeta = null) => {
     if (!isOwnProfile || !currentUser || isEquippingBadge) return;
     const prevBadgeId = displayUser?.equipped_badge_id ?? null;
+    const prevBadgeMeta = displayUser?.equipped_badge_meta ?? null;
+    const nextBadgeObj = badgeId ? { id: badgeId, ...(badgeMeta || {}) } : null;
+
     setIsEquippingBadge(true);
-    setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: badgeId, equipped_badge: { id: badgeId } } : prev);
-    login({ ...currentUser, equipped_badge_id: badgeId });
+    setProfileUser((prev) => prev ? {
+      ...prev,
+      equipped_badge_id: badgeId,
+      equipped_badge_meta: badgeMeta,
+      equipped_badge: nextBadgeObj,
+    } : prev);
+    login({
+      ...currentUser,
+      equipped_badge_id: badgeId,
+      equipped_badge_meta: badgeMeta,
+      equipped_badge: nextBadgeObj,
+    });
 
     try {
-      const res = await equipBadge(badgeId);
+      const res = await equipBadge(badgeId, badgeMeta);
       if (!res?.success) {
-        setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: prevBadgeId, equipped_badge: prevBadgeId ? { id: prevBadgeId } : null } : prev);
-        login({ ...currentUser, equipped_badge_id: prevBadgeId });
+        setProfileUser((prev) => prev ? {
+          ...prev,
+          equipped_badge_id: prevBadgeId,
+          equipped_badge_meta: prevBadgeMeta,
+          equipped_badge: prevBadgeId ? { id: prevBadgeId, ...(prevBadgeMeta || {}) } : null,
+        } : prev);
+        login({
+          ...currentUser,
+          equipped_badge_id: prevBadgeId,
+          equipped_badge_meta: prevBadgeMeta,
+          equipped_badge: prevBadgeId ? { id: prevBadgeId, ...(prevBadgeMeta || {}) } : null,
+        });
         if (res?.code === 'BADGE_NOT_UNLOCKED') {
           toast.error(t('profile.badgeNotUnlocked'));
         } else {
@@ -464,8 +487,18 @@ export default function Profile() {
         toast.success(t('profile.badgeEquippedSuccess'));
       }
     } catch (err) {
-      setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: prevBadgeId, equipped_badge: prevBadgeId ? { id: prevBadgeId } : null } : prev);
-      login({ ...currentUser, equipped_badge_id: prevBadgeId });
+      setProfileUser((prev) => prev ? {
+        ...prev,
+        equipped_badge_id: prevBadgeId,
+        equipped_badge_meta: prevBadgeMeta,
+        equipped_badge: prevBadgeId ? { id: prevBadgeId, ...(prevBadgeMeta || {}) } : null,
+      } : prev);
+      login({
+        ...currentUser,
+        equipped_badge_id: prevBadgeId,
+        equipped_badge_meta: prevBadgeMeta,
+        equipped_badge: prevBadgeId ? { id: prevBadgeId, ...(prevBadgeMeta || {}) } : null,
+      });
       toast.error(t('profile.badgeEquipFailed', { msg: err?.message || '' }));
     } finally {
       setIsEquippingBadge(false);
@@ -475,22 +508,54 @@ export default function Profile() {
   const handleUnequipBadge = async () => {
     if (!isOwnProfile || !currentUser || isEquippingBadge) return;
     const prevBadgeId = displayUser?.equipped_badge_id ?? null;
+    const prevBadgeMeta = displayUser?.equipped_badge_meta ?? null;
+
     setIsEquippingBadge(true);
-    setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: null, equipped_badge: null } : prev);
-    login({ ...currentUser, equipped_badge_id: null });
+    setProfileUser((prev) => prev ? {
+      ...prev,
+      equipped_badge_id: null,
+      equipped_badge_meta: null,
+      equipped_badge: null,
+    } : prev);
+    login({
+      ...currentUser,
+      equipped_badge_id: null,
+      equipped_badge_meta: null,
+      equipped_badge: null,
+    });
 
     try {
       const res = await equipBadge(null);
       if (!res?.success) {
-        setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: prevBadgeId, equipped_badge: prevBadgeId ? { id: prevBadgeId } : null } : prev);
-        login({ ...currentUser, equipped_badge_id: prevBadgeId });
+        setProfileUser((prev) => prev ? {
+          ...prev,
+          equipped_badge_id: prevBadgeId,
+          equipped_badge_meta: prevBadgeMeta,
+          equipped_badge: prevBadgeId ? { id: prevBadgeId, ...(prevBadgeMeta || {}) } : null,
+        } : prev);
+        login({
+          ...currentUser,
+          equipped_badge_id: prevBadgeId,
+          equipped_badge_meta: prevBadgeMeta,
+          equipped_badge: prevBadgeId ? { id: prevBadgeId, ...(prevBadgeMeta || {}) } : null,
+        });
         toast.error(t('profile.badgeEquipFailed', { msg: res?.error || '' }));
       } else {
         toast.success(t('profile.badgeUnequippedSuccess'));
       }
     } catch (err) {
-      setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: prevBadgeId, equipped_badge: prevBadgeId ? { id: prevBadgeId } : null } : prev);
-      login({ ...currentUser, equipped_badge_id: prevBadgeId });
+      setProfileUser((prev) => prev ? {
+        ...prev,
+        equipped_badge_id: prevBadgeId,
+        equipped_badge_meta: prevBadgeMeta,
+        equipped_badge: prevBadgeId ? { id: prevBadgeId, ...(prevBadgeMeta || {}) } : null,
+      } : prev);
+      login({
+        ...currentUser,
+        equipped_badge_id: prevBadgeId,
+        equipped_badge_meta: prevBadgeMeta,
+        equipped_badge: prevBadgeId ? { id: prevBadgeId, ...(prevBadgeMeta || {}) } : null,
+      });
       toast.error(t('profile.badgeEquipFailed', { msg: err?.message || '' }));
     } finally {
       setIsEquippingBadge(false);
@@ -621,7 +686,9 @@ export default function Profile() {
     rankingCount: displayUser?.posts_count ?? posts.length,
     templateCount: tasteIdentity.template_count ?? badgeValue('template_builder') ?? badgeValue('template_creator') ?? 0,
     followerCount: displayUser?.followers_count ?? 0,
-    maxTemplateUses: tasteIdentity.max_template_uses ?? badgeValue('trending_template') ?? badgeValue('template_hit'),
+    maxTemplateUses: tasteIdentity.max_template_uses ?? badgeValue('template_legend') ?? badgeValue('trending_template') ?? badgeValue('template_hit'),
+    topHashtag: tasteIdentity.top_hashtag ?? (hashtagDistribution.length > 0 ? hashtagDistribution[0] : null),
+    unlockedBadges: badges,
     unlockedIds: badges.map((b) => b.id),
   });
   const tasteMatch = tasteIdentity.taste_match;
@@ -669,17 +736,26 @@ export default function Profile() {
               </div>
 
               <h2 className="text-xl font-bold text-ink mb-1">{displayUser?.username}</h2>
-              {displayUser?.equipped_badge_id && (
-                <div className="flex justify-center mb-2">
-                  <div
-                    title={t(`profile.badge.${displayUser.equipped_badge_id}`)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-semibold max-w-full truncate shadow-2xs"
-                  >
-                    <Award size={13} className="shrink-0 text-amber-500" />
-                    <span className="truncate">{t(`profile.badge.${displayUser.equipped_badge_id}`)}</span>
+              {displayUser?.equipped_badge_id && (() => {
+                const meta = displayUser.equipped_badge_meta || displayUser.equipped_badge;
+                const rawTag = meta?.hashtag;
+                const cleanTag = rawTag ? String(rawTag).trim().replace(/^#+/, '').trim() : '';
+                const tag = cleanTag ? `#${cleanTag}` : '';
+                const badgeTitle = t(`profile.badge.${displayUser.equipped_badge_id}`);
+                const fullLabel = tag ? `${badgeTitle} · ${tag}` : badgeTitle;
+
+                return (
+                  <div className="flex justify-center mb-2 px-2 max-w-full">
+                    <div
+                      title={fullLabel}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-semibold max-w-full shadow-2xs"
+                    >
+                      <Award size={13} className="shrink-0 text-amber-500" />
+                      <span className="truncate">{fullLabel}</span>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
               <div className="flex justify-center gap-4 text-sm text-muted mb-3">
                 <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> {t('profile.followers')}</span>
                 <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> {t('profile.following')}</span>
@@ -810,6 +886,7 @@ export default function Profile() {
             <BadgeGallery
               badges={badgeStates}
               equippedBadgeId={displayUser?.equipped_badge_id}
+              equippedBadgeMeta={displayUser?.equipped_badge_meta || displayUser?.equipped_badge}
               canEquip={isOwnProfile}
               onEquip={handleEquipBadge}
               onUnequip={handleUnequipBadge}
@@ -936,7 +1013,11 @@ export default function Profile() {
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.badges')}</h4>
                 {badgeStates.filter((b) => b.unlocked).length > 0 ? (
-                  <BadgeGallery badges={badgeStates.filter((b) => b.unlocked)} />
+                  <BadgeGallery
+                    badges={badgeStates.filter((b) => b.unlocked)}
+                    equippedBadgeId={displayUser?.equipped_badge_id}
+                    equippedBadgeMeta={displayUser?.equipped_badge_meta || displayUser?.equipped_badge}
+                  />
                 ) : (
                   <p className="text-sm text-muted">{t('profile.noBadgesUnlocked')}</p>
                 )}

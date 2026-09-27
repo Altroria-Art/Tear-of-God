@@ -513,7 +513,11 @@
       "community_star": "Community Star",
       "template_hit": "Popular Template",
       "trending_template": "Trending Template",
-      "all_rounder": "All-Rounder"
+      "template_legend": "Template Legend",
+      "all_rounder": "All-Rounder",
+      "hashtag_enthusiast": "Hashtag Enthusiast",
+      "hashtag_specialist": "Hashtag Specialist",
+      "hashtag_master": "Hashtag Master"
     },
     "badgeDesc": {
       "first_rank": "Publish your first tier list",
@@ -525,7 +529,11 @@
       "community_star": "Gain 25 followers",
       "template_hit": "Own a template used 25 times",
       "trending_template": "Own a template used 100 times",
-      "all_rounder": "Publish 10 tier lists, create 5 templates, and gain 10 followers"
+      "template_legend": "Own a template used 500 times",
+      "all_rounder": "Publish 10 tier lists, create 5 templates, and gain 10 followers",
+      "hashtag_enthusiast": "10 contributions in {{hashtag}} (rankings or templates)",
+      "hashtag_specialist": "50 contributions in {{hashtag}} (rankings or templates)",
+      "hashtag_master": "100 contributions in {{hashtag}} (rankings or templates)"
     },
     "createNewTemplate": "Create New Template",
     "createNewTemplateHelp": "Start a new tier list from scratch",

@@ -513,7 +513,11 @@
       "community_star": "Community Star",
       "template_hit": "เทมเพลตยอดนิยม",
       "trending_template": "Trending Template",
-      "all_rounder": "All-Rounder"
+      "template_legend": "Template Legend",
+      "all_rounder": "All-Rounder",
+      "hashtag_enthusiast": "Hashtag Enthusiast",
+      "hashtag_specialist": "Hashtag Specialist",
+      "hashtag_master": "Hashtag Master"
     },
     "badgeDesc": {
       "first_rank": "เผยแพร่ tier list แรก",
@@ -525,7 +529,11 @@
       "community_star": "มีผู้ติดตาม 25 คน",
       "template_hit": "มีเทมเพลตที่ถูกใช้ 25 ครั้ง",
       "trending_template": "มีเทมเพลตที่ถูกใช้ 100 ครั้ง",
-      "all_rounder": "เผยแพร่ 10 tier lists, สร้าง 5 เทมเพลต และมีผู้ติดตาม 10 คน"
+      "template_legend": "มีเทมเพลตที่ถูกใช้ 500 ครั้ง",
+      "all_rounder": "เผยแพร่ 10 tier lists, สร้าง 5 เทมเพลต และมีผู้ติดตาม 10 คน",
+      "hashtag_enthusiast": "มีส่วนร่วม 10 ครั้งในแฮชแท็ก {{hashtag}} (โพสต์หรือสร้างเทมเพลต)",
+      "hashtag_specialist": "มีส่วนร่วม 50 ครั้งในแฮชแท็ก {{hashtag}} (โพสต์หรือสร้างเทมเพลต)",
+      "hashtag_master": "มีส่วนร่วม 100 ครั้งในแฮชแท็ก {{hashtag}} (โพสต์หรือสร้างเทมเพลต)"
     },
     "createNewTemplate": "สร้างเทมเพลตใหม่",
     "createNewTemplateHelp": "เริ่ม tier list ใหม่จากศูนย์",

@@ -3,12 +3,25 @@ import { firebaseConfig } from '../../src/lib/firebaseConfig.js';
 import { PROFILE_FIELDS, hashPassword, verifyPassword, allowAuthAttempt, createSession, sessionCookie, sessionToken, digest, randomToken } from '../lib/session.js';
 import { INPUT_LIMITS, assertString, clientAddress, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 
-import { VALID_BADGE_IDS, checkUserBadgeUnlocked } from '../lib/badges.js';
+import { validateAndResolveEquipBadge, parseEquippedBadgeMeta } from '../lib/badges.js';
 
 const reply = (body, status = 200, headers = {}) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
 const fail = (error, status = 400, extra = {}) => reply({ success: false, error, ...extra }, status);
 const validPassword = value => typeof value === 'string' && value.length >= 8 && value.length <= 256;
 const normalizeEmail = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+function formatProfileResponse(profile) {
+  if (!profile) return profile;
+  const equippedMeta = parseEquippedBadgeMeta(profile.equipped_badge_meta);
+  const equippedBadge = profile.equipped_badge_id
+    ? { id: profile.equipped_badge_id, ...(equippedMeta || {}) }
+    : null;
+  return {
+    ...profile,
+    equipped_badge_meta: equippedMeta,
+    equipped_badge: equippedBadge,
+  };
+}
 
 async function findByEmail(db, email) {
   const { results } = await db.prepare('SELECT * FROM profiles WHERE email = ? LIMIT 2').bind(normalizeEmail(email)).all();
@@ -18,7 +31,7 @@ async function findByEmail(db, email) {
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const isPreview = env.APP_ENV === 'preview';
-  if (request.method === 'GET') return reply({ success: true, data: auth.user });
+  if (request.method === 'GET') return reply({ success: true, data: formatProfileResponse(auth.user) });
   if (request.method !== 'POST') return fail('Method not allowed', 405);
   const bodyGate = consumeMemoryRateLimit('auth-body', clientAddress(request), { limit: 60, windowSeconds: 60 });
   if (!bodyGate.allowed) return rateLimitResponse(bodyGate);
@@ -72,7 +85,7 @@ export async function onRequest({ request, env, data: auth }) {
         await db.prepare('UPDATE profiles SET password = ? WHERE id = ? AND password = ?').bind(await hashPassword(password), user.id, user.password).run();
       }
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(user.id).first();
-      return reply({ success: true, data: profile }, 200, { 'Set-Cookie': await createSession(request, db, user.id) });
+      return reply({ success: true, data: formatProfileResponse(profile) }, 200, { 'Set-Cookie': await createSession(request, db, user.id) });
     }
     if (action === 'google_sync') {
       if (typeof payload.idToken !== 'string' || payload.idToken.length > 10000) return fail('Missing Google ID token', 401);
@@ -98,7 +111,7 @@ export async function onRequest({ request, env, data: auth }) {
       await db.prepare("INSERT OR IGNORE INTO auth_identities (provider, subject, user_id) VALUES ('google', ?, ?)").bind(account.localId, user.id).run();
       const linked = await db.prepare("SELECT user_id FROM auth_identities WHERE provider = 'google' AND subject = ?").bind(account.localId).first();
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(linked.user_id).first();
-      return reply({ success: true, data: profile, isNewUser }, 200, { 'Set-Cookie': await createSession(request, db, profile.id) });
+      return reply({ success: true, data: formatProfileResponse(profile), isNewUser }, 200, { 'Set-Cookie': await createSession(request, db, profile.id) });
     }
     if (action === 'forgot_password') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return fail('อีเมลไม่ถูกต้อง');
@@ -227,15 +240,11 @@ export async function onRequest({ request, env, data: auth }) {
       if (username !== undefined && (typeof username !== 'string' || !username.trim() || username.length > 50)) return fail('ชื่อไม่ถูกต้อง / Invalid name');
       if (bio != null && (typeof bio !== 'string' || bio.length > 1000)) return fail('Bio must be at most 1000 characters');
       if (avatar_url && (typeof avatar_url !== 'string' || !/^https:\/\//.test(avatar_url) || avatar_url.length > 2000)) return fail('Invalid avatar URL');
+      let resolvedEquip = null;
       if (equipped_badge_id !== undefined) {
-        if (equipped_badge_id !== null && equipped_badge_id !== '') {
-          if (typeof equipped_badge_id !== 'string' || !VALID_BADGE_IDS.has(equipped_badge_id)) {
-            return fail('ป้ายไม่ถูกต้อง / Invalid badge ID', 400, { code: 'INVALID_BADGE' });
-          }
-          const isUnlocked = await checkUserBadgeUnlocked(db, userId, equipped_badge_id);
-          if (!isUnlocked) {
-            return fail('ป้ายนี้ยังไม่ถูกปลดล็อก / Badge is not unlocked', 403, { code: 'BADGE_NOT_UNLOCKED' });
-          }
+        resolvedEquip = await validateAndResolveEquipBadge(db, userId, equipped_badge_id, payload.equipped_badge_meta);
+        if (!resolvedEquip.valid) {
+          return fail(resolvedEquip.error, resolvedEquip.status, { code: resolvedEquip.code });
         }
       }
       const fields = {
@@ -246,7 +255,8 @@ export async function onRequest({ request, env, data: auth }) {
         faculty,
         major,
         year,
-        equipped_badge_id: equipped_badge_id !== undefined ? (equipped_badge_id || null) : undefined,
+        equipped_badge_id: resolvedEquip ? resolvedEquip.badgeId : undefined,
+        equipped_badge_meta: resolvedEquip ? resolvedEquip.metaString : undefined,
       };
       if (password !== undefined) {
         if (!validPassword(password) || typeof payload.currentPassword !== 'string' || payload.currentPassword.length > 256) return fail('กรุณาระบุรหัสผ่านปัจจุบันและรหัสใหม่อย่างน้อย 8 ตัวอักษร');
@@ -262,26 +272,20 @@ export async function onRequest({ request, env, data: auth }) {
       if (password !== undefined) statements.push(db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(userId));
       await db.batch(statements);
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(userId).first();
-      return reply({ success: true, data: profile }, 200, password !== undefined ? { 'Set-Cookie': await createSession(request, db, userId) } : {});
+      return reply({ success: true, data: formatProfileResponse(profile) }, 200, password !== undefined ? { 'Set-Cookie': await createSession(request, db, userId) } : {});
     }
     if (action === 'equip_badge') {
       if (!auth.user) return fail('กรุณาเข้าสู่ระบบ / Please log in', 401);
       const userId = auth.user.id;
-      const { equipped_badge_id } = payload;
-      let targetBadgeId = null;
-      if (equipped_badge_id !== null && equipped_badge_id !== undefined && equipped_badge_id !== '') {
-        if (typeof equipped_badge_id !== 'string' || !VALID_BADGE_IDS.has(equipped_badge_id)) {
-          return fail('ป้ายไม่ถูกต้อง / Invalid badge ID', 400, { code: 'INVALID_BADGE' });
-        }
-        const isUnlocked = await checkUserBadgeUnlocked(db, userId, equipped_badge_id);
-        if (!isUnlocked) {
-          return fail('ป้ายนี้ยังไม่ถูกปลดล็อก / Badge is not unlocked', 403, { code: 'BADGE_NOT_UNLOCKED' });
-        }
-        targetBadgeId = equipped_badge_id;
+      const { equipped_badge_id, equipped_badge_meta } = payload;
+      const resolved = await validateAndResolveEquipBadge(db, userId, equipped_badge_id, equipped_badge_meta);
+      if (!resolved.valid) {
+        return fail(resolved.error, resolved.status, { code: resolved.code });
       }
-      await db.prepare('UPDATE profiles SET equipped_badge_id = ? WHERE id = ?').bind(targetBadgeId, userId).run();
+      await db.prepare('UPDATE profiles SET equipped_badge_id = ?, equipped_badge_meta = ? WHERE id = ?')
+        .bind(resolved.badgeId, resolved.metaString, userId).run();
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(userId).first();
-      return reply({ success: true, data: profile });
+      return reply({ success: true, data: formatProfileResponse(profile) });
     }
     return fail('Invalid action');
   } catch (error) {

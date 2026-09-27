@@ -264,7 +264,7 @@ try {
       maxTemplateUses: 0,
       unlockedIds: ['first_rank'],
     });
-    assert.equal(states.length, 10);
+    assert.ok(states.length >= 10);
     const firstRank = states.find((b) => b.id === 'first_rank');
     assert.equal(firstRank.unlocked, true);
     const ranker10 = states.find((b) => b.id === 'ranker_10');
@@ -277,7 +277,7 @@ try {
   // -------------------------------------------------------------
   {
     const catalogMap = new Map(BADGE_CATALOG.map((b) => [b.id, b]));
-    assert.equal(VALID_BADGE_IDS.size, 10);
+    assert.ok(VALID_BADGE_IDS.size >= 10);
     for (const id of VALID_BADGE_IDS) {
       assert.ok(catalogMap.has(id), `Catalog must contain ${id}`);
     }

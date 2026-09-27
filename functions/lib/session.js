@@ -6,7 +6,7 @@ const encoder = new TextEncoder();
 
 let lastAttemptCleanup = 0;
 
-export const PROFILE_FIELDS = 'id, username, email, bio, avatar_url, university, faculty, major, year, role, equipped_badge_id';
+export const PROFILE_FIELDS = 'id, username, email, bio, avatar_url, university, faculty, major, year, role, equipped_badge_id, equipped_badge_meta';
 
 export async function digest(value) {
   const bytes = await crypto.subtle.digest('SHA-256', encoder.encode(value));

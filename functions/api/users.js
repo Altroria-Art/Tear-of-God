@@ -1,5 +1,5 @@
 import { internalErrorResponse } from '../lib/request-guard.js';
-import { calculateUnlockedBadges } from '../lib/badges.js';
+import { calculateUnlockedBadges, HASHTAG_BADGE_IDS, normalizeHashtag, parseEquippedBadgeMeta } from '../lib/badges.js';
 
 const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
@@ -105,11 +105,14 @@ async function buildTasteIdentity(db, userId, baseUser) {
   const [hashtagResult, topScoreResult, pinnedResult, templateStats] = await Promise.all([
     db.prepare(`
       SELECT hashtag, COUNT(*) AS count
-      FROM ranking_hashtags
-      WHERE user_id = ?
+      FROM (
+        SELECT ranking_id AS id, hashtag FROM ranking_hashtags WHERE user_id = ?
+        UNION ALL
+        SELECT template_id AS id, hashtag FROM template_hashtags WHERE creator_id = ?
+      )
       GROUP BY hashtag
       ORDER BY count DESC, hashtag ASC
-    `).bind(userId).all(),
+    `).bind(userId, userId).all(),
     db.prepare(`
       SELECT ris.item_id, COALESCE(i.name, ris.item_id) AS name, COUNT(*) AS count
       FROM ranking_item_scores ris
@@ -168,6 +171,8 @@ async function buildTasteIdentity(db, userId, baseUser) {
     topItemRows = fallback?.results || [];
   }
 
+  const topHashtag = hashtags.length > 0 ? hashtags[0] : null;
+
   const hashtagDistribution = hashtags.map((row) => ({
     ...row,
     percentage: totalHashtagRanks ? Math.round((row.count / totalHashtagRanks) * 100) : 0,
@@ -177,10 +182,17 @@ async function buildTasteIdentity(db, userId, baseUser) {
   const followerCount = toNumber(baseUser.followers_count);
   const templateCount = toNumber(templateStats?.template_count);
   const maxTemplateUses = toNumber(templateStats?.max_template_uses);
-  const badges = calculateUnlockedBadges({ rankingCount, followerCount, templateCount, maxTemplateUses });
+  const badges = calculateUnlockedBadges({
+    rankingCount,
+    followerCount,
+    templateCount,
+    maxTemplateUses,
+    topHashtag,
+  });
 
   return {
     hashtag_distribution: hashtagDistribution,
+    top_hashtag: topHashtag,
     top_items: topItemRows.map((row) => ({
       id: row.item_id,
       name: row.name || row.item_id,
@@ -281,12 +293,30 @@ export async function onRequest({ request, env, data: auth }) {
     };
 
     const taste_identity = await buildTasteIdentity(db, id, publicUser);
-    const unlockedIds = new Set((taste_identity?.badges || []).map((b) => b.id));
-    const isEquippedValid = user.equipped_badge_id && unlockedIds.has(user.equipped_badge_id);
+    const unlockedBadges = taste_identity?.badges || [];
+    const equippedMeta = parseEquippedBadgeMeta(user.equipped_badge_meta);
+
+    let isEquippedValid = false;
+    if (user.equipped_badge_id) {
+      if (HASHTAG_BADGE_IDS.has(user.equipped_badge_id)) {
+        if (equippedMeta?.hashtag) {
+          const equippedNorm = normalizeHashtag(equippedMeta.hashtag);
+          isEquippedValid = unlockedBadges.some((b) =>
+            b.id === user.equipped_badge_id &&
+            normalizeHashtag(b.hashtag) === equippedNorm
+          );
+        }
+      } else {
+        isEquippedValid = unlockedBadges.some((b) => b.id === user.equipped_badge_id);
+      }
+    }
+
     const equippedBadgeId = isEquippedValid ? user.equipped_badge_id : null;
+    const equippedBadgeMeta = isEquippedValid ? equippedMeta : null;
 
     publicUser.equipped_badge_id = equippedBadgeId;
-    publicUser.equipped_badge = equippedBadgeId ? { id: equippedBadgeId } : null;
+    publicUser.equipped_badge_meta = equippedBadgeMeta;
+    publicUser.equipped_badge = equippedBadgeId ? { id: equippedBadgeId, ...(equippedBadgeMeta || {}) } : null;
 
     return jsonResponse({ success: true, data: { ...publicUser, taste_identity } });
   } catch (err) {
