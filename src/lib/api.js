@@ -132,6 +132,21 @@ export async function updateProfile(_userId, profileData) {
   }
 }
 
+// 📍 ฟังก์ชันสำหรับติดตั้ง/ถอดยศประจำตัว (Equip/Unequip Badge)
+export async function equipBadge(badgeId) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'equip_badge', equipped_badge_id: badgeId ?? null })
+    });
+    if (response.status === 401) window.dispatchEvent(new Event('tog-session-expired'));
+    return await response.json();
+  } catch {
+    return { success: false, error: i18n.t('errors.profileUpdateFailed') };
+  }
+}
+
 // 📍 [เพิ่มใหม่]: ฟังก์ชันสำหรับอัปโหลดไฟล์รูปภาพไป R2
 export async function uploadImage(file, userId) {
   try {

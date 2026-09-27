@@ -3,8 +3,10 @@ import { firebaseConfig } from '../../src/lib/firebaseConfig.js';
 import { PROFILE_FIELDS, hashPassword, verifyPassword, allowAuthAttempt, createSession, sessionCookie, sessionToken, digest, randomToken } from '../lib/session.js';
 import { INPUT_LIMITS, assertString, clientAddress, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 
+import { VALID_BADGE_IDS, checkUserBadgeUnlocked } from '../lib/badges.js';
+
 const reply = (body, status = 200, headers = {}) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
-const fail = (error, status = 400) => reply({ success: false, error }, status);
+const fail = (error, status = 400, extra = {}) => reply({ success: false, error, ...extra }, status);
 const validPassword = value => typeof value === 'string' && value.length >= 8 && value.length <= 256;
 const normalizeEmail = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
 
@@ -207,7 +209,7 @@ export async function onRequest({ request, env, data: auth }) {
     if (action === 'update_profile') {
       if (!auth.user) return fail('กรุณาเข้าสู่ระบบ / Please log in', 401);
       const userId = auth.user.id;
-      const { username, bio, avatar_url, university, faculty, major, year } = payload;
+      const { username, bio, avatar_url, university, faculty, major, year, equipped_badge_id } = payload;
       const profileGate = consumeMemoryRateLimit('profile-update', userId, { limit: 20, windowSeconds: 3600 });
       if (!profileGate.allowed) return rateLimitResponse(profileGate);
       if (username !== undefined) assertString(username, 'username', { min: 1, max: 50, trim: true });
@@ -225,7 +227,27 @@ export async function onRequest({ request, env, data: auth }) {
       if (username !== undefined && (typeof username !== 'string' || !username.trim() || username.length > 50)) return fail('ชื่อไม่ถูกต้อง / Invalid name');
       if (bio != null && (typeof bio !== 'string' || bio.length > 1000)) return fail('Bio must be at most 1000 characters');
       if (avatar_url && (typeof avatar_url !== 'string' || !/^https:\/\//.test(avatar_url) || avatar_url.length > 2000)) return fail('Invalid avatar URL');
-      const fields = { username, bio, avatar_url, university, faculty, major, year };
+      if (equipped_badge_id !== undefined) {
+        if (equipped_badge_id !== null && equipped_badge_id !== '') {
+          if (typeof equipped_badge_id !== 'string' || !VALID_BADGE_IDS.has(equipped_badge_id)) {
+            return fail('ป้ายไม่ถูกต้อง / Invalid badge ID', 400, { code: 'INVALID_BADGE' });
+          }
+          const isUnlocked = await checkUserBadgeUnlocked(db, userId, equipped_badge_id);
+          if (!isUnlocked) {
+            return fail('ป้ายนี้ยังไม่ถูกปลดล็อก / Badge is not unlocked', 403, { code: 'BADGE_NOT_UNLOCKED' });
+          }
+        }
+      }
+      const fields = {
+        username,
+        bio,
+        avatar_url,
+        university,
+        faculty,
+        major,
+        year,
+        equipped_badge_id: equipped_badge_id !== undefined ? (equipped_badge_id || null) : undefined,
+      };
       if (password !== undefined) {
         if (!validPassword(password) || typeof payload.currentPassword !== 'string' || payload.currentPassword.length > 256) return fail('กรุณาระบุรหัสผ่านปัจจุบันและรหัสใหม่อย่างน้อย 8 ตัวอักษร');
         const passwordRate = await allowAuthAttempt(request, db, auth.user.email, { scope: 'change_password', limit: 5, windowSeconds: 900 });
@@ -241,6 +263,25 @@ export async function onRequest({ request, env, data: auth }) {
       await db.batch(statements);
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(userId).first();
       return reply({ success: true, data: profile }, 200, password !== undefined ? { 'Set-Cookie': await createSession(request, db, userId) } : {});
+    }
+    if (action === 'equip_badge') {
+      if (!auth.user) return fail('กรุณาเข้าสู่ระบบ / Please log in', 401);
+      const userId = auth.user.id;
+      const { equipped_badge_id } = payload;
+      let targetBadgeId = null;
+      if (equipped_badge_id !== null && equipped_badge_id !== undefined && equipped_badge_id !== '') {
+        if (typeof equipped_badge_id !== 'string' || !VALID_BADGE_IDS.has(equipped_badge_id)) {
+          return fail('ป้ายไม่ถูกต้อง / Invalid badge ID', 400, { code: 'INVALID_BADGE' });
+        }
+        const isUnlocked = await checkUserBadgeUnlocked(db, userId, equipped_badge_id);
+        if (!isUnlocked) {
+          return fail('ป้ายนี้ยังไม่ถูกปลดล็อก / Badge is not unlocked', 403, { code: 'BADGE_NOT_UNLOCKED' });
+        }
+        targetBadgeId = equipped_badge_id;
+      }
+      await db.prepare('UPDATE profiles SET equipped_badge_id = ? WHERE id = ?').bind(targetBadgeId, userId).run();
+      const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(userId).first();
+      return reply({ success: true, data: profile });
     }
     return fail('Invalid action');
   } catch (error) {

@@ -1,6 +1,5 @@
-// Public profile endpoint. The response intentionally contains no email/password,
-// and now includes a small, query-time Taste Identity built from real activity.
 import { internalErrorResponse } from '../lib/request-guard.js';
+import { calculateUnlockedBadges } from '../lib/badges.js';
 
 const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
   status,
@@ -178,19 +177,7 @@ async function buildTasteIdentity(db, userId, baseUser) {
   const followerCount = toNumber(baseUser.followers_count);
   const templateCount = toNumber(templateStats?.template_count);
   const maxTemplateUses = toNumber(templateStats?.max_template_uses);
-  const badges = [];
-  if (rankingCount >= 1) badges.push({ id: 'first_rank', value: rankingCount });
-  if (rankingCount >= 10) badges.push({ id: 'ranker_10', value: rankingCount });
-  if (rankingCount >= 50) badges.push({ id: 'ranking_veteran', value: rankingCount });
-  if (templateCount >= 1) badges.push({ id: 'template_creator', value: templateCount });
-  if (templateCount >= 5) badges.push({ id: 'template_builder', value: templateCount });
-  if (followerCount >= 5) badges.push({ id: 'community_voice', value: followerCount });
-  if (followerCount >= 25) badges.push({ id: 'community_star', value: followerCount });
-  if (maxTemplateUses >= 25) badges.push({ id: 'template_hit', value: maxTemplateUses });
-  if (maxTemplateUses >= 100) badges.push({ id: 'trending_template', value: maxTemplateUses });
-  if (rankingCount >= 10 && templateCount >= 5 && followerCount >= 10) {
-    badges.push({ id: 'all_rounder', value: 3 });
-  }
+  const badges = calculateUnlockedBadges({ rankingCount, followerCount, templateCount, maxTemplateUses });
 
   return {
     hashtag_distribution: hashtagDistribution,
@@ -294,6 +281,13 @@ export async function onRequest({ request, env, data: auth }) {
     };
 
     const taste_identity = await buildTasteIdentity(db, id, publicUser);
+    const unlockedIds = new Set((taste_identity?.badges || []).map((b) => b.id));
+    const isEquippedValid = user.equipped_badge_id && unlockedIds.has(user.equipped_badge_id);
+    const equippedBadgeId = isEquippedValid ? user.equipped_badge_id : null;
+
+    publicUser.equipped_badge_id = equippedBadgeId;
+    publicUser.equipped_badge = equippedBadgeId ? { id: equippedBadgeId } : null;
+
     return jsonResponse({ success: true, data: { ...publicUser, taste_identity } });
   } catch (err) {
     console.error('User profile query failed:', { name: err?.name, message: err?.message });

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   major TEXT,
   year TEXT,
   role TEXT DEFAULT 'user',
+  equipped_badge_id TEXT DEFAULT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

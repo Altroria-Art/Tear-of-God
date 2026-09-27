@@ -5,7 +5,7 @@ import { returnPath } from '../lib/navigation';
 import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid, Swords } from 'lucide-react';
 import BadgeGallery from '../components/user/BadgeGallery';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, updateProfile, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
+import { fetchRankings, updateProfile, equipBadge, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import { normalizeImageUrl } from '../lib/images';
@@ -229,6 +229,7 @@ export default function Profile() {
   const [pinBusyId, setPinBusyId] = useState(null);
   const [isTasteDetailsOpen, setIsTasteDetailsOpen] = useState(false);
   const [isBadgesOpen, setIsBadgesOpen] = useState(false);
+  const [isEquippingBadge, setIsEquippingBadge] = useState(false);
   const [postTab, setPostTab] = useState('all'); // 'all' | 'pinned' | 'duels'
   const [duels, setDuels] = useState([]);
   const [duelTotal, setDuelTotal] = useState(0);
@@ -442,6 +443,60 @@ export default function Profile() {
     setPinBusyId(null);
   };
 
+  const handleEquipBadge = async (badgeId) => {
+    if (!isOwnProfile || !currentUser || isEquippingBadge) return;
+    const prevBadgeId = displayUser?.equipped_badge_id ?? null;
+    setIsEquippingBadge(true);
+    setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: badgeId, equipped_badge: { id: badgeId } } : prev);
+    login({ ...currentUser, equipped_badge_id: badgeId });
+
+    try {
+      const res = await equipBadge(badgeId);
+      if (!res?.success) {
+        setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: prevBadgeId, equipped_badge: prevBadgeId ? { id: prevBadgeId } : null } : prev);
+        login({ ...currentUser, equipped_badge_id: prevBadgeId });
+        if (res?.code === 'BADGE_NOT_UNLOCKED') {
+          toast.error(t('profile.badgeNotUnlocked'));
+        } else {
+          toast.error(t('profile.badgeEquipFailed', { msg: res?.error || '' }));
+        }
+      } else {
+        toast.success(t('profile.badgeEquippedSuccess'));
+      }
+    } catch (err) {
+      setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: prevBadgeId, equipped_badge: prevBadgeId ? { id: prevBadgeId } : null } : prev);
+      login({ ...currentUser, equipped_badge_id: prevBadgeId });
+      toast.error(t('profile.badgeEquipFailed', { msg: err?.message || '' }));
+    } finally {
+      setIsEquippingBadge(false);
+    }
+  };
+
+  const handleUnequipBadge = async () => {
+    if (!isOwnProfile || !currentUser || isEquippingBadge) return;
+    const prevBadgeId = displayUser?.equipped_badge_id ?? null;
+    setIsEquippingBadge(true);
+    setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: null, equipped_badge: null } : prev);
+    login({ ...currentUser, equipped_badge_id: null });
+
+    try {
+      const res = await equipBadge(null);
+      if (!res?.success) {
+        setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: prevBadgeId, equipped_badge: prevBadgeId ? { id: prevBadgeId } : null } : prev);
+        login({ ...currentUser, equipped_badge_id: prevBadgeId });
+        toast.error(t('profile.badgeEquipFailed', { msg: res?.error || '' }));
+      } else {
+        toast.success(t('profile.badgeUnequippedSuccess'));
+      }
+    } catch (err) {
+      setProfileUser((prev) => prev ? { ...prev, equipped_badge_id: prevBadgeId, equipped_badge: prevBadgeId ? { id: prevBadgeId } : null } : prev);
+      login({ ...currentUser, equipped_badge_id: prevBadgeId });
+      toast.error(t('profile.badgeEquipFailed', { msg: err?.message || '' }));
+    } finally {
+      setIsEquippingBadge(false);
+    }
+  };
+
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -614,6 +669,17 @@ export default function Profile() {
               </div>
 
               <h2 className="text-xl font-bold text-ink mb-1">{displayUser?.username}</h2>
+              {displayUser?.equipped_badge_id && (
+                <div className="flex justify-center mb-2">
+                  <div
+                    title={t(`profile.badge.${displayUser.equipped_badge_id}`)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-semibold max-w-full truncate shadow-2xs"
+                  >
+                    <Award size={13} className="shrink-0 text-amber-500" />
+                    <span className="truncate">{t(`profile.badge.${displayUser.equipped_badge_id}`)}</span>
+                  </div>
+                </div>
+              )}
               <div className="flex justify-center gap-4 text-sm text-muted mb-3">
                 <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> {t('profile.followers')}</span>
                 <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> {t('profile.following')}</span>
@@ -741,7 +807,14 @@ export default function Profile() {
 
           <Modal open={isBadgesOpen} onClose={() => setIsBadgesOpen(false)} title={t('profile.badges')} maxWidth="max-w-2xl">
             <p className="text-sm text-muted mb-4">{t('profile.badgesFor', { name: displayUser?.username })}</p>
-            <BadgeGallery badges={badgeStates} />
+            <BadgeGallery
+              badges={badgeStates}
+              equippedBadgeId={displayUser?.equipped_badge_id}
+              canEquip={isOwnProfile}
+              onEquip={handleEquipBadge}
+              onUnequip={handleUnequipBadge}
+              isEquipping={isEquippingBadge}
+            />
           </Modal>
 
           {/* Right Content: Create Template Button & List of User Posts */}
