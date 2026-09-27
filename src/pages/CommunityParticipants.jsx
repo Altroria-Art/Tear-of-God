@@ -246,10 +246,16 @@ function CommunityParticipantsContent() {
   }, [])
 
   // เลือกผู้เข้าร่วม → auto-populate Faculty/Major/Year จากโปรไฟล์ของคนนั้น
-  // ค่าที่ไม่มี/ไม่ถูกต้องในโปรไฟล์จะปล่อยเป็น All — ไม่เดาหรือเติมข้อมูล
+  // ถ้าเลือก 'all' (ทุกคน) ให้รีเซ็ต Faculty/Major/Year กลับเป็น All ทั้งหมด
   const applyParticipantSelection = useCallback((userId) => {
     setParticipantFilter(userId)
-    if (!userId || userId === 'all') return
+    if (userId === 'all') {
+      setFacultyFilter('')
+      setMajorFilter('')
+      setYearFilter('')
+      return
+    }
+    if (!userId) return
 
     const participant = participantOptions.find(p => p.user_id === userId)
     if (!participant) return
@@ -264,23 +270,23 @@ function CommunityParticipantsContent() {
     )
   }, [participantOptions, admissionYears])
 
-  // สลับ filter profile ด้วยมือ → รีเซ็ต participant กลับเป็น All
+  // สลับ filter profile ด้วยมือ → รีเซ็ต participant เป็น 'all' ถ้าไม่มี filter อื่น หรือ '' (avg) ถ้ากำลัง filter
   // (auto-populate ผ่าน applyParticipantSelection จึงไม่ชนกัน)
   const handleFacultyChange = useCallback((value) => {
     setFacultyFilter(value)
     setMajorFilter('')
-    setParticipantFilter('all')
+    setParticipantFilter(value ? '' : 'all')
   }, [])
 
   const handleMajorChange = useCallback((value) => {
     setMajorFilter(value)
-    setParticipantFilter('all')
+    setParticipantFilter('')
   }, [])
 
   const handleYearChange = useCallback((value) => {
     setYearFilter(value)
-    setParticipantFilter('all')
-  }, [])
+    setParticipantFilter(value || facultyFilter || majorFilter ? '' : 'all')
+  }, [facultyFilter, majorFilter])
 
   const clearAllFilters = useCallback(() => {
     setSelectedTiers([])
