@@ -81,6 +81,7 @@ function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isR
 export default function CommentSection({ comments = [], onSubmit, onReportComment, onDeleteComment, inputRef }) {
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState(null) // { id, name }
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { t } = useTranslation()
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -108,7 +109,7 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
   // Group comments
   const { parents, childrenByParentId } = useMemo(() => {
     const parents = []
-    const childrenByParentId = {}
+    const childrenByParentId = Object.create(null)
     
     comments.forEach(c => {
       if (c.parentId) {
@@ -131,21 +132,25 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
     const body = draft.trim()
     if (!body) return
     if (!submitGuardRef.current.acquire()) return
-    // clear ทันทีเหมือน behavior เดิม — await มีไว้แค่จับจังหวะ release guard
-    // (failure ก็ release ใน finally จึง retry ได้)
-    setDraft('')
-    setReplyingTo(null)
+    const submittedDraft = draft
+    const submittedReply = replyingTo
+    setIsSubmitting(true)
     try {
-      await onSubmit(body, replyingTo?.id)
+      const success = await onSubmit(body, submittedReply?.id)
+      if (success !== false) {
+        setDraft(current => current === submittedDraft ? '' : current)
+        setReplyingTo(current => current === submittedReply ? null : current)
+      }
     } finally {
+      setIsSubmitting(false)
       submitGuardRef.current.release()
     }
   }
 
   function handleReply(parentId, parentName) {
     setReplyingTo({ id: parentId, name: parentName })
-    inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    inputRef.current?.focus()
+    inputRef?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    inputRef?.current?.focus()
   }
 
   function cancelReply() {
@@ -168,18 +173,18 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
             </button>
           </div>
         )}
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <textarea
             ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder={t('post.commentPh')}
             rows={2}
-            className="flex-1 resize-none rounded-xl border border-line-soft bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-accent"
+            className="min-w-0 flex-1 resize-none rounded-xl border border-line-soft bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />
           <button
             type="submit"
-            disabled={!draft.trim()}
+            disabled={isSubmitting || !draft.trim()}
             className="self-end rounded-full bg-brand-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 shrink-0"
           >
             {t('post.postComment')}

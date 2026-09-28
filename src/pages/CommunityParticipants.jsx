@@ -20,14 +20,14 @@ const EMPTY_TIERS = []
 // คืนค่า [{ label, color, index, items: [{ name, avg, votes }] }]
 function calculateCommunityAverage(filteredRankings, tiersDef) {
   const tierCount = tiersDef.length
-  const tierIndexByLabel = {}
+  const tierIndexByLabel = Object.create(null)
   tiersDef.forEach((t, i) => { tierIndexByLabel[t.label] = i })
 
   // รวบรวมคะแนนของแต่ละ item จากทุก ranking ที่ filter ได้
-  const itemData = {} // itemName → { sum, count }
+  const itemData = Object.create(null) // itemName → { sum, count }
 
   filteredRankings.forEach(ranking => {
-    ranking.ranking_items.forEach(item => {
+    ;(ranking.ranking_items || []).forEach(item => {
       if (!item.tier) return // ยังไม่ได้จัด — ข้าม
       const tierIdx = tierIndexByLabel[item.tier]
       if (tierIdx === undefined) return // tier ไม่ตรงกับ template — ข้าม
@@ -41,7 +41,7 @@ function calculateCommunityAverage(filteredRankings, tiersDef) {
   })
 
   // จัดกลุ่ม item ตาม tier เฉลี่ย
-  const tierGroups = {}
+  const tierGroups = Object.create(null)
   tiersDef.forEach(t => { tierGroups[t.label] = [] })
 
   Object.entries(itemData).forEach(([name, data]) => {
@@ -72,7 +72,7 @@ export default function CommunityParticipants() {
   if (currentUser?.role !== 'admin') {
     return <Navigate to={`/template/${encodeURIComponent(templateId)}/community`} replace />
   }
-  return <CommunityParticipantsContent />
+  return <CommunityParticipantsContent key={templateId} />
 }
 
 function CommunityParticipantsContent() {
@@ -137,6 +137,7 @@ function CommunityParticipantsContent() {
       if (cancelled) return
 
       if (tplRes.data) setTemplate(tplRes.data)
+      else setError(tplRes.error || 'Failed to load template')
       if (participantsRes.data) {
         setParticipants(participantsRes.data)
       } else {
@@ -181,11 +182,9 @@ function CommunityParticipantsContent() {
 
   // Template items map สำหรับดึงข้อมูลรูปภาพ (image_url) ของแต่ละ item
   const templateItemMap = useMemo(() => {
-    const map = {}
-    if (Array.isArray(template?.items)) {
-      template.items.forEach(it => {
-        if (it?.id) map[it.id] = it
-      })
+    const map = Object.create(null)
+    for (const row of template?.template_items || []) {
+      if (row.item_id && row.item) map[row.item_id] = row.item
     }
     return map
   }, [template])
@@ -206,11 +205,11 @@ function CommunityParticipantsContent() {
 
   // ดึงไอเทมของแต่ละคนใน tier ที่ระบุ
   const getParticipantItems = useCallback((p, tierLabel) => {
-    const normLabel = String(tierLabel || '').trim().toLowerCase()
+    const normLabel = String(tierLabel || '')
 
     if (Array.isArray(p.tiers)) {
       const foundTier = p.tiers.find(
-        t => String(t.label || t.name || '').trim().toLowerCase() === normLabel
+        t => String(t.label || t.name || '') === normLabel
       )
       if (foundTier && Array.isArray(foundTier.items)) {
         return foundTier.items.map(it => {
@@ -227,7 +226,7 @@ function CommunityParticipantsContent() {
 
     const flatItems = p.ranking_items || p.items || []
     return flatItems
-      .filter(i => String(i.tier || '').trim().toLowerCase() === normLabel)
+      .filter(i => String(i.tier || '') === normLabel)
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map(i => {
         const tplItem = templateItemMap[i.item_id]
@@ -305,7 +304,7 @@ function CommunityParticipantsContent() {
   // ── Export: Excel ──
   const handleExportExcel = useCallback(() => {
     import('xlsx').then(XLSX => {
-      if (displayTiers.length === 0) {
+      if (displayTiers.length === 0 || filteredRankings.length === 0) {
         toast.warning(t('participants.noDataToExport'))
         return
       }

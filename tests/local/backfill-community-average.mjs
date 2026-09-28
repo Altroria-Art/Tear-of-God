@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 
 import { onRequestGet as templatesGet } from '../../functions/api/templates.js';
+import { seedLatestContributions } from './helpers/contributions.mjs';
 
 const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
 const schemaStatements = schema
@@ -35,6 +36,8 @@ async function runTests() {
     // Seed profile
     await db.prepare('INSERT INTO profiles (id, username, email) VALUES (?, ?, ?)')
       .bind('user-1', 'TestUser', 'user1@test.com').run();
+    await db.prepare('INSERT INTO profiles (id, username, email) VALUES (?, ?, ?)')
+      .bind('user-2', 'SecondUser', 'user2@test.com').run();
 
     // 1. Create a template with 5 tiers (S, A, B, C, D)
     const templateId = 'tpl-backfill-test';
@@ -90,12 +93,13 @@ async function runTests() {
     const rankingId2 = 'rank-2';
     await db.prepare(
       'INSERT INTO rankings (id, template_id, title, user_id) VALUES (?, ?, ?, ?)'
-    ).bind(rankingId2, templateId, 'My Second Ranking', 'user-1').run();
+    ).bind(rankingId2, templateId, 'Second participant ranking', 'user-2').run();
 
     await db.prepare('INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?, ?, ?, ?, ?)')
       .bind('ri-2-1', rankingId2, 'Naruto', 'A', 0).run();
     await db.prepare('INSERT INTO ranking_items (id, ranking_id, item_id, tier, position) VALUES (?, ?, ?, ?, ?)')
       .bind('ri-2-2', rankingId2, 'Bleach', 'C', 1).run();
+    await seedLatestContributions(db);
 
     // Verify before backfill: 0 scores in database
     const scoresBefore = (await db.prepare('SELECT COUNT(*) as n FROM ranking_item_scores').first()).n;

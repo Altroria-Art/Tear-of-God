@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useUser } from './UserContext';
 import { fetchBookmarkedTemplateIds, saveTemplate } from '../lib/api';
 import { useToast } from '../components/ui/Toast';
@@ -8,38 +8,53 @@ const BookmarkContext = createContext(null);
 
 export function BookmarkProvider({ children }) {
   const { currentUser } = useUser();
+  return <BookmarkState key={currentUser?.id || 'guest'} userId={currentUser?.id}>{children}</BookmarkState>;
+}
+
+function BookmarkState({ children, userId }) {
   const [bookmarkedIds, setBookmarkedIds] = useState(() => new Set());
   const [loaded, setLoaded] = useState(false);
+  const pending = useRef(new Set());
+  const overrides = useRef(new Map());
+  const active = useRef(true);
   const toast = useToast();
   const { t } = useTranslation();
 
   // Load saved template IDs on mount or when currentUser changes
   useEffect(() => {
+    active.current = true;
     let cancelled = false;
-    if (!currentUser?.id) {
+    const controller = new AbortController();
+    if (!userId) {
       setBookmarkedIds(new Set());
       setLoaded(true);
       return undefined;
     }
 
     setLoaded(false);
-    fetchBookmarkedTemplateIds().then((ids) => {
+    fetchBookmarkedTemplateIds({ signal: controller.signal }).then((ids) => {
       if (cancelled) return;
-      setBookmarkedIds(new Set((ids || []).map(String)));
+      if (!ids) return; // A failed fetch must not overwrite known saved states.
+      const next = new Set(ids.map(String));
+      overrides.current.forEach((saved, id) => saved ? next.add(id) : next.delete(id));
+      setBookmarkedIds(next);
       setLoaded(true);
     });
 
     return () => {
       cancelled = true;
+      active.current = false;
+      controller.abort();
     };
-  }, [currentUser?.id]);
+  }, [userId]);
 
   // Listen to cross-component or external 'tog-bookmark' events
   useEffect(() => {
     const handleBookmarkEvent = (e) => {
-      const { id, saved } = e.detail || {};
-      if (!id) return;
+      const { id, saved, userId: eventUserId } = e.detail || {};
+      if (!userId || !id || (eventUserId && eventUserId !== userId)) return;
       const strId = String(id);
+      overrides.current.set(strId, !!saved);
       setBookmarkedIds((prev) => {
         const has = prev.has(strId);
         if (saved && !has) {
@@ -57,12 +72,13 @@ export function BookmarkProvider({ children }) {
     };
     window.addEventListener('tog-bookmark', handleBookmarkEvent);
     return () => window.removeEventListener('tog-bookmark', handleBookmarkEvent);
-  }, []);
+  }, [userId]);
 
   const isSaved = useCallback(
     (templateId, fallback = false) => {
       if (!templateId) return false;
       const strId = String(templateId);
+      if (overrides.current.has(strId)) return overrides.current.get(strId);
       if (loaded) {
         return bookmarkedIds.has(strId);
       }
@@ -73,9 +89,12 @@ export function BookmarkProvider({ children }) {
 
   const toggleBookmark = useCallback(
     async (templateId, currentSaved) => {
-      if (!currentUser?.id) return { success: false, requireAuth: true };
+      if (!userId) return { success: false, requireAuth: true };
       const strId = String(templateId);
+      if (pending.current.has(strId)) return { success: false, pending: true };
+      pending.current.add(strId);
       const nextSaved = !currentSaved;
+      overrides.current.set(strId, nextSaved);
 
       // 1. Optimistic UI update
       setBookmarkedIds((prev) => {
@@ -88,17 +107,12 @@ export function BookmarkProvider({ children }) {
         return next;
       });
 
-      // Dispatch event for any other listeners
-      window.dispatchEvent(
-        new CustomEvent('tog-bookmark', {
-          detail: { id: templateId, saved: nextSaved },
-        })
-      );
-
       // 2. Call backend
       try {
         const result = await saveTemplate(templateId, nextSaved);
+        if (!active.current) return result;
         if (!result || !result.success) {
+          overrides.current.set(strId, !!currentSaved);
           // Revert optimistic update
           setBookmarkedIds((prev) => {
             const next = new Set(prev);
@@ -109,18 +123,19 @@ export function BookmarkProvider({ children }) {
             }
             return next;
           });
-          window.dispatchEvent(
-            new CustomEvent('tog-bookmark', {
-              detail: { id: templateId, saved: currentSaved },
-            })
-          );
           toast.error(result?.error || t('errors.actionFailed', 'Action failed'));
           return { success: false, error: result?.error };
         }
 
+        // Only committed changes remove cards from saved lists.
+        window.dispatchEvent(new CustomEvent('tog-bookmark', {
+          detail: { id: templateId, saved: nextSaved, userId },
+        }));
         toast.success(t(nextSaved ? 'discover.bookmarked' : 'discover.bookmarkRemoved'));
         return { success: true, saved: nextSaved };
       } catch (err) {
+        if (!active.current) return { success: false };
+        overrides.current.set(strId, !!currentSaved);
         // Revert on error
         setBookmarkedIds((prev) => {
           const next = new Set(prev);
@@ -131,16 +146,13 @@ export function BookmarkProvider({ children }) {
           }
           return next;
         });
-        window.dispatchEvent(
-          new CustomEvent('tog-bookmark', {
-            detail: { id: templateId, saved: currentSaved },
-          })
-        );
         toast.error(t('errors.serverUnreachable', 'Network error'));
         return { success: false, error: err.message };
+      } finally {
+        pending.current.delete(strId);
       }
     },
-    [currentUser?.id, toast, t]
+    [userId, toast, t]
   );
 
   const addSavedIds = useCallback((ids) => {
@@ -150,6 +162,7 @@ export function BookmarkProvider({ children }) {
       const next = new Set(prev);
       ids.forEach((id) => {
         const strId = String(id);
+        if (overrides.current.get(strId) === false) return;
         if (!next.has(strId)) {
           next.add(strId);
           changed = true;

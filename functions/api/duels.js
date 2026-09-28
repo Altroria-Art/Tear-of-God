@@ -1,6 +1,9 @@
 import {
+  INPUT_LIMITS,
+  RequestError,
   assertId,
   assertInteger,
+  assertString,
   consumeMemoryRateLimit,
   isPlainObject,
   rateLimitResponse,
@@ -14,6 +17,7 @@ import {
 } from '../lib/similarity.js';
 import {
   checkTemplateCooldown,
+  isCooldownConflict,
   cooldownResponse,
   recordContributionStatement,
   evictCommunityCache,
@@ -30,6 +34,8 @@ const jsonResponse = (data, status = 200) =>
 
 export async function onRequestPost({ request, env, data: auth }) {
   const currentUserId = auth?.user?.id;
+  const db = env.tear_of_god_db;
+  let templateId = null;
   if (!currentUserId) {
     return jsonResponse({ success: false, error: 'Unauthorized: Please log in' }, 401);
   }
@@ -41,18 +47,26 @@ export async function onRequestPost({ request, env, data: auth }) {
     });
     if (!gate.allowed) return rateLimitResponse(gate);
 
-    const body = await readJsonBody(request);
+    const body = await readJsonBody(request, INPUT_LIMITS.rankingJson);
     if (!isPlainObject(body)) {
       return jsonResponse({ success: false, error: 'Invalid request body' }, 400);
     }
 
-    const templateId = assertId(body.template_id, 'template_id');
-    const items = Array.isArray(body.items) ? body.items : [];
-    if (items.length === 0) {
-      return jsonResponse({ success: false, error: 'Ranking items are required' }, 400);
+    templateId = assertId(body.template_id, 'template_id');
+    if (!Array.isArray(body.items) || !body.items.length || body.items.length > INPUT_LIMITS.items) {
+      return jsonResponse({ success: false, error: `Ranking must contain 1-${INPUT_LIMITS.items} items` }, 400);
     }
-
-    const db = env.tear_of_god_db;
+    const items = body.items.map((item, index) => {
+      if (!isPlainObject(item)) throw new RequestError(`items[${index}] must be an object`);
+      return {
+        item_id: assertString(item.item_id, `items[${index}].item_id`, { min: 1, max: INPUT_LIMITS.itemName, trim: true }),
+        tier: assertString(item.tier, `items[${index}].tier`, { min: 1, max: INPUT_LIMITS.tierLabel, trim: true }),
+        position: item.position == null ? index : assertInteger(item.position, `items[${index}].position`, { min: 0, max: INPUT_LIMITS.items - 1 }),
+      };
+    });
+    if (new Set(items.map(item => item.item_id)).size !== items.length) {
+      return jsonResponse({ success: false, error: 'Ranking items must be unique' }, 400);
+    }
 
     // 1. Fetch template
     const template = await db
@@ -96,7 +110,7 @@ export async function onRequestPost({ request, env, data: auth }) {
       return jsonResponse({ success: false, error: 'Template has no valid tiers' }, 400);
     }
 
-    const tierIndexByLabel = {};
+    const tierIndexByLabel = Object.create(null);
     tiersDef.forEach((t, i) => {
       if (t && typeof t.label === 'string') {
         tierIndexByLabel[String(t.label)] = i;
@@ -177,7 +191,7 @@ export async function onRequestPost({ request, env, data: auth }) {
         .bind(templateId, currentUserId)
         .all();
 
-      const communityByItem = {};
+      const communityByItem = Object.create(null);
       (histogram || []).forEach((row) => {
         const tierIdx = tierIndexByLabel[String(row.tier)];
         if (tierIdx === undefined) return;
@@ -339,7 +353,7 @@ export async function onRequestPost({ request, env, data: auth }) {
   } catch (error) {
     const invalid = requestErrorResponse(error);
     if (invalid) return invalid;
-    if (error && (String(error.message).includes('TEMPLATE_COOLDOWN_ACTIVE') || String(error).includes('TEMPLATE_COOLDOWN_ACTIVE'))) {
+    if (isCooldownConflict(error)) {
       const cooldown = await checkTemplateCooldown(db, templateId, currentUserId);
       return cooldownResponse(templateId, cooldown.cooldownUntil, cooldown.remainingSeconds);
     }

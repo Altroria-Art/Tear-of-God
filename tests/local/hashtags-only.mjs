@@ -9,6 +9,7 @@ import { onRequest as topics } from '../../functions/api/topic-follows.js';
 import { onRequestGet as spotlights } from '../../functions/api/spotlights.js';
 import { onRequest as activity } from '../../functions/api/activity.js';
 import { onRequestGet as hashtags } from '../../functions/api/hashtags.js';
+import { seedLatestContributions } from './helpers/contributions.mjs';
 
 const sql = async path => (await readFile(new URL(path, import.meta.url), 'utf8'))
   .split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n')
@@ -46,6 +47,10 @@ try {
   assert.ok((await db.prepare('PRAGMA table_info(rankings)').all()).results.some(c => c.name === 'category'));
   assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM topic_follows WHERE topic_type = 'category'").first()).n, 2);
   await db.batch(transition.map(s => db.prepare(s)));
+  // Current handlers also require the later additive contribution relation.
+  const contributionSchema = (await sql('../../schema.sql')).find(statement => statement.startsWith('CREATE TABLE IF NOT EXISTS template_user_contributions'));
+  await db.prepare(contributionSchema).run();
+  await seedLatestContributions(db);
   await call(rankings, '/api/rankings?hashtag=food', null);
   await call(templates, '/api/templates?hashtag=food', null);
   await call(users, '/api/users?id=author', null);

@@ -69,9 +69,18 @@ export function recordContributionStatement(db, templateId, userId, rankingId) {
     )
     ON CONFLICT(template_id, user_id) DO UPDATE SET
       current_ranking_id = excluded.current_ranking_id,
-      cooldown_until = excluded.cooldown_until,
+      -- The migrated DB also has a trigger, but fresh schema.sql databases do
+      -- not. A NOT NULL violation aborts the entire publish batch in either case.
+      cooldown_until = CASE WHEN template_user_contributions.cooldown_until > CURRENT_TIMESTAMP
+        THEN NULL ELSE excluded.cooldown_until END,
       last_contributed_at = excluded.last_contributed_at
   `).bind(templateId, userId, rankingId);
+}
+
+export function isCooldownConflict(error) {
+  const message = String(error?.message || error);
+  return message.includes('TEMPLATE_COOLDOWN_ACTIVE')
+    || message.includes('NOT NULL constraint failed: template_user_contributions.cooldown_until');
 }
 
 /**

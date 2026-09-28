@@ -5,7 +5,7 @@ import { returnPath } from '../lib/navigation';
 import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid, Swords } from 'lucide-react';
 import BadgeGallery from '../components/user/BadgeGallery';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, updateProfile, equipBadge, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
+import { fetchRankings, fetchRanking, updateProfile, equipBadge, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import { normalizeImageUrl } from '../lib/images';
@@ -191,6 +191,19 @@ export default function Profile() {
   const isOwnProfile = !routeUserId || routeUserId === currentUser?.id;
 
   const [posts, setPosts] = useState([]);
+  const [extraPins, setExtraPins] = useState([]);
+  const [postPage, setPostPage] = useState(1);
+  const [hasMorePosts, setHasMorePosts] = useState(false);
+  const [postsError, setPostsError] = useState(false);
+  const [profileRetry, setProfileRetry] = useState(0);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const loadingPostsRef = useRef(false);
+  const profileScope = `${profileUserId}:${currentUser?.id || 'guest'}`;
+  const profileScopeRef = useRef(profileScope);
+  profileScopeRef.current = profileScope;
+  const followPendingRef = useRef(false);
+  const [followPending, setFollowPending] = useState(false);
+  const followRequestRef = useRef(0);
   const [profileUser, setProfileUser] = useState(null);
   const [notFound, setNotFound] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -278,10 +291,13 @@ export default function Profile() {
   }, [isTasteDetailsOpen, profileUserId, currentUser?.id]);
 
   const handleOpenFollowList = async (type) => {
+    const requestId = ++followRequestRef.current;
+    const scope = profileScope;
     setFollowListModal(type);
     setIsFollowListLoading(true);
     setFollowListData([]);
     const { data, error } = await fetchFollowList(profileUserId, type);
+    if (requestId !== followRequestRef.current || scope !== profileScopeRef.current) return;
     if (!error && data) {
       setFollowListData(data);
     } else {
@@ -304,6 +320,19 @@ export default function Profile() {
     let cancelled = false;
     setProfileUser(null);
     setPosts([]);
+    setExtraPins([]);
+    setPostPage(1);
+    setHasMorePosts(false);
+    setPostsError(false);
+    setLoadingPosts(false);
+    loadingPostsRef.current = false;
+    setFollowPending(false);
+    followPendingRef.current = false;
+    setFollowListModal(null);
+    setPostTab('all');
+    setDuels([]);
+    setDuelTotal(0);
+    setDuelPage(1);
     setNotFound(false);
     setIsLoading(true);
 
@@ -320,25 +349,55 @@ export default function Profile() {
       setFollowersCount(data.followers_count || 0);
       setFollowingCount(data.following_count || 0);
 
-      const { data: postData } = await fetchRankings({
+      const { data: postData, error: postError } = await fetchRankings({
         authorId: profileUserId,
         sort: 'recent',
         limit: 50,
       });
       if (!cancelled) {
+        setPostsError(!!postError);
+        setHasMorePosts(!postError && (postData || []).length === 50);
         setPosts(postData || []);
         setIsLoading(false);
+        const loadedIds = new Set((postData || []).map(post => post.id));
+        const missingPins = (data.taste_identity?.pinned_rankings || [])
+          .filter(pin => !loadedIds.has(pin.ranking_id || pin.id)).slice(0, 3);
+        if (missingPins.length) {
+          const pins = await Promise.all(missingPins.map(pin => fetchRanking(pin.ranking_id || pin.id)));
+          if (!cancelled) setExtraPins(pins.map(result => result.data).filter(Boolean));
+        }
       }
     }
     loadProfile();
     return () => { cancelled = true };
-  }, [profileUserId, currentUser?.id]);
+  }, [profileUserId, currentUser?.id, profileRetry]);
+
+  const loadMorePosts = async () => {
+    if (loadingPostsRef.current) return;
+    const scope = profileScope;
+    loadingPostsRef.current = true;
+    setLoadingPosts(true);
+    const result = await fetchRankings({ authorId: profileUserId, sort: 'recent', limit: 50, page: postPage + 1 });
+    if (scope !== profileScopeRef.current) return;
+    if (result.error || result.success === false) toast.error(result.error || t('profile.errFetch'));
+    else {
+      setPosts(previous => {
+        const ids = new Set(previous.map(post => post.id));
+        return [...previous, ...(result.data || []).filter(post => !ids.has(post.id))];
+      });
+      setPostPage(page => page + 1);
+      setHasMorePosts((result.data || []).length === 50);
+    }
+    loadingPostsRef.current = false;
+    setLoadingPosts(false);
+  };
 
   // ฟอร์มแก้ไข (เฉพาะโปรไฟล์ตัวเอง) sync กับ user ล่าสุดใน context —
   // ใช้ profileUserId เป็น dep หลัก (เปลี่ยนเฉพาะตอนสลับหน้าใหม่) ไม่ใช่ currentUser
   // ที่ context เปลี่ยนบ่อยๆ ไม่งั้นจะล้างฟอร์มที่กำลังพิมพ์ทิ้งทุกครั้งที่ state เปลี่ยน
-  const initialUserIdRef = useRef(profileUserId);
+  const initialUserIdRef = useRef(null);
   useEffect(() => {
+    if (isEditOpen && initialUserIdRef.current === profileUserId) return;
     if (initialUserIdRef.current !== profileUserId) {
       initialUserIdRef.current = profileUserId;
     }
@@ -358,7 +417,7 @@ export default function Profile() {
       setAdmissionYear(admissionYears.includes(storedYear) ? storedYear : '');
       setAvatarUrl(currentUser.avatar_url || '');
     }
-  }, [profileUserId, isOwnProfile, currentUser, admissionYears, isEducationSetup]);
+  }, [profileUserId, isOwnProfile, currentUser, admissionYears, isEducationSetup, isEditOpen]);
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -378,12 +437,16 @@ export default function Profile() {
   }, [isEditOpen, followListModal, isTasteDetailsOpen, isEducationSetup, isOwnProfile, location.search, navigate]);
 
   const handleToggleFollow = async () => {
+    if (followPendingRef.current) return;
     if (!currentUser) {
       toast.error(t('profile.errLoginFollow'));
       navigate('/login');
       return;
     }
     
+    const scope = profileScope;
+    followPendingRef.current = true;
+    setFollowPending(true);
     // Optimistic UI update
     const previousFollowing = isFollowing;
     const previousCount = followersCount;
@@ -392,6 +455,9 @@ export default function Profile() {
     setFollowersCount(previousCount + (previousFollowing ? -1 : 1));
     
     const { error } = await toggleFollow(currentUser.id, displayUser.id, previousFollowing);
+    if (scope !== profileScopeRef.current) return;
+    followPendingRef.current = false;
+    setFollowPending(false);
     
     if (error) {
       toast.error(t('profile.errAction'));
@@ -674,7 +740,7 @@ export default function Profile() {
     : profileUser;
   // "Oct 2024" จาก created_at ที่ได้จาก API — parse ผ่าน formatDbDate() เสมอ (ดู src/lib/format.js)
   const joinedLabel = formatDbDate(displayUser?.created_at, i18n.language === 'th' ? 'th-TH' : 'en-US', { month: 'short', year: 'numeric' }) ?? '—';
-  const totalLikes = posts.reduce((n, p) => n + (p.stats?.likes || 0), 0);
+  const totalLikes = displayUser?.likes_received ?? posts.reduce((n, p) => n + (p.stats?.likes || 0), 0);
   const tasteIdentity = displayUser?.taste_identity || {};
   const pinnedRankings = Array.isArray(tasteIdentity.pinned_rankings) ? tasteIdentity.pinned_rankings : [];
   const hashtagDistribution = Array.isArray(tasteIdentity.hashtag_distribution) ? tasteIdentity.hashtag_distribution : [];
@@ -697,7 +763,8 @@ export default function Profile() {
   const pinnedSet = new Set(pinnedRankings.map((item) => item.ranking_id || item.id));
   const isPinnedPost = (postId) => pinnedSet.has(postId);
 
-  const sortedPosts = [...posts].sort((a, b) => {
+  const loadedIds = new Set(posts.map(post => post.id));
+  const sortedPosts = [...posts, ...extraPins.filter(post => !loadedIds.has(post.id))].sort((a, b) => {
     const aPinned = isPinnedPost(a.id);
     const bPinned = isPinnedPost(b.id);
     if (aPinned && !bPinned) return -1;
@@ -763,6 +830,7 @@ export default function Profile() {
               {!isOwnProfile && (
                 <button
                   onClick={handleToggleFollow}
+                  disabled={followPending}
                   className={`w-full py-2 mb-4 font-bold rounded-xl text-sm transition-all shadow-sm active:scale-[0.97] ${
                     isFollowing 
                       ? 'bg-surface-glass text-muted hover:bg-surface '
@@ -1040,7 +1108,7 @@ export default function Profile() {
                 >
                   <LayoutGrid size={16} />
                   <span>{t('profile.allPosts')}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-surface text-muted">{posts.length}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-surface text-muted">{displayUser?.posts_count ?? posts.length}</span>
                 </button>
                 {pinnedRankings.length > 0 && (
                   <button
@@ -1131,9 +1199,9 @@ export default function Profile() {
 
                   {duelTotal > 10 && (
                     <Pagination
-                      currentPage={duelPage}
+                      page={duelPage}
                       totalPages={Math.ceil(duelTotal / 10)}
-                      onPageChange={setDuelPage}
+                      onChange={setDuelPage}
                     />
                   )}
                 </div>
@@ -1160,6 +1228,17 @@ export default function Profile() {
                   />
                 ))}
               </div>
+            )}
+            {postTab === 'all' && postsError && (
+              <div role="alert" className="mt-5 text-center">
+                <p>{t('profile.errFetch')}</p>
+                <button type="button" onClick={() => setProfileRetry(value => value + 1)} className="mt-2 font-bold text-brand">{t('common.retry')}</button>
+              </div>
+            )}
+            {postTab === 'all' && hasMorePosts && posts.length < (displayUser?.posts_count || 0) && (
+              <button type="button" disabled={loadingPosts} onClick={loadMorePosts} className="mt-5 w-full rounded-xl border border-line-soft px-4 py-3 font-bold disabled:opacity-50">
+                {t(loadingPosts ? 'common.loading' : 'common.next')}
+              </button>
             )}
 
           </div>

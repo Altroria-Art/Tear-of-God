@@ -29,74 +29,39 @@ export async function onRequest(context) {
       return jsonResponse({ success: false, error: 'Invalid vote type' }, 400);
     }
 
-    // 1. เช็คว่า User เคยโหวตโพสต์นี้ไปหรือยัง
-    const { results: existing } = await db.prepare(
-      `SELECT * FROM votes WHERE ranking_id = ? AND user_id = ?`
-    ).bind(rankingId, userId).all();
-    let likedTransition = false;
-
-    // 2. ถ้า voteType เป็น null แปลว่าผู้ใช้กดย้ำเพื่อ "ยกเลิกไลก์/ดิสไลก์"
-    if (!voteType) {
-      if (existing.length > 0) {
-        const statements = [
-          db.prepare(`DELETE FROM votes WHERE ranking_id = ? AND user_id = ?`).bind(rankingId, userId)
-        ];
-        const oldVote = existing[0].vote_type;
-        if (oldVote === 'like') {
-          statements.push(db.prepare(`UPDATE rankings SET likes_count = MAX(likes_count - 1, 0) WHERE id = ?`).bind(rankingId));
-        } else if (oldVote === 'dislike') {
-          statements.push(db.prepare(`UPDATE rankings SET dislikes_count = MAX(dislikes_count - 1, 0) WHERE id = ?`).bind(rankingId));
-        }
-        await db.batch(statements);
-      }
-    } else {
-      // 3. ตรวจสอบความถูกต้องของประเภทการโหวต
-      if (voteType !== 'like' && voteType !== 'dislike') {
-        return jsonResponse({ success: false, error: 'Invalid vote type' }, 400);
-      }
-
-      if (existing.length > 0) {
-        const oldVote = existing[0].vote_type;
-        if (oldVote !== voteType) {
-          likedTransition = voteType === 'like';
-          const statements = [
-            db.prepare(`UPDATE votes SET vote_type = ? WHERE ranking_id = ? AND user_id = ?`).bind(voteType, rankingId, userId)
-          ];
-          if (voteType === 'like') {
-            statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1, dislikes_count = MAX(dislikes_count - 1, 0) WHERE id = ?`).bind(rankingId));
-            statements.push(db.prepare(`UPDATE rankings SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ? AND (last_activity_at IS NULL OR last_activity_at < datetime('now', '-60 seconds'))`).bind(rankingId));
-          } else {
-            statements.push(db.prepare(`UPDATE rankings SET likes_count = MAX(likes_count - 1, 0), dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
-          }
-          await db.batch(statements);
-        }
-      } else {
-        // ถ้ายังไม่เคย ให้ Insert ข้อมูลใหม่
-        const voteId = crypto.randomUUID();
-        const statements = [
-          db.prepare(`INSERT INTO votes (id, ranking_id, user_id, vote_type) VALUES (?, ?, ?, ?)`).bind(voteId, rankingId, userId, voteType)
-        ];
-        if (voteType === 'like') {
-          likedTransition = true;
-          statements.push(db.prepare(`UPDATE rankings SET likes_count = likes_count + 1 WHERE id = ?`).bind(rankingId));
-          statements.push(db.prepare(`UPDATE rankings SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ? AND (last_activity_at IS NULL OR last_activity_at < datetime('now', '-60 seconds'))`).bind(rankingId));
-        } else {
-          statements.push(db.prepare(`UPDATE rankings SET dislikes_count = dislikes_count + 1 WHERE id = ?`).bind(rankingId));
-        }
-        await db.batch(statements);
-      }
-    }
-
-    await maybeNotifyTrending(db, rankingId, userId);
-    if (likedTransition) await recordLikeDigest(db, rankingId, userId);
-
-    // 4. อ่านค่าจริงหลังเขียนเสร็จแล้วส่งกลับไป — ฝั่ง client จะได้ไม่ต้องเดาด้วยการ +1/-1 เอง
-    //    (ดู docs/feature-like-dislike-voting.md §8 เรื่องเลขที่บวกเองแล้วเพี้ยนสะสม)
-    const { results: fresh } = await db.prepare(
+    // Read the previous vote inside the same transaction as the counter change.
+    // A separate SELECT races with another tab and can double-increment counters.
+    const nextVote = voteType ?? null;
+    const results = await db.batch([
+      db.prepare(`UPDATE rankings SET
+        likes_count = MAX(0, COALESCE(likes_count, 0) + COALESCE(?3 = 'like', 0)
+          - COALESCE((SELECT vote_type = 'like' FROM votes WHERE ranking_id = ?1 AND user_id = ?2), 0)),
+        dislikes_count = MAX(0, COALESCE(dislikes_count, 0) + COALESCE(?3 = 'dislike', 0)
+          - COALESCE((SELECT vote_type = 'dislike' FROM votes WHERE ranking_id = ?1 AND user_id = ?2), 0)),
+        last_activity_at = CASE WHEN ?3 = 'like'
+          AND (last_activity_at IS NULL OR last_activity_at < datetime('now', '-60 seconds'))
+          THEN CURRENT_TIMESTAMP ELSE last_activity_at END
+        WHERE id = ?1 AND COALESCE((SELECT vote_type FROM votes WHERE ranking_id = ?1 AND user_id = ?2), '') != COALESCE(?3, '')`
+      ).bind(rankingId, userId, nextVote),
+      nextVote === null
+        ? db.prepare('DELETE FROM votes WHERE ranking_id = ? AND user_id = ?').bind(rankingId, userId)
+        : db.prepare(`INSERT INTO votes (id, ranking_id, user_id, vote_type)
+            SELECT ?1, ?2, ?3, ?4 FROM rankings WHERE id = ?2
+            ON CONFLICT(ranking_id, user_id) DO UPDATE SET vote_type = excluded.vote_type
+            WHERE votes.vote_type IS NOT excluded.vote_type`
+          ).bind(crypto.randomUUID(), rankingId, userId, nextVote),
+      db.prepare(
       `SELECT likes_count as likes, dislikes_count as dislikes, 
          (SELECT vote_type FROM votes WHERE ranking_id = ?1 AND user_id = ?2) AS user_vote
        FROM rankings WHERE id = ?1`
-    ).bind(rankingId, userId).all();
+      ).bind(rankingId, userId),
+    ]);
+    const fresh = results[2].results;
+    if (!fresh.length) return jsonResponse({ success: false, error: 'Ranking not found' }, 404);
+    if (results[0].meta.changes > 0) {
+      await maybeNotifyTrending(db, rankingId, userId);
+      if (nextVote === 'like') await recordLikeDigest(db, rankingId, userId);
+    }
 
     return jsonResponse({
       success: true,

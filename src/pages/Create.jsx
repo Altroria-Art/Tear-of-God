@@ -1,4 +1,4 @@
-import useHistoryState from '../lib/useHistoryState';
+import { getInsertIndexFromZone, groupEditorItems, normalizeCreateDraft } from '../lib/editorBoard';
 import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
@@ -35,7 +35,7 @@ function loadDraft() {
     if (!raw) return null;
     const draft = JSON.parse(raw);
     if (!draft || draft.version !== DRAFT_VERSION) return null;
-    return draft;
+    return normalizeCreateDraft(draft, DEFAULT_TIERS);
   } catch {
     return null; // JSON พัง / storage ถูกปิด — เริ่มใหม่แบบไม่มี draft
   }
@@ -74,7 +74,7 @@ const CreateTierList = () => {
   const [isPublishing, setIsPublishing] = useState(false);
 
   // ลำดับ item ใน array = ลำดับการแสดงผลภายใน tier → restore แล้วตำแหน่งเดิมทุกชิ้น
-  const [items, setItems] = useHistoryState(
+  const [items, setItems] = useState(
     Array.isArray(draft?.items)
       ? draft.items.filter(i => i && typeof i.content === 'string' && i.id != null)
       : []
@@ -137,23 +137,7 @@ const CreateTierList = () => {
     return () => clearTimeout(timer);
   }, [title, description, tiers, items, selectedHashtags, hashtags]);
 
-  const itemGroups = useMemo(() => {
-    const byTier = new Map(tiers.map((tier) => [tier.id, []]));
-    const unranked = [];
-
-    items.forEach((item) => {
-      const bucket = byTier.get(item.tierId);
-      if (bucket) bucket.push(item);
-      else unranked.push(item);
-    });
-
-    const positionById = new Map();
-    for (const list of [...byTier.values(), unranked]) {
-      list.forEach((item, index) => positionById.set(item.id, { position: index, count: list.length }));
-    }
-
-    return { byTier, unranked, positionById };
-  }, [items, tiers]);
+  const itemGroups = useMemo(() => groupEditorItems(items, tiers), [items, tiers]);
 
   const BASE_COLORS = [
     '#f87171', '#fdba74', '#fcd34d', '#fde047',
@@ -237,7 +221,7 @@ const CreateTierList = () => {
 
   // 📍 [ใหม่]: debounced search hashtags ที่มีอยู่แล้วจาก API ทุกครั้งที่พิมพ์ query
   useEffect(() => {
-    if (!tagQuery.trim()) { setTagResults([]); return; }
+    if (!tagQuery.trim()) { setTagResults([]); setIsSearchingTags(false); return; }
     let cancelled = false;
     setIsSearchingTags(true);
     const timer = setTimeout(async () => {
@@ -308,21 +292,12 @@ const CreateTierList = () => {
   };
 
   // 📍 [ใหม่]: แปลงตำแหน่งเมาส์เป็นลำดับการแทรก — เทียบกับกึ่งกลางการ์ดแต่ละใบ (ไม่รวมใบที่กำลังลาก)
-  const getInsertIndexFromZone = (zoneEl, clientX, draggedItemId) => {
-    const cards = Array.from(zoneEl.querySelectorAll('[data-item-id]'))
-      .filter(el => el.dataset.itemId !== draggedItemId);
-    for (let i = 0; i < cards.length; i++) {
-      const box = cards[i].getBoundingClientRect();
-      if (clientX < box.left + box.width / 2) return i;
-    }
-    return cards.length;
-  };
-
   const handleDrop = (e, targetTierId) => {
     e.preventDefault();
     const draggedItemId = e.dataTransfer.getData('itemId');
     if (!draggedItemId) return;
-    const insertIndex = getInsertIndexFromZone(e.currentTarget, e.clientX, draggedItemId);
+    const insertIndex = getInsertIndexFromZone(e.currentTarget, e.clientX, e.clientY, draggedItemId);
+    endDrag();
     setItems(prev => repositionItem(prev, draggedItemId, targetTierId, insertIndex));
   };
 
@@ -355,7 +330,7 @@ const CreateTierList = () => {
     if (selectedHashtags.length === 0) { return toast.warning(t('create.warnHashtag')); }
 
     // 📍 [เพิ่มใหม่]: ต้องมี item และจัด tier แล้วเท่านั้น — ไม่งั้นจะได้โพสต์เปล่า
-    const rankedItems = items.filter(item => item.tierId !== null);
+    const rankedItems = items.filter(item => tiers.some(tier => tier.id === item.tierId));
     if (items.length === 0) {
       return toast.error(t('create.errAddItem'));
     }
@@ -364,7 +339,7 @@ const CreateTierList = () => {
     }
     // 📍 [ใหม่]: ห้าม publish ถ้ายังมีไอเทมค้างใน Unranked Pool — เดิมไอเทมที่ยังไม่จัด
     // tier จะโดน drop เงียบๆ ไม่ถูกบันทึกลง ranking_items (ดู docs/tier-list-empty-tier-and-publish-validation-plan.md)
-    const unrankedItems = items.filter(item => item.tierId === null);
+    const unrankedItems = itemGroups.unranked;
     if (unrankedItems.length > 0) {
       const names = unrankedItems.slice(0, 3).map(i => i.content).join(', ');
       const more = unrankedItems.length > 3 ? t('create.errUnrankedItemsMore', { n: unrankedItems.length - 3 }) : '';
@@ -600,13 +575,13 @@ const CreateTierList = () => {
                     label={tier.label}
                     color={tier.color}
                     style={{ boxShadow: 'inset -2px 0 10px rgba(0,0,0,0.2)' }}
-                    className={`w-24 p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
+                    className={`w-14 sm:w-24 p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
                   />
                   <div className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center bg-transparent" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
                     {(itemGroups.byTier.get(tier.id) ?? []).map(renderItemCard)}
                   </div>
 
-                  <div className="w-14 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
+                  <div className="w-10 sm:w-14 shrink-0 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
                     <button onClick={() => openTierSettings(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
                   </div>
                 </div>
@@ -619,7 +594,7 @@ const CreateTierList = () => {
             <div>
               <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
                 <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">{t('create.unrankedPool')}</h3>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={handleReturnToPool}
@@ -651,7 +626,7 @@ const CreateTierList = () => {
           </div>
         </div>
       </div>
-      <EditorToolbar ranked={items.filter(i => i.tierId !== null).length} total={items.length} onSave={handlePublish} saving={isPublishing} />
+      <EditorToolbar ranked={items.length - itemGroups.unranked.length} total={items.length} onSave={handlePublish} saving={isPublishing} />
     </div>
   );
 };

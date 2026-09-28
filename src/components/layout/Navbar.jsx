@@ -200,7 +200,7 @@ const Navbar = () => {
           <button 
             aria-label={t('nav.menu')}
             aria-expanded={isMobileMenuOpen}
-            className={`md:hidden grid h-11 w-11 shrink-0 place-items-center rounded-xl border shadow-sm transition-all ${
+            className={`lg:hidden grid h-11 w-11 shrink-0 place-items-center rounded-xl border shadow-sm transition-all ${
               isMobileMenuOpen
                 ? 'bg-brand text-canvas border-brand'
                 : 'bg-surface text-ink border-line-soft hover:bg-surface-glass hover:text-brand'
@@ -214,7 +214,7 @@ const Navbar = () => {
           </Link>
         </div>
 
-        <div className="hidden md:flex items-center gap-1.5 text-sm">
+        <div className="hidden lg:flex items-center gap-1.5 text-sm">
           <Link to="/" onClick={handleHomeClick} className={`inline-flex min-h-10 items-center px-3 rounded-lg transition-all ${isActive('/')}`}>
             {t('nav.home')}
           </Link>
@@ -228,7 +228,7 @@ const Navbar = () => {
       </div>
 
       {/* ฝั่งขวา: ค้นหา และ โปรไฟล์ */}
-      <div className="flex items-center gap-1 sm:gap-3">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-3">
         
         {/* ช่อง Search */}
         <div ref={desktopSearchRef} className="relative hidden lg:block">
@@ -266,7 +266,7 @@ const Navbar = () => {
         {/* ปุ่มเปลี่ยนภาษา */}
         <button
           onClick={toggleLanguage}
-          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft cursor-pointer"
+          className="w-10 h-10 bg-surface rounded-full hidden sm:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft cursor-pointer"
           aria-label={t('nav.toggleLanguage')}
           title={t('nav.toggleLanguage')}
         >
@@ -276,7 +276,7 @@ const Navbar = () => {
         {/* ปุ่มเปลี่ยนธีม Ultra-smooth */}
         <button
           onClick={toggleTheme}
-          className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 active:scale-90 hover:scale-105 shadow-sm border border-line-soft cursor-pointer select-none overflow-hidden"
+          className="w-10 h-10 bg-surface rounded-full hidden sm:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 active:scale-90 hover:scale-105 shadow-sm border border-line-soft cursor-pointer select-none overflow-hidden"
           aria-label={t('nav.toggleTheme')}
         >
           <div className="transform transition-transform duration-300">
@@ -288,7 +288,7 @@ const Navbar = () => {
           </div>
         </button>
 
-        {currentUser && <NotificationMenu userId={currentUser.id} />}
+        {currentUser && <NotificationMenu key={currentUser.id} userId={currentUser.id} />}
 
         {/* ปุ่มโปรไฟล์ / ล็อกอิน */}
         <div className="relative" ref={dropdownRef}>
@@ -298,6 +298,8 @@ const Navbar = () => {
               <div className="relative">
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  aria-label={t('nav.profile')}
+                  aria-expanded={isDropdownOpen}
                   className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
                 >
                   {currentUser?.avatar_url ? (
@@ -344,6 +346,7 @@ const Navbar = () => {
           ) : (
             <Link 
               to="/login" 
+              aria-label={t('nav.login')}
               className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
             >
               <User size={18} strokeWidth={2.5} />
@@ -355,7 +358,11 @@ const Navbar = () => {
 
       {/* Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-canvas border-t border-line-soft p-4 flex flex-col gap-4 shadow-xl z-50">
+        <div className="lg:hidden absolute top-full left-0 w-full max-h-[calc(100dvh-5rem)] overflow-y-auto bg-canvas border-t border-line-soft p-4 flex flex-col gap-4 shadow-xl z-50">
+          <div className="flex gap-2 sm:hidden">
+            <button type="button" onClick={toggleLanguage} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line-soft px-3 text-sm" aria-label={t('nav.toggleLanguage')}><Languages size={18} />{i18n.language === 'th' ? 'English' : 'ไทย'}</button>
+            <button type="button" onClick={toggleTheme} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line-soft px-3 text-sm" aria-label={t('nav.toggleTheme')}>{isLightMode ? <Moon size={18} /> : <Sun size={18} />}{t('nav.toggleTheme')}</button>
+          </div>
           <div ref={mobileSearchRef} className="relative w-full">
             <form onSubmit={handleSearch}>
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />

@@ -46,7 +46,7 @@ export function sanitizeFilenamePart(str) {
 
 export function getFacultyShortName(faculty) {
   if (!faculty || faculty === 'All') return ''
-  if (FACULTY_SHORT_NAMES[faculty]) return FACULTY_SHORT_NAMES[faculty]
+  if (Object.hasOwn(FACULTY_SHORT_NAMES, faculty)) return FACULTY_SHORT_NAMES[faculty]
   const stripped = faculty.replace(/^(คณะ|วิทยาลัย)/, '').trim()
   return sanitizeFilenamePart(stripped)
 }
@@ -125,12 +125,12 @@ export function getExportFilename({
  */
 export function getUserTierItems(participant, tierLabel) {
   if (!participant) return '-'
-  const normLabel = String(tierLabel || '').trim().toLowerCase()
+  const normLabel = String(tierLabel || '')
 
   // 1. กรณี participant มี tiers array ที่จัดกลุ่มไอเทมไว้แล้ว
   if (Array.isArray(participant.tiers)) {
     const foundTier = participant.tiers.find(
-      t => String(t.label || t.name || '').trim().toLowerCase() === normLabel
+      t => String(t.label || t.name || '') === normLabel
     )
     if (foundTier && Array.isArray(foundTier.items) && foundTier.items.length > 0) {
       const names = foundTier.items
@@ -144,7 +144,7 @@ export function getUserTierItems(participant, tierLabel) {
   const flatItems = participant.ranking_items || participant.items || []
   if (Array.isArray(flatItems) && flatItems.length > 0) {
     const matching = flatItems
-      .filter(i => String(i.tier || '').trim().toLowerCase() === normLabel)
+      .filter(i => String(i.tier || '') === normLabel)
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map(i => i.item_name || i.name || i.item_id || '')
       .filter(Boolean)
@@ -211,7 +211,7 @@ export function buildCommunityItemStats(rankings = [], tiersDef = []) {
   })
 
   const tierCount = tiersDef.length
-  const communityByItem = {} // itemId -> { sum: number, count: number, name: string }
+  const communityByItem = Object.create(null) // itemId -> { sum: number, count: number, name: string }
 
   rankings.forEach(ranking => {
     const placements = extractParticipantPlacements(ranking)
@@ -281,11 +281,11 @@ export function generateStandoutSummary({ similarity, highestItem, lowestItem })
 export function calculateCommunityTasteAnalysis({
   template,
   participants = [],
-  filteredRankings = [],
+  filteredRankings,
   tiersDef = [],
 }) {
   const effectiveTiers = (tiersDef && tiersDef.length > 0) ? tiersDef : (template?.tiers || [])
-  const rankingPool = filteredRankings.length > 0 ? filteredRankings : participants
+  const rankingPool = filteredRankings ?? participants
   const { communityByItem, tierIndexByLabel, tierCount } = buildCommunityItemStats(
     rankingPool,
     effectiveTiers
@@ -672,7 +672,7 @@ export function buildCommunityExcelWorkbook(XLSX, {
   majorFilter = '',
   yearFilter = '',
   displayTiers = [],
-  filteredRankings = [],
+  filteredRankings,
   participants = [],
 }) {
   const isAllMode = String(participantFilter).toLowerCase() === 'all'
@@ -696,15 +696,13 @@ export function buildCommunityExcelWorkbook(XLSX, {
   // ─────────────────────────────────────────────────────────────
   if (isAllMode) {
     // รวมรายชื่อ participants จาก filteredRankings > participants > participantOptions
-    const candidateList = filteredRankings.length > 0
-      ? filteredRankings
-      : (participants.length > 0 ? participants : participantOptions)
+    const candidateList = filteredRankings ?? (participants.length > 0 ? participants : participantOptions)
 
     // กรองตาม faculty, major, year
     const matching = candidateList.filter(p => {
-      if (facultyFilter && p.faculty && p.faculty !== facultyFilter) return false
-      if (majorFilter && p.major && p.major !== majorFilter) return false
-      if (yearFilter && p.year && String(p.year) !== String(yearFilter)) return false
+      if (facultyFilter && p.faculty !== facultyFilter) return false
+      if (majorFilter && p.major !== majorFilter) return false
+      if (yearFilter && String(p.year) !== String(yearFilter)) return false
       return true
     })
 
@@ -947,7 +945,7 @@ export function buildCommunityExcelWorkbook(XLSX, {
   // ─────────────────────────────────────────────────────────────
   // แทรก Sheet 2: Participant Analysis ในกรณีที่มีข้อมูล participant
   // ─────────────────────────────────────────────────────────────
-  const candidateRankings = filteredRankings.length > 0 ? filteredRankings : participants
+  const candidateRankings = filteredRankings ?? participants
   if (candidateRankings.length > 0) {
     const seenUserIds = new Set()
     const targetParticipants = []

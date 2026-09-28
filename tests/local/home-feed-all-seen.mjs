@@ -47,7 +47,7 @@ assert.match(
 // Ensure refresh throttling is bypassed when feed is empty
 assert.match(
   homeFeedSource,
-  /activeTab === 'trending' && posts\.length > 0 && Date\.now\(\) - lastRefreshRef\.current < 1500/,
+  /activeTab === 'trending' && currentPosts\.length > 0 && Date\.now\(\) - lastRefreshRef\.current < 1500/,
   'refreshFeed must not block refresh when feed has 0 posts'
 );
 

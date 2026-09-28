@@ -32,6 +32,13 @@ import { useTranslation } from 'react-i18next'
 export default function CommunityAveragePage() {
   const { templateId } = useParams()
   const { currentUser } = useUser()
+  return <CommunityAverageContent key={`${templateId}:${currentUser?.id || 'guest'}`} />
+}
+
+function CommunityAverageContent() {
+  const { templateId } = useParams()
+  const { currentUser } = useUser()
+  const currentUserId = currentUser?.id
   const toast = useToast()
   const { t, i18n } = useTranslation()
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
@@ -57,19 +64,19 @@ export default function CommunityAveragePage() {
       setIsLoading(true)
       const [tplRes, reactRes] = await Promise.all([
         fetchTemplate(templateId, { period: null }),
-        currentUser ? fetchTemplateReaction({ templateId, userId: currentUser.id }) : Promise.resolve(null)
+        currentUserId ? fetchTemplateReaction({ templateId, userId: currentUserId }) : Promise.resolve(null)
       ])
       if (cancelled) return
       if (tplRes.data) {
         setTemplate(tplRes.data)
         setCommentCount(tplRes.data.stats?.comments || 0)
       }
-      if (reactRes) setReaction({ userVote: reactRes.userVote ?? null, likes: reactRes.likes ?? 0, dislikes: reactRes.dislikes ?? 0 })
+      setReaction({ userVote: reactRes?.userVote ?? null, likes: reactRes?.likes ?? tplRes.data?.stats?.likes ?? 0, dislikes: reactRes?.dislikes ?? tplRes.data?.stats?.dislikes ?? 0 })
       setIsLoading(false)
     }
     load()
     return () => { cancelled = true }
-  }, [templateId, currentUser])
+  }, [templateId, currentUserId])
 
   // ดึงคอมเมนต์ของ Community Average นี้
   useEffect(() => {
@@ -93,14 +100,14 @@ export default function CommunityAveragePage() {
   // (mine=1: server ใช้ session user เอง ไม่เชื่อ author_id จาก client; คืนแค่
   // ranking + ranking_items ไม่รัน enrich เต็มชุดแบบ list ปกติ)
   useEffect(() => {
-    if (!templateId || !currentUser) { setMyRanking(null); return }
+    if (!templateId || !currentUserId) { setMyRanking(null); return }
     let cancelled = false
     fetchMyRanking({ templateId }).then((res) => {
       if (cancelled) return
       setMyRanking(res?.data?.[0] || null)
     })
     return () => { cancelled = true }
-  }, [templateId, currentUser])
+  }, [templateId, currentUserId])
 
   const handleVote = async (type) => {
     if (!currentUser) {
@@ -178,7 +185,7 @@ export default function CommunityAveragePage() {
   const handleAddComment = async (body, parentId) => {
     if (!currentUser) {
       toast.warning(t('post.warnLoginComment'))
-      return
+      return false
     }
     if (!body || !body.trim()) return
 
@@ -193,8 +200,10 @@ export default function CommunityAveragePage() {
       }
       setComments((c) => [newComment, ...c])
       setCommentCount((n) => n + 1)
+      return true
     } else {
       toast.error(t('post.commentFailed', { msg: res.error || t('common.error') }))
+      return false
     }
   }
 
@@ -234,7 +243,7 @@ export default function CommunityAveragePage() {
         const tItem = template.template_items?.find((ti) => ti.item_id === it.name || ti.item?.name === it.name)
         return {
           id: it.name,
-          name: it.name,
+          name: tItem?.item?.name || it.name,
           image_url: tItem?.item?.image_url || null,
           avg: it.avg,
           votes: it.votes ?? 0,
@@ -252,20 +261,20 @@ export default function CommunityAveragePage() {
   const totalVotes = chartItems.reduce((n, it) => n + (it.votes || 0), 0)
 
   // G: เปรียบเทียบการจัดของคุณ vs ค่าเฉลี่ยชุมชน
-  const tierIndexByLabel = {}
+  const tierIndexByLabel = Object.create(null)
   tiersDef.forEach((t, i) => { tierIndexByLabel[String(t.label)] = i })
-  const communityByName = {}
-  avgTiers.forEach((row) => (row.items || []).forEach((it) => { communityByName[it.name] = it }))
+  const communityById = Object.create(null)
+  avgTiers.forEach((row) => (row.items || []).forEach((it) => { communityById[it.id] = it }))
 
   const myComparison = (myRanking?.ranking_items || [])
-    .filter((ri) => ri.tier && ri.item?.name && ri.item.name in communityByName)
+    .filter((ri) => ri.tier && (ri.item_id || ri.item?.id) in communityById)
     .map((ri) => {
-      const comm = communityByName[ri.item.name]
+      const comm = communityById[ri.item_id || ri.item?.id]
       const myIndex = tierIndexByLabel[String(ri.tier)]
       if (myIndex === undefined) return null
       const commIndex = Math.max(0, Math.min(tiersDef.length - 1, tiersDef.length - Math.round(comm.avg)))
       return {
-        name: ri.item.name,
+        name: ri.item?.name || comm.name,
         myIndex,
         myTier: ri.tier,
         myColor: tiersDef[myIndex]?.color,

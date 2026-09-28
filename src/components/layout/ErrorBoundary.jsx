@@ -1,5 +1,6 @@
 import { Component } from 'react';
 import { withTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -38,4 +39,9 @@ class ErrorBoundary extends Component {
   }
 }
 
-export default withTranslation()(ErrorBoundary);
+const TranslatedErrorBoundary = withTranslation()(ErrorBoundary);
+
+export default function RouteErrorBoundary({ children }) {
+  const location = useLocation();
+  return <TranslatedErrorBoundary key={location.pathname}>{children}</TranslatedErrorBoundary>;
+}

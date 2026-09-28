@@ -597,6 +597,7 @@
     "deleteFailed": "Failed to delete post: {{msg}}"
   },
   "template": {
+    "noCommunityAverage": "No community average data yet",
     "loading": "Loading template...",
     "notFound": "Template not found",
     "communityRankings": "Community Rankings",

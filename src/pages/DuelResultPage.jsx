@@ -7,7 +7,7 @@ import Avatar from '../components/ui/Avatar';
 import TierLabel from '../components/tier/TierLabel';
 import { useToast } from '../components/ui/Toast';
 import { timeAgo } from '../lib/format';
-import { shareUrl } from '../lib/share';
+import { copyToClipboard } from '../lib/share';
 
 export default function DuelResultPage() {
   const { id } = useParams();
@@ -41,17 +41,23 @@ export default function DuelResultPage() {
 
   const handleShare = async () => {
     try {
-      await shareUrl({
+      const shareData = {
         title: `${duel?.challenger?.username} vs ${duel?.owner?.username} | ${duel?.template?.title}`,
         text: t('duel.tasteSummary', {
           score: duel?.similarity_score,
           name: duel?.owner?.username,
         }),
         url: window.location.href,
-      });
-      toast.success(t('common.copied'));
-    } catch {
-      // User cancelled or unsupported
+      };
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else if (await copyToClipboard(shareData.url)) {
+        toast.success(t('common.copied'));
+      } else {
+        toast.error(t('shareExport.copyFailed'));
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') toast.error(t('shareExport.copyFailed'));
     }
   };
 

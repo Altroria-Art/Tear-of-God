@@ -24,19 +24,17 @@ export async function onRequestPost({ request, env, data: auth }) {
       return Response.json({ success: true, pinned: false, ranking_id: rankingId });
     }
 
-    const existing = await db.prepare('SELECT ranking_id FROM profile_pins WHERE user_id = ? AND ranking_id = ?').bind(userId, rankingId).first();
-    if (!existing) {
-      const countRow = await db.prepare('SELECT COUNT(*) AS count FROM profile_pins WHERE user_id = ?').bind(userId).first();
-      if (Number(countRow?.count || 0) >= 3) {
-        return Response.json({ success: false, error: 'You can pin up to 3 lists' }, { status: 409 });
-      }
-    }
-
-    await db.prepare(`
+    // Enforce the cap in the write itself, including simultaneous requests.
+    const result = await db.prepare(`
       INSERT INTO profile_pins (user_id, ranking_id, position)
-      VALUES (?, ?, ?)
+      SELECT ?1, ?2, ?3
+      WHERE (SELECT COUNT(*) FROM profile_pins WHERE user_id = ?1) < 3
+        OR EXISTS (SELECT 1 FROM profile_pins WHERE user_id = ?1 AND ranking_id = ?2)
       ON CONFLICT(user_id, ranking_id) DO UPDATE SET position = excluded.position
     `).bind(userId, rankingId, position).run();
+    if (!result.meta.changes) {
+      return Response.json({ success: false, error: 'You can pin up to 3 lists' }, { status: 409 });
+    }
 
     return Response.json({ success: true, pinned: true, ranking_id: rankingId, position });
   } catch (error) {
