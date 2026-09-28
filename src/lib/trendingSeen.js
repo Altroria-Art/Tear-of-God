@@ -149,23 +149,25 @@ export function filterUnseenTrending(posts, entries, existingIds = [], now = Dat
 export async function fetchUnseenTrendingPage(fetchPage, { page = 1, limit, getSeen, existingIds = [], cancelled = () => false, maxAttempts = 2 }) {
   const visited = new Set();
   let attempts = 0;
+  let lastResult;
   const MAX_AUTO_REFILL_ATTEMPTS = Math.max(1, maxAttempts || 2);
   while (!cancelled() && attempts < MAX_AUTO_REFILL_ATTEMPTS) {
     attempts += 1;
     const result = await fetchPage(page);
+    lastResult = result;
     if (cancelled() || result.error || result.success === false) return { ...result, page };
     const raw = result.data || [];
     // If backend returns empty [], stop immediately! Do NOT retry loop!
     if (raw.length === 0) {
-      return { ...result, data: [], page, hasMore: false };
+      return { ...result, data: [], page, hasMore: !!result.nextCursor && !!result.hasMore };
     }
     const data = filterUnseenTrending(raw, getSeen(), existingIds);
-    const hasMore = raw.length === limit;
+    const hasMore = typeof result.hasMore === 'boolean' ? result.hasMore : raw.length === limit;
     if (data.length || !hasMore) return { ...result, data, page, hasMore };
     const signature = JSON.stringify(raw.map((post) => post.id));
     if (visited.has(signature)) return { ...result, data: [], page, hasMore: false };
     visited.add(signature);
     page += 1;
   }
-  return { data: [], page, hasMore: false };
+  return { ...lastResult, data: [], page: lastResult?.page || page - 1, hasMore: !!lastResult?.nextCursor && !!lastResult?.hasMore };
 }

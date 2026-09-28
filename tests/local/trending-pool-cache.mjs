@@ -125,7 +125,10 @@ function countingDb(db, counter) {
 }
 
 async function callFeed(db, params, userId) {
-  const query = new URLSearchParams();
+  // Pin this historical L1/L2 suite to the explicitly sorted compatibility
+  // listing. New unfiltered Home cache/cursor contracts are exercised by
+  // home-feed-cursor-cache.mjs (including zero-D1 cross-seed guest responses).
+  const query = new URLSearchParams({ sort: 'recent' });
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null) query.set(key, String(value));
   }
@@ -314,7 +317,7 @@ try {
   assert.equal(rowB.profile.is_following, false);
   // SECURITY: the serialized shared payload must be IDs only.
   {
-    const l2key = `?k=${encodeURIComponent(buildSharedHomeTrendingKey({ poolCap: 600 }))}`;
+    const l2key = `?k=${encodeURIComponent(buildSharedHomeTrendingKey({ poolCap: 48 }))}`;
     const entry = globalThis.caches.default.store.get(l2key);
     const stored = entry?.ids;
     assert.ok(Array.isArray(stored) && stored.length > 0, 'L2 must hold the shared id pool');
@@ -410,7 +413,7 @@ try {
   // re-warmed it, so sleep once more to drain the bridge.)
   await sleep(5500);
   {
-    const l2key = `?k=${encodeURIComponent(buildSharedHomeTrendingKey({ poolCap: 600 }))}`;
+    const l2key = `?k=${encodeURIComponent(buildSharedHomeTrendingKey({ poolCap: 48 }))}`;
     globalThis.caches.default.store.delete(l2key);
   }
   const before16 = counter.pool;
@@ -465,7 +468,7 @@ try {
   globalThis.caches = { default: makeFakeCache() };
 
   // Key/TTL/eligibility hygiene (unit-level).
-  const l1Base = { feedType: 'trending', seed: 1, hashtag: null, authorId: null, templateId: null, days: 0, poolCap: 600 };
+  const l1Base = { feedType: 'trending', seed: 1, hashtag: null, authorId: null, templateId: null, days: 0, poolCap: 48 };
   const keyA = buildTrendingPoolKey(l1Base);
   // Seed is pinned (refresh safety); every SQL-affecting input changes the key.
   assert.notEqual(buildTrendingPoolKey({ ...l1Base, seed: 2 }), keyA);
@@ -488,7 +491,7 @@ try {
   assert.equal(isSharedHomeTrendingEligible({ feedType: 'for_you', hashtag: null, authorId: null, templateId: null, days: 0 }), false);
   assert.equal(isSharedHomeTrendingEligible({ feedType: 'following', hashtag: null, authorId: null, templateId: null, days: 0 }), false);
   // L2 key carries no seed/user/page/pin/exclude; TTL is capped at 5s.
-  const l2key = buildSharedHomeTrendingKey({ poolCap: 600 });
+  const l2key = buildSharedHomeTrendingKey({ poolCap: 48 });
   assert.ok(!/\b\d{4,}\b/.test(l2key.replace('600', '')), 'L2 key must not embed seed-like values');
   assert.ok(SHARED_HOME_TRENDING_TTL_SECONDS <= 5, 'L2 TTL must not exceed 5s in this batch');
   console.log('Key/TTL/eligibility hygiene checks passed');

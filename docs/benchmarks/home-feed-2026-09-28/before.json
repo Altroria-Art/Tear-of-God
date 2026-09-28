@@ -1,0 +1,230 @@
+{
+  "trending_cold": {
+    "rows": 73696,
+    "queries": 7,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements\n      FROM ranking_items ri\n      JOIN rankings r ON r.id = ri.ranking_id\n      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id\n      WHERE r.template_id IN (?,?,?,?,?,?,?,?) AND ri.tier IS NOT NULL\n      GROUP BY r.template_id, ri.item_id, ri.tier",
+        "read": 67524
+      },
+      {
+        "sql": "\n                SELECT r.id,\n                  CASE\n                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0\n                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1\n                    ELSE 2\n                  END AS age_tier,\n                  (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) AS freshness_tier FROM rankings r\n                WHERE 1=1 AND r.created_at >= datetime('now', '-180 days')\n                ORDER BY age_tier ASC, (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) DESC,\n(\n              min(COALESCE(r.likes_count, 0), 50)\n              + min(COALESCE(r.comments_count, 0), 25) * 2\n              - COALESCE(r.dislikes_count, 0)\n            ) DESC,\nCOALESCE(r.last_activity_at, r.created_at) DESC,\nr.created_at DESC, r.id DESC\n                LIMIT ?\n              ",
+        "read": 4000
+      },
+      {
+        "sql": "SELECT template_id, COUNT(*) AS uses FROM rankings\n      WHERE template_id IN (?,?,?,?,?,?,?,?) GROUP BY template_id",
+        "read": 1615
+      }
+    ]
+  },
+  "trending_warm": {
+    "rows": 557,
+    "queries": 4,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "\n              SELECT ri.*, i.name as item_name, i.image_url as item_image\n              FROM ranking_items ri\n              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)\n              WHERE ri.ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n              ORDER BY ri.position ASC, ri.rowid ASC\n            ",
+        "read": 504
+      },
+      {
+        "sql": "\n              SELECT r.*, p.username, p.avatar_url,\n                (SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?) as user_vote\n              FROM rankings r\n              LEFT JOIN profiles p ON r.user_id = p.id\n              WHERE r.id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n            ",
+        "read": 36
+      },
+      {
+        "sql": "SELECT id, creator_id, title, tiers FROM templates WHERE id IN (?,?,?,?,?,?,?,?)",
+        "read": 16
+      }
+    ]
+  },
+  "trending_next": {
+    "rows": 17854,
+    "queries": 6,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements\n      FROM ranking_items ri\n      JOIN rankings r ON r.id = ri.ranking_id\n      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id\n      WHERE r.template_id IN (?,?) AND ri.tier IS NOT NULL\n      GROUP BY r.template_id, ri.item_id, ri.tier",
+        "read": 16894
+      },
+      {
+        "sql": "\n              SELECT ri.*, i.name as item_name, i.image_url as item_image\n              FROM ranking_items ri\n              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)\n              WHERE ri.ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n              ORDER BY ri.position ASC, ri.rowid ASC\n            ",
+        "read": 504
+      },
+      {
+        "sql": "SELECT template_id, COUNT(*) AS uses FROM rankings\n      WHERE template_id IN (?,?) GROUP BY template_id",
+        "read": 404
+      }
+    ]
+  },
+  "for_you_cold": {
+    "rows": 62012,
+    "queries": 8,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements\n      FROM ranking_items ri\n      JOIN rankings r ON r.id = ri.ranking_id\n      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id\n      WHERE r.template_id IN (?,?,?,?,?,?,?) AND ri.tier IS NOT NULL\n      GROUP BY r.template_id, ri.item_id, ri.tier",
+        "read": 59082
+      },
+      {
+        "sql": "SELECT template_id, COUNT(*) AS uses FROM rankings\n      WHERE template_id IN (?,?,?,?,?,?,?) GROUP BY template_id",
+        "read": 1413
+      },
+      {
+        "sql": "\n                SELECT r.id,\n                  CASE\n                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0\n                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1\n                    ELSE 2\n                  END AS age_tier,\n                  (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) AS freshness_tier FROM rankings r\n                WHERE 1=1 AND (\n                /* for-you eligibility */\n                (r.template_id IS NOT NULL AND r.template_id IN (\n                  SELECT template_id FROM rankings WHERE user_id = ? AND template_id IS NOT NULL\n                  UNION\n                  SELECT fav.template_id FROM votes v JOIN rankings fav ON v.ranking_id = fav.id\n                  WHERE v.user_id = ? AND v.vote_type = 'like' AND fav.template_id IS NOT NULL\n                  UNION\n                  SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'template'\n                )) OR EXISTS (\n                  SELECT 1\n                  FROM json_each('[' || replace(json_quote(COALESCE(r.hashtags, '')), ',', '\",\"') || ']') tag\n                  WHERE trim(ltrim(trim(tag.value), '#')) <> ''\n                    AND (lower(trim(ltrim(trim(tag.value), '#'))) IN (?,?,?,?) OR lower(trim(ltrim(trim(tag.value), '#'))) IN (\n                      SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'hashtag'\n                    ))\n                )\n                /* end for-you eligibility */\n              )\n                ORDER BY r.created_at DESC, r.id DESC\n                LIMIT ?\n              ",
+        "read": 951
+      }
+    ]
+  },
+  "for_you_warm": {
+    "rows": 1517,
+    "queries": 6,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "\n                SELECT r.id,\n                  CASE\n                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0\n                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1\n                    ELSE 2\n                  END AS age_tier,\n                  (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) AS freshness_tier FROM rankings r\n                WHERE 1=1 AND (\n                /* for-you eligibility */\n                (r.template_id IS NOT NULL AND r.template_id IN (\n                  SELECT template_id FROM rankings WHERE user_id = ? AND template_id IS NOT NULL\n                  UNION\n                  SELECT fav.template_id FROM votes v JOIN rankings fav ON v.ranking_id = fav.id\n                  WHERE v.user_id = ? AND v.vote_type = 'like' AND fav.template_id IS NOT NULL\n                  UNION\n                  SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'template'\n                )) OR EXISTS (\n                  SELECT 1\n                  FROM json_each('[' || replace(json_quote(COALESCE(r.hashtags, '')), ',', '\",\"') || ']') tag\n                  WHERE trim(ltrim(trim(tag.value), '#')) <> ''\n                    AND (lower(trim(ltrim(trim(tag.value), '#'))) IN (?,?,?,?) OR lower(trim(ltrim(trim(tag.value), '#'))) IN (\n                      SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'hashtag'\n                    ))\n                )\n                /* end for-you eligibility */\n              )\n                ORDER BY r.created_at DESC, r.id DESC\n                LIMIT ?\n              ",
+        "read": 951
+      },
+      {
+        "sql": "\n              SELECT ri.*, i.name as item_name, i.image_url as item_image\n              FROM ranking_items ri\n              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)\n              WHERE ri.ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n              ORDER BY ri.position ASC, ri.rowid ASC\n            ",
+        "read": 504
+      },
+      {
+        "sql": "\n              SELECT r.*, p.username, p.avatar_url,\n                (SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?) as user_vote\n              FROM rankings r\n              LEFT JOIN profiles p ON r.user_id = p.id\n              WHERE r.id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n            ",
+        "read": 37
+      }
+    ]
+  },
+  "for_you_next": {
+    "rows": 27460,
+    "queries": 8,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements\n      FROM ranking_items ri\n      JOIN rankings r ON r.id = ri.ranking_id\n      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id\n      WHERE r.template_id IN (?,?,?) AND ri.tier IS NOT NULL\n      GROUP BY r.template_id, ri.item_id, ri.tier",
+        "read": 25336
+      },
+      {
+        "sql": "\n                SELECT r.id,\n                  CASE\n                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0\n                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1\n                    ELSE 2\n                  END AS age_tier,\n                  (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) AS freshness_tier FROM rankings r\n                WHERE 1=1 AND (\n                /* for-you eligibility */\n                (r.template_id IS NOT NULL AND r.template_id IN (\n                  SELECT template_id FROM rankings WHERE user_id = ? AND template_id IS NOT NULL\n                  UNION\n                  SELECT fav.template_id FROM votes v JOIN rankings fav ON v.ranking_id = fav.id\n                  WHERE v.user_id = ? AND v.vote_type = 'like' AND fav.template_id IS NOT NULL\n                  UNION\n                  SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'template'\n                )) OR EXISTS (\n                  SELECT 1\n                  FROM json_each('[' || replace(json_quote(COALESCE(r.hashtags, '')), ',', '\",\"') || ']') tag\n                  WHERE trim(ltrim(trim(tag.value), '#')) <> ''\n                    AND (lower(trim(ltrim(trim(tag.value), '#'))) IN (?,?,?,?) OR lower(trim(ltrim(trim(tag.value), '#'))) IN (\n                      SELECT topic_key FROM topic_follows WHERE user_id = ? AND topic_type = 'hashtag'\n                    ))\n                )\n                /* end for-you eligibility */\n              )\n                ORDER BY r.created_at DESC, r.id DESC\n                LIMIT ?\n              ",
+        "read": 951
+      },
+      {
+        "sql": "SELECT template_id, COUNT(*) AS uses FROM rankings\n      WHERE template_id IN (?,?,?) GROUP BY template_id",
+        "read": 606
+      }
+    ]
+  },
+  "following_cold": {
+    "rows": 62257,
+    "queries": 7,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements\n      FROM ranking_items ri\n      JOIN rankings r ON r.id = ri.ranking_id\n      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id\n      WHERE r.template_id IN (?,?,?,?,?,?,?) AND ri.tier IS NOT NULL\n      GROUP BY r.template_id, ri.item_id, ri.tier",
+        "read": 59083
+      },
+      {
+        "sql": "SELECT template_id, COUNT(*) AS uses FROM rankings\n      WHERE template_id IN (?,?,?,?,?,?,?) GROUP BY template_id",
+        "read": 1414
+      },
+      {
+        "sql": "\n                SELECT r.id,\n                  CASE\n                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0\n                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1\n                    ELSE 2\n                  END AS age_tier,\n                  (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) AS freshness_tier FROM rankings r\n                WHERE 1=1\n              AND r.user_id IN (\n                SELECT following_id FROM follows WHERE follower_id = ?\n              )\n                ORDER BY r.created_at DESC, r.id DESC\n                LIMIT ?\n              ",
+        "read": 1204
+      }
+    ]
+  },
+  "following_warm": {
+    "rows": 1760,
+    "queries": 5,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "\n                SELECT r.id,\n                  CASE\n                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0\n                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1\n                    ELSE 2\n                  END AS age_tier,\n                  (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) AS freshness_tier FROM rankings r\n                WHERE 1=1\n              AND r.user_id IN (\n                SELECT following_id FROM follows WHERE follower_id = ?\n              )\n                ORDER BY r.created_at DESC, r.id DESC\n                LIMIT ?\n              ",
+        "read": 1204
+      },
+      {
+        "sql": "\n              SELECT ri.*, i.name as item_name, i.image_url as item_image\n              FROM ranking_items ri\n              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)\n              WHERE ri.ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n              ORDER BY ri.position ASC, ri.rowid ASC\n            ",
+        "read": 504
+      },
+      {
+        "sql": "\n              SELECT r.*, p.username, p.avatar_url,\n                (SELECT vote_type FROM votes WHERE ranking_id = r.id AND user_id = ?) as user_vote\n              FROM rankings r\n              LEFT JOIN profiles p ON r.user_id = p.id\n              WHERE r.id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n            ",
+        "read": 37
+      }
+    ]
+  },
+  "following_next": {
+    "rows": 19058,
+    "queries": 7,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements\n      FROM ranking_items ri\n      JOIN rankings r ON r.id = ri.ranking_id\n      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id\n      WHERE r.template_id IN (?,?) AND ri.tier IS NOT NULL\n      GROUP BY r.template_id, ri.item_id, ri.tier",
+        "read": 16893
+      },
+      {
+        "sql": "\n                SELECT r.id,\n                  CASE\n                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0\n                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1\n                    ELSE 2\n                  END AS age_tier,\n                  (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) AS freshness_tier FROM rankings r\n                WHERE 1=1\n              AND r.user_id IN (\n                SELECT following_id FROM follows WHERE follower_id = ?\n              )\n                ORDER BY r.created_at DESC, r.id DESC\n                LIMIT ?\n              ",
+        "read": 1204
+      },
+      {
+        "sql": "\n              SELECT ri.*, i.name as item_name, i.image_url as item_image\n              FROM ranking_items ri\n              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)\n              WHERE ri.ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n              ORDER BY ri.position ASC, ri.rowid ASC\n            ",
+        "read": 504
+      }
+    ]
+  },
+  "guest_trending_cold": {
+    "rows": 69695,
+    "queries": 5,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements\n      FROM ranking_items ri\n      JOIN rankings r ON r.id = ri.ranking_id\n      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id\n      WHERE r.template_id IN (?,?,?,?,?,?,?,?) AND ri.tier IS NOT NULL\n      GROUP BY r.template_id, ri.item_id, ri.tier",
+        "read": 67524
+      },
+      {
+        "sql": "SELECT template_id, COUNT(*) AS uses FROM rankings\n      WHERE template_id IN (?,?,?,?,?,?,?,?) GROUP BY template_id",
+        "read": 1615
+      },
+      {
+        "sql": "\n              SELECT ri.*, i.name as item_name, i.image_url as item_image\n              FROM ranking_items ri\n              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)\n              WHERE ri.ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n              ORDER BY ri.position ASC, ri.rowid ASC\n            ",
+        "read": 504
+      }
+    ]
+  },
+  "guest_trending_warm": {
+    "rows": 17854,
+    "queries": 5,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.template_id, ri.item_id, ri.tier, COUNT(*) AS placements\n      FROM ranking_items ri\n      JOIN rankings r ON r.id = ri.ranking_id\n      JOIN template_user_contributions tuc ON tuc.current_ranking_id = r.id\n      WHERE r.template_id IN (?,?) AND ri.tier IS NOT NULL\n      GROUP BY r.template_id, ri.item_id, ri.tier",
+        "read": 16894
+      },
+      {
+        "sql": "\n              SELECT ri.*, i.name as item_name, i.image_url as item_image\n              FROM ranking_items ri\n              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)\n              WHERE ri.ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n              ORDER BY ri.position ASC, ri.rowid ASC\n            ",
+        "read": 504
+      },
+      {
+        "sql": "SELECT template_id, COUNT(*) AS uses FROM rankings\n      WHERE template_id IN (?,?) GROUP BY template_id",
+        "read": 404
+      }
+    ]
+  },
+  "guest_trending_next": {
+    "rows": 4554,
+    "queries": 4,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "\n                SELECT r.id,\n                  CASE\n                    WHEN r.created_at >= datetime('now', '-7 days') THEN 0\n                    WHEN r.created_at >= datetime('now', '-30 days') THEN 1\n                    ELSE 2\n                  END AS age_tier,\n                  (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) AS freshness_tier FROM rankings r\n                WHERE 1=1 AND r.created_at >= datetime('now', '-180 days')\n                ORDER BY age_tier ASC, (\n              CASE\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 hour') THEN 5\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-6 hours') THEN 4\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-1 day') THEN 3\n                WHEN COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-3 days') THEN 2\n                ELSE 1\n              END\n            ) DESC,\n(\n              min(COALESCE(r.likes_count, 0), 50)\n              + min(COALESCE(r.comments_count, 0), 25) * 2\n              - COALESCE(r.dislikes_count, 0)\n            ) DESC,\nCOALESCE(r.last_activity_at, r.created_at) DESC,\nr.created_at DESC, r.id DESC\n                LIMIT ?\n              ",
+        "read": 4000
+      },
+      {
+        "sql": "\n              SELECT ri.*, i.name as item_name, i.image_url as item_image\n              FROM ranking_items ri\n              LEFT JOIN items i ON (ri.item_id = i.id OR ri.item_id = i.name)\n              WHERE ri.ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n              ORDER BY ri.position ASC, ri.rowid ASC\n            ",
+        "read": 504
+      },
+      {
+        "sql": "\n              SELECT r.*, p.username, p.avatar_url,\n                NULL as user_vote\n              FROM rankings r\n              LEFT JOIN profiles p ON r.user_id = p.id\n              WHERE r.id IN (?,?,?,?,?,?,?,?,?,?,?,?)\n            ",
+        "read": 36
+      }
+    ]
+  }
+}

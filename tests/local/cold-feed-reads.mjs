@@ -71,10 +71,14 @@ try {
   for(const [path,user] of cases) before.push(await measure(path,user,true));
   const aggregateBefore=await measure('/api/test','viewer',false,true);
   const writesBefore=await writeCost();
-  const queryOnly=await measure(paths[0]);
-  assert.deepEqual(queryOnly.body,before[0].body);
-  console.log(`For You selection query rows_read ${before[0].pool} -> ${queryOnly.pool}`);
-  assert.ok(queryOnly.pool<before[0].pool);
+  // The historical SQL eligibility optimization remains on filtered listings.
+  // Unfiltered Home now has separate bounded cursor/cache quota tests.
+  const filteredPath = paths[0] + '&hashtag=shared';
+  const filteredBefore = await measure(filteredPath,'viewer',true);
+  const queryOnly=await measure(filteredPath);
+  assert.deepEqual(queryOnly.body,filteredBefore.body);
+  console.log(`Filtered For You selection query rows_read ${filteredBefore.pool} -> ${queryOnly.pool}`);
+  assert.ok(queryOnly.pool<filteredBefore.pool);
   // Only 0013, on an ephemeral test DB. 0012 is never applied.
   const migration=split(await readFile(new URL('../../migrations-active/0013_placement_tier_index.sql',import.meta.url),'utf8'));
   await db.batch(migration.map(s=>db.prepare(s)));

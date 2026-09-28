@@ -1,0 +1,209 @@
+{
+  "trending_cold": {
+    "rows": 6550,
+    "queries": 25,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT id, user_id, template_id, hashtags, created_at, last_activity_at,\n      likes_count, dislikes_count, comments_count FROM rankings \n      ORDER BY COALESCE(last_activity_at, created_at) DESC, id DESC LIMIT ?",
+        "read": 4000
+      },
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      },
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      }
+    ]
+  },
+  "trending_warm": {
+    "rows": 13,
+    "queries": 2,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT ranking_id, vote_type FROM votes WHERE user_id = ? AND ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "read": 12
+      },
+      {
+        "sql": "SELECT following_id FROM follows WHERE follower_id = ? AND following_id IN (?)",
+        "read": 1
+      }
+    ]
+  },
+  "trending_next": {
+    "rows": 541,
+    "queries": 14,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      },
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      },
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      }
+    ]
+  },
+  "for_you_cold": {
+    "rows": 2611,
+    "queries": 28,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      },
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      },
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      }
+    ]
+  },
+  "for_you_warm": {
+    "rows": 16,
+    "queries": 2,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT ranking_id, vote_type FROM votes WHERE user_id = ? AND ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "read": 15
+      },
+      {
+        "sql": "SELECT following_id FROM follows WHERE follower_id = ? AND following_id IN (?)",
+        "read": 1
+      }
+    ]
+  },
+  "for_you_next": {
+    "rows": 541,
+    "queries": 14,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      },
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      },
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      }
+    ]
+  },
+  "following_cold": {
+    "rows": 2567,
+    "queries": 25,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      },
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      },
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      }
+    ]
+  },
+  "following_warm": {
+    "rows": 30,
+    "queries": 3,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT ranking_id, vote_type FROM votes WHERE user_id = ? AND ranking_id IN (?,?,?,?,?,?,?,?,?,?,?,?)",
+        "read": 15
+      },
+      {
+        "sql": "SELECT (\n    SELECT json_group_array(json_object('id', page.id, 'created_at', page.created_at)) FROM (\n      SELECT r.id, r.created_at FROM rankings r WHERE r.user_id = f.following_id\n      \n      ORDER BY r.created_at DESC, r.id DESC LIMIT 13\n    ) page\n  ) AS posts FROM follows f WHERE f.follower_id = ?1",
+        "read": 14
+      },
+      {
+        "sql": "SELECT following_id FROM follows WHERE follower_id = ? AND following_id IN (?)",
+        "read": 1
+      }
+    ]
+  },
+  "following_next": {
+    "rows": 556,
+    "queries": 15,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      },
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      },
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      }
+    ]
+  },
+  "guest_trending_cold": {
+    "rows": 6537,
+    "queries": 23,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT id, user_id, template_id, hashtags, created_at, last_activity_at,\n      likes_count, dislikes_count, comments_count FROM rankings \n      ORDER BY COALESCE(last_activity_at, created_at) DESC, id DESC LIMIT ?",
+        "read": 4000
+      },
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      },
+      {
+        "sql": "SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?",
+        "read": 201
+      }
+    ]
+  },
+  "guest_trending_warm": {
+    "rows": 0,
+    "queries": 0,
+    "cards": 12,
+    "top": []
+  },
+  "guest_trending_next": {
+    "rows": 528,
+    "queries": 12,
+    "cards": 12,
+    "top": [
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      },
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      },
+      {
+        "sql": "SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,\n      r.created_at, r.likes_count, r.dislikes_count, r.comments_count,\n      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,\n      (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,\n        'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,\n          'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))\n        FROM (SELECT id, item_id, tier, position FROM ranking_items WHERE ranking_id = r.id\n          ORDER BY position, id LIMIT 12) preview\n        LEFT JOIN items i ON i.id = preview.item_id\n        LEFT JOIN items legacy ON i.id IS NULL AND legacy.id = (SELECT id FROM items WHERE name = preview.item_id LIMIT 1)\n      ) AS preview_items\n      FROM rankings r LEFT JOIN profiles p ON p.id = r.user_id\n      LEFT JOIN templates t ON t.id = r.template_id WHERE r.id = ?",
+        "read": 44
+      }
+    ]
+  }
+}

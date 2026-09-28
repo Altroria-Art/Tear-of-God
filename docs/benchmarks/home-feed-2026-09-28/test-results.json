@@ -1,0 +1,318 @@
+[
+  {
+    "name": "active-debates.mjs",
+    "exit": 0
+  },
+  {
+    "name": "admin-api-security.mjs",
+    "exit": 0
+  },
+  {
+    "name": "admin-dashboard-queries.mjs",
+    "exit": 0
+  },
+  {
+    "name": "advanced-badges.mjs",
+    "exit": 0
+  },
+  {
+    "name": "analytics-batching-idle.mjs",
+    "exit": 0
+  },
+  {
+    "name": "api-concurrency-regression.mjs",
+    "exit": 0
+  },
+  {
+    "name": "auth-concurrency.mjs",
+    "exit": 0
+  },
+  {
+    "name": "auth-regression.mjs",
+    "exit": 0
+  },
+  {
+    "name": "backfill-community-average.mjs",
+    "exit": 0
+  },
+  {
+    "name": "bookmark-state-regression.mjs",
+    "exit": 0
+  },
+  {
+    "name": "client-request-regression.mjs",
+    "exit": 0
+  },
+  {
+    "name": "cold-feed-reads.mjs",
+    "exit": 0
+  },
+  {
+    "name": "comment-admin-actions.mjs",
+    "exit": 0
+  },
+  {
+    "name": "comment-self-delete.mjs",
+    "exit": 0
+  },
+  {
+    "name": "community-concurrent-reads.mjs",
+    "exit": 0
+  },
+  {
+    "name": "community-excel-analysis.mjs",
+    "exit": 0
+  },
+  {
+    "name": "community-item-identity.mjs",
+    "exit": 0
+  },
+  {
+    "name": "d1-index-efficiency.mjs",
+    "exit": 0
+  },
+  {
+    "name": "duel-api.mjs",
+    "exit": 0
+  },
+  {
+    "name": "duel-migration-verification.mjs",
+    "exit": 0
+  },
+  {
+    "name": "duel-similarity.mjs",
+    "exit": 0
+  },
+  {
+    "name": "equipped-badge.mjs",
+    "exit": 0
+  },
+  {
+    "name": "export-card-consistency.mjs",
+    "exit": 0
+  },
+  {
+    "name": "full-placement-aggregation.mjs",
+    "exit": 0
+  },
+  {
+    "name": "hashtag-catalog-staleness.mjs",
+    "exit": 0
+  },
+  {
+    "name": "hashtags-only.mjs",
+    "exit": 0
+  },
+  {
+    "name": "home-feed-all-seen.mjs",
+    "exit": 0
+  },
+  {
+    "name": "home-trending-age-limits.mjs",
+    "exit": 0
+  },
+  {
+    "name": "home-trending-request-storm-guard.mjs",
+    "exit": 0
+  },
+  {
+    "name": "k6-auth-safety.mjs",
+    "exit": 0
+  },
+  {
+    "name": "maintenance-read-only.mjs",
+    "exit": 0
+  },
+  {
+    "name": "notification-cleanup-scheduled.mjs",
+    "exit": 0
+  },
+  {
+    "name": "notification-delete.mjs",
+    "exit": 0
+  },
+  {
+    "name": "notification-polling.mjs",
+    "exit": 0
+  },
+  {
+    "name": "notification-read-expiry.mjs",
+    "exit": 0
+  },
+  {
+    "name": "page-meta-regression.mjs",
+    "exit": 0
+  },
+  {
+    "name": "participants-excel-export.mjs",
+    "exit": 0
+  },
+  {
+    "name": "participants-filter-reset.mjs",
+    "exit": 0
+  },
+  {
+    "name": "participants-filter.mjs",
+    "exit": 0
+  },
+  {
+    "name": "preview-isolation-safety.mjs",
+    "exit": 0
+  },
+  {
+    "name": "production-quota-readiness.mjs",
+    "exit": 0
+  },
+  {
+    "name": "profile-card-hashtags.mjs",
+    "exit": 0
+  },
+  {
+    "name": "profile-links-audit.mjs",
+    "exit": 0
+  },
+  {
+    "name": "profile-pagination-regression.mjs",
+    "exit": 0
+  },
+  {
+    "name": "profile-similar-lazy.mjs",
+    "exit": 0
+  },
+  {
+    "name": "quota-item-reactions.mjs",
+    "exit": 0
+  },
+  {
+    "name": "quota-optimization.mjs",
+    "exit": 0
+  },
+  {
+    "name": "ranking-atomicity.mjs",
+    "exit": 0
+  },
+  {
+    "name": "ranking-orphan-template-delete.mjs",
+    "exit": 0
+  },
+  {
+    "name": "remaining-d1.mjs",
+    "exit": 0
+  },
+  {
+    "name": "report-expiry.mjs",
+    "exit": 0
+  },
+  {
+    "name": "saved-templates-sync.mjs",
+    "exit": 0
+  },
+  {
+    "name": "schema-reconciliation.mjs",
+    "exit": 0
+  },
+  {
+    "name": "security-headers.mjs",
+    "exit": 0
+  },
+  {
+    "name": "spotlights-optimization.mjs",
+    "exit": 0
+  },
+  {
+    "name": "stats-chart-export.mjs",
+    "exit": 0
+  },
+  {
+    "name": "template-card-preview-comprehensive.mjs",
+    "exit": 0
+  },
+  {
+    "name": "template-card-preview-dimensions.mjs",
+    "exit": 0
+  },
+  {
+    "name": "template-card-preview-shapes.mjs",
+    "exit": 0
+  },
+  {
+    "name": "template-cooldown-anti-pumping.mjs",
+    "exit": 0
+  },
+  {
+    "name": "template-discover-preview.mjs",
+    "exit": 0
+  },
+  {
+    "name": "template-participants-scalability.mjs",
+    "exit": 0
+  },
+  {
+    "name": "template-view-session.mjs",
+    "exit": 0
+  },
+  {
+    "name": "trending-pool-cache.mjs",
+    "exit": 0
+  },
+  {
+    "name": "trending-recent-activity.mjs",
+    "exit": 0
+  },
+  {
+    "name": "trending-seen-fallback.mjs",
+    "exit": 0
+  },
+  {
+    "name": "trending-seen.mjs",
+    "exit": 0
+  },
+  {
+    "name": "trending-virtual-infinite-feed.mjs",
+    "exit": 0
+  },
+  {
+    "name": "trending-visibility.mjs",
+    "exit": 0
+  },
+  {
+    "name": "user-session-state.mjs",
+    "exit": 0
+  },
+  {
+    "name": "verified-session-mutations.mjs",
+    "exit": 0
+  },
+  {
+    "name": "admin-deletion-counters.mjs",
+    "exit": 0
+  },
+  {
+    "name": "home-template-counts.mjs",
+    "exit": 0
+  },
+  {
+    "name": "home-feed-cursor-cache.mjs",
+    "exit": 0
+  },
+  {
+    "name": "home-virtual-window.mjs",
+    "exit": 0
+  },
+  {
+    "name": "quota-hot-paths.mjs",
+    "exit": 0
+  },
+  {
+    "name": "cache-observability.mjs",
+    "exit": 0
+  },
+  {
+    "name": "feed-refresh.mjs",
+    "exit": 0
+  },
+  {
+    "name": "editor-detail-regression.mjs",
+    "exit": 0
+  }
+]

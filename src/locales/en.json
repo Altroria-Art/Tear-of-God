@@ -316,6 +316,7 @@
     "moreItems": "{{count}} more items",
     "showFullRanking": "View full ranking · {{tiers}} tiers, {{items}} items",
     "showLess": "Show less",
+    "openFullRanking": "View full ranking",
     "avatarAlt": "avatar",
     "featuredStats": "Featured post stats",
     "rankedBy": "{{count}} people ranked it",

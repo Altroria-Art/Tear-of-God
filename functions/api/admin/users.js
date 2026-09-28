@@ -99,6 +99,9 @@ export async function onRequest({ request, env, data: auth }) {
         assertAllowedFields(payload, ['action', 'target_id']);
         const { results: affectedTemplates } = await db.prepare('SELECT DISTINCT template_id FROM rankings WHERE user_id = ? AND template_id IS NOT NULL').bind(targetId).all();
         await db.batch([
+          db.prepare(`UPDATE templates SET use_count = MAX(0, COALESCE(use_count, 0) -
+            (SELECT COUNT(*) FROM rankings WHERE user_id = ?1 AND template_id = templates.id))
+            WHERE id IN (SELECT template_id FROM rankings WHERE user_id = ?1)`).bind(targetId),
           // Project the surviving counts before the corresponding rows/cascade
           // disappear, within this same transaction. Only touched posts change.
           db.prepare(`UPDATE rankings SET

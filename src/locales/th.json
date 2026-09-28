@@ -316,6 +316,7 @@
     "moreItems": "อีก {{count}} ไอเทม",
     "showFullRanking": "ดูทั้งหมด · {{tiers}} เทียร์, {{items}} ไอเทม",
     "showLess": "ย่อรายการ",
+    "openFullRanking": "เปิดดูอันดับทั้งหมด",
     "avatarAlt": "โปรไฟล์",
     "featuredStats": "สถิติเด่นของโพสต์",
     "rankedBy": "{{count}} คนจัดแล้ว",
