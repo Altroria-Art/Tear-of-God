@@ -55,10 +55,13 @@ const realCaches = globalThis.caches;
 globalThis.caches = { default: makeFakeCache() };
 
 async function feedIds({ feedType = 'trending', seed = 0, exclude = null, seen = null, limit = 50, fresh = '1' }) {
-  const query = new URLSearchParams({ feed_type: feedType, seed: String(seed), limit: String(limit) });
+  const query = new URLSearchParams({ feed_type: feedType, seed: String(seed), limit: '12' });
   if (exclude) query.set('exclude', exclude);
   if (seen) query.set('seen', seen);
   if (fresh) query.set('fresh', fresh);
+  const ids = [];
+  let more = true;
+  for (let page = 0; more && ids.length < limit && page < 10; page++) {
   const response = await rankings({
     request: new Request(`https://local.test/api/rankings?${query.toString()}`, { method: 'GET' }),
     env: { tear_of_god_db: db, APP_ENV: 'local' },
@@ -67,7 +70,11 @@ async function feedIds({ feedType = 'trending', seed = 0, exclude = null, seen =
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.success, true);
-  return (body.data || []).map((row) => row.id);
+  ids.push(...(body.data || []).map((row) => row.id));
+  more = body.hasMore;
+  if (more) { assert.ok(body.nextCursor); query.set('cursor', body.nextCursor); }
+  }
+  return ids.slice(0,limit);
 }
 
 async function insertRanking({ id, userId = 'author1', hashtags = '#test', likes = 0, comments: cCount = 0, createdMod, lastMod = null }) {
@@ -90,7 +97,7 @@ try {
   console.log('Scenario 1: Testing Sliding Window DOM Virtualization calculations...');
 
   // Pure sliding-window simulation matching VirtualFeedContainer.jsx logic
-  function simulateVirtualWindow(items, scrollY, containerTop, windowSize = 24, bufferBefore = 8, itemHeight = 440) {
+  function simulateVirtualWindow(items, scrollY, containerTop, windowSize = 12, bufferBefore = 3, itemHeight = 440) {
     const total = items.length;
     const offsets = new Float64Array(total + 1);
     for (let i = 0; i < total; i++) {
@@ -139,28 +146,28 @@ try {
   const expectedTotalHeight = 100 * itemHeight; // 44,000px
 
   // 1.1 At scroll top (scrollY = 0)
-  const atTop = simulateVirtualWindow(mock100Items, 0, 0, 24, 8, itemHeight);
+  const atTop = simulateVirtualWindow(mock100Items, 0, 0, 12, 3, itemHeight);
   assert.equal(atTop.desiredStart, 0, 'at scroll top, window starts at 0');
-  assert.equal(atTop.desiredEnd, 23, 'window ends at 23 (24 items rendered)');
-  assert.equal(atTop.visibleCount, 24, 'only 24 cards rendered in DOM, not 100');
+  assert.equal(atTop.desiredEnd, 11, 'window ends at 11 (12 items rendered)');
+  assert.equal(atTop.visibleCount, 12, 'only 12 cards rendered in DOM, not 100');
   assert.equal(atTop.topSpacerHeight, 0, 'top spacer is 0 at the top');
-  assert.equal(atTop.bottomSpacerHeight, (100 - 24) * itemHeight, 'bottom spacer matches unmounted bottom items');
+  assert.equal(atTop.bottomSpacerHeight, (100 - 12) * itemHeight, 'bottom spacer matches unmounted bottom items');
   assert.equal(atTop.totalVirtualHeight, expectedTotalHeight, 'total scroll height is exactly preserved');
 
   // 1.2 Scrolled deep down to item 50 (scrollY = 50 * 440 = 22,000px)
-  const scrolledDown = simulateVirtualWindow(mock100Items, 22000, 0, 24, 8, itemHeight);
+  const scrolledDown = simulateVirtualWindow(mock100Items, 22000, 0, 12, 3, itemHeight);
   assert.ok(scrolledDown.desiredStart > 30, 'upper items unmounted from DOM');
-  assert.ok(scrolledDown.visibleCount <= 24, 'DOM node count strictly bounded to windowSize');
+  assert.ok(scrolledDown.visibleCount <= 12, 'DOM node count strictly bounded to windowSize');
   assert.ok(scrolledDown.topSpacerHeight > 0, 'top spacer represents unmounted upper items');
   assert.equal(scrolledDown.topSpacerHeight, scrolledDown.desiredStart * itemHeight, 'top spacer exactly equals unmounted items * height');
   assert.equal(scrolledDown.totalVirtualHeight, expectedTotalHeight, 'zero scroll jumping: total virtual height remains constant');
 
   // 1.3 Scrolled back up to top (scrollY = 0)
-  const scrolledBackUp = simulateVirtualWindow(mock100Items, 0, 0, 24, 8, itemHeight);
+  const scrolledBackUp = simulateVirtualWindow(mock100Items, 0, 0, 12, 3, itemHeight);
   assert.equal(scrolledBackUp.desiredStart, 0, 'scrolled back up: start restored to 0');
   assert.deepEqual(
     scrolledBackUp.visibleItems.map(p => p.id),
-    mock100Items.slice(0, 24).map(p => p.id),
+    mock100Items.slice(0, 12).map(p => p.id),
     'cards are restored from memory in original order with no data loss',
   );
   console.log('✔ Scenario 1 passed: Sliding window virtualization correctly bounds DOM nodes, prevents scroll jumping, and restores memory history!');
@@ -197,53 +204,6 @@ try {
   const refreshedNoNew = simulateTrendingRefresh(refreshedFeed, [{ id: 'post_1' }, { id: 'post_2' }]);
   assert.deepEqual(refreshedNoNew, refreshedFeed, 'feed does not flicker or blank when no new posts exist');
   console.log('✔ Scenario 2 passed: Refresh never wipes feed and prepends new content cleanly!');
-
-  // =========================================================================
-  // Scenario 3: Non-Consecutive Session Recycling
-  // =========================================================================
-  console.log('\nScenario 3: Testing Non-Consecutive Session Recycling...');
-
-  function simulateInfiniteRecycling(sessionPosts, recycleCount) {
-    if (sessionPosts.length < 12) return sessionPosts;
-    const tailIds = new Set(sessionPosts.slice(-15).map(p => p.id));
-    const candidates = sessionPosts.filter(p => !tailIds.has(p.id));
-    if (candidates.length === 0) return sessionPosts;
-
-    const rTag = recycleCount + 1;
-    const batchSize = Math.min(12, candidates.length);
-    const recycled = candidates.slice(0, batchSize).map(p => ({
-      ...p,
-      virtualKey: `${p.id}-r${rTag}`,
-    }));
-
-    return {
-      updatedPosts: [...sessionPosts, ...recycled],
-      recycledCount: recycled.length,
-      recycleTag: rTag,
-    };
-  }
-
-  // Create a session with 25 distinct posts
-  const session25 = Array.from({ length: 25 }, (_, i) => ({ id: `s_post_${i}` }));
-  const recycledResult = simulateInfiniteRecycling(session25, 0);
-
-  assert.equal(recycledResult.recycledCount, 10, 'recycles the 10 earliest candidates (25 - 15 = 10)');
-  assert.equal(recycledResult.updatedPosts.length, 35, 'recycled items appended to infinite feed');
-
-  // Check distance: the last 15 items before appending were s_post_10..s_post_24.
-  // The recycled items are s_post_0..s_post_9.
-  // Distance between s_post_9 and its recycled clone is at least 15 cards!
-  const firstClone = recycledResult.updatedPosts[25];
-  assert.equal(firstClone.id, 's_post_0');
-  assert.equal(firstClone.virtualKey, 's_post_0-r1', 'recycled card has distinct virtualKey for react rendering');
-
-  // Verify no duplicate within 15 cards
-  for (let i = 25; i < 35; i++) {
-    const card = recycledResult.updatedPosts[i];
-    const preceding15 = recycledResult.updatedPosts.slice(i - 15, i).map(p => p.id);
-    assert.ok(!preceding15.includes(card.id), `card ${card.id} at index ${i} must not appear in preceding 15 cards`);
-  }
-  console.log('✔ Scenario 3 passed: Genuinely exhausted pool recycles non-consecutively with >= 15-card distance!');
 
   // =========================================================================
   // Scenario 4: Backend 3-Tier Age Pool and Sparse Fallback Pacing

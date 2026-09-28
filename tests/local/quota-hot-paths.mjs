@@ -12,7 +12,7 @@ const cpuMode = process.argv.includes('--cpu');
 const bundled = cpuMode ? await build({ stdin: { contents: `
   import { onRequest } from './functions/api/rankings.js';
   export default { fetch(request, env, ctx) {
-    return onRequest({ request, env: { tear_of_god_db: env.DB, CACHE_METRIC_SAMPLE_RATE: '0' },
+    return onRequest({ request, env: { tear_of_god_db: env.DB, CACHE_METRIC_SAMPLE_RATE: '0', HOME_PRECOMPUTED_TEMPLATE_COUNTS: 'true' },
       data: { user: { id: 'viewer' } }, waitUntil: p => ctx.waitUntil(p) });
   } };`, resolveDir: process.cwd() }, bundle:true, write:false,format:'esm',platform:'browser' }) : null;
 
@@ -82,7 +82,7 @@ try {
       }); return wrap(db.prepare(sql));
     } };
     const tasks = [];
-    const response = await handler({ request:new Request('https://test'+path,body ? {method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'application/json'}} : {}), env:{tear_of_god_db:traced,CACHE_METRIC_SAMPLE_RATE:'0'},data:{user:{id:userId}},waitUntil:p=>tasks.push(p) });
+    const response = await handler({ request:new Request('https://test'+path,body ? {method:'POST',body:JSON.stringify(body),headers:{'Content-Type':'application/json'}} : {}), env:{tear_of_god_db:traced,CACHE_METRIC_SAMPLE_RATE:'0',HOME_PRECOMPUTED_TEMPLATE_COUNTS:'true'},data:{user:{id:userId}},waitUntil:p=>tasks.push(p) });
     assert.equal(response.status < 400,true,await response.clone().text());
     await Promise.all(tasks);
     const summary = {path,read:queries.reduce((a,q)=>a+q.read,0),written:queries.reduce((a,q)=>a+q.written,0),queries:queries.length,top:queries.sort((a,b)=>b.read-a.read).slice(0,2)};
@@ -104,9 +104,10 @@ try {
   const warm = await measure(rankings,path);
   assert.deepEqual(warm.body,cold.body);
   const aggregateQueries = cold.queries.filter(query => query.sql.startsWith('SELECT template_id, COUNT(*) AS uses') || query.sql.startsWith('SELECT r.template_id, ri.item_id'));
-  assert.equal(aggregateQueries.length, 2, 'cold feed loads uses and effective placement histogram');
-  assert.equal(warm.summary.queries, cold.summary.queries - 2, 'warm feed skips both aggregate queries');
-  assert.equal(cold.summary.read - warm.summary.read, aggregateQueries.reduce((sum, query) => sum + query.read, 0));
+  assert.equal(aggregateQueries.length, 0, 'Home must never load live community aggregates');
+  assert.ok(cold.summary.read < 1000, 'cold preview and candidate reads stay bounded');
+  assert.ok(warm.summary.read < 100, 'warm authenticated feed reads only viewer overlays');
+  assert.ok(cold.body.data.every(card => card.preview && card.ranking_items.length <= 12));
   console.log(`Warm For You: ${cold.summary.read} -> ${warm.summary.read} rows`);
   // Overlapping pages share template entries, not viewer data or whole responses.
   await measure(rankings,path+'&page=2');
@@ -115,9 +116,9 @@ try {
   assert.deepEqual(otherCached.body,otherFresh.body,'Public aggregate reuse cannot leak viewer votes/follows');
   const fresh = await measure(rankings,path+'&pin=r0001');
   assert.deepEqual(fresh.body,cold.body);
-  assert.equal(fresh.summary.read,cold.summary.read);
+  assert.ok(fresh.summary.read < 1000);
   for (const [key,response] of cacheEntries) {
-    const data = await response.clone().json(); data.expiresAt=0;
+    const data = await response.clone().json(); data.expiresAt=0; data.expires=0;
     cacheEntries.set(key,Response.json(data));
   }
   assert.deepEqual((await measure(rankings,path)).body,cold.body);

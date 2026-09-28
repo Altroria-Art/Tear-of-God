@@ -79,6 +79,8 @@ export async function onRequest({ request, env, data: auth }) {
       if (action === 'delete') {
         const ranking = await db.prepare('SELECT template_id, user_id FROM rankings WHERE id = ?').bind(targetId).first();
         const batchStmts = [
+          db.prepare(`UPDATE templates SET use_count = MAX(0, COALESCE(use_count, 0) - 1)
+            WHERE id = (SELECT template_id FROM rankings WHERE id = ?)`).bind(targetId),
           db.prepare('DELETE FROM ranking_items WHERE ranking_id = ?').bind(targetId),
           db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(targetId),
           db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(targetId),

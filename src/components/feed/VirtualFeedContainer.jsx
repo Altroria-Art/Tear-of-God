@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
  * VirtualFeedContainer
  * Sliding-window DOM virtualization for infinite feeds (TikTok style).
  * 
- * - Only renders ~20–30 cards in the DOM around the current scroll position.
+ * - Only renders ~12 cards in the DOM around the current scroll position.
  * - Upper cards are unmounted when scrolling down; their heights are converted to a top spacer.
  * - Previously unmounted cards are restored when scrolling back up.
  * - Items in memory are NEVER deleted from session history.
@@ -16,8 +16,8 @@ export default function VirtualFeedContainer({
   onLoadMore,
   hasMore = false,
   isLoadingMore = false,
-  windowSize = 24,
-  bufferBefore = 8,
+  windowSize = 12,
+  bufferBefore = 3,
   estimatedItemHeight = 440,
   className = '',
 }) {
@@ -46,7 +46,7 @@ export default function VirtualFeedContainer({
       return;
     }
     inFlightTriggerRef.current = true;
-    onLoadMoreRef.current?.();
+    Promise.resolve(onLoadMoreRef.current?.()).finally(() => { inFlightTriggerRef.current = false; });
   }, []);
 
   // Track item count changes
@@ -125,10 +125,17 @@ export default function VirtualFeedContainer({
     }
 
     // Trigger loadMore if close to the end
-    if (desiredEnd >= total - 4) {
+    // The rendered overscan can already reach the last item while the viewport
+    // is still near the top. Prefetch from viewport distance, not overscan.
+    if (currentY + window.innerHeight >= offsets[total] - 400) {
       triggerLoadMore();
     }
   }, [items.length, windowSize, bufferBefore, getOffsets, triggerLoadMore]);
+
+  // A fetched batch changes the offsets while the user may have stopped
+  // scrolling at the old bottom. Mount that viewport immediately, otherwise
+  // the newly appended area remains a blank spacer until another scroll.
+  useEffect(() => { updateWindow(); }, [updateWindow]);
 
   useEffect(() => {
     let ticking = false;

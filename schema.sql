@@ -262,6 +262,8 @@ CREATE INDEX IF NOT EXISTS idx_profiles_created_at ON profiles(created_at DESC, 
 CREATE INDEX IF NOT EXISTS idx_rankings_created_at   ON rankings(created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_rankings_tpl_likes    ON rankings(template_id, likes_count DESC, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_rankings_user_created ON rankings(user_id, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_rankings_feed_activity ON rankings(COALESCE(last_activity_at, created_at) DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_ranking_items_preview ON ranking_items(ranking_id, position, id);
 CREATE INDEX IF NOT EXISTS idx_templates_created ON templates(created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_template_items_tpl_position ON template_items(template_id, position);
 

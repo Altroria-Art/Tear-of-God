@@ -21,6 +21,7 @@ try {
   }
   await db.prepare("INSERT INTO templates (id, creator_id) VALUES ('template', 'survivor')").run();
   await db.prepare("INSERT INTO rankings (id, user_id, template_id, likes_count, dislikes_count, comments_count) VALUES ('surviving-post', 'survivor', 'template', 1, 1, 4), ('removed-post', 'removed', 'template', 0, 0, 0)").run();
+  await db.prepare("UPDATE templates SET use_count = 2 WHERE id = 'template'").run();
   await db.prepare("INSERT INTO votes (id, ranking_id, user_id, vote_type) VALUES ('v1', 'surviving-post', 'removed', 'like'), ('v2', 'surviving-post', 'admin', 'dislike')").run();
   for (const [id, user, parent] of [['root', 'removed', null], ['reply', 'survivor', 'root'], ['nested', 'admin', 'reply'], ['kept', 'survivor', null]]) {
     await db.prepare("INSERT INTO comments (id, ranking_id, user_id, parent_id) VALUES (?, 'surviving-post', ?, ?)").bind(id, user, parent).run();
@@ -35,6 +36,7 @@ try {
   await call(deleteUser, { action: 'delete', target_id: 'removed' });
   assert.equal(await db.prepare("SELECT id FROM profiles WHERE id = 'removed'").first(), null);
   assert.equal(await db.prepare("SELECT id FROM rankings WHERE id = 'removed-post'").first(), null);
+  assert.equal((await db.prepare("SELECT use_count FROM templates WHERE id='template'").first()).use_count,1);
   assert.deepEqual(await db.prepare("SELECT likes_count, dislikes_count, comments_count FROM rankings WHERE id = 'surviving-post'").first(), { likes_count: 0, dislikes_count: 1, comments_count: 1 });
   assert.deepEqual((await db.prepare('SELECT id FROM comments').all()).results, [{ id: 'kept' }]);
   assert.ok(evicted.some(url => url.includes('__community_stats_v1?template=template')));

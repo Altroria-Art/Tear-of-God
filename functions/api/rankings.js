@@ -1,5 +1,6 @@
 import { prioritizeUnseen } from '../lib/feed-refresh.js';
 import { feedCommunityStats } from '../lib/community-cache.js';
+import { homeFeed } from '../lib/home-feed.js';
 import { templateDeleteStatements } from '../lib/templateDelete.js';
 import {
   checkTemplateCooldown,
@@ -253,6 +254,9 @@ export async function onRequest(context) {
         const feedType = ['trending', 'for_you', 'following'].includes(normalizedFeedType)
           ? normalizedFeedType
           : null;
+        if (feedType && !authorId && !templateId && !hashtag && !sort && !url.searchParams.has('days') && url.searchParams.get('mine') !== '1') {
+          return await homeFeed(context, feedType);
+        }
         // seed สุ่มจาก client (ใหม่ทุก mount) → ลำดับเปลี่ยนทุก reload แต่คงที่ใน session.
         // อันเป็น 0 = deterministic เหมือนเดิม (default)
         const seed = Math.max(0, parseInt(url.searchParams.get('seed') || '0', 10) || 0) >>> 0;
@@ -336,7 +340,7 @@ export async function onRequest(context) {
         // Guests may browse Trending; the other two feeds intentionally require login.
         // rows-read: pool อ่านแค่ id (≤ HOME_POOL_CAP) ต่อหน้าใหม่; หน้าถัดๆ ไปอ่านแต่ detail ของ 1 หน้า
         // (HomeFeed cache ผลต่อ tab+user ไว้ที่ client → pool scan เกิดขึ้นครั้งเดียวต่อครั้ง mount)
-        const HOME_POOL_CAP = 600;    // เพดาน pool ที่จะนำมาสับ — กัน pool โตเกินเหตุ
+        const HOME_POOL_CAP = 48;     // Filtered compatibility path; normal Home uses home-feed.js.
 
         let homePoolIds = null;       // null = ไม่ใช่ home path
         let feedLocked = false;
@@ -1263,6 +1267,8 @@ r.created_at DESC, r.id DESC`;
       if (ranking.user_id !== currentUserId) return jsonResponse({ success: false, error: 'Forbidden' }, 403);
 
       const deleteStatements = [
+        db.prepare(`UPDATE templates SET use_count = MAX(0, COALESCE(use_count, 0) - 1)
+          WHERE id = (SELECT template_id FROM rankings WHERE id = ?)`).bind(targetId),
         db.prepare('DELETE FROM ranking_items WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(targetId),

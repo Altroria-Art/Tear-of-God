@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Download, Flag, X, Trash2, Swords } from 'lucide-react'
 import { loginPath } from '../lib/navigation'
 import ActionButton from '../components/feed/ActionButton'
@@ -34,7 +34,8 @@ function PostDetailContent() {
   const { currentUser } = useUser()
   const toast = useToast()
   const { t } = useTranslation()
-  const [modal, setModal] = useState(null) // 'share' | 'export' | null
+  const location = useLocation()
+  const [modal, setModal] = useState(() => ['share', 'export'].includes(location.state?.feedAction) ? location.state.feedAction : null) // 'share' | 'export' | null
   const tableRef = useRef(null)
   const commentInputRef = useRef(null) // ช่องพิมพ์คอมเมนต์ — ไว้โฟกัสเมื่อกดปุ่มคอมเมนต์
 
@@ -75,6 +76,7 @@ function PostDetailContent() {
           isOriginal: data.is_original ?? (!data.template_id),
           templateTitle: data.template_title ?? null,
           authorId: data.profile?.id ?? data.user_id ?? null,
+          profile: data.profile,
           author: {
             name: data.profile?.username || t('common.unknownUser'),
             avatarUrl: data.profile?.avatar_url

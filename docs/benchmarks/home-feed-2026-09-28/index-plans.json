@@ -1,0 +1,84 @@
+{
+  "before": [
+    {
+      "sql": "SELECT id FROM rankings ORDER BY COALESCE(last_activity_at,created_at) DESC,id DESC LIMIT 49",
+      "plan": [
+        {
+          "id": 4,
+          "parent": 0,
+          "notused": 216,
+          "detail": "SCAN rankings"
+        },
+        {
+          "id": 18,
+          "parent": 0,
+          "notused": 0,
+          "detail": "USE TEMP B-TREE FOR ORDER BY"
+        }
+      ]
+    },
+    {
+      "sql": "SELECT id FROM ranking_items WHERE ranking_id='r0001' ORDER BY position,id LIMIT 12",
+      "plan": [
+        {
+          "id": 5,
+          "parent": 0,
+          "notused": 62,
+          "detail": "SEARCH ranking_items USING INDEX idx_ranking_items_ranking_tier (ranking_id=?)"
+        },
+        {
+          "id": 20,
+          "parent": 0,
+          "notused": 0,
+          "detail": "USE TEMP B-TREE FOR ORDER BY"
+        }
+      ]
+    },
+    {
+      "sql": "SELECT id FROM rankings WHERE user_id='author' AND (created_at,id)<('9999','z') ORDER BY created_at DESC,id DESC LIMIT 13",
+      "plan": [
+        {
+          "id": 4,
+          "parent": 0,
+          "notused": 47,
+          "detail": "SEARCH rankings USING COVERING INDEX idx_rankings_user_created (user_id=? AND (created_at,id)<(?,?))"
+        }
+      ]
+    }
+  ],
+  "after": [
+    {
+      "sql": "SELECT id FROM rankings ORDER BY COALESCE(last_activity_at,created_at) DESC,id DESC LIMIT 49",
+      "plan": [
+        {
+          "id": 5,
+          "parent": 0,
+          "notused": 211,
+          "detail": "SCAN rankings USING COVERING INDEX idx_rankings_feed_activity"
+        }
+      ]
+    },
+    {
+      "sql": "SELECT id FROM ranking_items WHERE ranking_id='r0001' ORDER BY position,id LIMIT 12",
+      "plan": [
+        {
+          "id": 4,
+          "parent": 0,
+          "notused": 55,
+          "detail": "SEARCH ranking_items USING COVERING INDEX idx_ranking_items_preview (ranking_id=?)"
+        }
+      ]
+    },
+    {
+      "sql": "SELECT id FROM rankings WHERE user_id='author' AND (created_at,id)<('9999','z') ORDER BY created_at DESC,id DESC LIMIT 13",
+      "plan": [
+        {
+          "id": 4,
+          "parent": 0,
+          "notused": 47,
+          "detail": "SEARCH rankings USING COVERING INDEX idx_rankings_user_created (user_id=? AND (created_at,id)<(?,?))"
+        }
+      ]
+    }
+  ]
+}
