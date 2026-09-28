@@ -12,10 +12,15 @@ import ErrorBoundary from './components/layout/ErrorBoundary';
 import MobileBottomNav from './components/layout/MobileBottomNav';
 import AnalyticsTracker from './components/analytics/AnalyticsTracker';
 import RequireAuth from './components/auth/RequireAuth';
+import { preloadableImport } from './lib/preloadableImport';
 
 // 📍 Lazy-load ตามหน้า (code-splitting) — แยก bundle ใหญ่ (หน้าแรกที่ใช้บ่อยโหลดก่อน,
 // หน้าที่ไม่ใช่หน้าแรกค่อยโหลดเมื่อเข้า) ลดขนาด initial JS (ดู bundle warning จาก build)
-const HomeFeed = lazy(() => import('./pages/HomeFeed'));
+const homeModule = preloadableImport(() => import('./pages/HomeFeed'));
+const HomeFeed = lazy(homeModule.load);
+// Fetch Home's code while /api/auth is pending, without mounting the feed or
+// requesting guest data before the viewer's identity is known.
+if (typeof window !== 'undefined' && window.location.pathname === '/') homeModule.preload();
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const Discover = lazy(() => import('./pages/Discover'));
