@@ -1,5 +1,6 @@
 import { assertId, consumeMemoryRateLimit, internalErrorResponse, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 import { checkTemplateCooldown } from '../lib/cooldown.js';
+import { publicResponseCache } from '../lib/public-response-cache.js';
 
 function parseTiers(raw) {
   if (!raw) return null;
@@ -11,6 +12,41 @@ function parseTiers(raw) {
 }
 
 export async function onRequestGet(context) {
+  const url = new URL(context.request.url);
+  // Saved lists and detail have live/private contracts. Cache only the public
+  // catalog; bookmark overlays always come from D1 after the shared read.
+  const suggest = url.searchParams.get('suggest') === '1';
+  if (url.searchParams.get('id') || (!suggest && url.searchParams.get('saved') === 'true')) return queryTemplates(context);
+  const keyUrl = new URL('/api/__template_catalog_v1', url);
+  for (const name of ['q', 'hashtag', 'category', 'limit', 'page', 'sort', 'suggest']) {
+    if (url.searchParams.has(name)) keyUrl.searchParams.set(name, url.searchParams.get(name));
+  }
+  keyUrl.searchParams.sort();
+  try {
+    const response = await publicResponseCache(context, new Request(keyUrl), suggest ? 60 : 10,
+      () => queryTemplates({ ...context, data: { ...context.data, user: null } }));
+    const viewerId = context.data?.user?.id;
+    if (!response.ok || suggest || !viewerId) return response;
+    const payload = await response.json();
+    const ids = payload.data.map(template => template.id);
+    const saved = new Set();
+    // A list can contain 100 cards; keep each query below D1's bind limit.
+    for (let start = 0; start < ids.length; start += 90) {
+      const batch = ids.slice(start, start + 90);
+      const { results } = await context.env.tear_of_god_db.prepare(
+        `SELECT template_id FROM template_bookmarks WHERE user_id = ? AND template_id IN (${batch.map(() => '?').join(',')})`
+      ).bind(viewerId, ...batch).all();
+      for (const row of results) saved.add(row.template_id);
+    }
+    payload.data = payload.data.map(template => ({ ...template, is_saved: saved.has(template.id) }));
+    return Response.json(payload, { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch (error) {
+    console.error('Template catalog failed:', { name: error?.name, message: error?.message });
+    return internalErrorResponse();
+  }
+}
+
+async function queryTemplates(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   const templateId = url.searchParams.get('id');
