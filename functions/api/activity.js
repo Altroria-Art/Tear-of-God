@@ -30,15 +30,9 @@ export async function onRequest({ request, env, data: auth }) {
           CASE WHEN r.template_id IS NULL THEN 'ranking_created' ELSE 'template_used' END AS type,
           r.id AS ranking_id,
           r.user_id AS actor_id,
-          r.created_at AS occurred_at,
-          r.title AS ranking_title,
-          r.hashtags AS ranking_hashtags,
-          r.template_id,
-          t.title AS template_title,
-          r.user_id AS target_user_id
+          r.created_at AS occurred_at
         FROM rankings r
         JOIN followed f ON f.following_id = r.user_id
-        LEFT JOIN templates t ON t.id = r.template_id
         WHERE r.created_at >= datetime('now', '-90 days')
 
         UNION ALL
@@ -47,30 +41,34 @@ export async function onRequest({ request, env, data: auth }) {
           'liked_ranking' AS type,
           r.id AS ranking_id,
           v.user_id AS actor_id,
-          v.created_at AS occurred_at,
-          r.title AS ranking_title,
-          r.hashtags AS ranking_hashtags,
-          r.template_id,
-          t.title AS template_title,
-          r.user_id AS target_user_id
+          v.created_at AS occurred_at
         FROM votes v
         JOIN followed f ON f.following_id = v.user_id
         JOIN rankings r ON r.id = v.ranking_id
-        LEFT JOIN templates t ON t.id = r.template_id
         WHERE v.vote_type = 'like'
           AND v.created_at >= datetime('now', '-90 days')
+      ), recent AS MATERIALIZED (
+        SELECT * FROM events
+        ORDER BY datetime(occurred_at) DESC, ranking_id DESC, type ASC
+        LIMIT ?
       )
       SELECT
         e.*,
+        r.title AS ranking_title,
+        r.hashtags AS ranking_hashtags,
+        r.template_id,
+        t.title AS template_title,
+        r.user_id AS target_user_id,
         actor.username AS actor_username,
         actor.avatar_url AS actor_avatar_url,
         target.username AS target_username,
         target.avatar_url AS target_avatar_url
-      FROM events e
+      FROM recent e
+      JOIN rankings r ON r.id = e.ranking_id
+      LEFT JOIN templates t ON t.id = r.template_id
       LEFT JOIN profiles actor ON actor.id = e.actor_id
-      LEFT JOIN profiles target ON target.id = e.target_user_id
+      LEFT JOIN profiles target ON target.id = r.user_id
       ORDER BY datetime(e.occurred_at) DESC, e.ranking_id DESC, e.type ASC
-      LIMIT ?
     `).bind(userId, limit).all();
 
     const data = (results || []).map((event) => ({
