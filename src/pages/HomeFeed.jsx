@@ -820,8 +820,8 @@ export default function HomeFeed() {
           }
         }
       } finally {
-        inFlightRef.current = false;
         if (!cancelled && generation === requestGenerationRef.current) {
+          inFlightRef.current = false;
           setIsLoading(false);
           loadingRef.current = false;
         }
@@ -906,8 +906,8 @@ export default function HomeFeed() {
         return merged;
       });
     } finally {
-      inFlightRef.current = false;
       if (generation === requestGenerationRef.current) {
+        inFlightRef.current = false;
         setIsLoadingMore(false);
         loadingRef.current = false;
       }

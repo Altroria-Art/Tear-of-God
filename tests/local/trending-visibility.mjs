@@ -83,18 +83,20 @@ console.log('Trending visibility passed: >700ms, viewport exit, background tab, 
 
 // Run the actual click handler repeatedly before a React effect could acquire a lock.
 const refreshStart = source.indexOf('  const refreshFeed = useCallback(');
-const refreshEnd = source.indexOf('}, [activeTab, cacheKey, posts, feedLocked]);', refreshStart) + '}, [activeTab, cacheKey, posts, feedLocked]);'.length;
+const refreshEnd = source.indexOf('}, [activeTab, cacheKey, feedLocked]);', refreshStart) + '}, [activeTab, cacheKey, feedLocked]);'.length;
+assert.ok(refreshStart >= 0 && refreshEnd > refreshStart, 'Refresh handler must be found before executing it');
 let requests = 0;
 const loadingRef = { current: false };
 const refreshContext = vm.createContext({
   useCallback: callback => callback,
   loadingRef,
+  inFlightRef: { current: false },
   feedLocked: false,
   activeTab: 'trending',
   Date: { now: () => clock + 10000 },
   lastRefreshRef: { current: 0 },
   isManualRefreshRef: { current: false },
-  posts: [{ id: 'not-yet-visible' }],
+  postsRef: { current: [{ id: 'not-yet-visible' }] },
   cacheKey: 'trending:guest',
   seenFeedIdsRef: { current: {} },
   feedCacheRef: { current: {} },

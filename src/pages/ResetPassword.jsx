@@ -23,6 +23,12 @@ export default function ResetPassword() {
     }
   }, [token, t]);
 
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => navigate('/login'), 3500);
+    return () => clearTimeout(timer);
+  }, [success, navigate]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!token) {
@@ -46,7 +52,6 @@ export default function ResetPassword() {
     
     if (res.success) {
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 3500);
     } else {
       setErrorMsg(res.error || t('auth.errGenericRetry'));
     }

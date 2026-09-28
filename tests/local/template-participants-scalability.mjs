@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 
 import { onRequestGet as templateParticipants } from '../../functions/api/template-participants.js';
+import { seedLatestContributions } from './helpers/contributions.mjs';
 
 const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
 const schemaStatements = schema
@@ -59,6 +60,11 @@ function dbTimestamp(index) {
 
 async function seedDataset(db, rankingCount) {
   const templateId = `template-${rankingCount}`;
+  // Scale distinct participants, retaining the four demographic groups. The
+  // current API deliberately returns one effective ranking per participant.
+  const participantProfiles = Array.from({ length: Math.max(4, rankingCount) }, (_, index) => ({
+    ...profiles[index % profiles.length], id: `user-${index}`,
+  }));
   await insertJsonRows(db, `
     INSERT INTO profiles (id, username, email, avatar_url, faculty, major, year)
     SELECT
@@ -70,7 +76,7 @@ async function seedDataset(db, rankingCount) {
       json_extract(value, '$.major'),
       json_extract(value, '$.year')
     FROM json_each(?1)
-  `, profiles);
+  `, participantProfiles);
   // A1: endpoint เป็น admin-only — user-0 เป็น admin สำหรับ direct handler calls
   await db.prepare(`UPDATE profiles SET role = 'admin' WHERE id = ?`).bind(profiles[0].id).run();
   await insertJsonRows(db, `
@@ -86,7 +92,7 @@ async function seedDataset(db, rankingCount) {
   const rankings = Array.from({ length: rankingCount }, (_, index) => ({
     id: `ranking-${String(index).padStart(4, '0')}`,
     title: `Ranking ${index}`,
-    user_id: profiles[index % profiles.length].id,
+    user_id: participantProfiles[index].id,
     created_at: dbTimestamp(index),
   }));
   await insertJsonRows(db, `
@@ -117,6 +123,7 @@ async function seedDataset(db, rankingCount) {
       CAST(json_extract(value, '$.position') AS INTEGER)
     FROM json_each(?1)
   `, rankingItems);
+  await seedLatestContributions(db);
 
   return templateId;
 }
@@ -359,7 +366,7 @@ for (const rankingCount of [0, 1, 100, 101, 500]) {
     }
 
     if (rankingCount > profiles.length) {
-      assert.equal(new Set(current.body.data.map((ranking) => ranking.user_id)).size, profiles.length);
+      assert.equal(new Set(current.body.data.map((ranking) => ranking.user_id)).size, rankingCount);
     }
   } finally {
     await mf.dispose();

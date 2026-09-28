@@ -23,16 +23,16 @@ function replaceMeta(html, attribute, key, content) {
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(`<meta\\s+${attribute}=["']${escapedKey}["'][^>]*>`, 'i');
   return pattern.test(html)
-    ? html.replace(pattern, tag)
-    : html.replace('</head>', `    ${tag}\n  </head>`);
+    ? html.replace(pattern, () => tag)
+    : html.replace('</head>', () => `    ${tag}\n  </head>`);
 }
 
 function replaceCanonical(html, url) {
   const tag = `<link rel="canonical" href="${escapeHtml(url)}" />`;
   const pattern = /<link\s+rel=["']canonical["'][^>]*>/i;
   return pattern.test(html)
-    ? html.replace(pattern, tag)
-    : html.replace('</head>', `    ${tag}\n  </head>`);
+    ? html.replace(pattern, () => tag)
+    : html.replace('</head>', () => `    ${tag}\n  </head>`);
 }
 
 export async function serveAppWithMeta(context, metadata = {}) {
@@ -49,7 +49,7 @@ export async function serveAppWithMeta(context, metadata = {}) {
   const type = metadata.type || 'website';
 
   let html = await assetResponse.text();
-  html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(pageTitle)}</title>`);
+  html = html.replace(/<title>[\s\S]*?<\/title>/i, () => `<title>${escapeHtml(pageTitle)}</title>`);
   html = replaceMeta(html, 'name', 'description', description);
   html = replaceMeta(html, 'property', 'og:site_name', 'Tear of God');
   html = replaceMeta(html, 'property', 'og:type', type);

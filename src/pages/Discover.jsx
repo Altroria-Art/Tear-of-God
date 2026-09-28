@@ -76,6 +76,7 @@ export default function Discover() {
 
       if (saved && !viewerId) {
         setTemplates([]);
+        setTotal(0);
         setIsLoading(false);
         return;
       }
@@ -88,6 +89,16 @@ export default function Discover() {
           limit: 12,
         });
         if (cancelled) return;
+        const lastPage = Math.max(1, Math.ceil((tpl.total || 0) / 12));
+        if (!tpl.error && page > lastPage) {
+          setParams((current) => {
+            const next = new URLSearchParams(current);
+            if (lastPage === 1) next.delete('page');
+            else next.set('page', String(lastPage));
+            return next;
+          }, { replace: true });
+          return;
+        }
         setTemplates(tpl.data || []);
         setTotal(tpl.total || 0);
         setLoadError(tpl.error || '');
@@ -112,7 +123,7 @@ export default function Discover() {
     return () => {
       cancelled = true;
     };
-  }, [q, saved, page, browsingResults, viewerId, retry, addSavedIds]);
+  }, [q, saved, page, browsingResults, viewerId, retry, addSavedIds, setParams]);
 
   // M1: arm การโหลด sections เมื่อ sentinel ใกล้เข้า viewport (rootMargin 400px ล่วงหน้า)
   // ไม่มี IntersectionObserver (เบราว์เซอร์เก่า) = โหลดทันทีเหมือนพฤติกรรมเดิม
@@ -164,14 +175,14 @@ export default function Discover() {
 
   useEffect(() => {
     const update = (event) => {
-      if (saved && !event.detail?.saved) {
+      if (saved && event.detail?.id && !event.detail.saved && (!event.detail.userId || event.detail.userId === viewerId)) {
         setTemplates((prev) => prev.filter((t) => String(t.id) !== String(event.detail?.id)));
-        setTotal((n) => Math.max(0, n - 1));
+        setRetry((n) => n + 1);
       }
     };
     window.addEventListener('tog-bookmark', update);
     return () => window.removeEventListener('tog-bookmark', update);
-  }, [saved]);
+  }, [saved, viewerId]);
 
   const useTemplate = (template) => {
     const next = '/rank?template=' + encodeURIComponent(template.id);

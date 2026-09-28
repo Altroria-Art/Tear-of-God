@@ -72,8 +72,9 @@ export async function onRequest({ request, env, data: auth }) {
       if (await db.prepare('SELECT id FROM profiles WHERE email = ?').bind(email).first()) return fail('อีเมลนี้ถูกใช้งานแล้ว / Email already registered', 409);
       const userId = 'user_' + crypto.randomUUID();
       const avatar = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + encodeURIComponent(name);
-      await db.prepare('INSERT INTO profiles (id, username, email, password, avatar_url) VALUES (?, ?, ?, ?, ?)')
+      const inserted = await db.prepare('INSERT OR IGNORE INTO profiles (id, username, email, password, avatar_url) VALUES (?, ?, ?, ?, ?)')
         .bind(userId, name, email, await hashPassword(password), avatar).run();
+      if (!inserted.meta.changes) return fail('อีเมลนี้ถูกใช้งานแล้ว / Email already registered', 409);
       return reply({ success: true }, 201);
     }
     if (action === 'login') {
@@ -82,10 +83,15 @@ export async function onRequest({ request, env, data: auth }) {
       const dummy = 'pbkdf2-sha256$100000$' + '0'.repeat(32) + '$' + '0'.repeat(64);
       if (!await verifyPassword(password, user?.password || dummy)) return fail('อีเมลหรือรหัสผ่านไม่ถูกต้อง / Invalid email or password', 401);
       if (!user.password.startsWith('pbkdf2-')) {
-        await db.prepare('UPDATE profiles SET password = ? WHERE id = ? AND password = ?').bind(await hashPassword(password), user.id, user.password).run();
+        const upgraded = await hashPassword(password);
+        const migrated = await db.prepare('UPDATE profiles SET password = ? WHERE id = ? AND password = ?').bind(upgraded, user.id, user.password).run();
+        if (!migrated.meta.changes) return fail('อีเมลหรือรหัสผ่านไม่ถูกต้อง / Invalid email or password', 401);
+        user.password = upgraded;
       }
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(user.id).first();
-      return reply({ success: true, data: formatProfileResponse(profile) }, 200, { 'Set-Cookie': await createSession(request, db, user.id) });
+      const cookie = await createSession(request, db, user.id, { expectedPassword: user.password });
+      if (!cookie) return fail('อีเมลหรือรหัสผ่านไม่ถูกต้อง / Invalid email or password', 401);
+      return reply({ success: true, data: formatProfileResponse(profile) }, 200, { 'Set-Cookie': cookie });
     }
     if (action === 'google_sync') {
       if (typeof payload.idToken !== 'string' || payload.idToken.length > 10000) return fail('Missing Google ID token', 401);
@@ -140,6 +146,7 @@ export async function onRequest({ request, env, data: auth }) {
                 'content-type': 'application/json',
                 'api-key': env.BREVO_API_KEY
               },
+              signal: AbortSignal.timeout(10000),
               body: JSON.stringify({
                 sender: {
                   name: env.BREVO_FROM_NAME || 'Tear of God',
@@ -171,7 +178,7 @@ export async function onRequest({ request, env, data: auth }) {
 
           if (!emailSent) {
             try {
-              await db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(user.id).run();
+              await db.prepare('DELETE FROM password_resets WHERE token_hash = ?').bind(tokenHash).run();
             } catch (cleanupErr) {
               console.error('Failed to cleanup reset token', { error: cleanupErr.message });
             }
@@ -191,23 +198,32 @@ export async function onRequest({ request, env, data: auth }) {
       }
 
       const tokenHash = await digest(token);
-      const pr = await db.prepare('SELECT user_id, expires_at FROM password_resets WHERE token_hash = ?').bind(tokenHash).first();
+      const pr = await db.prepare(`SELECT user_id,
+        CASE WHEN julianday(expires_at) > julianday('now') THEN 0 ELSE 1 END AS expired
+        FROM password_resets WHERE token_hash = ?`).bind(tokenHash).first();
       
       if (!pr) {
         return fail('ลิงก์ไม่ถูกต้องหรือถูกใช้งานไปแล้ว');
       }
-      if (new Date(pr.expires_at).getTime() < Date.now()) {
+      if (pr.expired) {
         await db.prepare('DELETE FROM password_resets WHERE token_hash = ?').bind(tokenHash).run();
         return fail('ลิงก์หมดอายุแล้ว กรุณาขอลิงก์ใหม่');
       }
 
       const hashedNew = await hashPassword(newPassword);
       try {
-        await db.batch([
-          db.prepare('UPDATE profiles SET password = ? WHERE id = ?').bind(hashedNew, pr.user_id),
-          db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(pr.user_id),
-          db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(pr.user_id)
+        const [updated] = await db.batch([
+          db.prepare(`UPDATE profiles SET password = ? WHERE id = ? AND EXISTS (
+            SELECT 1 FROM password_resets WHERE token_hash = ? AND user_id = profiles.id
+              AND julianday(expires_at) > julianday('now'))`).bind(hashedNew, pr.user_id, tokenHash),
+          // The fresh, randomly salted hash identifies the successful update.
+          // A concurrent loser must not revoke a newly created session/token.
+          db.prepare('DELETE FROM auth_sessions WHERE user_id = ? AND EXISTS (SELECT 1 FROM profiles WHERE id = ? AND password = ?)')
+            .bind(pr.user_id, pr.user_id, hashedNew),
+          db.prepare('DELETE FROM password_resets WHERE user_id = ? AND EXISTS (SELECT 1 FROM profiles WHERE id = ? AND password = ?)')
+            .bind(pr.user_id, pr.user_id, hashedNew)
         ]);
+        if (!updated.meta.changes) return fail('ลิงก์ไม่ถูกต้องหรือถูกใช้งานไปแล้ว');
         return reply({ success: true, message: 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว' });
       } catch (err) {
         console.error("Reset password DB error:", err.message);
@@ -258,21 +274,30 @@ export async function onRequest({ request, env, data: auth }) {
         equipped_badge_id: resolvedEquip ? resolvedEquip.badgeId : undefined,
         equipped_badge_meta: resolvedEquip ? resolvedEquip.metaString : undefined,
       };
+      let previousPassword;
       if (password !== undefined) {
         if (!validPassword(password) || typeof payload.currentPassword !== 'string' || payload.currentPassword.length > 256) return fail('กรุณาระบุรหัสผ่านปัจจุบันและรหัสใหม่อย่างน้อย 8 ตัวอักษร');
         const passwordRate = await allowAuthAttempt(request, db, auth.user.email, { scope: 'change_password', limit: 5, windowSeconds: 900 });
         if (!passwordRate.allowed) return rateLimitResponse(passwordRate, 'Please try again later');
         const stored = await db.prepare('SELECT password FROM profiles WHERE id = ?').bind(userId).first();
-        if (!await verifyPassword(payload.currentPassword, stored.password)) return fail('รหัสผ่านปัจจุบันไม่ถูกต้อง / Incorrect current password', 403);
+        if (!await verifyPassword(payload.currentPassword, stored?.password)) return fail('รหัสผ่านปัจจุบันไม่ถูกต้อง / Incorrect current password', 403);
+        previousPassword = stored.password;
         fields.password = await hashPassword(password);
       }
       const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
       if (!entries.length) return fail('No fields to update');
-      const statements = [db.prepare('UPDATE profiles SET ' + entries.map(([key]) => key + ' = ?').join(', ') + ' WHERE id = ?').bind(...entries.map(([, value]) => value), userId)];
-      if (password !== undefined) statements.push(db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(userId));
-      await db.batch(statements);
+      const statements = [db.prepare('UPDATE profiles SET ' + entries.map(([key]) => key + ' = ?').join(', ') + ' WHERE id = ?' + (password !== undefined ? ' AND password = ?' : ''))
+        .bind(...entries.map(([, value]) => value), userId, ...(password !== undefined ? [previousPassword] : []))];
+      if (password !== undefined) {
+        statements.push(db.prepare('DELETE FROM auth_sessions WHERE user_id = ? AND EXISTS (SELECT 1 FROM profiles WHERE id = ? AND password = ?)').bind(userId, userId, fields.password));
+        statements.push(db.prepare('DELETE FROM password_resets WHERE user_id = ? AND EXISTS (SELECT 1 FROM profiles WHERE id = ? AND password = ?)').bind(userId, userId, fields.password));
+      }
+      const [updated] = await db.batch(statements);
+      if (!updated.meta.changes) return fail('ข้อมูลบัญชีเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่ / Please log in again', 409);
       const profile = await db.prepare('SELECT ' + PROFILE_FIELDS + ' FROM profiles WHERE id = ?').bind(userId).first();
-      return reply({ success: true, data: formatProfileResponse(profile) }, 200, password !== undefined ? { 'Set-Cookie': await createSession(request, db, userId) } : {});
+      const cookie = password !== undefined ? await createSession(request, db, userId, { expectedPassword: fields.password }) : null;
+      if (password !== undefined && !cookie) return fail('ข้อมูลบัญชีเปลี่ยนแล้ว กรุณาเข้าสู่ระบบใหม่ / Please log in again', 409);
+      return reply({ success: true, data: formatProfileResponse(profile) }, 200, cookie ? { 'Set-Cookie': cookie } : {});
     }
     if (action === 'equip_badge') {
       if (!auth.user) return fail('กรุณาเข้าสู่ระบบ / Please log in', 401);

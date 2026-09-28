@@ -20,7 +20,7 @@ const schemaStatements = schema
   .filter(Boolean);
 
 // Records every prepared statement text. Markers (not exact counts) prove
-// which computation ran: taste collection always contains UNION ALL,
+// which computation ran: raw taste collection selects hashtags from rankings,
 // findSimilarUsers candidates always join rankings as r ON r.user_id = p.id,
 // the legacy top-items fallback is the only user of json_valid(t.tiers).
 function trackingDb(db, log) {
@@ -124,7 +124,7 @@ try {
     assert.ok(Array.isArray(body.data.taste_identity.pinned_rankings));
     assert.equal(body.data.taste_identity.similar_users, null);
     assert.equal(body.data.taste_identity.taste_match, null);
-    assert.ok(!log.some((sql) => sql.includes('UNION ALL')), 'guest core must not collect taste');
+    assert.ok(!log.some((sql) => /SELECT hashtags FROM rankings WHERE user_id/.test(sql)), 'guest core must not collect taste');
     assert.ok(!log.some((sql) => sql.includes('JOIN rankings r ON r.user_id = p.id')), 'guest core must not find similar users');
     console.log('CASE 1 passed: guest core complete, zero viewer/similar work');
   }
@@ -136,7 +136,7 @@ try {
     assert.equal(body.success, true);
     assert.equal(body.data.taste_identity.taste_match, null);
     assert.equal(body.data.taste_identity.similar_users, null);
-    assert.ok(!log.some((sql) => sql.includes('UNION ALL')), 'self core must not collect taste');
+    assert.ok(!log.some((sql) => /SELECT hashtags FROM rankings WHERE user_id/.test(sql)), 'self core must not collect taste');
     console.log('CASE 2 passed: own core complete, no self-match work');
   }
 

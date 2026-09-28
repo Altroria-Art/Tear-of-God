@@ -166,7 +166,7 @@ export default function Login() {
       clearTimeout(timer);
       window.removeEventListener('resize', updateHeight);
     };
-  }, [isRegister]);
+  }, [isRegister, lang]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -588,6 +588,7 @@ export default function Login() {
                   <div
                     ref={loginRef}
                     inert={isRegister}
+                    aria-hidden={isRegister}
                     className={`w-1/2 pr-3 transition-opacity duration-300 ease-out ${
                       !isRegister ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                     }`}
@@ -669,6 +670,7 @@ export default function Login() {
                   <div
                     ref={registerRef}
                     inert={!isRegister}
+                    aria-hidden={!isRegister}
                     className={`w-1/2 pl-3 transition-opacity duration-300 ease-out ${
                       isRegister ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                     }`}

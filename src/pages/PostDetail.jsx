@@ -24,6 +24,12 @@ import { useTranslation } from 'react-i18next'
 
 export default function PostDetail() {
   const { postId } = useParams()
+  const { currentUser } = useUser()
+  return <PostDetailContent key={`${postId}:${currentUser?.id || 'guest'}`} />
+}
+
+function PostDetailContent() {
+  const { postId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useUser()
   const toast = useToast()
@@ -131,7 +137,7 @@ export default function PostDetail() {
   const handleVote = async (type) => {
     if (!currentUser) {
       toast.warning(t('post.warnLoginVote'));
-      return;
+      return false;
     }
     if (!voteGuardRef.current.acquire(postId)) return
 
@@ -183,7 +189,7 @@ export default function PostDetail() {
   const handleAddComment = async (body, parentId) => {
     if (!currentUser) {
       toast.warning(t('post.warnLoginComment'));
-      return;
+      return false;
     }
     if (!body || !body.trim()) return;
 
@@ -211,8 +217,10 @@ export default function PostDetail() {
         ...prev,
         stats: { ...prev.stats, comments: prev.stats.comments + 1 }
       }))
+      return true;
     } else {
       toast.error(t('post.commentFailed', { msg: error }));
+      return false;
     }
   }
 
@@ -425,7 +433,7 @@ export default function PostDetail() {
                 )
               )}
             </div>
-            {description && <p className="mt-2 text-sm text-ink-soft">{description}</p>}
+            {description && <p className="mt-2 text-sm text-ink-soft break-words whitespace-pre-wrap">{description}</p>}
             
             {post.hashtags && (
               <div className="mt-3 flex flex-wrap gap-2">

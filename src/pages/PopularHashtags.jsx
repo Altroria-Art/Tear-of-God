@@ -30,25 +30,30 @@ export default function PopularHashtags() {
   const [hashtags, setHashtags] = useState([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setIsLoading(true);
-      const { data, total } = await fetchHashtags({ page, limit: PAGE_SIZE, sort, q });
+      setLoadError('');
+      const { data, total, error } = await fetchHashtags({ page, limit: PAGE_SIZE, sort, q });
       if (cancelled) return;
+      setLoadError(error || '');
       setHashtags(data || []);
       setTotal(total || 0);
       setIsLoading(false);
     }
     load();
     return () => { cancelled = true }
-  }, [page, sort, q]);
+  }, [page, sort, q, retry]);
 
   // sync ช่อง filter กับ URL เมื่อผู้ใช้ navigate กลับมา (back/forward)
   useEffect(() => {
+    clearTimeout(debounceRef.current);
     setInputValue(q);
-  }, [q]);
+  }, [q, page, sort]);
 
   // เคลียร์ debounce timer ที่ค้างอยู่ตอน unmount กันยิง setSearchParams หลังออกจากหน้าไปแล้ว
   useEffect(() => () => {
@@ -56,14 +61,18 @@ export default function PopularHashtags() {
   }, []);
 
   const setPage = (p) => {
+    clearTimeout(debounceRef.current);
     const next = new URLSearchParams(searchParams);
     next.set('page', String(p));
     setSearchParams(next);
   };
 
   const handleSortChange = (nextSort) => {
+    clearTimeout(debounceRef.current);
     const next = new URLSearchParams(searchParams);
     next.set('sort', nextSort);
+    if (inputValue) next.set('q', inputValue);
+    else next.delete('q');
     next.set('page', '1');
     setSearchParams(next);
   };
@@ -113,7 +122,12 @@ export default function PopularHashtags() {
           </div>
         </div>
 
-        {isLoading ? (
+        {loadError ? (
+          <div role="alert" className="py-10 text-center">
+            <p className="text-status-error">{loadError}</p>
+            <button type="button" className="mt-4 rounded-xl bg-brand px-4 py-2 text-canvas" onClick={() => setRetry((n) => n + 1)}>{t('common.retry')}</button>
+          </div>
+        ) : isLoading ? (
           <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingHashtags')}</p>
         ) : hashtags.length === 0 ? (
           <p className="text-muted text-center py-10">{t('discover.emptyHashtags')}</p>

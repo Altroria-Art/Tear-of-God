@@ -63,7 +63,8 @@ async function findSimilarUsers(db, userId, targetTaste) {
   if (!candidateRows?.length) return [];
 
   const candidateIds = candidateRows.map((row) => row.id);
-  const candidatePlaceholders = candidateIds.map(() => '?').join(',');
+  // Reuse numbered bindings across both UNION arms (D1 caps statements at 100).
+  const candidatePlaceholders = candidateIds.map((_, index) => `?${index + 1}`).join(',');
   const [templateResult, tagResult] = await Promise.all([
     db.prepare(`
       SELECT DISTINCT user_id, template_id
@@ -74,7 +75,7 @@ async function findSimilarUsers(db, userId, targetTaste) {
       SELECT user_id, hashtags FROM rankings WHERE user_id IN (${candidatePlaceholders})
       UNION ALL
       SELECT creator_id AS user_id, hashtags FROM templates WHERE creator_id IN (${candidatePlaceholders})
-    `).bind(...candidateIds, ...candidateIds).all(),
+    `).bind(...candidateIds).all(),
   ]);
 
   const tastes = new Map(candidateIds.map((id) => [id, {
@@ -266,6 +267,7 @@ export async function onRequest({ request, env, data: auth }) {
     const { results } = await db.prepare(`
       SELECT p.*,
         (SELECT COUNT(*) FROM rankings r WHERE r.user_id = p.id) as posts_count,
+        (SELECT COALESCE(SUM(r.likes_count), 0) FROM rankings r WHERE r.user_id = p.id) as likes_received,
         (SELECT COUNT(*) FROM follows f WHERE f.following_id = p.id) as followers_count,
         (SELECT COUNT(*) FROM follows f WHERE f.follower_id = p.id) as following_count,
         ${viewerId ? '(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = p.id)' : 'NULL'} as is_following
@@ -287,6 +289,7 @@ export async function onRequest({ request, env, data: auth }) {
       year: user.year || null,
       created_at: user.created_at || null,
       posts_count: toNumber(user.posts_count),
+      likes_received: toNumber(user.likes_received),
       followers_count: toNumber(user.followers_count),
       following_count: toNumber(user.following_count),
       is_following: !!user.is_following,

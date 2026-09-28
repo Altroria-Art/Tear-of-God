@@ -1,9 +1,9 @@
-import useHistoryState from '../lib/useHistoryState';
+import { getInsertIndexFromZone, groupEditorItems } from '../lib/editorBoard';
 import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Share2, Shuffle, ArrowDownAZ, Hash, Swords, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -15,6 +15,7 @@ import TierLabel from '../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
 import { trackEvent } from '../lib/analytics';
 import { formatRemainingCooldown } from '../lib/format';
+import useCooldown from '../lib/useCooldown';
 
 const DEFAULT_TIERS = [
   { id: 't1', label: 'S', color: '#f87171' },
@@ -31,6 +32,7 @@ const RankTierList = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const { currentUser } = useUser();
+  const currentUserId = currentUser?.id;
   const { t } = useTranslation();
   const { beginDrag, endDrag } = useDragAutoScroll();
   const [searchParams] = useSearchParams();
@@ -41,8 +43,7 @@ const RankTierList = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [tiers, setTiers] = useState(DEFAULT_TIERS);
-  const [items, setItems, itemHistory] = useHistoryState([]);
-  const resetItems = itemHistory.reset;
+  const [items, setItems] = useState([]);
   const [loadedKey, setLoadedKey] = useState(null);
   const [templateError, setTemplateError] = useState('');
   const [draftStatus, setDraftStatus] = useState('');
@@ -50,7 +51,8 @@ const RankTierList = () => {
   const guestDraftKey = 'tog-rank-draft:guest:' + templateId;
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateId);
   const [isSaving, setIsSaving] = useState(false);
-  const [templateCooldown, setTemplateCooldown] = useState(null);
+  const [cooldown, setTemplateCooldown] = useState(null);
+  const templateCooldown = useCooldown(cooldown);
 
   
 
@@ -72,7 +74,7 @@ const RankTierList = () => {
       setTemplateCooldown(data.cooldown || null);
       const creator = data.profile || data.creator || (data.creator_id ? { id: data.creator_id, username: t('common.unknownUser') } : null);
       setTemplateOwner(creator);
-      if (isDuel && currentUser && (data.creator_id === currentUser.id || data.profile?.id === currentUser.id)) {
+      if (isDuel && currentUserId && (data.creator_id === currentUserId || data.profile?.id === currentUserId)) {
         toast.warning(t('duel.warnSelfDuel'));
         navigate(`/template/${encodeURIComponent(templateId)}`, { replace: true });
         return;
@@ -89,7 +91,7 @@ const RankTierList = () => {
       } catch { saved = null; }
       setTiers(definitions);
       const byId = new Map(pool.map(item => [item.id, item]));
-      resetItems(saved ? saved.items.map(item => ({ ...byId.get(item.id), tierId: definitions.some(tier => tier.id === item.tierId) ? item.tierId : null })) : pool);
+      setItems(saved ? saved.items.map(item => ({ ...byId.get(item.id), tierId: definitions.some(tier => tier.id === item.tierId) ? item.tierId : null })) : pool);
       setTitle(typeof saved?.title === 'string' ? saved.title : data.title);
       setDescription(typeof saved?.description === 'string' ? saved.description : data.description || '');
       setSelectedHashtags(Array.isArray(saved?.hashtags) && saved.hashtags.every(tag => typeof tag === 'string') ? saved.hashtags : inherited);
@@ -100,7 +102,7 @@ const RankTierList = () => {
     }
     load();
     return () => { cancelled = true; };
-  }, [templateId, draftKey, guestDraftKey, navigate, resetItems, t, currentUser, isDuel, toast]);
+  }, [templateId, draftKey, guestDraftKey, navigate, t, currentUserId, isDuel, toast]);
 
   useEffect(() => {
     if (loadedKey?.key !== draftKey) return;
@@ -161,21 +163,12 @@ const RankTierList = () => {
   };
 
   // 📍 [ใหม่]: แปลงตำแหน่งเมาส์เป็นลำดับการแทรก — เทียบกับกึ่งกลางการ์ดแต่ละใบ (ไม่รวมใบที่กำลังลาก)
-  const getInsertIndexFromZone = (zoneEl, clientX, draggedItemId) => {
-    const cards = Array.from(zoneEl.querySelectorAll('[data-item-id]'))
-      .filter(el => el.dataset.itemId !== draggedItemId);
-    for (let i = 0; i < cards.length; i++) {
-      const box = cards[i].getBoundingClientRect();
-      if (clientX < box.left + box.width / 2) return i;
-    }
-    return cards.length;
-  };
-
   const handleDrop = (e, targetTierId) => {
     e.preventDefault();
     const draggedItemId = e.dataTransfer.getData('itemId');
     if (!draggedItemId) return;
-    const insertIndex = getInsertIndexFromZone(e.currentTarget, e.clientX, draggedItemId);
+    const insertIndex = getInsertIndexFromZone(e.currentTarget, e.clientX, e.clientY, draggedItemId);
+    endDrag();
     setItems(prev => repositionItem(prev, draggedItemId, targetTierId, insertIndex));
   };
 
@@ -224,7 +217,7 @@ const RankTierList = () => {
   const handleSaveRanking = async () => {
     if (!currentUser) {
       toast.warning(t('rank.warnLoginSave'));
-      navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}`));
+      navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}${isDuel ? '&mode=duel' : ''}`));
       return;
     }
     if (isSaving || isLoadingTemplate || templateError) return;
@@ -319,9 +312,10 @@ const RankTierList = () => {
     }
   };
 
+  const itemGroups = useMemo(() => groupEditorItems(items, tiers), [items, tiers]);
   const renderCard = item => {
-    const mates = items.filter(i => (i.tierId ?? null) === (item.tierId ?? null));
-    return <EditorItem key={item.id} item={item} position={mates.findIndex(i => i.id === item.id)} count={mates.length} onMove={() => handleItemClick(item)} onShift={direction => shiftItem(item.id, direction)} onDragStart={e => handleDragStart(e, item.id)} onDragEnd={endDrag} />;
+    const { position, count } = itemGroups.positionById.get(item.id);
+    return <EditorItem key={item.id} item={item} position={position} count={count} onMove={() => handleItemClick(item)} onShift={direction => shiftItem(item.id, direction)} onDragStart={e => handleDragStart(e, item.id)} onDragEnd={endDrag} />;
   };
 
   return (
@@ -488,7 +482,7 @@ const RankTierList = () => {
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, tier.id)}
                 >
-                  {items.filter(item => item.tierId === tier.id).map(renderCard)}
+                  {(itemGroups.byTier.get(tier.id) || []).map(renderCard)}
                 </div>
               </div>
             ))
@@ -521,12 +515,12 @@ const RankTierList = () => {
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, null)}
           >
-            {items.filter(item => item.tierId === null).length === 0 ? (
+            {itemGroups.unranked.length === 0 ? (
               <span className="text-muted text-sm italic py-4 pointer-events-none">
                 {t('rank.allRanked')}
               </span>
             ) : (
-              items.filter(item => item.tierId === null).map(renderCard)
+              itemGroups.unranked.map(renderCard)
             )}
           </div>
         </div>

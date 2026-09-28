@@ -3,16 +3,19 @@ import { EyeIcon, TemplateIcon } from '../ui/Icons'
 import { useUser } from '../../context/UserContext'
 import { useTranslation } from 'react-i18next'
 import BookmarkButton from '../template/BookmarkButton'
+import { loginPath } from '../../lib/navigation'
+import { useToast } from '../ui/Toast'
 
 export default function AboutTemplateCard({ name, description, itemCount, templateId }) {
   const navigate = useNavigate()
   const { currentUser } = useUser()
   const { t } = useTranslation()
+  const toast = useToast()
 
   const handleUseTemplate = () => {
     if (!currentUser) {
-      alert(t('template.warnLoginUse'))
-      navigate('/login')
+      toast.warning(t('template.warnLoginUse'))
+      navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}`))
       return
     }
     navigate(`/rank?template=${templateId}`)
@@ -47,7 +50,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
 
       {templateId ? (
         <Link
-          to={`/template/${templateId}`}
+          to={`/template/${encodeURIComponent(templateId)}/community`}
           className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface py-2.5 font-semibold text-ink-soft transition-colors hover:bg-search"
         >
           <EyeIcon className="h-4 w-4" />

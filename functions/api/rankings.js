@@ -3,6 +3,7 @@ import { feedCommunityStats } from '../lib/community-cache.js';
 import { templateDeleteStatements } from '../lib/templateDelete.js';
 import {
   checkTemplateCooldown,
+  isCooldownConflict,
   cooldownResponse,
   recordContributionStatement,
   getDeleteReconcileStatement,
@@ -879,7 +880,7 @@ r.created_at DESC, r.id DESC`;
           // Community disagreement is the average distance between an item's tier
           // and the community's average tier for that item, normalized to 0–100.
           // 0 = follows the community average; 100 = maximally different.
-          const communityByItem = {};
+          const communityByItem = Object.create(null);
           (communityHistogram || []).forEach((row) => {
             const tierDefinitions = tiersByTemplateId[row.template_id] || [];
             const tierIndex = tierDefinitions.findIndex((tier) => String(tier.label) === String(row.tier));
@@ -985,6 +986,9 @@ r.created_at DESC, r.id DESC`;
       };
       assertHashtags(cleanPayload.hashtags, 'payload.hashtags');
       cleanPayload.hashtags = canonicalizeHashtags(cleanPayload.hashtags);
+      if (cleanPayload.template_id && template != null) {
+        return jsonResponse({ success: false, error: 'Provide an existing template or a new template, not both' }, 400);
+      }
 
       if (cleanPayload.template_id) {
         const cooldown = await checkTemplateCooldown(db, cleanPayload.template_id, cleanPayload.user_id);
@@ -1060,7 +1064,7 @@ r.created_at DESC, r.id DESC`;
         const storedTiers = parseTiers(tr.tiers);
         tiersDef = Array.isArray(storedTiers) ? storedTiers.filter(tier => isPlainObject(tier) && typeof tier.label === 'string') : [];
       }
-      const tierIndexByLabel = {};
+      const tierIndexByLabel = Object.create(null);
       (tiersDef || []).forEach((t, i) => { tierIndexByLabel[String(t.label)] = i; });
       const tierCount = tiersDef?.length || 0;
       if (tierCount && cleanItems.some(item => tierIndexByLabel[item.tier] === undefined)) {
@@ -1298,7 +1302,7 @@ r.created_at DESC, r.id DESC`;
   } catch (err) {
     const invalid = requestErrorResponse(err);
     if (invalid) return invalid;
-    if (err && (String(err.message).includes('TEMPLATE_COOLDOWN_ACTIVE') || String(err).includes('TEMPLATE_COOLDOWN_ACTIVE'))) {
+    if (isCooldownConflict(err)) {
       const effId = cleanPayload?.template_id || templateId;
       const cooldown = await checkTemplateCooldown(db, effId, cleanPayload?.user_id);
       return cooldownResponse(effId, cooldown.cooldownUntil, cooldown.remainingSeconds);

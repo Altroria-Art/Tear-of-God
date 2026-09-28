@@ -597,6 +597,7 @@
     "deleteFailed": "ลบโพสต์ไม่สำเร็จ: {{msg}}"
   },
   "template": {
+    "noCommunityAverage": "ยังไม่มีข้อมูลอันดับเฉลี่ยชุมชน",
     "loading": "กำลังโหลดเทมเพลต...",
     "notFound": "ไม่พบเทมเพลตที่คุณตามหา",
     "communityRankings": "อันดับชุมชน",

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import useCooldown from '../lib/useCooldown'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, Trash2, Swords, Clock } from 'lucide-react'
 import { loginPath } from '../lib/navigation'
@@ -27,7 +28,7 @@ const SORT_OPTIONS = [
 
 // tier ที่เป็น NULL (ยังไม่ถูกจัด) ไม่นับเป็นแถวไอเทม — แต่ทุกแถว tier ของ template ยังคงแสดงเสมอ
 function groupItemsByTierOrder(rankingItems, tiersDef) {
-  const map = {}
+  const map = Object.create(null)
   tiersDef.forEach((t) => { map[t.label] = [] })
   ;(rankingItems || []).forEach((ri) => {
     if (!ri.tier || !(ri.tier in map)) return
@@ -224,6 +225,11 @@ function RankingCard({ ranking, tiersDef }) {
 
 export default function TemplateDetailPage() {
   const { templateId } = useParams()
+  return <TemplateDetailContent key={templateId} />
+}
+
+function TemplateDetailContent() {
+  const { templateId } = useParams()
   const navigate = useNavigate()
   const { currentUser } = useUser()
   const toast = useToast()
@@ -236,6 +242,7 @@ export default function TemplateDetailPage() {
   const [reporting, setReporting] = useState(false)
 
   const [template, setTemplate] = useState(null)
+  const templateCooldown = useCooldown(template?.cooldown)
   // มี community average แบบ all-time หรือไม่ — มาจาก field
   // has_community_average_all_time ของ GET /api/templates รอบเดียว (เดิมยิง
   // fetchTemplate(all-time) รอบสองเพื่อหา boolean นี้ตัวเดียว)
@@ -295,6 +302,8 @@ export default function TemplateDetailPage() {
         const hasAllTime = tplRes.data.has_community_average_all_time
           ?? ((tplRes.data.community_average?.tiers || []).some((t) => (t.items || []).length > 0))
         setHasCommunityAverageAllTime(!!hasAllTime)
+      } else {
+        setTemplate(null)
       }
       setIsLoadingTemplate(false)
     }
@@ -315,17 +324,20 @@ export default function TemplateDetailPage() {
   }, [templateId, currentUser?.id])
 
   useEffect(() => {
+    let cancelled = false
     async function loadRankings() {
       setIsLoadingRankings(true)
       // ส่ง userId ไปด้วยเพื่อให้ API คืน user_vote กลับมา — sort ที่ระบุไว้ (liked/recent) ยัง
       // ชนะ personalized order เสมอ ไม่ถูก userId แย่งไป (แก้ไว้ที่ functions/api/rankings.js แล้ว)
       const { data, total: t } = await fetchRankings({ templateId, sort, page, limit: PAGE_SIZE, userId: currentUser?.id })
+      if (cancelled) return
       setRankings(data || [])
       setTotal(t || 0)
       setIsLoadingRankings(false)
     }
     if (templateId) loadRankings()
-  }, [templateId, sort, page, currentUser])
+    return () => { cancelled = true }
+  }, [templateId, sort, page, currentUser?.id])
 
   const handleDuelTemplate = () => {
     if (!currentUser) {
@@ -338,8 +350,8 @@ export default function TemplateDetailPage() {
       toast.warning(t('duel.warnSelfDuel'))
       return
     }
-    if (template?.cooldown?.active) {
-      toast.warning(t('cooldown.activeWarning', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) }))
+    if (templateCooldown?.active) {
+      toast.warning(t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) }))
       return
     }
     navigate(`/rank?template=${encodeURIComponent(templateId)}&mode=duel`)
@@ -348,11 +360,11 @@ export default function TemplateDetailPage() {
   const handleUseTemplate = () => {
     if (!currentUser) {
       toast.warning(t('template.warnLoginUse'))
-      navigate('/login')
+      navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}`))
       return
     }
-    if (template?.cooldown?.active) {
-      toast.warning(t('cooldown.activeWarning', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) }))
+    if (templateCooldown?.active) {
+      toast.warning(t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) }))
       return
     }
     navigate(`/rank?template=${templateId}`)
@@ -474,7 +486,7 @@ export default function TemplateDetailPage() {
         const tItem = template.template_items?.find((ti) => ti.item_id === i.name || ti.item?.name === i.name)
         return {
           id: i.name,
-          name: i.name,
+          name: tItem?.item?.name || i.name,
           image_url: tItem?.item?.image_url || null,
           avg: i.avg,
           votes: i.votes,
@@ -489,7 +501,7 @@ export default function TemplateDetailPage() {
     <main className="min-h-screen text-ink">
       <div className="mx-auto max-w-5xl px-4 py-8">
         <section className="mb-8 rounded-xl glass p-6 shadow-sm">
-          <h1 className="mb-4 text-3xl font-bold md:text-4xl">{template.title}</h1>
+          <h1 className="mb-4 text-3xl font-bold md:text-4xl break-words">{template.title}</h1>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -559,17 +571,17 @@ export default function TemplateDetailPage() {
               <button
                 type="button"
                 onClick={handleDuelTemplate}
-                disabled={template?.cooldown?.active}
+                disabled={templateCooldown?.active}
                 className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
                   creatorId && currentUser?.id === creatorId
                     ? 'border border-line bg-surface/50 text-muted opacity-70'
-                    : template?.cooldown?.active
+                    : templateCooldown?.active
                     ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
                     : 'bg-highlight/15 text-highlight border border-highlight/40 hover:bg-highlight/25 hover:-translate-y-0.5 active:scale-[0.97]'
                 }`}
                 title={
-                  template?.cooldown?.active
-                    ? t('cooldown.activeWarning', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) })
+                  templateCooldown?.active
+                    ? t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })
                     : creatorId && currentUser?.id === creatorId
                     ? t('duel.warnSelfDuel')
                     : t('duel.duelButton')
@@ -581,29 +593,29 @@ export default function TemplateDetailPage() {
               <button
                 type="button"
                 onClick={handleUseTemplate}
-                disabled={template?.cooldown?.active}
+                disabled={templateCooldown?.active}
                 className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
-                  template?.cooldown?.active
+                  templateCooldown?.active
                     ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
                     : 'bg-brand text-canvas hover:bg-brand-accent'
                 }`}
                 title={
-                  template?.cooldown?.active
-                    ? t('cooldown.activeWarning', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) })
+                  templateCooldown?.active
+                    ? t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })
                     : t('template.use')
                 }
               >
-                {template?.cooldown?.active
-                  ? t('cooldown.buttonDisabled', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) })
+                {templateCooldown?.active
+                  ? t('cooldown.buttonDisabled', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })
                   : t('template.use')}
               </button>
             </div>
           </div>
 
-          {template?.cooldown?.active && (
+          {templateCooldown?.active && (
             <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
               <Clock size={18} className="shrink-0 text-amber-400" />
-              <span>{t('cooldown.activeBanner', { time: formatRemainingCooldown(template.cooldown.remainingSeconds, t) })}</span>
+              <span>{t('cooldown.activeBanner', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })}</span>
             </div>
           )}
 
@@ -769,7 +781,7 @@ export default function TemplateDetailPage() {
                 items: (avgTier?.items || []).map((it) => {
                   const tItem = template.template_items?.find((ti) => ti.item_id === it.name || ti.item?.name === it.name)
                   return {
-                    name: it.name,
+                    name: tItem?.item?.name || it.name,
                     image_url: tItem?.item?.image_url || null,
                   }
                 }),

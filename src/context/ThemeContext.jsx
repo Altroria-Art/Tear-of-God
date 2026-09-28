@@ -5,7 +5,8 @@ const ThemeContext = createContext();
 export function ThemeProvider({ children }) {
   const [isLightMode, setIsLightMode] = useState(() => {
     // Check local storage first
-    const saved = localStorage.getItem('tog-theme');
+    let saved;
+    try { saved = localStorage.getItem('tog-theme'); } catch { /* Storage is optional. */ }
     if (saved) return saved === 'light';
     // If no saved preference, check system preference
     if (typeof window !== 'undefined' && window.matchMedia) {
@@ -23,14 +24,13 @@ export function ThemeProvider({ children }) {
       body.classList.remove('dark');
       root.classList.remove('dark');
       root.classList.add('light');
-      localStorage.setItem('tog-theme', 'light');
     } else {
       body.classList.remove('light-theme');
       body.classList.add('dark');
       root.classList.add('dark');
       root.classList.remove('light');
-      localStorage.setItem('tog-theme', 'dark');
     }
+    try { localStorage.setItem('tog-theme', isLightMode ? 'light' : 'dark'); } catch { /* Keep the in-memory preference. */ }
   }, [isLightMode]);
 
   const toggleTheme = useCallback(() => setIsLightMode((prev) => !prev), []);

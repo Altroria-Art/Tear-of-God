@@ -47,32 +47,20 @@ export async function onRequest({ request, env, data: auth }) {
         return jsonResponse({ success: false, error: 'Invalid vote type' }, 400);
       }
 
-      const { results: existing } = await db.prepare(
-        `SELECT * FROM template_reactions WHERE template_id = ? AND user_id = ?`
-      ).bind(template_id, user_id).all();
-
-      // ยกเลิกโหวต (voteType เป็น null/cancel)
-      if (!voteType) {
-        if (existing.length > 0) {
-          await db.prepare(
-            `DELETE FROM template_reactions WHERE template_id = ? AND user_id = ?`
-          ).bind(template_id, user_id).run();
-        }
-      } else if (voteType !== 'like' && voteType !== 'dislike') {
-        return jsonResponse({ success: false, error: 'Invalid vote type' }, 400);
-      } else if (existing.length > 0 && existing[0].vote_type === voteType) {
-        // กดย้ำอันเดิม = ยกเลิก (toggle off) — เช่นเดิมกับ votes.js
-        await db.prepare(
-          `DELETE FROM template_reactions WHERE template_id = ? AND user_id = ?`
-        ).bind(template_id, user_id).run();
-      } else if (existing.length > 0) {
-        // สลับจาก like ↔ dislike
-        await db.prepare(
-          `UPDATE template_reactions SET vote_type = ? WHERE template_id = ? AND user_id = ?`
-        ).bind(voteType, template_id, user_id).run();
+      if (!await db.prepare('SELECT id FROM templates WHERE id = ?').bind(template_id).first()) {
+        return jsonResponse({ success: false, error: 'Template not found' }, 404);
+      }
+      // Callers send the desired state (including null to cancel). Repeating a
+      // like must remain a like, as with ranking votes, and concurrent inserts
+      // must resolve through the unique key instead of throwing a 500.
+      if (voteType == null) {
+        await db.prepare('DELETE FROM template_reactions WHERE template_id = ? AND user_id = ?')
+          .bind(template_id, user_id).run();
       } else {
-        await db.prepare(
-          `INSERT INTO template_reactions (id, template_id, user_id, vote_type) VALUES (?, ?, ?, ?)`
+        await db.prepare(`INSERT INTO template_reactions (id, template_id, user_id, vote_type)
+          SELECT ?1, ?2, ?3, ?4 FROM templates WHERE id = ?2
+          ON CONFLICT(template_id, user_id) DO UPDATE SET vote_type = excluded.vote_type
+          WHERE template_reactions.vote_type IS NOT excluded.vote_type`
         ).bind(crypto.randomUUID(), template_id, user_id, voteType).run();
       }
 

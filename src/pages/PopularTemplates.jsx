@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchTemplates } from '../lib/api';
+import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
@@ -32,34 +33,33 @@ export default function PopularTemplates() {
   const [templates, setTemplates] = useState([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setIsLoading(true);
-      const { data, total } = await fetchTemplates({ page, limit: PAGE_SIZE, sort });
+      setLoadError('');
+      const { data, total, error } = await fetchTemplates({ page, limit: PAGE_SIZE, sort });
       if (cancelled) return;
+      setLoadError(error || '');
       setTemplates(data || []);
       setTotal(total || 0);
       setIsLoading(false);
     }
     load();
     return () => { cancelled = true }
-  }, [page, sort]);
-
-  const handleProtectedAction = (callback) => {
-    if (!currentUser) {
-      toast.warning(t('discover.protectedLogin'));
-      navigate('/login');
-      return;
-    }
-    if (callback) callback();
-  };
+  }, [page, sort, retry]);
 
   const handleUseTemplate = (template) => {
-    handleProtectedAction(() => {
-      navigate(`/rank?template=${template.id}`);
-    });
+    const next = `/rank?template=${encodeURIComponent(template.id)}`;
+    if (!currentUser) {
+      toast.warning(t('discover.protectedLogin'));
+      navigate(loginPath(next));
+      return;
+    }
+    navigate(next);
   };
 
   const setPage = (p) => {
@@ -96,12 +96,17 @@ export default function PopularTemplates() {
           <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />
         </div>
 
-        {isLoading ? (
+        {loadError ? (
+          <div role="alert" className="py-10 text-center">
+            <p className="text-status-error">{loadError}</p>
+            <button type="button" className="mt-4 rounded-xl bg-brand px-4 py-2 text-canvas" onClick={() => setRetry((n) => n + 1)}>{t('common.retry')}</button>
+          </div>
+        ) : isLoading ? (
           <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingTemplates')}</p>
         ) : templates.length === 0 ? (
           <p className="text-muted text-center py-10">{t('discover.emptyTemplates')}</p>
         ) : (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {templates.map((template) => (
               <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
             ))}

@@ -277,7 +277,7 @@ try {
   // CASE 8/9/10 — spotlights HIT / MISS / ERROR(match).
   {
     const canned = { success: true, data: { canned: true } };
-    const hitCache = fakeCache({ seed: [['https://local.test/api/spotlights', canned]] });
+    const hitCache = fakeCache({ seed: [['https://local.test/api/spotlights?schema=hashtags-v1', canned]] });
     globalThis.caches = { default: hitCache };
     const before = counter.statements;
     captureLogs();

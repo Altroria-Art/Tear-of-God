@@ -23,7 +23,7 @@ export default function Pagination({ page, totalPages, onChange }) {
   const pageList = buildPageList(page, totalPages);
 
   return (
-    <div className="mt-6 flex items-center justify-center gap-2">
+    <div className="mt-6 flex flex-wrap items-center justify-center gap-2" role="navigation" aria-label={t('common.page', 'Page')}>
       <button
         type="button"
         disabled={page <= 1}
@@ -41,6 +41,7 @@ export default function Pagination({ page, totalPages, onChange }) {
           <button
             key={p}
             type="button"
+            aria-current={p === page ? 'page' : undefined}
             onClick={() => onChange(p)}
             className={`rounded-md px-3 py-1.5 text-sm ${p === page ? 'bg-brand text-canvas' : 'border border-line-soft hover:bg-surface'}`}
           >

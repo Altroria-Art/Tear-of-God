@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchTemplates } from '../lib/api';
+import { loginPath } from '../lib/navigation';
+import { useToast } from '../components/ui/Toast';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
@@ -21,6 +23,7 @@ export default function HashtagDetail() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
@@ -31,34 +34,33 @@ export default function HashtagDetail() {
   const [templates, setTemplates] = useState([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setIsLoading(true);
-      const { data, total } = await fetchTemplates({ hashtag: tag, page, limit: PAGE_SIZE, sort });
+      setLoadError('');
+      const { data, total, error } = await fetchTemplates({ hashtag: tag, page, limit: PAGE_SIZE, sort });
       if (cancelled) return;
+      setLoadError(error || '');
       setTemplates(data || []);
       setTotal(total || 0);
       setIsLoading(false);
     }
     if (tag) load();
     return () => { cancelled = true }
-  }, [tag, page, sort]);
-
-  const handleProtectedAction = (callback) => {
-    if (!currentUser) {
-      alert(t('discover.protectedLogin'));
-      navigate('/login');
-      return;
-    }
-    if (callback) callback();
-  };
+  }, [tag, page, sort, retry]);
 
   const handleUseTemplate = (template) => {
-    handleProtectedAction(() => {
-      navigate(`/rank?template=${template.id}`);
-    });
+    const next = `/rank?template=${encodeURIComponent(template.id)}`;
+    if (!currentUser) {
+      toast.warning(t('discover.protectedLogin'));
+      navigate(loginPath(next));
+      return;
+    }
+    navigate(next);
   };
 
   const setPage = (p) => {
@@ -87,19 +89,24 @@ export default function HashtagDetail() {
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
-            <span className="bg-highlight text-canvas font-bold px-4 py-1.5 rounded-full">#{tag}</span>
+            <span className="max-w-full break-words bg-highlight text-canvas font-bold px-4 py-1.5 rounded-full">#{tag}</span>
             <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
             <TopicFollowButton topicType="hashtag" topicKey={tag} />
           </div>
           <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />
         </div>
 
-        {isLoading ? (
+        {loadError ? (
+          <div role="alert" className="py-10 text-center">
+            <p className="text-status-error">{loadError}</p>
+            <button type="button" className="mt-4 rounded-xl bg-brand px-4 py-2 text-canvas" onClick={() => setRetry((n) => n + 1)}>{t('common.retry')}</button>
+          </div>
+        ) : isLoading ? (
           <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingTemplates')}</p>
         ) : templates.length === 0 ? (
           <p className="text-muted text-center py-10">{t('discover.emptyTag')}</p>
         ) : (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
             {templates.map((template) => (
               <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
             ))}

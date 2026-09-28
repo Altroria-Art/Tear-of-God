@@ -4,6 +4,8 @@
 import { requireAdmin } from './_check.js';
 import { assertAllowedFields, assertEnum } from '../../lib/request-guard.js';
 import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
+import { invalidateSpotlightsCache } from '../../lib/spotlight-cache.js';
+import { evictCommunityCache } from '../../lib/cooldown.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -95,7 +97,23 @@ export async function onRequest({ request, env, data: auth }) {
 
       if (action === 'delete') {
         assertAllowedFields(payload, ['action', 'target_id']);
+        const { results: affectedTemplates } = await db.prepare('SELECT DISTINCT template_id FROM rankings WHERE user_id = ? AND template_id IS NOT NULL').bind(targetId).all();
         await db.batch([
+          // Project the surviving counts before the corresponding rows/cascade
+          // disappear, within this same transaction. Only touched posts change.
+          db.prepare(`UPDATE rankings SET
+            likes_count = (SELECT COUNT(*) FROM votes WHERE ranking_id = rankings.id AND vote_type = 'like' AND user_id != ?1),
+            dislikes_count = (SELECT COUNT(*) FROM votes WHERE ranking_id = rankings.id AND vote_type = 'dislike' AND user_id != ?1)
+            WHERE id IN (SELECT ranking_id FROM votes WHERE user_id = ?1)`).bind(targetId),
+          db.prepare(`WITH RECURSIVE removed_comments(id, ranking_id) AS (
+            SELECT id, ranking_id FROM comments WHERE user_id = ?1
+            UNION
+            SELECT c.id, c.ranking_id FROM comments c JOIN removed_comments removed ON c.parent_id = removed.id
+          )
+          UPDATE rankings SET comments_count = (
+            SELECT COUNT(*) FROM comments WHERE ranking_id = rankings.id
+              AND id NOT IN (SELECT id FROM removed_comments)
+          ) WHERE id IN (SELECT ranking_id FROM removed_comments)`).bind(targetId),
           db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').bind(targetId),
           db.prepare('DELETE FROM auth_identities WHERE user_id = ?').bind(targetId),
           db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(targetId),
@@ -115,6 +133,10 @@ export async function onRequest({ request, env, data: auth }) {
           db.prepare('DELETE FROM comments WHERE user_id = ?').bind(targetId),
           db.prepare('DELETE FROM follows WHERE follower_id = ? OR following_id = ?').bind(targetId, targetId),
           db.prepare('DELETE FROM profiles WHERE id = ?').bind(targetId)
+        ]);
+        await Promise.all([
+          invalidateSpotlightsCache(request),
+          ...affectedTemplates.map(({ template_id }) => evictCommunityCache(request, template_id)),
         ]);
         return jsonResponse({ success: true, data: { id: targetId } });
       }

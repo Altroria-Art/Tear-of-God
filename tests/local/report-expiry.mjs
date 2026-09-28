@@ -117,7 +117,16 @@ async function seedWorld(db) {
   };
 }
 
-const { mf, db } = await createD1();
+const { mf, db: realDb } = await createD1();
+// Freeze SQL time for both fixtures and handlers. The one-second boundary
+// must not depend on how long unrelated D1 assertions take on a busy machine.
+const fixedNow = "'2026-09-28 00:00:00'";
+const db = {
+  prepare(sql) {
+    return realDb.prepare(sql.replace(/\bCURRENT_TIMESTAMP\b/g, fixedNow).replace(/'now'/g, fixedNow));
+  },
+  batch: statements => realDb.batch(statements),
+};
 try {
   await seedWorld(db);
 

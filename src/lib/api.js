@@ -3,11 +3,13 @@ import { createTemplateViewSessionGuard } from './templateViewSession';
 
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
 const API_URL = '';
+let sessionEpoch = 0;
 
 
-async function apiFetch(url, options = {}) {
+async function apiFetch(url, { expireSession = !url.startsWith('/api/auth'), ...options } = {}) {
+  const epoch = sessionEpoch;
   const response = await fetch(url, { credentials: 'same-origin', ...options });
-  if (response.status === 401 && !url.startsWith('/api/auth')) window.dispatchEvent(new Event('tog-session-expired'));
+  if (epoch === sessionEpoch && response.status === 401 && expireSession) window.dispatchEvent(new Event('tog-session-expired'));
   return response;
 }
 
@@ -33,7 +35,7 @@ async function getJSON(url, options = {}) {
       return json;
     })
     .finally(() => {
-      if (!options.signal) inFlightGET.delete(url);
+      if (!options.signal && inFlightGET.get(url) === promise) inFlightGET.delete(url);
     });
   if (!options.signal) inFlightGET.set(url, promise);
   return promise;
@@ -121,11 +123,11 @@ export async function syncGoogleUser(userData) {
 export async function updateProfile(_userId, profileData) {
   try {
     const response = await apiFetch(`${API_URL}/api/auth`, {
+      expireSession: true,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update_profile', ...profileData })
     });
-    if (response.status === 401) window.dispatchEvent(new Event('tog-session-expired'));
     return await response.json();
   } catch {
     return { data: null, error: i18n.t('errors.profileUpdateFailed') };
@@ -136,6 +138,7 @@ export async function updateProfile(_userId, profileData) {
 export async function equipBadge(badgeId, badgeMeta = null) {
   try {
     const response = await apiFetch(`${API_URL}/api/auth`, {
+      expireSession: true,
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -144,7 +147,6 @@ export async function equipBadge(badgeId, badgeMeta = null) {
         equipped_badge_meta: badgeMeta ?? null,
       })
     });
-    if (response.status === 401) window.dispatchEvent(new Event('tog-session-expired'));
     return await response.json();
   } catch {
     return { success: false, error: i18n.t('errors.profileUpdateFailed') };
@@ -245,7 +247,14 @@ const SIMILAR_TTL_MS = 60 * 1000;
 const SIMILAR_CACHE_MAX_ENTRIES = 50;
 const similarCache = new Map(); // `${viewerKey}:${profileId}` -> { data, expiresAt }
 
+export function invalidateSessionRequests() {
+  sessionEpoch += 1;
+  inFlightGET.clear();
+  similarCache.clear();
+}
+
 export async function fetchSimilarUsers(profileId, viewerKey) {
+  const epoch = sessionEpoch;
   try {
     if (!profileId) return { success: false, data: null, error: i18n.t('errors.fetchFailed') };
     const key = `${viewerKey ?? 'anon'}:${profileId}`;
@@ -254,7 +263,7 @@ export async function fetchSimilarUsers(profileId, viewerKey) {
     // getJSON dedups concurrent identical URLs in-flight, so a remount while
     // the first request is pending does not fire a second request.
     const data = await getJSON(`${API_URL}/api/users?id=${encodeURIComponent(profileId)}&fields=similar`);
-    if (data?.success !== false) {
+    if (epoch === sessionEpoch && data?.success !== false) {
       if (!similarCache.has(key) && similarCache.size >= SIMILAR_CACHE_MAX_ENTRIES) {
         similarCache.delete(similarCache.keys().next().value);
       }
@@ -291,7 +300,6 @@ export async function setProfilePin(rankingId, pinned, position = 0) {
         position,
       }),
     });
-    if (response.status === 401) window.dispatchEvent(new Event('tog-session-expired'));
     return await response.json();
   } catch {
     return { error: i18n.t('errors.actionFailed') };
@@ -919,13 +927,13 @@ export async function deleteAdminReport({ userId: _userId, targetId }) {
   }
 }
 
-export async function fetchBookmarkedTemplateIds() {
+export async function fetchBookmarkedTemplateIds(options = {}) {
   try {
-    const res = await getJSON(`${API_URL}/api/bookmarks`);
-    return res?.data || [];
+    const res = await getJSON(`${API_URL}/api/bookmarks`, options);
+    return res?.success !== false && Array.isArray(res?.data) ? res.data : null;
   } catch (err) {
     console.error('fetchBookmarkedTemplateIds error:', err);
-    return [];
+    return null;
   }
 }
 

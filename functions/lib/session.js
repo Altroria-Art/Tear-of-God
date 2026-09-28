@@ -36,14 +36,21 @@ export async function readSession(request, db) {
     .bind(await digest(token), Date.now()).first();
 }
 
-export async function createSession(request, db, userId) {
+export async function createSession(request, db, userId, { expectedPassword } = {}) {
   const token = randomToken();
   const old = sessionToken(request);
   const statements = [db.prepare('DELETE FROM auth_sessions WHERE expires_at <= ?').bind(Date.now())];
   if (old) statements.push(db.prepare('DELETE FROM auth_sessions WHERE token_hash = ?').bind(await digest(old)));
-  statements.push(db.prepare('INSERT INTO auth_sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)')
-    .bind(await digest(token), userId, Date.now() + SESSION_SECONDS * 1000));
-  await db.batch(statements);
+  // A reset/change can finish while password verification is running. Check
+  // the verified hash again in the transaction that creates the session.
+  statements.push(expectedPassword === undefined
+    ? db.prepare('INSERT INTO auth_sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)')
+      .bind(await digest(token), userId, Date.now() + SESSION_SECONDS * 1000)
+    : db.prepare(`INSERT INTO auth_sessions (token_hash, user_id, expires_at)
+        SELECT ?, id, ? FROM profiles WHERE id = ? AND password = ?`)
+      .bind(await digest(token), Date.now() + SESSION_SECONDS * 1000, userId, expectedPassword));
+  const results = await db.batch(statements);
+  if (results.at(-1).meta.changes !== 1) return null;
   return sessionCookie(request, token);
 }
 

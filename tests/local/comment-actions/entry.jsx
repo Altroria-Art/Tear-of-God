@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import CommentSection from '../../../src/components/post/CommentSection.jsx';
 import { TestUserContext } from './user-context-stub.js';
 
@@ -11,6 +12,7 @@ const commentById = {
 function renderFor(currentUser, commentKey) {
   return renderToStaticMarkup(
     <TestUserContext.Provider value={{ currentUser }}>
+      <MemoryRouter>
       <CommentSection
         comments={[commentById[commentKey]]}
         onSubmit={() => {}}
@@ -18,6 +20,7 @@ function renderFor(currentUser, commentKey) {
         onDeleteComment={async () => true}
         inputRef={{ current: null }}
       />
+      </MemoryRouter>
     </TestUserContext.Provider>
   );
 }

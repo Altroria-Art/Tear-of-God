@@ -81,7 +81,7 @@ export function resolveTierColor(color, label, index) {
     if (arbitraryMatch) return arbitraryMatch[1]
 
     // Known legacy Tailwind class name.
-    if (LEGACY_TIER_COLORS[trimmed]) return LEGACY_TIER_COLORS[trimmed]
+    if (Object.hasOwn(LEGACY_TIER_COLORS, trimmed)) return LEGACY_TIER_COLORS[trimmed]
 
     // Already a raw CSS color.
     if (/^#|^rgb|^hsl|^var\(/.test(trimmed)) return trimmed
@@ -91,7 +91,7 @@ export function resolveTierColor(color, label, index) {
   // genuinely one of the five fixed tiers (checked before index, since a
   // template can store its tiers out of S/A/B/C/D order — e.g. A,S,D — and
   // the label is the ground truth for what color that tier is meant to be).
-  if (CLASSIC_TIER_HEX[label]) return CLASSIC_TIER_HEX[label]
+  if (Object.hasOwn(CLASSIC_TIER_HEX, label)) return CLASSIC_TIER_HEX[label]
 
   // Still nothing — cycle through the same palette by position, so a
   // template-less ranking with fully custom tier names (no color stored
@@ -127,7 +127,7 @@ export function resolveTierColor(color, label, index) {
 // matching `ranking_items` entries — callers are the ones who know what
 // shape (plain string / {id,name} / …) their item renderer wants.
 export function buildTierRows(rankingItems, tiersDef) {
-  const itemsByLabel = {}
+  const itemsByLabel = Object.create(null)
   ;(rankingItems || []).forEach((ri) => {
     if (!ri.tier) return // ยังไม่ได้จัด — ข้าม ไม่ยัดเข้า tier ไหนทั้งนั้น
     if (!itemsByLabel[ri.tier]) itemsByLabel[ri.tier] = []

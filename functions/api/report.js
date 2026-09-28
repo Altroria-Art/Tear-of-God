@@ -74,9 +74,16 @@ export async function onRequest({ request, env, data: auth }) {
     }
 
     const id = crypto.randomUUID();
-    await db.prepare(
-      `INSERT INTO reports (id, template_id, ranking_id, comment_id, template_comment_id, reporter_id, reason) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
+    // Keep the duplicate guard in the INSERT as well: two tabs can both pass
+    // the earlier read before either request writes its pending report.
+    const targetColumn = template_comment_id ? 'template_comment_id' : comment_id ? 'comment_id' : template_id ? 'template_id' : 'ranking_id';
+    const targetParameter = template_comment_id ? '?5' : comment_id ? '?4' : template_id ? '?2' : '?3';
+    const result = await db.prepare(
+      `INSERT INTO reports (id, template_id, ranking_id, comment_id, template_comment_id, reporter_id, reason)
+       SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7
+       WHERE NOT EXISTS (SELECT 1 FROM reports WHERE ${targetColumn} = ${targetParameter} AND reporter_id = ?6 AND status = 'pending')`
     ).bind(id, template_id, ranking_id, comment_id, template_comment_id, reporter_id, reason).run();
+    if (!result.meta.changes) return jsonResponse({ success: false, error: 'คุณได้รายงานรายการนี้แล้ว รอแอดมินตรวจสอบ' }, 409);
 
     return jsonResponse({ success: true, data: { id } }, 201);
   } catch (err) {

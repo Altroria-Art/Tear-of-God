@@ -6,6 +6,7 @@ import { onRequestGet as templates } from '../../functions/api/templates.js';
 import { onRequest as notifications } from '../../functions/api/notifications.js';
 import { onRequestPost as analytics } from '../../functions/api/analytics.js';
 import { build } from 'esbuild';
+import { seedLatestContributions } from './helpers/contributions.mjs';
 
 const cpuMode = process.argv.includes('--cpu');
 const bundled = cpuMode ? await build({ stdin: { contents: `
@@ -36,6 +37,7 @@ try {
   await db.prepare("INSERT INTO votes(id,ranking_id,user_id,vote_type) SELECT 'v'||id,id,'viewer','like' FROM rankings WHERE id IN ('r0001','r0002','r0003')").run();
   await db.prepare("INSERT INTO follows VALUES ('viewer','author',CURRENT_TIMESTAMP)").run();
   await db.prepare("INSERT INTO topic_follows(user_id,topic_type,topic_key) VALUES ('viewer','hashtag','tag7')").run();
+  await seedLatestContributions(db);
   await db.prepare(`WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<1000)
     INSERT INTO notifications(id,user_id,type,is_read) SELECT 'n'||n,'viewer','community_average',n%2 FROM seq`).run();
 
@@ -85,7 +87,7 @@ try {
     await Promise.all(tasks);
     const summary = {path,read:queries.reduce((a,q)=>a+q.read,0),written:queries.reduce((a,q)=>a+q.written,0),queries:queries.length,top:queries.sort((a,b)=>b.read-a.read).slice(0,2)};
     console.log(JSON.stringify(summary));
-    return {body:await response.json(),summary};
+    return {body:await response.json(),summary,queries};
   }
   for (const type of ['for_you','following','trending']) await measure(rankings,`/api/rankings?feed_type=${type}&seed=9&limit=12`);
   await measure(templates,'/api/templates?limit=12');
@@ -101,7 +103,10 @@ try {
   const cold = await measure(rankings,path);
   const warm = await measure(rankings,path);
   assert.deepEqual(warm.body,cold.body);
-  assert.ok(warm.summary.read < cold.summary.read / 4);
+  const aggregateQueries = cold.queries.filter(query => query.sql.startsWith('SELECT template_id, COUNT(*) AS uses') || query.sql.startsWith('SELECT r.template_id, ri.item_id'));
+  assert.equal(aggregateQueries.length, 2, 'cold feed loads uses and effective placement histogram');
+  assert.equal(warm.summary.queries, cold.summary.queries - 2, 'warm feed skips both aggregate queries');
+  assert.equal(cold.summary.read - warm.summary.read, aggregateQueries.reduce((sum, query) => sum + query.read, 0));
   console.log(`Warm For You: ${cold.summary.read} -> ${warm.summary.read} rows`);
   // Overlapping pages share template entries, not viewer data or whole responses.
   await measure(rankings,path+'&page=2');

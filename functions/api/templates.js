@@ -106,7 +106,7 @@ export async function onRequestGet(context) {
       ).bind(...whereParams).all();
       const total = totalRows[0]?.n || 0;
 
-      let itemsMap = {};
+      const itemsMap = Object.create(null);
       if (templates.length > 0) {
         const templateIds = templates.map(t => t.id);
         const placeholders = templateIds.map(() => '?').join(',');
@@ -261,7 +261,7 @@ export async function onRequestGet(context) {
          GROUP BY ris.item_id, ris.score`
       ).bind(...whereParams).all();
 
-      const itemAgg = {};
+      const itemAgg = Object.create(null);
       histogram.forEach(row => {
         if (!itemAgg[row.item_id]) itemAgg[row.item_id] = { sum: 0, count: 0 };
         itemAgg[row.item_id].sum += row.score * row.n;
@@ -378,7 +378,8 @@ export async function onRequestPost(context) {
     const template_id = assertId(body.template_id, 'template_id');
 
     const insertResult = await db.prepare(
-      `INSERT OR IGNORE INTO template_views (template_id, user_id) VALUES (?, ?)`
+      `INSERT OR IGNORE INTO template_views (template_id, user_id)
+       SELECT ?1, ?2 FROM templates WHERE id = ?1`
     ).bind(template_id, user_id).run();
 
     // Viewer เดิมไม่ก่อ COUNT/UPDATE ซ้ำ; อ่าน mirror ที่ถูกซิงค์จากการ insert ครั้งแรกแทน
@@ -395,6 +396,7 @@ export async function onRequestPost(context) {
     const { results } = await db.prepare(
       `SELECT view_count FROM templates WHERE id = ?`
     ).bind(template_id).all();
+    if (!results.length) return Response.json({ success: false, error: 'Template not found' }, { status: 404 });
 
     // counted อ้างอิงผลของ INSERT (statement แรกใน batch) — ต้องเป็นแถวใหม่จริงเท่านั้นถึงนับ
     // ว่า "view" นี้ถูกนับ ไม่ใช่ผลของ UPDATE ซึ่ง match แถว templates เสมอไม่ว่า INSERT จะถูก

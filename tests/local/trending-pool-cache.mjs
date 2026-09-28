@@ -322,8 +322,9 @@ try {
     const storedTiers = entry?.tiers;
     assert.ok(
       Array.isArray(storedTiers) && storedTiers.length === stored.length
-        && storedTiers.every((t) => Number.isInteger(t) && t >= 1 && t <= 5),
-      'L2 must carry per-row freshness tiers aligned with the ids',
+        && storedTiers.every((t) => Number.isInteger(t) && Math.floor(t / 10) >= 0
+          && Math.floor(t / 10) <= 2 && t % 10 >= 1 && t % 10 <= 5),
+      'L2 must carry age buckets and freshness tiers aligned with the ids',
     );
     // SECURITY: the serialized shared payload must be ids + tiers only.
     const serialized = JSON.stringify({ ids: stored, tiers: storedTiers });
