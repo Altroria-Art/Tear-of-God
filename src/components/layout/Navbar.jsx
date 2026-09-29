@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, LogOut, Sun, Moon, Languages, Menu, X, Crown } from 'lucide-react';
+import { Search, User, LogOut, Sun, Moon, Languages, Menu, X, Crown, Plus } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
@@ -218,8 +218,8 @@ const Navbar = () => {
           <Link to="/" onClick={handleHomeClick} className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/')}`}>
             {t('nav.home')}
           </Link>
-          <Link to="/create" aria-current={location.pathname === '/create' ? 'page' : undefined} className="play-button">
-            {t('nav.create')}
+          <Link to="/create" aria-current={location.pathname === '/create' ? 'page' : undefined} className="play-button inline-flex items-center gap-1">
+            <Plus size={18} strokeWidth={3} aria-hidden="true" />{t('nav.rankCta')}
           </Link>
           <Link to="/discover" className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/discover')}`}>
             {t('nav.discover')}

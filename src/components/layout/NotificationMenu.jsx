@@ -46,6 +46,7 @@ export default function NotificationMenu({ userId }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const menuRef = useRef(null);
+  const triggerRef = useRef(null);
   const requestIdRef = useRef(0);
   const lastRefreshedAtRef = useRef(0);
   const lastSuccessAtRef = useRef(0);
@@ -145,6 +146,15 @@ export default function NotificationMenu({ userId }) {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') { setIsOpen(false); triggerRef.current?.focus(); }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen]);
+
   const openMenu = () => {
     const nextOpen = !isOpen;
     setIsOpen(nextOpen);
@@ -232,6 +242,7 @@ export default function NotificationMenu({ userId }) {
   return (
     <div className="relative" ref={menuRef}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={openMenu}
         aria-label={t('notifications.title')}
@@ -247,7 +258,7 @@ export default function NotificationMenu({ userId }) {
       </button>
 
       {isOpen && (
-        <div className="dialog-panel fixed left-2 right-2 top-[4.25rem] w-auto overflow-hidden rounded-2xl border border-line-soft bg-canvas shadow-xl z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[min(22rem,calc(100vw-1rem))]">
+        <div className="notification-sheet fixed left-2 right-2 top-[4.25rem] w-auto overflow-hidden border border-line-soft bg-canvas shadow-xl z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[min(22rem,calc(100vw-1rem))]">
           <div className="flex items-center justify-between gap-3 border-b border-line-soft px-4 py-3">
             <div>
               <p className="font-black text-ink">{t('notifications.title')}</p>

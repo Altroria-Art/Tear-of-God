@@ -12,15 +12,9 @@ import { useToast } from '../ui/Toast';
 const PROMPT_STYLES = {
   daily: {
     Icon: Clock3,
-    accent: 'text-aurora-orange',
-    tint: 'bg-aurora-orange/10',
-    border: 'border-aurora-orange/25'
   },
   weekly: {
     Icon: CalendarDays,
-    accent: 'text-aurora-purple',
-    tint: 'bg-aurora-purple/10',
-    border: 'border-aurora-purple/25'
   }
 };
 
@@ -45,13 +39,12 @@ function PromptCard({ kind, prompt, tick, onUse, compact = false }) {
   if (!template) return null;
 
   return (
-    <article className={`relative overflow-hidden rounded-2xl border ${style.border} bg-surface/80 ${compact ? 'p-3' : 'p-4 shadow-panel'}`}>
-      <div className={`pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full blur-2xl ${style.tint}`} />
+    <article className={`spotlight-poster spotlight-poster--${kind} relative overflow-hidden ${compact ? 'p-3' : 'p-4'}`}>
 
       <div className="relative flex h-full flex-col">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className={`flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.12em] ${style.accent}`}>
+            <p className="spotlight-kicker flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-[0.12em]">
               <Icon size={14} aria-hidden="true" />
               {t(`spotlights.${kind}`)}
             </p>
@@ -61,7 +54,7 @@ function PromptCard({ kind, prompt, tick, onUse, compact = false }) {
               </h3>
             </Link>
           </div>
-          <span className="shrink-0 rounded-full border border-line-soft bg-surface-glass px-2 py-1 text-[10px] font-bold text-ink-soft">
+          <span className="shrink-0 border-b border-ink/30 px-1 py-1 text-[10px] font-bold text-ink-soft">
             {formatHashtags(template.hashtags) || t('spotlights.general')}
           </span>
         </div>
@@ -97,7 +90,7 @@ function PromptCard({ kind, prompt, tick, onUse, compact = false }) {
             type="button"
             data-auth-next={`/rank?template=${encodeURIComponent(template.id)}`}
             onClick={() => onUse(template)}
-            className={`group flex shrink-0 items-center gap-1 rounded-full bg-brand text-canvas font-extrabold shadow-sm transition-all hover:bg-brand-accent active:scale-95 ${compact ? 'px-2.5 py-1.5 text-[10px]' : 'px-3.5 py-2 text-xs'}`}
+            className={`club-primary group flex min-h-11 shrink-0 items-center gap-1 ${compact ? 'px-2.5 text-[10px]' : 'px-3.5 text-xs'}`}
           >
             {t('spotlights.rankNow')}
             <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />

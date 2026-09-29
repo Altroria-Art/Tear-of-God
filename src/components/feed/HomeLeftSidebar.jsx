@@ -10,7 +10,7 @@ export default function HomeLeftSidebar() {
     <div className="text-ink">
       <Link
         to="/discover?view=saved"
-        className="group flex items-center justify-between p-3.5 rounded-2xl border border-line-soft bg-surface/80 hover:bg-surface hover:border-brand/40 shadow-xs transition-all"
+        className="saved-sticker group flex items-center justify-between p-3.5 hover:border-brand/40 transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-brand/10 text-brand flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:bg-brand group-hover:text-canvas transition-all">

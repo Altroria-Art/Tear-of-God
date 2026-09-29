@@ -22,8 +22,8 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
-      <h2 className="text-lg font-bold text-ink">{t('template.about')}</h2>
+    <div className="post-about-ticket p-4">
+      <h2 className="text-lg font-black text-ink">{t('template.about')}</h2>
 
       <p className="mt-2 text-sm text-muted">
         {t('template.aboutDesc', { name, n: itemCount })}
@@ -35,7 +35,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
           type="button"
           disabled={!templateId}
           onClick={handleUseTemplate}
-          className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-surface-glass border border-line-soft py-2.5 font-bold text-ink-soft shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:-translate-y-0 disabled:hover:shadow-sm"
+          className="flex-1 flex min-h-11 items-center justify-center gap-2 border border-line py-2.5 font-bold text-ink-soft transition-transform hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <TemplateIcon className="h-4 w-4" />
           {t('template.use')}
@@ -43,7 +43,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
         {templateId && (
           <BookmarkButton 
             template={{ id: templateId }} 
-            className="shrink-0 flex items-center justify-center w-[46px] h-[46px] rounded-lg bg-surface-glass border border-line-soft text-ink-soft shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface hover:shadow-md active:scale-[0.97]" 
+            className="shrink-0 flex items-center justify-center w-[46px] h-[46px] border border-line-soft text-ink-soft transition-transform hover:-translate-y-0.5 active:translate-y-0.5"
           />
         )}
       </div>
@@ -51,7 +51,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
       {templateId ? (
         <Link
           to={`/template/${encodeURIComponent(templateId)}/community`}
-          className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface py-2.5 font-semibold text-ink-soft transition-colors hover:bg-search"
+          className="mt-2 flex min-h-11 w-full items-center justify-center gap-2 border-t border-line bg-surface py-2.5 font-semibold text-ink-soft transition-colors hover:text-ink"
         >
           <EyeIcon className="h-4 w-4" />
           {t('template.viewCommunityAverage')}

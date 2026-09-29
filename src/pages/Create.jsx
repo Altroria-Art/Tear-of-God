@@ -400,7 +400,7 @@ const CreateTierList = () => {
     <div className="min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
       
 {/* POPUP SETTINGS MODAL */}
-      <Modal open={!!activeSettingsTier} onClose={closeSettings} title={t('create.chooseLabelBg')}>
+      <Modal open={!!activeSettingsTier} onClose={closeSettings} title={t('create.chooseLabelBg')} variant="editor">
         {activeSettingsTier && <>
           <div className="flex flex-wrap justify-center gap-3 mb-6">
             {palette.map(color => {
@@ -522,8 +522,9 @@ const CreateTierList = () => {
           </div>
         </div>
 
-          <section className="lg:col-start-2 lg:row-start-2 glass p-4 sm:p-6 rounded-2xl">
-            <h2 className="font-bold">{t('editor.details')}</h2>
+          <section className="create-publish-panel lg:col-start-2 lg:row-start-2 glass p-4 sm:p-6 rounded-2xl">
+            <p className="club-serial mb-2">TEAR OF GOD / 03</p>
+            <h2 className="font-bold">{t('create.makeItOfficial')}</h2>
             <div className="flex flex-col gap-5 mt-4">
             <div>
               <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.templateName')}</label>

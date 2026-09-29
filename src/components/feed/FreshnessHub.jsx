@@ -69,69 +69,13 @@ function RankingCard({ ranking, compact = false }) {
 
 function ScrollTrack({ children, hasMore = true, label }) {
   const trackRef = useRef(null);
-  const pauseTimerRef = useRef(null);
-  const hoveredRef = useRef(false);
-  const [paused, setPaused] = useState(false);
 
   const scrollNext = () => {
-    setPaused(true);
-    window.clearTimeout(pauseTimerRef.current);
-    pauseTimerRef.current = window.setTimeout(() => {
-      if (!hoveredRef.current) setPaused(false);
-    }, 7000);
-
     trackRef.current?.scrollBy({ left: Math.max(220, trackRef.current.clientWidth * 0.8), behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    if (!hasMore || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return undefined;
-
-    const timer = window.setInterval(() => {
-      const track = trackRef.current;
-      if (!track || paused || hoveredRef.current || track.scrollWidth <= track.clientWidth + 4) return;
-
-      const maxScrollLeft = track.scrollWidth - track.clientWidth;
-      if (track.scrollLeft >= maxScrollLeft - 8) {
-        track.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        track.scrollBy({ left: Math.max(220, track.clientWidth * 0.8), behavior: 'smooth' });
-      }
-    }, 5000);
-
-    return () => window.clearInterval(timer);
-  }, [hasMore, paused]);
-
-  useEffect(() => () => window.clearTimeout(pauseTimerRef.current), []);
-
-  const handleMouseEnter = () => {
-    hoveredRef.current = true;
-    setPaused(true);
-  };
-
-  const handleMouseLeave = () => {
-    hoveredRef.current = false;
-    setPaused(false);
-  };
-
-  const handlePointerDown = () => {
-    setPaused(true);
-    window.clearTimeout(pauseTimerRef.current);
-    pauseTimerRef.current = window.setTimeout(() => {
-      if (!hoveredRef.current) setPaused(false);
-    }, 7000);
-  };
-
   return (
-    <div
-      className="relative min-w-0"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onFocus={() => setPaused(true)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
-      }}
-      onPointerDown={handlePointerDown}
-    >
+    <div className="relative min-w-0">
       <div
         ref={trackRef}
         aria-label={label}
@@ -159,7 +103,7 @@ function Section({ section, items, compact = false }) {
   if (!items?.length) return null;
   const { Icon } = section;
   return (
-    <div className={`rounded-2xl border ${section.border} bg-surface/60 ${compact ? 'p-3' : 'p-3.5'}`}>
+    <div className={`freshness-section freshness-section--${section.key} ${compact ? 'p-3' : 'p-3.5'}`}>
       <h3 className={`flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-[0.12em] ${section.tone}`}>
         <Icon size={14} aria-hidden="true" />
         {t(`freshness.${section.key}`)}

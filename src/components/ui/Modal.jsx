@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { CloseIcon } from './Icons';
 import { useTranslation } from 'react-i18next';
 
-export default function Modal({ open, onClose, title, children, footer, maxWidth = 'max-w-md' }) {
+export default function Modal({ open, onClose, title, children, footer, maxWidth = 'max-w-md', variant = 'action' }) {
   const { t } = useTranslation();
   const dialog = useRef(null);
   const close = useRef(onClose);
@@ -37,7 +37,7 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className={`modal--${variant} fixed inset-0 z-[200] flex items-center justify-center p-4`}
       role="dialog"
       aria-modal="true"
       aria-label={title}

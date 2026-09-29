@@ -96,8 +96,8 @@ export default function DuelResultPage() {
   const diffTierItems = (comparison?.details || []).filter((d) => !d.isMatch);
 
   return (
-    <main className="min-h-screen font-sans text-ink">
-      <div className="mx-auto max-w-4xl px-4 py-6 sm:py-10 flex flex-col gap-6 sm:gap-8">
+    <main className="duel-result-v2 min-h-screen font-sans text-ink">
+      <div className="mx-auto max-w-4xl px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-5">
         {/* Navigation Bar */}
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <Link
@@ -119,9 +119,8 @@ export default function DuelResultPage() {
 
         <PlayHeader eyebrow={t('play.resultEyebrow')} title={t('play.resultTitle')} description={template.title} reveal />
         {/* Hero Card: Taste Match Overview */}
-        <section className="duel-score relative overflow-hidden rounded-3xl glass border border-line-soft/80 p-6 sm:p-10 shadow-xl text-center bg-surface/70 flex flex-col items-center gap-6">
+        <section className="duel-score duel-stage-v2 relative overflow-hidden p-5 text-center flex flex-col items-center gap-3">
           {/* Ambient Glow */}
-          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-highlight/10 rounded-full blur-3xl pointer-events-none" />
 
           {/* Eyebrow */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-highlight/15 text-highlight border border-highlight/30 text-xs font-black uppercase tracking-widest shadow-2xs">
@@ -185,11 +184,11 @@ export default function DuelResultPage() {
           </div>
 
           {/* Dual Stat Metrics: Owner Match vs Community Match */}
-          <p className="rounded-full bg-tag px-3 py-1.5 text-xs font-bold text-ink-soft">
+          <p className="border-t border-line-soft px-3 pt-3 text-xs font-bold text-ink-soft">
             {comparison?.matched_items} / {comparison?.total_items} {t('duel.sameTier')}
           </p>
           <div className="w-full max-w-sm">
-            <div className="rounded-2xl border border-line-soft/80 bg-surface/80 p-4 flex flex-col items-center text-center shadow-xs">
+            <div className="duel-community-stat flex flex-col items-center text-center">
               <span className="text-xs font-bold text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
                 <Users size={14} className="text-brand-accent" />
                 <span>{t('duel.communityMatch')}</span>
@@ -235,7 +234,7 @@ export default function DuelResultPage() {
         </section>
 
         {/* Template Context Banner */}
-        <section className="rounded-2xl glass border border-line-soft p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <section className="duel-template-strip flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-3">
           <div className="min-w-0">
             <span className="text-xs font-bold text-muted uppercase tracking-wider">
               {t('template.title')}
@@ -272,10 +271,10 @@ export default function DuelResultPage() {
               {comparison.details.map((item) => (
                 <div
                   key={item.itemId}
-                  className={`flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all ${
+                  className={`duel-breakdown-row flex items-center justify-between gap-3 p-3.5 transition-colors ${
                     item.isMatch
-                      ? 'bg-emerald-500/5 border-emerald-500/20'
-                      : 'bg-surface/50 border-line-soft'
+                      ? 'bg-emerald-500/5'
+                      : ''
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -299,7 +298,7 @@ export default function DuelResultPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     {/* Challenger A Placement */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-bold text-muted uppercase">You</span>
+                      <span className="text-[9px] font-bold text-muted uppercase">{t('duel.you')}</span>
                       {item.tierA ? (
                         <TierLabel label={item.tierA} color={item.tierColorA} className="text-xs px-2 py-0.5 rounded-md" />
                       ) : (

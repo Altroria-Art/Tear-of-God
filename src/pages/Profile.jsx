@@ -1,7 +1,7 @@
 import PlayHeader from '../components/ui/PlayHeader';
 import { parseHashtags } from '../lib/hashtags';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { returnPath } from '../lib/navigation';
 import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid, Swords } from 'lucide-react';
 import BadgeGallery from '../components/user/BadgeGallery';
@@ -49,7 +49,7 @@ function MiniTierItem({ item, t }) {
   );
 }
 
-function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSelect, t }) {
+function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSelect, featured = false, t }) {
   const rows = buildTierRows(post.ranking_items, post.tiers);
   const previewRows = rows.slice(0, 2);
   const hashtags = parseHashtags(post.hashtags);
@@ -57,7 +57,10 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
   return (
     <article
       onClick={onSelect}
-      className="group relative flex flex-col rounded-2xl overflow-hidden glass border border-line-soft hover:border-brand/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer text-left select-none bg-surface/60 min-w-0"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelect(); } }}
+      className={`profile-ranking-tile group relative flex flex-col overflow-hidden border border-line-soft hover:border-brand/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer text-left select-none bg-surface/60 min-w-0 ${featured ? 'profile-tile--lead' : ''}`}
     >
       {/* Top Visual Thumbnail Area — pt-13 reserves a CONSTANT slot for the pinned + type
           badges so tier rows never shift whether the list is pinned or not */}
@@ -779,16 +782,16 @@ export default function Profile() {
 
   return (
     <div className="text-ink antialiased min-h-screen flex flex-col font-sans">
-      <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
+      <main className="profile-v2 flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
         <PlayHeader eyebrow={t('play.profileEyebrow')} title={t('play.profileTitle')} description={displayUser?.username || t('profile.tasteSnapshotHelp')} />
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
           {/* Left Sidebar: User Profile Info */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="taste-passport glass p-6 rounded-2xl shadow-sm text-center text-ink">
+            <div className="taste-passport-v2 p-6 text-center text-ink">
               <div className="w-24 h-24 mx-auto mb-4 relative">
-                <div className="w-full h-full rounded-full overflow-hidden bg-surface border-2 border-line">
+                <div className="passport-avatar w-full h-full rounded-full overflow-hidden bg-surface">
                   {displayUser?.avatar_url ? (
                     <img src={displayUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
@@ -826,8 +829,8 @@ export default function Profile() {
                 );
               })()}
               <div className="flex justify-center gap-4 text-sm text-muted mb-3">
-                <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> {t('profile.followers')}</span>
-                <span className="cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> {t('profile.following')}</span>
+                <button type="button" className="min-h-11 cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> {t('profile.followers')}</button>
+                <button type="button" className="min-h-11 cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> {t('profile.following')}</button>
               </div>
               {!isOwnProfile && (
                 <button
@@ -862,13 +865,13 @@ export default function Profile() {
               {isOwnProfile && (
                 <button
                   onClick={() => setIsEditOpen(true)}
-                  className="w-full py-2.5 bg-brand hover:bg-brand-accent text-canvas font-bold rounded-xl text-sm transition-colors shadow-sm cursor-pointer"
+                  className="club-primary min-h-11 w-full text-sm cursor-pointer"
                 >
                   {t('profile.editProfile')}
                 </button>
               )}
 
-              <div className="mt-6 pt-6 border-t border-line-soft flex justify-around text-center text-xs text-muted">
+              <div className="passport-strip mt-6 flex justify-around text-center text-xs text-muted">
                 <div>
                   <p className="font-bold text-ink">{joinedLabel}</p>
                   <p>{t('profile.joined')}</p>
@@ -882,7 +885,7 @@ export default function Profile() {
             </div>
 
             {/* Keep the summary under the profile; the full identity opens on demand. */}
-            <section className="taste-passport glass rounded-2xl p-5 shadow-sm" aria-label={t('profile.tasteIdentity')}>
+            <section className="passport-taste p-5" aria-label={t('profile.tasteIdentity')}>
               <div className="flex items-center gap-2 mb-1">
                 <Fingerprint size={16} className="text-brand" />
                 <h3 className="font-bold text-ink">{t('profile.tasteIdentity')}</h3>
@@ -938,7 +941,7 @@ export default function Profile() {
                 {t('profile.viewTasteDetails')} →
               </button>
             </section>
-            <section className="glass rounded-2xl p-5 shadow-sm" aria-label={t('profile.badges')}>
+            <section className="passport-badges p-5" aria-label={t('profile.badges')}>
               <div className="flex items-center gap-2">
                 <Award size={18} className="text-brand" aria-hidden="true" />
                 <h3 className="font-bold text-ink">{t('profile.badges')}</h3>
@@ -967,24 +970,40 @@ export default function Profile() {
           {/* Right Content: Create Template Button & List of User Posts */}
           <div className="lg:col-span-3 space-y-6">
 
+            {isOwnProfile && pinnedRankings.length > 0 && (
+              <section className="profile-defining-rankings">
+                <div className="profile-section-intro mb-4 p-4">
+                  <p className="club-serial text-ink-soft">TEAR OF GOD / {t('profile.pinnedTab')}</p>
+                  <h3 className="mt-1 text-lg font-black text-ink">{t('profile.pinnedTab')}</h3>
+                </div>
+                <div className="profile-ranking-grid grid grid-cols-2 gap-3 sm:gap-4">
+                  {pinnedRankings.slice(0, 3).map((post, index) => (
+                    <MiniTierTile key={post.id} post={post} isPinned isOwnProfile pinBusy={pinBusyId === post.id}
+                      onTogglePin={handleTogglePin} onSelect={() => navigate(`/post/${post.id}`)} featured={index === 0} t={t} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Create New Template Banner (เฉพาะโปรไฟล์ตัวเอง) */}
             {isOwnProfile && (
-              <div
-                onClick={() => navigate('/create')}
-                className="glass border-2 border-dashed border-line hover:border-highlight rounded-2xl p-6 text-center cursor-pointer transition-colors group"
+              <Link
+                to="/create"
+                className="profile-create-ticket border-2 border-dashed border-line hover:border-highlight p-4 text-left cursor-pointer transition-colors group"
               >
-                <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-canvas flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
-                  +
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center border border-ink bg-surface text-xl font-black text-ink group-hover:scale-105 transition-transform" aria-hidden="true">+</span>
+                  <span><span className="block font-black text-ink">{t('profile.createNewTemplate')}</span><span className="block text-xs text-ink-soft">{t('profile.createNewTemplateHelp')}</span></span>
                 </div>
-                <h3 className="font-bold text-ink">{t('profile.createNewTemplate')}</h3>
-                <p className="text-xs text-muted">{t('profile.createNewTemplateHelp')}</p>
-              </div>
+              </Link>
             )}
 
             {!isOwnProfile && (
-              <div className="glass rounded-2xl p-6 ">
+              <div className="profile-section-intro p-6">
+                <p className="club-serial mb-3">TEAR OF GOD / {t('profile.tasteIdentity')}</p>
                 <h3 className="text-lg font-bold text-ink">{t('profile.tierListsBy', { name: displayUser?.username })}</h3>
                 <p className="text-xs text-muted mt-1">{t('profile.tierListsByHelp', { name: displayUser?.username })}</p>
+                {hashtagDistribution.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{hashtagDistribution.slice(0, 3).map(item => <span key={item.hashtag} className="profile-topic-sticker">#{item.hashtag}</span>)}</div>}
               </div>
             )}
 
@@ -1216,8 +1235,8 @@ export default function Profile() {
                 }
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-                {visiblePosts.map((post) => (
+              <div className="profile-ranking-grid grid grid-cols-2 gap-3 sm:gap-4">
+                {visiblePosts.map((post, index) => (
                   <MiniTierTile
                     key={post.id}
                     post={post}
@@ -1226,6 +1245,7 @@ export default function Profile() {
                     pinBusy={pinBusyId === post.id}
                     onTogglePin={handleTogglePin}
                     onSelect={() => navigate(`/post/${post.id}`)}
+                    featured={index === 0}
                     t={t}
                   />
                 ))}
@@ -1251,26 +1271,14 @@ export default function Profile() {
 
       {/* Edit Profile Modal (เฉพาะโปรไฟล์ตัวเอง) */}
       {isOwnProfile && isEditOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeProfileEditor();
-          }}
-        >
-          <div role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" className="glass w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl p-6 shadow-xl relative">
-            <button
-              onClick={closeProfileEditor}
-              aria-label={t('profile.cancel')}
-              className="absolute top-4 right-4 text-muted hover:text-ink-soft font-bold"
-            >
-              ✕
-            </button>
-
-            <h3 id="profile-editor-title" className="text-xl font-bold text-ink mb-4">{t(isEducationSetup ? 'profile.setupTitle' : 'profile.editProfile')}</h3>
+        <Modal open={isEditOpen} onClose={closeProfileEditor} variant="editor" maxWidth={isEducationSetup ? 'max-w-xl' : 'max-w-3xl'} title={t(isEducationSetup ? 'profile.tasteIdentity' : 'profile.editProfile')}>
+          <div className="profile-editor-v2">
+            <p className="club-serial mb-3">TEAR OF GOD / {t(isEducationSetup ? 'profile.setupTitle' : 'profile.editProfile')}</p>
+            <h3 className="profile-editor-headline">{t(isEducationSetup ? 'profile.setupHeadline' : 'profile.editorHeadline')}</h3>
             {isEducationSetup && <p className="text-sm text-muted mb-4">{t('profile.setupHelp')}</p>}
 
             <form onSubmit={handleSaveChanges} className="space-y-4">
-              <fieldset disabled={isSaving || isUploading} className="space-y-4">
+              <fieldset disabled={isSaving || isUploading} className="profile-editor-fields space-y-4">
               {!isEducationSetup && <>
               <div className="text-center mb-4">
                 <div className="w-20 h-20 mx-auto rounded-full bg-surface overflow-hidden mb-2 relative">
@@ -1294,17 +1302,19 @@ export default function Profile() {
                   onChange={handleFileChange} 
                   className="hidden" 
                 />
-                <span 
-                  onClick={() => !isUploading && fileInputRef.current?.click()} 
-                  className={`text-xs text-brand font-bold ${isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:underline'}`}
+                <button type="button"
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="min-h-11 text-xs font-bold text-ink underline underline-offset-4"
                 >
                   {isUploading ? t('profile.uploading') : t('profile.changePhoto')}
-                </span>
+                </button>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.displayName')}</label>
+                <label htmlFor="profile-display-name" className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.displayName')}</label>
                 <input
+                  id="profile-display-name"
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
@@ -1314,8 +1324,9 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.bio')}</label>
+                <label htmlFor="profile-bio" className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.bio')}</label>
                 <textarea
+                  id="profile-bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand h-24 resize-none"
@@ -1323,12 +1334,12 @@ export default function Profile() {
               </div>
 
               </>}
-              <div className="bg-surface/50 border border-line-soft rounded-xl p-4 space-y-3">
+              <div className="club-section profile-editor-university space-y-3">
                 <fieldset>
                   <legend className="text-sm font-bold text-ink mb-3">{t('profile.membershipQuestion')}</legend>
                   <div className="flex flex-wrap gap-4">
                     {[true, false].map(value => (
-                      <label key={String(value)} className="flex items-center gap-2 text-sm text-ink cursor-pointer">
+                      <label key={String(value)} className="club-choice flex items-center gap-2 text-sm text-ink cursor-pointer">
                         <input type="radio" name="up-membership" checked={studiedAtUp === value}
                           onChange={() => {
                             setStudiedAtUp(value);
@@ -1343,8 +1354,9 @@ export default function Profile() {
                 {studiedAtUp && (
                   <>
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.faculty')}</label>
+                      <label htmlFor="profile-faculty" className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.faculty')}</label>
                       <select
+                        id="profile-faculty"
                         value={facultyValue}
                         onChange={(e) => {
                           setFacultyValue(e.target.value);
@@ -1360,8 +1372,9 @@ export default function Profile() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.major')}</label>
+                      <label htmlFor="profile-major" className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.major')}</label>
                       <select
+                        id="profile-major"
                         value={majorValue}
                         onChange={(e) => setMajorValue(e.target.value)}
                         disabled={!facultyValue}
@@ -1377,8 +1390,9 @@ export default function Profile() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.admissionYear')}</label>
+                      <label htmlFor="profile-admission-year" className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">{t('profile.admissionYear')}</label>
                       <select
+                        id="profile-admission-year"
                         value={admissionYear}
                         onChange={(e) => setAdmissionYear(e.target.value)}
                         className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand"
@@ -1393,7 +1407,7 @@ export default function Profile() {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="profile-editor-actions sticky bottom-0 flex justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={closeProfileEditor}
@@ -1403,7 +1417,7 @@ export default function Profile() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-bold bg-brand hover:bg-brand-accent text-canvas rounded-xl shadow-sm"
+                  className="club-primary min-h-11 px-5 text-sm"
                 >
                   {t(isSaving ? 'profile.saving' : (isEducationSetup ? 'profile.setupContinue' : 'profile.saveChanges'))}
                 </button>
@@ -1411,37 +1425,26 @@ export default function Profile() {
               </fieldset>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Follow List Modal */}
       {followListModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setFollowListModal(null);
-          }}
+        <Modal
+          open
+          onClose={() => setFollowListModal(null)}
+          title={followListModal === 'followers' ? t('profile.followers') : t('profile.following')}
+          maxWidth="max-w-lg"
         >
-          <div className="glass w-full max-w-lg rounded-3xl p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
-            <button
-              onClick={() => setFollowListModal(null)}
-              className="absolute top-4 right-4 text-muted hover:text-ink-soft font-bold"
-            >
-              ✕
-            </button>
-            <h3 className="text-xl font-bold text-ink mb-4 capitalize">
-              {followListModal === 'followers' ? t('profile.followers') : t('profile.following')}
-            </h3>
-            
-            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+            <div className="space-y-2">
               {isFollowListLoading ? (
                 <p className="text-center text-muted py-6">{t('profile.loading')}</p>
               ) : followListData.length === 0 ? (
                 <p className="text-center text-muted py-6">{t('profile.noUsers')}</p>
               ) : (
                 followListData.map(user => (
-                  <div key={user.id} 
-                    className="flex items-center gap-4 cursor-pointer hover:bg-surface p-3 rounded-xl transition-colors"
+                  <button key={user.id} type="button"
+                    className="flex min-h-11 w-full items-center gap-4 p-3 text-left transition-colors hover:bg-tag focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-violet"
                     onClick={() => {
                       setFollowListModal(null);
                       navigate(`/profile/${user.id}`);
@@ -1467,12 +1470,11 @@ export default function Profile() {
                       <div className="font-bold text-base text-ink">{user.username}</div>
                       {user.bio && <div className="text-sm text-muted line-clamp-1">{user.bio}</div>}
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
     </div>

@@ -217,7 +217,7 @@ export default function Discover() {
   );
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7 sm:py-10 text-ink">
+    <main className="discover-v2 max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-6 text-ink">
       {!saved && <PlayHeader eyebrow={t('play.discoverEyebrow')} title={t('play.discoverTitle')} description={t('play.discoverDescription')} />}
       <form role="search" className="discover-search" onSubmit={event => {
         event.preventDefault();

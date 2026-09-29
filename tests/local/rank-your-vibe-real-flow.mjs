@@ -70,8 +70,8 @@ const second = await request('/api/rankings', { method: 'POST', cookie: people[1
 check('rank existing template as second account', second.status === 201 && second.data.data?.id, second);
 const aggregated = await request(`/api/templates?id=${encodeURIComponent(templateId)}`, { cookie: people[1].cookie });
 check('community average from two rankings', aggregated.data.data?.community_average?.tiers?.length > 0, aggregated.data.data?.community_average);
-const home = await request('/api/rankings?feed_type=trending&limit=12&page=1', { cookie: people[0].cookie });
-check('real home feed includes published ranking', home.data?.data?.some(row => row.id === rankingId), { status: home.status, ids: home.data?.data?.map(row => row.id) });
+const home = await request(`/api/rankings?feed_type=trending&limit=12&page=1&pin=${encodeURIComponent(rankingId)}`, { cookie: people[0].cookie });
+check('real home feed pins published ranking', home.data?.data?.[0]?.id === rankingId, { status: home.status, ids: home.data?.data?.map(row => row.id) });
 
 const followed = await request('/api/follows', { method: 'POST', cookie: people[1].cookie, body: { action: 'follow', following_id: people[0].id } });
 check('follow', followed.data?.is_following === true, followed);
