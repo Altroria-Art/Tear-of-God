@@ -79,7 +79,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-6 md:py-8 flex flex-col md:flex-row gap-8">
+    <div className="admin-shell w-full max-w-7xl mx-auto px-4 py-6 md:py-8 flex flex-col md:flex-row gap-8">
       {/* Mobile Nav */}
       <nav className="flex md:hidden overflow-x-auto gap-2 pb-2 -mx-4 px-4 scrollbar-none border-b border-line-soft">
         {NAV_ITEMS.map(({ to, labelKey, icon: Icon, end }) => (
@@ -88,7 +88,7 @@ export default function AdminLayout() {
             to={to}
             end={end}
             className={({ isActive }) =>
-              `flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
+              `flex min-h-11 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
                 isActive
                   ? 'bg-brand text-canvas shadow-md'
                   : 'glass text-ink-soft hover:text-ink'

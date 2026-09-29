@@ -1,3 +1,4 @@
+import PlayHeader from '../components/ui/PlayHeader';
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Download, Star, BarChart3, ArrowUpRight, ArrowDownRight, Users } from 'lucide-react'
@@ -291,26 +292,24 @@ function CommunityAverageContent() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 sm:px-6 py-6">
+      <PlayHeader eyebrow={t('play.communityEyebrow')} title={t('play.communityTitle')} description={template.title} reveal />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           <Link to={`/template/${templateId}`} className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
 
-          <article className="mt-4 rounded-2xl border border-line-soft glass p-4 shadow-sm">
+          <article className="social-card community-verdict-card mt-4 p-4 sm:p-6">
             <p className="inline-flex items-center gap-1 rounded bg-brand px-2 py-1 text-[10px] font-bold tracking-wider text-canvas uppercase">
               <Star size={12} /> {t('template.communityAverage')}
             </p>
 
-            <h1 className="mt-3 text-2xl font-bold text-ink">{template.title}</h1>
+            <h2 className="mt-3 text-2xl font-bold text-ink">{template.title}</h2>
             <p className="mt-1 text-xs text-muted">
               {t('template.itemsText', { n: itemCount, time: updatedAt ? timeAgo(updatedAt) : '—' })}
             </p>
 
-            <p className="mt-3 text-sm font-semibold text-ink-soft">{t('template.usesLabel', { n: formatCount(template.stats?.uses), v: formatCount(template.stats?.views) })}</p>
-            <HashtagList hashtags={template.hashtags} className="mt-3" />
-
-            <div className="mt-4 space-y-2">
+            <div className="community-board mt-4 space-y-2">
               {itemCount === 0 && (
                 <div className="rounded-lg border border-line-soft/60 bg-surface/40 py-2.5 px-3 text-center text-xs font-medium text-muted">
                   {t('template.noCommunityAverage')}
@@ -320,6 +319,8 @@ function CommunityAverageContent() {
                 <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}
             </div>
+            <p className="mt-4 text-sm font-semibold text-ink-soft">{t('template.usesLabel', { n: formatCount(template.stats?.uses), v: formatCount(template.stats?.views) })}</p>
+            <HashtagList hashtags={template.hashtags} className="mt-3" />
 
             <div className="mt-4 flex flex-wrap gap-3 items-center border-t border-line-soft pt-3">
               <div className="flex items-center gap-5">
@@ -328,7 +329,7 @@ function CommunityAverageContent() {
                   count={formatCount(reaction.likes)}
                   label={t('post.like')}
                   pressed={reaction.userVote === 'like'}
-                  activeClass="text-blue-600 font-bold"
+                  activeClass="text-vote-up font-bold"
                   onClick={() => handleVote('like')}
                 />
                 <ActionButton
@@ -336,7 +337,7 @@ function CommunityAverageContent() {
                   count={formatCount(reaction.dislikes)}
                   label={t('post.dislike')}
                   pressed={reaction.userVote === 'dislike'}
-                  activeClass="text-red-600 font-bold"
+                  activeClass="text-vote-down font-bold"
                   onClick={() => handleVote('dislike')}
                 />
 <ActionButton icon={CommentIcon} count={formatCount(commentCount)} label={t('post.comments')} onClick={handleCommentClick} />

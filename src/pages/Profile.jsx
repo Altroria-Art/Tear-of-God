@@ -1,3 +1,4 @@
+import PlayHeader from '../components/ui/PlayHeader';
 import { parseHashtags } from '../lib/hashtags';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -779,12 +780,13 @@ export default function Profile() {
   return (
     <div className="text-ink antialiased min-h-screen flex flex-col font-sans">
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
+        <PlayHeader eyebrow={t('play.profileEyebrow')} title={t('play.profileTitle')} description={displayUser?.username || t('profile.tasteSnapshotHelp')} />
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
           {/* Left Sidebar: User Profile Info */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="glass p-6 rounded-2xl shadow-sm text-center text-ink">
+            <div className="taste-passport glass p-6 rounded-2xl shadow-sm text-center text-ink">
               <div className="w-24 h-24 mx-auto mb-4 relative">
                 <div className="w-full h-full rounded-full overflow-hidden bg-surface border-2 border-line">
                   {displayUser?.avatar_url ? (
@@ -880,7 +882,7 @@ export default function Profile() {
             </div>
 
             {/* Keep the summary under the profile; the full identity opens on demand. */}
-            <section className="glass rounded-2xl p-5 shadow-sm" aria-label={t('profile.tasteIdentity')}>
+            <section className="taste-passport glass rounded-2xl p-5 shadow-sm" aria-label={t('profile.tasteIdentity')}>
               <div className="flex items-center gap-2 mb-1">
                 <Fingerprint size={16} className="text-brand" />
                 <h3 className="font-bold text-ink">{t('profile.tasteIdentity')}</h3>
@@ -911,7 +913,7 @@ export default function Profile() {
                       <div className="space-y-1.5">
                         {topItems.slice(0, 3).map((item) => (
                           <div key={item.id || item.name} className="flex items-center gap-2 text-xs text-ink min-w-0">
-                            <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-tier-s text-[9px] font-black text-ink shrink-0">S</span>
+                            <TierLabel label="S" className="w-4 h-4 rounded text-[9px] font-black" />
                             <span className="truncate">{item.name}</span>
                           </div>
                         ))}

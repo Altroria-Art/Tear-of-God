@@ -498,10 +498,10 @@ function TemplateDetailContent() {
 
   const creatorId = template.profile?.id || template.creator_id || template.user_id || template.creator?.id
   return (
-    <main className="min-h-screen text-ink">
+    <main className="template-page min-h-screen text-ink">
       <div className="mx-auto max-w-5xl px-4 py-8">
         <section className="mb-8 rounded-xl glass p-6 shadow-sm">
-          <h1 className="mb-4 text-3xl font-bold md:text-4xl break-words">{template.title}</h1>
+          <h1 className="play-title mb-4 text-3xl font-black md:text-4xl break-words">{template.title}</h1>
 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">

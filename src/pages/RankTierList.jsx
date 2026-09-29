@@ -1,9 +1,12 @@
+import TierLoader from '../components/ui/TierLoader';
+import DropZone from '../components/tier/DropZone';
+import PlayHeader from '../components/ui/PlayHeader';
 import { getInsertIndexFromZone, groupEditorItems } from '../lib/editorBoard';
 import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Share2, Shuffle, ArrowDownAZ, Hash, Swords, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -51,6 +54,7 @@ const RankTierList = () => {
   const guestDraftKey = 'tog-rank-draft:guest:' + templateId;
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateId);
   const [isSaving, setIsSaving] = useState(false);
+  const savePendingRef = useRef(false);
   const [cooldown, setTemplateCooldown] = useState(null);
   const templateCooldown = useCooldown(cooldown);
 
@@ -220,7 +224,7 @@ const RankTierList = () => {
       navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}${isDuel ? '&mode=duel' : ''}`));
       return;
     }
-    if (isSaving || isLoadingTemplate || templateError) return;
+    if (isSaving || savePendingRef.current || isLoadingTemplate || templateError) return;
     if (!items.length) return toast.warning(t('create.errAddItem'));
     if (!title.trim()) return toast.warning(t('rank.warnTitle'));
     if (selectedHashtags.length === 0) return toast.warning(t('rank.warnHashtag'));
@@ -239,6 +243,7 @@ const RankTierList = () => {
       return;
     }
 
+    savePendingRef.current = true;
     setIsSaving(true);
     const rankingData = {
       payload: {
@@ -263,6 +268,7 @@ const RankTierList = () => {
         title,
         description,
       });
+      savePendingRef.current = false;
       setIsSaving(false);
 
       if (!res.success) {
@@ -287,6 +293,7 @@ const RankTierList = () => {
     }
 
     const res = await createRanking(rankingData);
+    savePendingRef.current = false;
     setIsSaving(false);
 
     if (res.error) {
@@ -321,6 +328,7 @@ const RankTierList = () => {
   return (
     <div className="min-h-screen font-sans text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-8 sm:pb-32 flex-1 flex flex-col gap-6">
+        <PlayHeader eyebrow={t(isDuel ? 'play.duelEyebrow' : 'play.rankEyebrow')} title={t(isDuel ? 'play.duelTitle' : 'play.rankTitle')} description={t('play.rankDescription')} />
         {templateCooldown?.active && (
           <div className="flex items-center gap-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 sm:p-5 shadow-sm text-amber-200">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
@@ -357,12 +365,13 @@ const RankTierList = () => {
         <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col gap-4 shadow-sm border border-line-soft">
           {/* Title & Share */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <input
-              type="text"
+            <textarea
+              rows={2}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('rank.titlePh')}
-              className="flex-1 text-2xl sm:text-[28px] font-black text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1"
+              aria-label={t('rank.titlePh')}
+              className="rank-title-input flex-1 text-2xl sm:text-[28px] font-black text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1 resize-none"
             />
             <div className="hidden sm:flex items-center gap-3 pt-1 shrink-0">
               <button
@@ -374,7 +383,8 @@ const RankTierList = () => {
             </div>
           </div>
 
-          {/* Description field (always open and clean, no accordion) */}
+          <details className="editor-metadata">
+          <summary className="min-h-11 cursor-pointer py-3 font-bold text-sm text-ink-soft">{t('editor.details')} · {selectedHashtags.length} {t('common.tags')}</summary>
           <div>
             <textarea
               value={description}
@@ -451,6 +461,7 @@ const RankTierList = () => {
             )}
           </div>
 
+          </details>
           {/* Draft status & error */}
           {draftStatus && (
             <div className="pt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted">
@@ -464,7 +475,7 @@ const RankTierList = () => {
         {/* Tier List Canvas */}
         <div className="bg-surface-glass rounded-xl overflow-hidden flex flex-col">
           {isLoadingTemplate ? (
-            <p className="text-muted animate-pulse text-center py-10">{t('rank.loadingTemplate')}</p>
+            <TierLoader />
           ) : (
             tiers.map((tier, index) => (
               <div
@@ -477,13 +488,11 @@ const RankTierList = () => {
                   className={`w-14 sm:w-20 font-bold border-r border-line-soft px-2 ${tier.label.length > 2 ? 'text-sm' : 'text-xl'}`}
                 />
 
-                <div
-                  className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center"
+                <DropZone topTier={index === 0} className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center"
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, tier.id)}
                 >
-                  {(itemGroups.byTier.get(tier.id) || []).map(renderCard)}
-                </div>
+                  {(itemGroups.byTier.get(tier.id) || []).map(renderCard)}</DropZone>
               </div>
             ))
           )}
@@ -510,8 +519,7 @@ const RankTierList = () => {
         {/* Unranked Pool (กล่องเก็บไอเทมที่ยังไม่ได้จัดอันดับ) */}
         <div className="bg-surface-glass rounded-xl p-4 border border-line">
           <h2 className="text-[17px] font-bold text-ink mb-4">{t('rank.unrankedPool')}</h2>
-          <div
-            className="min-h-24 flex flex-wrap gap-3"
+          <DropZone className="min-h-24 flex flex-wrap gap-3"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, null)}
           >
@@ -521,8 +529,7 @@ const RankTierList = () => {
               </span>
             ) : (
               itemGroups.unranked.map(renderCard)
-            )}
-          </div>
+            )}</DropZone>
         </div>
 
         {/* Footer */}

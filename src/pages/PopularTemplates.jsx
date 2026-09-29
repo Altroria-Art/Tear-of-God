@@ -1,3 +1,4 @@
+import TierLoader from '../components/ui/TierLoader';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -102,7 +103,7 @@ export default function PopularTemplates() {
             <button type="button" className="mt-4 rounded-xl bg-brand px-4 py-2 text-canvas" onClick={() => setRetry((n) => n + 1)}>{t('common.retry')}</button>
           </div>
         ) : isLoading ? (
-          <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingTemplates')}</p>
+          <TierLoader />
         ) : templates.length === 0 ? (
           <p className="text-muted text-center py-10">{t('discover.emptyTemplates')}</p>
         ) : (

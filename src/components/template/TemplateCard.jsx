@@ -36,7 +36,7 @@ function PreviewItemBox({ item }) {
   );
 }
 
-export default function TemplateCard({ template, onUse, inSavedView = false }) {
+export default function TemplateCard({ template, onUse, inSavedView = false, featured = false }) {
   const { t } = useTranslation();
   const [shareOpen, setShareOpen] = useState(false);
   const preview = useMemo(() => normalizePreviewRows(template), [template]);
@@ -50,8 +50,8 @@ export default function TemplateCard({ template, onUse, inSavedView = false }) {
   };
 
   return (
-    <div className="glass rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-col">
-      <Link to={detailHref} className="bg-surface-glass p-3 pt-9 h-36 flex flex-col justify-between relative overflow-hidden">
+    <div className={`social-card overflow-hidden flex flex-col ${featured ? 'template-card--featured' : ''}`}>
+      <Link to={detailHref} className="template-card-preview bg-surface-glass p-3 pt-9 h-44 flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
           <span className="flex items-center gap-1" title={t('common.uses')}>
             <Users size={14} /> {formatCount(template.use_count)}

@@ -9,13 +9,13 @@ export default function ActionButton({ icon: Icon, count, label, onClick, presse
   const content = (
     <>
       <Icon className="h-[18px] w-[18px]" />
-      {count != null && <span className="text-sm">{count}</span>}
+      {count != null && <span className="reaction-count text-sm">{count}</span>}
     </>
   )
 
   if (to) {
     return (
-      <Link to={to} aria-label={label} title={label} className={className}>
+      <Link to={to} aria-label={label} title={label} className={`reaction-control ${className}`}>
         {content}
       </Link>
     )
@@ -28,7 +28,7 @@ export default function ActionButton({ icon: Icon, count, label, onClick, presse
       title={label}
       aria-pressed={pressed}
       onClick={onClick}
-      className={className}
+      className={`reaction-control ${className}`}
     >
       {content}
     </button>

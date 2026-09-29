@@ -22,11 +22,11 @@ function ToastItem({ toast, onDismiss }) {
   return (
     <div
       role="status"
-      className={`pointer-events-auto relative overflow-hidden rounded-2xl border border-white/10 bg-surface/80 backdrop-blur-xl shadow-2xl shadow-black/20 animate-toast-in transition-all duration-300 ease-out ${
+      className={`pointer-events-auto relative overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl shadow-black/20 animate-toast-in transition-all duration-300 ease-out ${
         toast.leaving ? 'translate-y-[-10px] sm:translate-y-0 sm:translate-x-4 scale-95 opacity-0' : ''
       }`}
     >
-      <div className="flex items-start gap-3 p-4 pr-9">
+      <div className="flex items-start gap-3 p-4 pr-14">
         <span
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${variant.chip} text-white shadow-inner`}
         >
@@ -39,7 +39,7 @@ function ToastItem({ toast, onDismiss }) {
         type="button"
         onClick={() => onDismiss(toast.id)}
         aria-label={t('common.close')}
-        className="absolute right-2 top-2 rounded-md p-1.5 text-muted transition-colors hover:bg-tag hover:text-ink"
+        className="absolute right-1 top-1 grid h-11 w-11 place-items-center rounded-xl text-muted transition-colors hover:bg-tag hover:text-ink"
       >
         <CloseIcon className="h-3.5 w-3.5" />
       </button>

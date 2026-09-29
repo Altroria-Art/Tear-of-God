@@ -3,21 +3,18 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, TrendingUp } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import { useTheme } from '../context/ThemeContext';
 import { registerUser, loginUser, syncGoogleUser } from '../lib/api';
 import { signInWithGoogle } from '../lib/firebase';
 import { useToast } from '../components/ui/Toast';
 import { useTranslation } from 'react-i18next';
 import TierLabel from '../components/tier/TierLabel';
-import { formatCount } from '../lib/format';
 
-// ข้อมูลตัวอย่าง static สำหรับตกแต่ง hero (ไม่ดึงจาก DB — ตัวเลขเป็นค่าจำลอง)
-const REAL_DEFAULT_TEMPLATES = [
+// ตัวอย่างสำหรับภาพประกอบบนหน้า login ไม่ใช่ข้อมูลกิจกรรมจริง
+const EXAMPLE_TEMPLATES = [
   {
     id: 'tmpl_053',
     title: 'เมนูอาหารไทยประจำภาค',
     hashtags: '#Food,#Thai',
-    use_count: 4700,
     tiers: [
       { label: 'S', color: 'bg-[#ff7f7f]' },
       { label: 'A', color: 'bg-[#ffbf7f]' },
@@ -35,7 +32,6 @@ const REAL_DEFAULT_TEMPLATES = [
     id: 'tmpl_001',
     title: 'Top Shonen Anime',
     hashtags: '#Anime',
-    use_count: 12000,
     tiers: [
       { label: 'S', color: 'bg-[#ff7f7f]' },
       { label: 'A', color: 'bg-[#ffbf7f]' },
@@ -52,7 +48,6 @@ const REAL_DEFAULT_TEMPLATES = [
     id: 'tmpl_057',
     title: 'นักบาสเกตบอล NBA ที่เก่งที่สุด',
     hashtags: '#Sports',
-    use_count: 13500,
     tiers: [
       { label: 'S', color: 'bg-[#ff7f7f]' },
       { label: 'A', color: 'bg-[#ffbf7f]' }
@@ -64,7 +59,7 @@ const REAL_DEFAULT_TEMPLATES = [
   }
 ];
 
-const REAL_DEFAULT_RANKINGS = [
+const EXAMPLE_RANKINGS = [
   { id: 'rank_001', title: 'จัดอันดับอนิเมะในดวงใจ ปี 2026', hashtags: '#Anime,#2026' },
   { id: 'rank_002', title: 'Tier List สุดยอดเกม RPG ในตำนาน', hashtags: '#Gaming,#OpenWorld' },
   { id: 'rank_003', title: 'จัดอันดับภาษายอดฮิตสาย Tech', hashtags: '#Tech,#Programming' },
@@ -85,7 +80,6 @@ export default function Login() {
   const next = returnPath(location.search);
   const setupPath = `/profile?setup=education&next=${encodeURIComponent(next === '/' ? '/profile' : next)}`;
   const { login } = useUser();
-  const { isLightMode } = useTheme();
   const toast = useToast();
   const { t, i18n } = useTranslation();
 
@@ -135,8 +129,8 @@ export default function Login() {
   // Decorative hero uses static fallback data only — no API prefetch on mount
   // (previously fetched templates/rankings here; removed to save 2 Worker
   // invocations + D1 reads per login page view — the hero is decorative).
-  const realTemplates = REAL_DEFAULT_TEMPLATES;
-  const realRankings = REAL_DEFAULT_RANKINGS;
+  const exampleTemplates = EXAMPLE_TEMPLATES;
+  const exampleRankings = EXAMPLE_RANKINGS;
 
   const [isRegister, setIsRegister] = useState(() => new URLSearchParams(location.search).get('mode') === 'signup');
   const [email, setEmail] = useState('');
@@ -246,53 +240,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-68px)] w-full relative overflow-hidden flex items-center justify-center px-4 sm:px-6 lg:px-12 py-8 lg:py-16">
-      {/* ========================================================
-          Atmospheric Glow Layers (ตามรูปต้นฉบับ Light & Dark)
-         ======================================================== */}
-      {/* Top-Left Warm Blush Glow (Dual GPU Cross-Fade Layer: Butter-smooth 0ms lag) */}
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute -top-28 -left-28 w-[420px] h-[420px] sm:w-[600px] sm:h-[600px] rounded-full blur-[90px] transition-opacity duration-300 ease-out will-change-[opacity] ${
-          isLightMode ? 'opacity-80' : 'opacity-0'
-        }`}
-        style={{
-          background: 'radial-gradient(circle, rgba(255, 145, 115, 0.48) 0%, rgba(255, 180, 150, 0.15) 70%, transparent 100%)',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute -top-28 -left-28 w-[420px] h-[420px] sm:w-[600px] sm:h-[600px] rounded-full blur-[90px] transition-opacity duration-300 ease-out will-change-[opacity] ${
-          isLightMode ? 'opacity-0' : 'opacity-35'
-        }`}
-        style={{
-          background: 'radial-gradient(circle, rgba(220, 60, 25, 0.42) 0%, rgba(180, 40, 15, 0.12) 70%, transparent 100%)',
-        }}
-      />
-
-      {/* Bottom-Right Warm Apricot Glow (Dual GPU Cross-Fade Layer: Butter-smooth 0ms lag) */}
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute -bottom-32 -right-32 w-[420px] h-[420px] sm:w-[580px] sm:h-[580px] rounded-full blur-[90px] transition-opacity duration-300 ease-out will-change-[opacity] ${
-          isLightMode ? 'opacity-75' : 'opacity-0'
-        }`}
-        style={{
-          background: 'radial-gradient(circle, rgba(255, 195, 135, 0.45) 0%, rgba(255, 220, 180, 0.15) 70%, transparent 100%)',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute -bottom-32 -right-32 w-[420px] h-[420px] sm:w-[580px] sm:h-[580px] rounded-full blur-[90px] transition-opacity duration-300 ease-out will-change-[opacity] ${
-          isLightMode ? 'opacity-0' : 'opacity-30'
-        }`}
-        style={{
-          background: 'radial-gradient(circle, rgba(190, 100, 30, 0.35) 0%, rgba(140, 65, 15, 0.1) 70%, transparent 100%)',
-        }}
-      />
-
-      {/* ========================================================
-          Main Content: 2-Column Split Grid
-         ======================================================== */}
+    <div className="auth-page min-h-[calc(100vh-68px)] w-full relative overflow-hidden flex items-start lg:items-center justify-center px-4 sm:px-6 lg:px-12 py-8 lg:py-16">
       <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center relative z-10">
         
         {/* ========================================================
@@ -300,8 +248,8 @@ export default function Login() {
            ======================================================== */}
         <div className="hidden lg:flex lg:col-span-6 xl:col-span-7 flex-col justify-center text-left">
           {/* Brand Pill */}
-          <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#ff553e]/10 border border-[#ff553e]/20 text-[#ff553e] dark:bg-[#ff553e]/20 dark:border-[#ff553e]/30 w-fit mb-6 shadow-xs">
-            <span className="w-6 h-6 rounded-lg bg-[#ff553e] text-white flex items-center justify-center text-xs font-black shadow-xs">
+          <div className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-acid/10 border border-line/20 text-brand dark:bg-acid/20 dark:border-line/30 w-fit mb-6 shadow-xs">
+            <span className="w-6 h-6 rounded-lg bg-acid text-acid-ink flex items-center justify-center text-xs font-black shadow-xs">
               T
             </span>
             <span className="text-sm font-extrabold tracking-wide">Tear of God</span>
@@ -312,7 +260,7 @@ export default function Login() {
             <span className="text-3xl sm:text-4xl lg:text-[44px] font-black text-ink tracking-tight">
               {t('auth.heroTitle1')}
             </span>
-            <span className="relative inline-flex items-center justify-center text-3xl sm:text-4xl lg:text-[44px] font-black px-4 py-1.5 rounded-2xl bg-[#ffece2] text-[#ff553e] dark:bg-[#331c13] dark:text-[#ff7663] border border-[#ff553e]/25 shadow-xs overflow-hidden select-none transition-all duration-300 min-h-[1.25em]">
+            <span className="relative inline-flex items-center justify-center text-3xl sm:text-4xl lg:text-[44px] font-black px-4 py-1.5 rounded-2xl bg-[#ffece2] text-brand dark:bg-[#331c13] dark:text-[#ff7663] border border-line/25 shadow-xs overflow-hidden select-none transition-all duration-300 min-h-[1.25em]">
               <span className={`inline-block transform will-change-transform ${animClass}`}>
                 {words[wordIndex % words.length]}
               </span>
@@ -331,9 +279,9 @@ export default function Login() {
               Real Dynamic Floating Tier List Boxes & Community Badges
              ======================================================== */}
           {(() => {
-            const primaryTemplate = realTemplates[0] || REAL_DEFAULT_TEMPLATES[0];
-            const secondaryTemplate = realTemplates[1] || REAL_DEFAULT_TEMPLATES[1];
-            const thirdTemplate = realTemplates[2] || REAL_DEFAULT_TEMPLATES[2];
+            const primaryTemplate = exampleTemplates[0];
+            const secondaryTemplate = exampleTemplates[1];
+            const thirdTemplate = exampleTemplates[2];
 
             const parseTiersList = (t) => {
               if (Array.isArray(t?.tiers)) return t.tiers;
@@ -362,29 +310,29 @@ export default function Login() {
               <div className="space-y-3.5 max-w-xl">
                 {/* Row of Floating Badges (Batch 1: Real Rankings from DB) */}
                 <div className="flex flex-wrap gap-2.5 items-center">
-                  {realRankings[0] && (
+                  {exampleRankings[0] && (
                     <div className="animate-float-1 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-surface/85 hover:bg-surface backdrop-blur-md border border-line-soft shadow-xs hover:scale-105 transition-transform cursor-default select-none">
                       <span className="text-sm">🔥</span>
                       <span className="text-xs font-bold text-ink truncate max-w-[220px]">
-                        {realRankings[0].title}
+                        {exampleRankings[0].title}
                       </span>
                     </div>
                   )}
 
-                  {realRankings[1] && (
+                  {exampleRankings[1] && (
                     <div className="animate-float-2 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-surface/85 hover:bg-surface backdrop-blur-md border border-line-soft shadow-xs hover:scale-105 transition-transform cursor-default select-none">
                       <span className="text-sm">🎮</span>
-                      <span className="text-xs font-bold text-[#ff553e] truncate max-w-[220px]">
-                        {realRankings[1].title}
+                      <span className="text-xs font-bold text-brand truncate max-w-[220px]">
+                        {exampleRankings[1].title}
                       </span>
                     </div>
                   )}
 
-                  {realRankings[2] && (
+                  {exampleRankings[2] && (
                     <div className="animate-float-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-surface/85 hover:bg-surface backdrop-blur-md border border-line-soft shadow-xs hover:scale-105 transition-transform cursor-default select-none">
                       <span className="text-sm">💻</span>
                       <span className="text-xs font-bold text-ink truncate max-w-[220px]">
-                        {realRankings[2].title}
+                        {exampleRankings[2].title}
                       </span>
                     </div>
                   )}
@@ -401,7 +349,7 @@ export default function Login() {
                           {primaryTemplate.title}
                         </span>
                       </div>
-                      <span className="text-[9px] font-extrabold text-[#ff553e] bg-[#ff553e]/10 dark:bg-[#ff553e]/20 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="text-[9px] font-extrabold text-brand bg-acid/10 dark:bg-acid/20 px-2 py-0.5 rounded-full shrink-0">
                         {primaryTemplate.hashtags?.split(',')[0] || '#Template'}
                       </span>
                     </div>
@@ -440,9 +388,9 @@ export default function Login() {
                     <div className="mt-2.5 pt-1.5 border-t border-line-soft/60 flex items-center justify-between text-[10px] text-muted">
                       <span className="flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span>{formatCount(primaryTemplate.use_count)} {t('auth.rankedByCount')}</span>
+                        <span>{t('play.example')}</span>
                       </span>
-                      <span className="text-[#ff553e] font-extrabold">{t('auth.realTemplate')}</span>
+                      <span className="text-brand font-extrabold">{t('play.example')}</span>
                     </div>
                   </div>
 
@@ -458,7 +406,7 @@ export default function Login() {
                           </span>
                         </div>
                         <span className="text-[9px] font-extrabold text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded-md shrink-0">
-                          {formatCount(secondaryTemplate.use_count)} {t('common.uses')}
+                          {t('play.example')}
                         </span>
                       </div>
                       <div className="flex items-center gap-2.5 bg-black/[0.02] dark:bg-white/[0.02] rounded-2xl p-2 border border-line-soft/30">
@@ -478,8 +426,8 @@ export default function Login() {
                     <div className="animate-float-2 rounded-2xl bg-surface/85 hover:bg-surface backdrop-blur-md border border-line-soft/80 p-2.5 shadow-xs flex items-center gap-2.5 select-none hover:scale-105 transition-transform">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0 ml-1" />
                       <div className="text-left overflow-hidden">
-                        <div className="text-[11px] font-bold text-ink truncate">{realRankings[0]?.title || 'จัดอันดับอนิเมะในดวงใจ ปี 2026'}</div>
-                        <div className="text-[9px] text-muted">{t('auth.latestRankingActivity')}</div>
+                        <div className="text-[11px] font-bold text-ink truncate">{exampleRankings[0]?.title}</div>
+                        <div className="text-[9px] text-muted">{t('play.example')}</div>
                       </div>
                       <TrendingUp size={14} className="ml-auto text-emerald-500 shrink-0 mr-1" />
                     </div>
@@ -488,11 +436,11 @@ export default function Login() {
 
                 {/* Row of Floating Badges (Batch 2: More Real Rankings & Templates) */}
                 <div className="flex flex-wrap gap-2.5 items-center pt-1">
-                  {realRankings[3] && (
+                  {exampleRankings[3] && (
                     <div className="animate-float-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-surface/85 hover:bg-surface backdrop-blur-md border border-line-soft shadow-xs hover:scale-105 transition-transform cursor-default select-none">
                       <span className="text-sm">🎬</span>
                       <span className="text-xs font-bold text-ink truncate max-w-[220px]">
-                        {realRankings[3].title}
+                        {exampleRankings[3].title}
                       </span>
                     </div>
                   )}
@@ -506,11 +454,11 @@ export default function Login() {
                     </div>
                   )}
 
-                  {realRankings[4] && (
+                  {exampleRankings[4] && (
                     <div className="animate-float-3 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-surface/85 hover:bg-surface backdrop-blur-md border border-line-soft shadow-xs hover:scale-105 transition-transform cursor-default select-none">
                       <span className="text-sm">🎵</span>
                       <span className="text-xs font-bold text-ink truncate max-w-[220px]">
-                        {realRankings[4].title}
+                        {exampleRankings[4].title}
                       </span>
                     </div>
                   )}
@@ -527,14 +475,14 @@ export default function Login() {
           <div className="relative">
             {/* Top Floating Badge Tag */}
             <div className="absolute -top-3.5 left-7 sm:left-8 z-20">
-              <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-extrabold text-white bg-gradient-to-r from-[#ff553e] to-[#ff7a58] shadow-md shadow-orange-500/25 border border-white/30 tracking-wider uppercase transition-all duration-300 select-none">
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] font-extrabold text-canvas bg-brand shadow-md shadow-orange-500/25 border border-white/30 tracking-wider uppercase transition-all duration-300 select-none">
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
                 {isRegister ? t('auth.badgeJoin') : t('auth.badgeWelcome')}
               </span>
             </div>
 
             {/* The Main Rounded Card */}
-            <div className="bg-surface/90 dark:bg-[#14151c]/95 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-[32px] p-7 sm:p-9 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.06)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] text-left transition-all duration-300">
+            <div className="bg-surface border-2 border-line rounded-[32px] p-7 sm:p-9 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.06)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] text-left transition-all duration-300">
               
               {/* Segmented Pill Switcher Tab */}
               <div className="relative p-1 mb-5 rounded-2xl bg-black/[0.035] dark:bg-white/[0.05] border border-black/[0.04] dark:border-white/[0.06] flex items-center">
@@ -650,7 +598,7 @@ export default function Login() {
                         type="submit"
                         disabled={isLoading}
                         tabIndex={!isRegister ? 0 : -1}
-                        className="w-full py-3.5 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-login-accent via-login-accent-soft to-[#ff7845] hover:from-[#f0452e] hover:via-[#f05335] hover:to-[#f06935] shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 mt-2 border-t border-white/20 relative overflow-hidden group"
+                        className="play-button w-full mt-2 relative overflow-hidden group"
                       >
                         <span className="relative z-10 flex items-center justify-center gap-2">
                           {isLoading ? (
@@ -773,7 +721,7 @@ export default function Login() {
                         type="submit"
                         disabled={isLoading}
                         tabIndex={isRegister ? 0 : -1}
-                        className="w-full py-3.5 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-login-accent via-login-accent-soft to-[#ff7845] hover:from-[#f0452e] hover:via-[#f05335] hover:to-[#f06935] shadow-lg shadow-orange-500/25 hover:shadow-xl hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 mt-2 border-t border-white/20 relative overflow-hidden group"
+                        className="play-button w-full mt-2 relative overflow-hidden group"
                       >
                         <span className="relative z-10 flex items-center justify-center gap-2">
                           {isLoading ? (
@@ -820,7 +768,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setIsRegister(!isRegister)}
-                  className="font-bold text-[#ff553e] hover:text-[#ff7236] hover:underline ml-1 cursor-pointer transition-all active:scale-95 inline-flex items-center gap-0.5"
+                  className="font-bold text-brand hover:text-[#ff7236] hover:underline ml-1 cursor-pointer transition-all active:scale-95 inline-flex items-center gap-0.5"
                 >
                   <span>{isRegister ? t('auth.switchToLogin') : t('auth.switchToSignup')}</span>
                   <span className="text-[10px]">→</span>

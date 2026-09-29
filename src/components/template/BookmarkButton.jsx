@@ -48,7 +48,7 @@ export default function BookmarkButton({ template, className, children, onRequir
       aria-pressed={saved}
       aria-label={t(saved ? 'discover.unsave' : 'discover.save')}
       title={t(saved ? 'discover.unsave' : 'discover.save')}
-      className={btnClass}
+      className={`reaction-control ${btnClass}`}
     >
       <Bookmark
         size={18}

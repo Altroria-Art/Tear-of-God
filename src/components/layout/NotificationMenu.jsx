@@ -236,7 +236,7 @@ export default function NotificationMenu({ userId }) {
         onClick={openMenu}
         aria-label={t('notifications.title')}
         aria-expanded={isOpen}
-        className="relative w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft"
+        className="relative w-11 h-11 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft"
       >
         <Bell size={18} strokeWidth={2.5} />
         {unreadCount > 0 && (
@@ -247,10 +247,10 @@ export default function NotificationMenu({ userId }) {
       </button>
 
       {isOpen && (
-        <div className="fixed left-2 right-2 top-[4.25rem] w-auto overflow-hidden rounded-2xl border border-line-soft bg-canvas shadow-xl z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[min(22rem,calc(100vw-1rem))]">
+        <div className="dialog-panel fixed left-2 right-2 top-[4.25rem] w-auto overflow-hidden rounded-2xl border border-line-soft bg-canvas shadow-xl z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[min(22rem,calc(100vw-1rem))]">
           <div className="flex items-center justify-between gap-3 border-b border-line-soft px-4 py-3">
             <div>
-              <p className="font-extrabold text-ink">{t('notifications.title')}</p>
+              <p className="font-black text-ink">{t('notifications.title')}</p>
               {unreadCount > 0 && <p className="text-xs text-muted">{t('notifications.unread', { count: unreadCount })}</p>}
             </div>
             <button

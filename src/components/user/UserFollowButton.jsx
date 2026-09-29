@@ -95,11 +95,12 @@ export default function UserFollowButton({
           type="button"
           onClick={handleToggle}
           disabled={busy}
+          aria-pressed={isFollowing}
           aria-label={`${t('profile.unfollow')}${label ? ` ${label}` : ''}`}
           title={`${t('profile.unfollow')}${label ? ` ${label}` : ''}`}
-          className={`z-10 flex h-10 w-10 items-center justify-center rounded-full cursor-pointer transition-all active:scale-95 disabled:opacity-60 ${className}`}
+          className={`z-10 flex h-11 w-11 items-center justify-center rounded-full cursor-pointer transition-all active:scale-95 disabled:opacity-60 ${className}`}
         >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white shadow-sm">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-canvas shadow-sm">
             <Check size={12} strokeWidth={3} />
           </span>
         </button>
@@ -110,11 +111,12 @@ export default function UserFollowButton({
         type="button"
         onClick={handleToggle}
         disabled={busy}
+        aria-pressed={isFollowing}
         aria-label={`${t('profile.follow')}${label ? ` ${label}` : ''}`}
         title={`${t('profile.follow')}${label ? ` ${label}` : ''}`}
-        className={`z-10 flex h-10 w-10 items-center justify-center rounded-full cursor-pointer transition-all active:scale-95 disabled:opacity-60 ${className}`}
+        className={`z-10 flex h-11 w-11 items-center justify-center rounded-full cursor-pointer transition-all active:scale-95 disabled:opacity-60 ${className}`}
       >
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white shadow-sm">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand text-canvas shadow-sm">
           <UserPlus size={12} strokeWidth={3} />
         </span>
       </button>
@@ -127,6 +129,7 @@ export default function UserFollowButton({
         type="button"
         onClick={handleToggle}
         disabled={busy}
+        aria-pressed={isFollowing}
         aria-label={t('profile.following')}
         title={t('profile.unfollow')}
         className={`inline-flex min-h-10 items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-line-soft bg-surface-glass text-ink-soft hover:bg-surface hover:text-ink transition-all active:scale-95 disabled:opacity-60 cursor-pointer ${className}`}
@@ -142,6 +145,7 @@ export default function UserFollowButton({
       type="button"
       onClick={handleToggle}
       disabled={busy}
+      aria-pressed={isFollowing}
       aria-label={t('profile.follow')}
       title={t('profile.follow')}
       className={`inline-flex min-h-10 items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold text-brand bg-brand/10 hover:bg-brand/20 transition-all active:scale-95 disabled:opacity-60 cursor-pointer ${className}`}
