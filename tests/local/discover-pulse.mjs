@@ -19,14 +19,23 @@ try {
   // Rehearse the additive migration against the previous index layout.
   await db.prepare('DROP INDEX idx_votes_ranking_created').run();
   await db.prepare('DROP INDEX idx_comments_ranking_created').run();
+  await db.prepare('DROP INDEX idx_rankings_feed_activity').run();
   await db.prepare('CREATE INDEX idx_comments_ranking_id ON comments(ranking_id)').run();
   const migration = await readFile(new URL('../../migrations-active/0026_discover_pulse_activity_indexes.sql', import.meta.url), 'utf8');
   await db.batch(migration.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n')
+    .split(';').map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
+  const activityMigration = await readFile(new URL('../../migrations-active/0027_discover_pulse_activity_window_index.sql', import.meta.url), 'utf8');
+  await db.batch(activityMigration.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n')
     .split(';').map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
   const commentIndexes = (await db.prepare("PRAGMA index_list('comments')").all()).results.map(row => row.name);
   const voteIndexes = (await db.prepare("PRAGMA index_list('votes')").all()).results.map(row => row.name);
   assert(commentIndexes.includes('idx_comments_ranking_created') && !commentIndexes.includes('idx_comments_ranking_id'));
   assert(voteIndexes.includes('idx_votes_ranking_created'));
+  const activityPlan = await db.prepare(`EXPLAIN QUERY PLAN SELECT id FROM rankings
+    WHERE COALESCE(last_activity_at, created_at) >= ? AND COALESCE(last_activity_at, created_at) < ?
+    ORDER BY COALESCE(last_activity_at, created_at) DESC, id DESC LIMIT 40`).bind(hoursAgo(6), hoursAgo(0)).all();
+  assert(activityPlan.results.some(row => row.detail.includes('idx_rankings_feed_activity')),
+    'Recent-activity candidate lookup must use its expression index');
   await db.prepare("INSERT INTO profiles(id,username) VALUES ('a','Alice'),('b','Bob')").run();
   await db.prepare("INSERT INTO templates(id,title,hashtags,creator_id,tiers) VALUES ('food','Food takes','#Food','a','[]'),('game','Game takes','#Games','b','[]'),('old','Old topic','#Old','a','[]')").run();
   await db.prepare("INSERT INTO items(id,name) VALUES ('named','Ramen'),('unnamed',NULL)").run();
