@@ -52,6 +52,7 @@ export async function onRequest(context) {
   }
   try {
     const isPublicSpotlight = path === '/api/spotlights' && request.method === 'GET';
+    const isPublicDiscoverPulse = path === '/api/discover-pulse' && request.method === 'GET';
     const isPublicSuggestion =
       request.method === 'GET' &&
       url.searchParams.get('suggest') === '1' &&
@@ -64,7 +65,7 @@ export async function onRequest(context) {
     // handler never reads context.data.user (see functions/api/categories.js).
     // Same safe bypass pattern as spotlights/suggest above.
     const isPublicCategories = (path === '/api/categories' || path === '/api/hashtags') && request.method === 'GET';
-    const skipSessionLookup = isPublicSpotlight || isPublicSuggestion || isPublicCategories;
+    const skipSessionLookup = isPublicSpotlight || isPublicDiscoverPulse || isPublicSuggestion || isPublicCategories;
     context.data.user = skipSessionLookup
       ? null
       : await readSession(request, env.tear_of_god_db);
@@ -74,7 +75,7 @@ export async function onRequest(context) {
     }
     const response = await context.next();
     const privateResponse = withSecurityHeaders(response);
-    if (!isPublicSpotlight) {
+    if (!isPublicSpotlight && !isPublicDiscoverPulse) {
       privateResponse.headers.append('Vary', 'Cookie');
       if (context.data.user || path === '/api/auth') {
         privateResponse.headers.set('Cache-Control', 'private, no-store');

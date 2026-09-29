@@ -11,6 +11,7 @@ dist
 dist-ssr
 artifacts/rank-your-vibe/
 artifacts/ux-v2/
+artifacts/discover-pulse/
 *.local
 
 .vscode/*

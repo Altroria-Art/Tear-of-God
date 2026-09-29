@@ -596,6 +596,15 @@ export async function fetchSpotlights(refreshKey = null) {
   }
 }
 
+export async function fetchDiscoverPulse(window = 'now') {
+  try {
+    return await getJSON(`${API_URL}/api/discover-pulse?window=${encodeURIComponent(window)}`);
+  } catch (error) {
+    console.error('fetchDiscoverPulse error:', error);
+    return { data: null, error: i18n.t('errors.fetchFailed') };
+  }
+}
+
 // ดึงรายการ hashtag ทั้งหมด พร้อมจำนวน template ที่ติดแท็กนั้น (แบ่งหน้า)
 export async function fetchHashtags({ page, limit, sort, q, suggest, signal } = {}, options = {}) {
   try {
