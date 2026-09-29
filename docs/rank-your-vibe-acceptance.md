@@ -28,6 +28,8 @@ The browser run counted API requests across the **whole multi-route flow**: auth
 
 ## Pending manual or limited coverage
 
+Supported editor interaction: desktop mouse uses native HTML drag/drop. Touch and keyboard users tap or activate an item to open `AssignTierModal`, then choose a tier or Unranked. Chrome mobile emulation verified the tap and picker, but does not establish that finger drag works on iOS or Android. Adding custom touch drag requires a separate task after physical-device testing.
+
 The physical iPhone/Safari and Android/Chrome checks in [rank-your-vibe-device-checklist.md](rank-your-vibe-device-checklist.md) remain pending. Chrome emulated a 390 px touch tap, but not physical long-press drag, on-screen keyboard, safe area, camera/gallery upload, or OS share/download. Google Sign-In was not tested locally. UI-level upload preview/retry, failure-injection rollback for optimistic social actions, complex drag with many/long items while scrolling, and all Community/Profile variants were not exhaustively exercised; their relevant API and existing regression checks passed. Do not treat this as physical-device or production acceptance.
 
 The branch is suitable for a review PR with these limits stated. Merge readiness still depends on reviewer feedback and the physical phone checklist.

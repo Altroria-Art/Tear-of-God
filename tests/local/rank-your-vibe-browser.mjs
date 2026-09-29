@@ -144,6 +144,17 @@ try {
   await evaluate(`(() => { const field = document.querySelector('.quick-add-panel textarea'); const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set; setter.call(field, 'Tea, Coffee'); field.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await evaluate(`document.querySelector('.quick-add-panel button').click()`); await delay(100);
   assert(await evaluate(`document.querySelectorAll('[data-item-id]').length === 2`), 'Quick Add creates two draggable items');
+  await evaluate(`document.querySelector('[data-item-id]').scrollIntoView({ block: 'center', behavior: 'instant' })`); await delay(80);
+  const deleteTarget = await evaluate(`(() => {
+    const card = document.querySelector('[data-item-id]');
+    const button = card.querySelector('button[aria-label^="Remove"], button[aria-label^="ลบ"]');
+    const rect = button.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    const neighbor = card.nextElementSibling?.getBoundingClientRect();
+    return { width: rect.width, height: rect.height, overhangRight: rect.right - cardRect.right, overhangTop: cardRect.top - rect.top, clearOfNeighbor: !neighbor || rect.right <= neighbor.left, centerHitsDelete: button.contains(document.elementFromPoint(center.x, center.y)), mainHitsPicker: card.querySelector('.editor-item-main').contains(document.elementFromPoint(cardRect.left + cardRect.width / 2, cardRect.top + 20)), overflow: document.documentElement.scrollWidth > innerWidth + 1 };
+  })()`);
+  assert(deleteTarget.width >= 44 && deleteTarget.height >= 44 && deleteTarget.overhangRight <= 4 && deleteTarget.overhangTop <= 4 && deleteTarget.clearOfNeighbor && deleteTarget.centerHitsDelete && deleteTarget.mainHitsPicker && !deleteTarget.overflow, 'Delete target is 44px, clear of neighbors, and leaves tier picker and viewport usable');
   await evaluate(`document.querySelector('[data-item-id] .editor-item-main').click()`); await delay(80);
   assert(await evaluate(`!!document.querySelector('[role=dialog]')`), 'New item opens tier picker');
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
@@ -158,7 +169,22 @@ try {
   assert.notEqual(await evaluate(`document.body.classList.contains('light-theme')`), wasLight, 'Theme button changes theme');
   await evaluate(`document.querySelector('button[aria-label="Switch language"]').click()`); await delay(100);
   assert(await evaluate(`document.querySelector('.play-header--home .play-title').textContent.includes('จัดเทียร์')`), 'Language button updates hero text');
-  fs.writeFileSync(`${output}/audit.json`, JSON.stringify({ checks, violations, errors, interactions: ['tap opens picker', 'focus enters picker', 'Escape dismisses picker', 'tap assignment', 'drop handler moves item', 'physical pointer drag', 'Discover search', 'Quick Add', 'delete item', 'theme toggle', 'language toggle', 'reduced motion'] }, null, 2));
+  for (const language of ['en', 'th']) {
+    await evaluate(`localStorage.setItem('tog-lang', ${JSON.stringify(language)})`);
+    await send('Page.navigate', { url: base + '/rank?template=ui-template' });
+    for (let n = 0; n < 40; n++) { if (await evaluate(`!!document.querySelector('.editor-metadata input')`)) break; await delay(100); }
+    const controls = await evaluate(`(() => {
+      const details = document.querySelector('.editor-metadata'); details.open = true;
+      const input = details.querySelector('input');
+      const button = details.querySelector('button[aria-label^="Remove"], button[aria-label^="ลบ"]');
+      return { language: document.documentElement.lang, placeholder: input.placeholder, removeName: button?.getAttribute('aria-label'), text: details.textContent };
+    })()`);
+    assert.equal(controls.language, language);
+    assert.equal(controls.placeholder, language === 'en' ? '+ Add tags...' : '+ เพิ่มแท็ก...');
+    assert.equal(controls.removeName, language === 'en' ? 'Remove #Food' : 'ลบ #Food');
+    if (language === 'en') assert(!/[ก-๙]/.test(`${controls.placeholder} ${controls.removeName} ${controls.text}`), 'English tag controls contain no hardcoded Thai');
+  }
+  fs.writeFileSync(`${output}/audit.json`, JSON.stringify({ checks, violations, errors, interactions: ['tap opens picker', 'focus enters picker', 'Escape dismisses picker', 'tap assignment', 'drop handler moves item', 'physical pointer drag', 'Discover search', 'Quick Add', '44px delete target', 'delete item', 'theme toggle', 'language toggle', 'Rank tag controls EN/TH', 'reduced motion'] }, null, 2));
   console.log(JSON.stringify({ checks, violations, errors }, null, 2));
   assert.equal(errors.length, 0, 'No runtime exceptions');
   assert.equal(violations.length, 0, 'No viewport overflow');
