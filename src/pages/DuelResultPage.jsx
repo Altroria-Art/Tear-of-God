@@ -119,9 +119,8 @@ export default function DuelResultPage() {
 
         <PlayHeader eyebrow={t('play.resultEyebrow')} title={t('play.resultTitle')} description={template.title} reveal />
         {/* Hero Card: Taste Match Overview */}
-        <section className="duel-score relative overflow-hidden rounded-3xl glass border border-line-soft/80 p-6 sm:p-10 shadow-xl text-center bg-surface/70 flex flex-col items-center gap-6">
+        <section className="duel-score duel-stage-v2 relative overflow-hidden p-6 sm:p-10 text-center flex flex-col items-center gap-6">
           {/* Ambient Glow */}
-          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-highlight/10 rounded-full blur-3xl pointer-events-none" />
 
           {/* Eyebrow */}
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-highlight/15 text-highlight border border-highlight/30 text-xs font-black uppercase tracking-widest shadow-2xs">

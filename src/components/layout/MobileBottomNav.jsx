@@ -49,7 +49,7 @@ export default function MobileBottomNav() {
                   active ? 'text-brand' : 'text-muted hover:bg-surface-glass hover:text-ink'
                 }`}
               >
-                <span className={prominent ? 'grid h-8 w-11 place-items-center rounded-full bg-acid text-acid-ink shadow-sm' : ''}>
+                <span className={prominent ? 'mobile-rank-action grid h-9 w-11 place-items-center bg-acid text-acid-ink' : ''}>
                   <Icon size={prominent ? 21 : 20} strokeWidth={active || prominent ? 2.5 : 2} fill={saved && active ? 'currentColor' : 'none'} />
                 </span>
                 <span className="max-w-20 truncate">{t(label)}</span>

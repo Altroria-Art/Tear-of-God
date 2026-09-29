@@ -329,6 +329,7 @@ const RankTierList = () => {
     <div className="min-h-screen font-sans text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-8 sm:pb-32 flex-1 flex flex-col gap-6">
         <PlayHeader eyebrow={t(isDuel ? 'play.duelEyebrow' : 'play.rankEyebrow')} title={t(isDuel ? 'play.duelTitle' : 'play.rankTitle')} description={t('play.rankDescription')} />
+        <p className="rank-touch-hint -mt-4 text-sm font-bold text-ink-soft sm:hidden">{t('rank.tapToRank')}</p>
         {templateCooldown?.active && (
           <div className="flex items-center gap-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 sm:p-5 shadow-sm text-amber-200">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">

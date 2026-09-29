@@ -291,7 +291,7 @@ function CommunityAverageContent() {
   const matchedCount = myComparison.filter((c) => c.gap === 0).length
 
   return (
-    <main className="mx-auto max-w-6xl px-4 sm:px-6 py-6">
+    <main className="community-v2 mx-auto max-w-6xl px-4 sm:px-6 py-6">
       <PlayHeader eyebrow={t('play.communityEyebrow')} title={t('play.communityTitle')} description={template.title} reveal />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
@@ -405,7 +405,7 @@ function CommunityAverageContent() {
             filename={`template-${templateId}-stats.png`}
           />
 
-          <section className="mt-6 rounded-2xl border border-line-soft glass p-3 shadow-sm">
+          <section className="community-data-section mt-6 p-3">
             <div className="mb-2 flex items-center justify-between px-1">
               <h2 className="text-sm font-bold text-ink">{t('stats.title')}</h2>
               <button
@@ -427,7 +427,7 @@ function CommunityAverageContent() {
             </div>
           </section>
 
-          <section className="mt-6 rounded-2xl border border-line-soft glass p-4 shadow-sm">
+          <section className="community-data-section mt-6 p-4">
             <h2 className="text-sm font-bold text-ink">{t('stats.vsCommunity')}</h2>
             {!currentUser ? (
               <p className="mt-2 text-sm text-muted">{t('stats.loginToCompare')}</p>

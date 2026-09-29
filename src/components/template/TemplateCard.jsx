@@ -50,7 +50,7 @@ export default function TemplateCard({ template, onUse, inSavedView = false, fea
   };
 
   return (
-    <div className={`social-card overflow-hidden flex flex-col ${featured ? 'template-card--featured' : ''}`}>
+    <div className={`social-card overflow-hidden flex flex-col ${featured ? 'template-card--featured xl:col-span-2' : ''}`}>
       <Link to={detailHref} className="template-card-preview bg-surface-glass p-3 pt-9 h-44 flex flex-col justify-between relative overflow-hidden">
         <div className="absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
           <span className="flex items-center gap-1" title={t('common.uses')}>

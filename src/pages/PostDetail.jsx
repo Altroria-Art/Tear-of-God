@@ -341,7 +341,7 @@ function PostDetailContent() {
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
 
-          <article className="social-card mt-4 p-4 sm:p-6">
+          <article className="post-ranking-v2 mt-4 p-4 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
               <div className="flex min-w-0 items-center gap-3">
@@ -404,7 +404,7 @@ function PostDetailContent() {
             </div>
 
             <div className="mt-2 flex min-w-0 items-center gap-2.5 flex-wrap">
-              <h1 className="min-w-0 text-2xl font-black text-ink break-words sm:text-3xl">{title}</h1>
+              <h1 className="post-editorial-title min-w-0 font-black text-ink break-words">{title}</h1>
               {post.isOriginal ? (
                 <span
                   title={t('profile.badgeOriginal')}
@@ -455,7 +455,7 @@ function PostDetailContent() {
               </div>
             )}
 
-            <div ref={tableRef} className="mt-4 min-w-0 max-w-full space-y-2 rounded-xl border border-line-soft p-2 glass">
+            <div ref={tableRef} className="post-board mt-5 min-w-0 max-w-full space-y-2 p-2">
               {tiers.map(({ tier, color, index, items }) => (
                 <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}

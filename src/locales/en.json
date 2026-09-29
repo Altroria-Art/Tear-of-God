@@ -42,6 +42,7 @@
     "deleting": "Deleting..."
   },
   "nav": {
+    "rankCta": "RANK",
     "home": "Home",
     "create": "Create",
     "discover": "Discover",
@@ -225,6 +226,22 @@
       "Tier"
     ],
     "heroSubtitle": "The social tier list platform where you rank, debate, and share what you love.",
+    "clubEntry": "Ranking club",
+    "recoveryHeadline1": "LOST YOUR PASSWORD?",
+    "recoveryHeadline2": "WE GOT YOU.",
+    "resetHeadline1": "A FRESH START.",
+    "resetHeadline2": "SAME OPINIONS.",
+    "clubPass": "Member pass",
+    "clubLogin1": "YOUR OPINION",
+    "clubLogin2": "IS ABOUT TO",
+    "clubLogin3": "BECOME PUBLIC.",
+    "clubRegister1": "MAKE AN ACCOUNT.",
+    "clubRegister2": "START AN",
+    "clubRegister3": "ARGUMENT.",
+    "clubWelcomeTitle": "Enter the club.",
+    "clubJoinTitle": "Get your pass.",
+    "clubSampleTitle": "A sample tier list, not live activity",
+    "showPassword": "Show or hide password",
     "badgeJoin": "Join Us",
     "badgeWelcome": "Welcome Back",
     "quickTimeSubtitle": "Takes less than a minute",
@@ -339,6 +356,7 @@
     "followers": "{{count}} followers"
   },
   "create": {
+    "makeItOfficial": "MAKE IT OFFICIAL.",
     "title": "Create Tier List",
     "subtitle": "Create your categories and rank items easily.",
     "guestStart": "Start without signing up",
@@ -399,6 +417,7 @@
     "assignTier": "Assign to tier"
   },
   "rank": {
+    "tapToRank": "Tap an item to choose its tier.",
     "shareInfo": "Save your ranking first before you can share the link",
     "warnLoginSave": "Please log in before saving a ranking",
     "warnTitle": "Please give your ranking a title first",
@@ -445,8 +464,10 @@
     "badgeUnequippedSuccess": "Title badge unequipped",
     "badgeNotUnlocked": "This badge is not unlocked yet",
     "badgeEquipFailed": "Failed to update title badge: {{msg}}",
-    "setupTitle": "Welcome! Complete your profile",
-    "setupHelp": "Tell us about your education. This information appears on your profile and can be edited later.",
+    "setupTitle": "One quick thing.",
+    "setupHeadline": "ONE QUICK THING.",
+    "editorHeadline": "MAKE IT YOURS.",
+    "setupHelp": "Are you part of University of Phayao? Pick one below. You can change this later.",
     "membershipQuestion": "Do you study, or have you studied, at the University of Phayao?",
     "membershipYes": "Yes",
     "membershipNo": "No",
