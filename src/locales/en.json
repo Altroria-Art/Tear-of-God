@@ -414,6 +414,8 @@
     "descriptionPh": "Add your notes or context for this ranking...",
     "searchAddHashtags": "Search & Add Hashtags",
     "addTagsPh": "Add tags (e.g. #rpg, #2024)",
+    "addMoreTagsPh": "+ Add tags...",
+    "removeTag": "Remove {{tag}}",
     "suggestedTags": "Suggested Tags:",
     "moveLeft": "Move left",
     "moveRight": "Move right",

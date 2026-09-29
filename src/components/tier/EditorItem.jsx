@@ -88,9 +88,9 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
           onPointerDown={stopDragStart}
           onClick={onDelete}
           aria-label={t('editor.deleteItem', { name: itemText })}
-          className="absolute -top-2 -right-2 p-1 rounded-full bg-surface text-muted border border-line-soft hover:text-status-error"
+          className="absolute -top-1 -right-1 z-10 flex h-11 w-11 items-start justify-end rounded-tr-xl p-1 text-muted hover:text-status-error"
         >
-          <X size={13} />
+          <span className="grid h-6 w-6 place-items-center rounded-full border border-line-soft bg-surface"><X size={13} /></span>
         </button>
       )}
     </div>

@@ -404,7 +404,7 @@ const RankTierList = () => {
               </label>
               {selectedHashtags.length > 0 && (
                 <span className="text-[11px] font-medium text-muted">
-                  {selectedHashtags.length} {t('common.tags') || 'tags'}
+                  {selectedHashtags.length} {t('common.tags')}
                 </span>
               )}
             </div>
@@ -421,7 +421,7 @@ const RankTierList = () => {
                     type="button"
                     onClick={() => toggleHashtag(tag)}
                     className="hover:text-status-error ml-0.5 font-bold transition-colors cursor-pointer text-sm leading-none"
-                    aria-label={`Remove ${tag}`}
+                    aria-label={t('rank.removeTag', { tag })}
                   >
                     ×
                   </button>
@@ -433,7 +433,7 @@ const RankTierList = () => {
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagInputKeyDown}
-                placeholder={selectedHashtags.length === 0 ? t('rank.addTagsPh') : '+ เพิ่มแท็ก...'}
+                placeholder={selectedHashtags.length === 0 ? t('rank.addTagsPh') : t('rank.addMoreTagsPh')}
                 className="flex-1 min-w-[140px] bg-transparent border-none px-2 py-1 text-xs text-ink outline-none placeholder-muted"
               />
             </div>
@@ -442,7 +442,7 @@ const RankTierList = () => {
             {suggestedTags.filter((t) => !selectedHashtags.includes(t)).length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                 <span className="text-[11px] font-semibold text-muted mr-1">
-                  {t('rank.suggestedTags')}:
+                  {t('rank.suggestedTags')}
                 </span>
                 {suggestedTags
                   .filter((t) => !selectedHashtags.includes(t))
