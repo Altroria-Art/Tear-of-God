@@ -1,396 +1,245 @@
-import PlayHeader from '../components/ui/PlayHeader';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Bookmark, ArrowRight, X } from 'lucide-react';
+import { ArrowRight, Bookmark, MessageCircle, Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useUser } from '../context/UserContext';
 import { useBookmarks } from '../context/BookmarkContext';
 import { useToast } from '../components/ui/Toast';
-import { fetchTemplates, fetchHashtags } from '../lib/api';
+import { fetchDiscoverPulse, fetchTemplates } from '../lib/api';
 import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
-import HashtagPill from '../components/discover/HashtagPill';
 import Pagination from '../components/ui/Pagination';
-import { useTranslation } from 'react-i18next';
+import RipMark from '../components/ui/RipMark';
+
+const WINDOWS = ['now', 'today', 'week', 'last_week'];
 
 function TemplateCardSkeleton() {
-  return (
-    <div className="glass rounded-xl overflow-hidden flex flex-col animate-pulse border border-line-soft">
-      <div className="bg-surface/60 h-36 p-3 flex flex-col gap-2 justify-center items-center">
-        <div className="w-16 h-3 bg-ink/10 rounded-full mb-1" />
-        <div className="flex gap-1.5 justify-center">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="w-8 h-8 rounded-md bg-ink/10" />
-          ))}
-        </div>
-      </div>
-      <div className="p-4 flex-grow flex flex-col justify-between bg-surface/30 border-t border-line-soft gap-4">
-        <div>
-          <div className="h-4.5 bg-ink/10 rounded-md w-4/5 mb-2.5" />
-          <div className="h-3 bg-ink/10 rounded-md w-1/2 mb-3" />
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-ink/10" />
-            <div className="h-3 bg-ink/10 rounded w-20" />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <div className="h-9 bg-ink/10 rounded-lg flex-1" />
-          <div className="h-9 w-9 bg-ink/10 rounded-lg" />
-          <div className="h-9 w-9 bg-ink/10 rounded-lg" />
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="social-card h-72 animate-pulse border border-line-soft bg-surface" aria-hidden="true" />;
+}
+
+function PulseSignals({ item, t, showRankings = true }) {
+  return <span className="pulse-signals">
+    {showRankings && item.ranking_count > 0 && <span>{t('pulse.rankingsCount', { count: item.ranking_count })}</span>}
+    {item.comments > 0 && <span>{t('pulse.commentsCount', { count: item.comments })}</span>}
+    {item.reactions > 0 && <span>{t('pulse.reactionsCount', { count: item.reactions })}</span>}
+    {!item.ranking_count && !item.comments && !item.reactions && <span>{t('pulse.recentActivity')}</span>}
+  </span>;
+}
+
+function SectionTitle({ number, eyebrow, title, action }) {
+  return <div className="pulse-section-head">
+    <div><p className="club-serial text-muted">{number} / {eyebrow}</p><h2>{title}</h2></div>
+    {action}
+  </div>;
+}
+
+function TopicCard({ topic, index, t }) {
+  return <Link to={topic.href} className={`pulse-topic pulse-topic--${index === 0 ? 'lead' : index % 3 === 1 ? 'violet' : 'cyan'}`}>
+    <span className="pulse-topic-kicker">{t('pulse.topic')} / {String(index + 1).padStart(2, '0')}</span>
+    <strong className="pulse-topic-title">{topic.label}</strong>
+    {topic.preview_rankings?.[0]?.title && <span className="pulse-topic-preview">{topic.preview_rankings[0].title}</span>}
+    <span className="pulse-topic-footer"><PulseSignals item={topic} t={t} /><ArrowRight size={19} aria-hidden="true" /></span>
+  </Link>;
+}
+
+function RankingCard({ ranking, t }) {
+  return <Link to={`/post/${encodeURIComponent(ranking.id)}`} className="pulse-ranking-card">
+    <span className="club-serial text-muted">{ranking.new_ranking ? t('pulse.newRanking') : t('pulse.recentActivity')}</span>
+    <strong>{ranking.title}</strong>
+    {ranking.template_title && <span className="pulse-card-context">{ranking.template_title}</span>}
+    <span className="pulse-card-bottom"><PulseSignals item={ranking} t={t} showRankings={false} /><ArrowRight size={17} aria-hidden="true" /></span>
+  </Link>;
+}
+
+function DiscussionCard({ ranking, t }) {
+  return <Link to={`/post/${encodeURIComponent(ranking.id)}`} className="pulse-discussion-card">
+    <span className="pulse-discussion-mark"><MessageCircle size={20} aria-hidden="true" /></span>
+    <span className="min-w-0"><span className="club-serial text-muted">{ranking.author_name ? `@${ranking.author_name}` : ranking.template_title || t('pulse.community')}</span>
+      <strong>{ranking.title}</strong><span className="pulse-card-context">{t('pulse.commentsCount', { count: ranking.comments })}</span></span>
+    <ArrowRight className="shrink-0" size={18} aria-hidden="true" />
+  </Link>;
+}
+
+function ActiveTemplate({ template, t }) {
+  return <Link to={`/template/${encodeURIComponent(template.id)}`} className="pulse-template-card">
+    <span className="club-serial text-muted">{t('pulse.templateInPlay')}</span>
+    <strong>{template.title}</strong>
+    {template.creator_name && <span className="pulse-card-context">@{template.creator_name}</span>}
+    {!!template.preview_items?.length && <span className="pulse-template-preview" aria-label={t('pulse.itemPreview')}>
+      {template.preview_items.map((item, index) => <span key={`${item.name}-${index}`} title={item.tier || undefined}>{item.name}</span>)}
+    </span>}
+    {template.preview_ranking?.title && <span className="pulse-card-context">{t('pulse.latestTake')}: {template.preview_ranking.title}</span>}
+    <span className="pulse-card-bottom"><PulseSignals item={template} t={t} /><ArrowRight size={17} aria-hidden="true" /></span>
+  </Link>;
 }
 
 export default function Discover() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { addSavedIds } = useBookmarks();
-  const viewerId = currentUser?.id;
   const toast = useToast();
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
-
   const q = (params.get('q') || '').trim();
   const saved = params.get('view') === 'saved';
   const page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
-
+  const requestedWindow = WINDOWS.includes(params.get('window')) ? params.get('window') : 'now';
+  const browsingResults = !!q || saved;
   const [templates, setTemplates] = useState([]);
-  const [hashtags, setHashtags] = useState([]);
-  const [hashtagSections, setHashtagSections] = useState([]);
-  // M1: โซน hashtag-sections อยู่ใต้ fold — ยังไม่ยิง 3 requests (top3 tags × fetchTemplates)
-  // พร้อม mount แต่รอให้ sentinel ใกล้เข้า viewport ก่อน (คนไม่ scroll = ประหยัด 3 requests)
-  const [sectionsArmed, setSectionsArmed] = useState(false);
-  const sectionsSentinelRef = useRef(null);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [pulse, setPulse] = useState(null);
+  const [pulseLoading, setPulseLoading] = useState(true);
+  const [pulseError, setPulseError] = useState('');
   const [retry, setRetry] = useState(0);
 
-  const browsingResults = !!q || saved;
-
   useEffect(() => {
+    if (!browsingResults) return undefined;
     let cancelled = false;
-    async function load() {
+    async function loadResults() {
       setIsLoading(true);
       setLoadError('');
-
-      if (saved && !viewerId) {
-        setTemplates([]);
-        setTotal(0);
-        setIsLoading(false);
+      if (saved && !currentUser?.id) {
+        setTemplates([]); setTotal(0); setIsLoading(false); return;
+      }
+      const result = await fetchTemplates({ q, saved, page, limit: 12 });
+      if (cancelled) return;
+      const lastPage = Math.max(1, Math.ceil((result.total || 0) / 12));
+      if (!result.error && page > lastPage) {
+        setParams(current => {
+          const next = new URLSearchParams(current);
+          if (lastPage === 1) next.delete('page'); else next.set('page', String(lastPage));
+          return next;
+        }, { replace: true });
         return;
       }
-
-      if (browsingResults) {
-        const tpl = await fetchTemplates({
-          q,
-          saved,
-          page,
-          limit: 12,
-        });
-        if (cancelled) return;
-        const lastPage = Math.max(1, Math.ceil((tpl.total || 0) / 12));
-        if (!tpl.error && page > lastPage) {
-          setParams((current) => {
-            const next = new URLSearchParams(current);
-            if (lastPage === 1) next.delete('page');
-            else next.set('page', String(lastPage));
-            return next;
-          }, { replace: true });
-          return;
-        }
-        setTemplates(tpl.data || []);
-        setTotal(tpl.total || 0);
-        setLoadError(tpl.error || '');
-        if (saved && tpl.data?.length) {
-          addSavedIds(tpl.data.map((t) => t.id));
-        }
-      } else {
-        const [tpl, tags] = await Promise.all([
-          fetchTemplates({ limit: 4 }),
-          fetchHashtags({ limit: 18, sort: 'used' }),
-        ]);
-        if (cancelled) return;
-
-        setTemplates(tpl.data || []);
-        setHashtags(tags.data || []);
-        setTotal(tpl.total || 0);
-        setLoadError(tpl.error || tags.error || '');
-      }
+      setTemplates(result.data || []);
+      setTotal(result.total || 0);
+      setLoadError(result.error || '');
+      if (saved && result.data?.length) addSavedIds(result.data.map(template => template.id));
       setIsLoading(false);
     }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [q, saved, page, browsingResults, viewerId, retry, addSavedIds, setParams]);
+    loadResults();
+    return () => { cancelled = true; };
+  }, [q, saved, page, browsingResults, currentUser?.id, retry, addSavedIds, setParams]);
 
-  // M1: arm การโหลด sections เมื่อ sentinel ใกล้เข้า viewport (rootMargin 400px ล่วงหน้า)
-  // ไม่มี IntersectionObserver (เบราว์เซอร์เก่า) = โหลดทันทีเหมือนพฤติกรรมเดิม
   useEffect(() => {
-    if (browsingResults || sectionsArmed || isLoading) return undefined;
-    const el = sectionsSentinelRef.current;
-    if (!el) return undefined;
-    if (typeof IntersectionObserver === 'undefined') {
-      setSectionsArmed(true);
-      return undefined;
-    }
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setSectionsArmed(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: '400px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [browsingResults, sectionsArmed, isLoading]);
-
-  // M1: ยิง 3 requests ของ sections ต่อเมื่อ armed แล้วเท่านั้น (ครั้งแรกที่เข้า viewport)
-  useEffect(() => {
-    if (browsingResults || !sectionsArmed || hashtags.length === 0) return undefined;
+    if (browsingResults) return undefined;
     let cancelled = false;
-    async function loadSections() {
-      const top3 = hashtags.slice(0, 3);
-      const sectionsData = await Promise.all(
-        top3.map((h) => fetchTemplates({ hashtag: h.tag, limit: 4 }))
-      );
+    setPulseLoading(true);
+    setPulseError('');
+    fetchDiscoverPulse(requestedWindow).then(result => {
       if (cancelled) return;
-      setHashtagSections(
-        top3
-          .map((h, i) => ({
-            tag: h.tag,
-            items: sectionsData[i].data || [],
-          }))
-          .filter((section) => section.items.length)
-      );
-    }
-    loadSections();
-    return () => {
-      cancelled = true;
-    };
-  }, [browsingResults, sectionsArmed, hashtags, retry]);
+      setPulse(result.success ? result : null);
+      setPulseError(result.error || '');
+      setPulseLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [browsingResults, requestedWindow, retry]);
 
   useEffect(() => {
-    const update = (event) => {
-      if (saved && event.detail?.id && !event.detail.saved && (!event.detail.userId || event.detail.userId === viewerId)) {
-        setTemplates((prev) => prev.filter((t) => String(t.id) !== String(event.detail?.id)));
-        setRetry((n) => n + 1);
+    const update = event => {
+      if (saved && event.detail?.id && !event.detail.saved && (!event.detail.userId || event.detail.userId === currentUser?.id)) {
+        setTemplates(previous => previous.filter(template => String(template.id) !== String(event.detail?.id)));
+        setRetry(value => value + 1);
       }
     };
     window.addEventListener('tog-bookmark', update);
     return () => window.removeEventListener('tog-bookmark', update);
-  }, [saved, viewerId]);
+  }, [saved, currentUser?.id]);
 
-  const useTemplate = (template) => {
-    const next = '/rank?template=' + encodeURIComponent(template.id);
-    if (!currentUser) {
-      toast.warning(t('discover.protectedLogin'));
-      navigate(loginPath(next));
-      return;
-    }
+  const useTemplate = template => {
+    const next = `/rank?template=${encodeURIComponent(template.id)}`;
+    if (!currentUser) { toast.warning(t('discover.protectedLogin')); navigate(loginPath(next)); return; }
     navigate(next);
   };
-
   const clearSearch = () => {
     const next = new URLSearchParams(params);
-    next.delete('q');
-    next.delete('page');
+    next.delete('q'); next.delete('page');
     setParams(next);
   };
+  const templateGrid = <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+    {templates.map(template => <TemplateCard key={template.id} template={template} onUse={useTemplate} inSavedView={saved} />)}
+  </div>;
 
-  const grid = (list, editorial = false) => (
-    <div className={`grid grid-cols-1 sm:grid-cols-2 ${editorial ? 'xl:grid-cols-3 discover-editorial-grid' : 'xl:grid-cols-4'} gap-5`}>
-      {list.map((template, index) => (
-        <TemplateCard
-          key={template.id}
-          template={template}
-          onUse={useTemplate}
-          inSavedView={saved}
-          featured={editorial && index === 0}
-        />
-      ))}
-    </div>
-  );
+  return <main className="discover-v2 discover-pulse mx-auto max-w-7xl px-4 py-5 text-ink sm:px-6 sm:py-6">
+    {!browsingResults && <header className="pulse-hero">
+      <p className="club-serial pulse-hero-kicker">TEAR OF GOD / {t('pulse.eyebrow')}</p>
+      <h1><span>{t('pulse.heroFirst')}</span><span><mark>{t('pulse.heroSecond')}</mark></span></h1>
+      <RipMark className="pulse-hero-rip" />
+      <p>{t('pulse.heroDescription')}</p>
+    </header>}
+    {browsingResults && <div className="pulse-results-intro"><Link to="/discover" className="club-serial">← {t('pulse.backToPulse')}</Link>
+      <h1>{t(saved ? 'discover.savedTemplates' : 'pulse.searchHeading')}</h1></div>}
 
-  return (
-    <main className="discover-v2 max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-6 text-ink">
-      {!saved && <PlayHeader eyebrow={t('play.discoverEyebrow')} title={t('play.discoverTitle')} description={t('play.discoverDescription')} />}
-      <form role="search" className="discover-search" onSubmit={event => {
-        event.preventDefault();
-        const query = new FormData(event.currentTarget).get('query').trim();
-        const next = new URLSearchParams(params);
-        if (query) next.set('q', query); else next.delete('q');
-        next.delete('page');
-        setParams(next);
-      }}>
-        <input key={q} name="query" type="search" defaultValue={q} aria-label={t('discover.search')} placeholder={t('nav.searchPlaceholder')} />
-        <button type="submit" className="play-button shrink-0">{t('play.searchAction')}</button>
-      </form>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h2 className="text-xl font-extrabold tracking-tight mb-2">
-            {t(saved ? 'discover.savedTemplates' : 'discover.title')}
-          </h2>
-          <p className="text-sm sm:text-base text-muted">
-            {t(saved ? 'discover.savedHelp' : 'discover.subtitle')}
-          </p>
-        </div>
+    <form role="search" className="pulse-search" onSubmit={event => {
+      event.preventDefault();
+      const query = String(new FormData(event.currentTarget).get('query') || '').trim();
+      const next = new URLSearchParams(params);
+      if (query) next.set('q', query); else next.delete('q');
+      next.delete('page'); setParams(next);
+    }}>
+      <Search size={18} aria-hidden="true" /><input key={q} name="query" type="search" defaultValue={q} aria-label={t('discover.search')} placeholder={t('nav.searchPlaceholder')} />
+      <button type="submit" className="pulse-search-button">{t('play.searchAction')}</button>
+    </form>
 
-        <div>
-          <Link
-            to={saved ? '/discover' : '/discover?view=saved'}
-            className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all shadow-xs cursor-pointer ${
-              saved
-                ? 'bg-brand text-canvas border-brand shadow-sm'
-                : 'border-line-soft bg-surface hover:bg-surface-glass text-ink'
-            }`}
-          >
-            <Bookmark size={17} />
-            {t(saved ? 'discover.explore' : 'discover.savedTemplates')}
-          </Link>
-        </div>
+    {browsingResults ? <>
+      <div className="pulse-results-head"><div><h2 role="status">{q ? t('discover.searchResults', { q, count: total }) : t('discover.savedCount', { count: total })}</h2>
+        <p>{t(saved ? 'discover.savedHelp' : 'discover.subtitle')}</p></div>
+        <div className="flex flex-wrap gap-2">{q && <button type="button" onClick={clearSearch} className="pulse-text-action"><X size={15} />{t('discover.clearSearch')}</button>}
+          <Link to={saved ? '/discover' : '/discover?view=saved'} className="pulse-text-action"><Bookmark size={16} />{t(saved ? 'discover.explore' : 'discover.savedTemplates')}</Link></div>
       </div>
-
-      {/* Main Content Area */}
-      {saved && !currentUser ? (
-        <div className="glass p-8 rounded-2xl text-center">
-          <p className="mb-4">{t('discover.savedLogin')}</p>
-          <Link
-            className="inline-block bg-brand text-canvas rounded-xl px-5 py-3 font-semibold"
-            to={loginPath('/discover?view=saved')}
-          >
-            {t('nav.login')}
-          </Link>
+      {saved && !currentUser ? <div className="pulse-empty"><p>{t('discover.savedLogin')}</p><Link to={loginPath('/discover?view=saved')} className="pulse-solid-link">{t('nav.login')}</Link></div>
+        : loadError ? <div role="alert" className="pulse-empty"><p>{loadError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
+        : isLoading ? <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }, (_, index) => <TemplateCardSkeleton key={index} />)}</div>
+          : templates.length ? templateGrid : <div className="pulse-empty">{t(saved ? 'discover.noSaved' : 'discover.noResults')}</div>}
+      <Pagination page={page} totalPages={Math.ceil(total / 12)} onChange={nextPage => {
+        const next = new URLSearchParams(params); next.set('page', String(nextPage)); setParams(next);
+      }} />
+    </> : <>
+      <section className="pulse-lead-section" aria-labelledby="pulse-heading">
+        <div className="pulse-section-head pulse-section-head--lead"><div><p className="club-serial text-muted">01 / {t('pulse.eyebrow')}</p><h2 id="pulse-heading">{t('pulse.communityPulse')}</h2></div>
+          <span className="pulse-live-mark">{t('pulse.fromRealActivity')}</span></div>
+        <div className="pulse-tabs" role="group" aria-label={t('pulse.timeWindow')} style={{ '--pulse-tab-index': WINDOWS.indexOf(requestedWindow) }}>
+          {WINDOWS.map(window => <button key={window} type="button" aria-pressed={requestedWindow === window}
+            className={requestedWindow === window ? 'is-active' : ''}
+            onClick={() => { const next = new URLSearchParams(params); next.set('window', window); setParams(next); }}>
+            {t(`pulse.windows.${window}`)}</button>)}
         </div>
-      ) : loadError ? (
-        <div role="alert" className="glass p-8 rounded-2xl text-center">
-          <p className="text-status-error font-medium">{loadError}</p>
-          <button
-            className="mt-4 px-4 py-2 rounded-xl bg-brand text-canvas text-sm font-semibold cursor-pointer"
-            onClick={() => setRetry((n) => n + 1)}
-          >
-            {t('common.retry')}
-          </button>
-        </div>
-      ) : isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 py-4">
-          {[...Array(8)].map((_, i) => (
-            <TemplateCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : browsingResults ? (
-        <section>
-          {/* Results Header */}
-          <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-line-soft">
-            <h2 role="status" className="font-bold text-xl text-ink">
-              {q
-                ? t('discover.searchResults', { q, count: total })
-                : t('discover.savedCount', { count: total })}
-            </h2>
+        {pulse?.fallback_from && pulse.active_rankings > 0 && !pulseLoading && <p className="pulse-fallback" role="status">{t(pulse.window === 'today' ? 'pulse.fallbackToday' : 'pulse.fallbackWeek')}</p>}
+        {pulse?.sampled && !pulseLoading && <p className="pulse-sample-note">{t('pulse.sampleNote')}</p>}
+        {pulseError ? <div className="pulse-empty" role="alert"><p>{pulseError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
+          : pulseLoading ? <div className="pulse-topic-grid" aria-label={t('pulse.loading')}>{Array.from({ length: 3 }, (_, index) => <div key={index} className="pulse-topic pulse-topic--skeleton animate-pulse" />)}</div>
+            : pulse?.active_rankings ? <div key={pulse.window} className="pulse-topic-grid pulse-content-enter">{pulse.topics.map((topic, index) => <TopicCard key={topic.key} topic={topic} index={index} t={t} />)}</div>
+              : <div className="pulse-empty"><strong>{t('pulse.quietTitle')}</strong><p>{t('pulse.quietDescription')}</p><Link className="pulse-solid-link" to="/discover/templates">{t('pulse.exploreTemplates')}</Link></div>}
+      </section>
 
-            {q && (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-line-soft bg-surface hover:bg-surface-glass text-xs font-bold text-ink-soft hover:text-ink transition-colors cursor-pointer"
-              >
-                <X size={14} />
-                <span>{t('discover.clearSearch')}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Grid or Empty */}
-          {templates.length ? (
-            grid(templates)
-          ) : (
-            <div className="glass rounded-2xl p-12 text-center text-muted">
-              {t(saved ? 'discover.noSaved' : 'discover.noResults')}
-            </div>
-          )}
-
-          <Pagination
-            page={page}
-            totalPages={Math.ceil(total / 12)}
-            onChange={(nextPage) => {
-              const next = new URLSearchParams(params);
-              next.set('page', nextPage);
-              setParams(next);
-            }}
-          />
-        </section>
-      ) : (
-        <>
-          {/* Section: Popular Templates */}
-          <section className="mb-10">
-            <div className="flex justify-between items-center gap-4 mb-5">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <span>🔥</span> {t('discover.popularTemplates')}
-              </h2>
-              <Link
-                className="text-sm font-semibold text-brand hover:underline inline-flex items-center gap-1"
-                to="/discover/templates"
-              >
-                {t('discover.viewAll')}
-                <ArrowRight size={15} />
-              </Link>
-            </div>
-            {templates.length ? (
-              grid(templates.slice(0, 4), true)
-            ) : (
-              <p className="text-muted py-6">{t('discover.emptyTemplates')}</p>
-            )}
-          </section>
-
-          {/* Section: Popular Hashtags */}
-          <section className="mb-10">
-            <div className="flex justify-between items-center gap-4 mb-4">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <span>🏷️</span> {t('discover.popularHashtags')}
-              </h2>
-              <Link className="text-sm font-semibold text-brand hover:underline" to="/discover/hashtags">
-                {t('discover.viewAll')}
-              </Link>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {hashtags.map((h) => (
-                <HashtagPill key={h.tag} tag={h.tag} count={h.content_count} />
-              ))}
-            </div>
-          </section>
-
-          {/* M1 sentinel: จุดสังเกตสำหรับ arm การโหลด sections แบบ lazy (ไม่มี UI) */}
-          <div ref={sectionsSentinelRef} aria-hidden="true" />
-
-          {/* Section: Dynamic Hashtag Sections */}
-          {hashtagSections.map(({ tag, items }) => (
-            <section key={tag} className="mb-10">
-              <div className="flex justify-between items-center gap-4 mb-5">
-                <h2 className="text-xl font-bold">
-                  <Link
-                    to={'/discover/hashtag/' + encodeURIComponent(tag.replace(/^#/, ''))}
-                    className="hover:underline hover:text-brand transition-colors"
-                  >
-                    {tag}
-                  </Link>
-                </h2>
-                <Link
-                  className="text-sm font-semibold text-brand hover:underline"
-                  to={'/discover/hashtag/' + encodeURIComponent(tag.replace(/^#/, ''))}
-                >
-                  {t('discover.viewAll')}
-                </Link>
-              </div>
-              {grid(items)}
-            </section>
-          ))}
-        </>
-      )}
-    </main>
-  );
+      {!!pulse?.rankings?.length && !pulseLoading && <section className="pulse-section">
+        <SectionTitle number="02" eyebrow={t('pulse.activityEyebrow')} title={t('pulse.activeHeading')} />
+        <div className="pulse-ranking-grid">{pulse.rankings.map(ranking => <RankingCard key={ranking.id} ranking={ranking} t={t} />)}</div>
+      </section>}
+      {!!pulse?.discussions?.length && !pulseLoading && <section className="pulse-section">
+        <SectionTitle number="03" eyebrow={t('pulse.discussionEyebrow')} title={t('pulse.discussionHeading')} />
+        <div className="pulse-discussion-list">{pulse.discussions.map(ranking => <DiscussionCard key={ranking.id} ranking={ranking} t={t} />)}</div>
+      </section>}
+      {!!pulse?.hashtags?.length && !pulseLoading && <section className="pulse-section">
+        <SectionTitle number="04" eyebrow={t('pulse.topicsEyebrow')} title={t('pulse.hashtagHeading')}
+          action={<Link className="pulse-section-link" to="/discover/hashtags">{t('discover.viewAll')} <ArrowRight size={16} /></Link>} />
+        <div className="pulse-hashtags">{pulse.hashtags.map(tag => <Link key={tag.key} to={tag.href} className="pulse-hashtag">
+          <strong>{tag.label}</strong><span>{t('pulse.activityCount', { count: tag.activity_count })}</span></Link>)}</div>
+      </section>}
+      {!!pulse?.templates?.length && !pulseLoading && <section className="pulse-section">
+        <SectionTitle number="05" eyebrow={t('pulse.templatesEyebrow')} title={t('pulse.templatesHeading')}
+          action={<Link className="pulse-section-link" to="/discover/templates">{t('discover.viewAll')} <ArrowRight size={16} /></Link>} />
+        <div className="pulse-template-grid">{pulse.templates.map(template => <ActiveTemplate key={template.id} template={template} t={t} />)}</div>
+      </section>}
+      <section className="pulse-explore pulse-section">
+        <SectionTitle number="06" eyebrow={t('pulse.exploreEyebrow')} title={t('pulse.exploreHeading')} />
+        <div><Link to="/discover/templates">{t('pulse.allTemplates')} <ArrowRight size={16} /></Link>
+          <Link to="/discover/hashtags">{t('pulse.allHashtags')} <ArrowRight size={16} /></Link>
+          <Link to="/discover?view=saved">{t('discover.savedTemplates')} <ArrowRight size={16} /></Link></div>
+      </section>
+    </>}
+  </main>;
 }

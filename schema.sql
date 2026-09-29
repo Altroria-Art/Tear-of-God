@@ -178,7 +178,8 @@ CREATE TABLE IF NOT EXISTS ranking_item_scores (
 CREATE INDEX IF NOT EXISTS idx_rankings_template_id ON rankings(template_id);
 CREATE INDEX IF NOT EXISTS idx_ranking_items_ranking_tier ON ranking_items(ranking_id, tier, item_id);
 CREATE INDEX IF NOT EXISTS idx_votes_user_id ON votes(user_id, vote_type);
-CREATE INDEX IF NOT EXISTS idx_comments_ranking_id ON comments(ranking_id);
+CREATE INDEX IF NOT EXISTS idx_votes_ranking_created ON votes(ranking_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_ranking_created ON comments(ranking_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_templates_creator_id ON templates(creator_id);
 
 -- ผู้ใช้เลือก Tier List ที่สะท้อนรสนิยมของตัวเองไว้บนโปรไฟล์ได้สูงสุด 3 รายการ
