@@ -6,6 +6,7 @@ import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
 import CommentSection from '../components/post/CommentSection'
 import ShareExportModal from '../components/ui/ShareExportModal'
+import Modal from '../components/ui/Modal'
 import ExportCard from '../components/ui/ExportCard'
 import CommunityAvgStatsChart from '../components/ui/CommunityAvgStatsChart'
 import TierLabel from '../components/tier/TierLabel'
@@ -295,11 +296,11 @@ function CommunityAverageContent() {
       <PlayHeader eyebrow={t('play.communityEyebrow')} title={t('play.communityTitle')} description={template.title} reveal />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
-          <Link to={`/template/${templateId}`} className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
+          <Link to={`/template/${templateId}`} aria-label={t('template.viewTemplate')} className="inline-flex h-11 w-11 items-center justify-center border border-line-soft text-ink-soft transition-colors hover:bg-surface">
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
 
-          <article className="social-card community-verdict-card mt-4 p-4 sm:p-6">
+          <article className="community-verdict-card mt-4 p-4 sm:p-6">
             <p className="inline-flex items-center gap-1 rounded bg-brand px-2 py-1 text-[10px] font-bold tracking-wider text-canvas uppercase">
               <Star size={12} /> {t('template.communityAverage')}
             </p>
@@ -405,7 +406,7 @@ function CommunityAverageContent() {
             filename={`template-${templateId}-stats.png`}
           />
 
-          <section className="community-data-section mt-6 p-3">
+          <section className="community-data-section mt-6 py-5">
             <div className="mb-2 flex items-center justify-between px-1">
               <h2 className="text-sm font-bold text-ink">{t('stats.title')}</h2>
               <button
@@ -427,7 +428,7 @@ function CommunityAverageContent() {
             </div>
           </section>
 
-          <section className="community-data-section mt-6 p-4">
+          <section className="community-data-section mt-6 py-5">
             <h2 className="text-sm font-bold text-ink">{t('stats.vsCommunity')}</h2>
             {!currentUser ? (
               <p className="mt-2 text-sm text-muted">{t('stats.loginToCompare')}</p>
@@ -443,7 +444,7 @@ function CommunityAverageContent() {
                 <p className="mt-1 text-xs text-muted">{t('stats.matched', { match: matchedCount, total: myComparison.length })}</p>
                 <div className="mt-3 space-y-2">
                   {myComparison.slice(0, 5).map((c) => (
-                    <div key={c.name} className="flex items-center gap-2 rounded-lg border border-line-soft bg-surface-glass px-3 py-2">
+                    <div key={c.name} className="community-compare-row flex items-center gap-2 px-3 py-2">
                       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{c.name}</span>
                       <TierLabel label={c.myTier} color={c.myColor} className="h-6 rounded px-1.5 text-[11px] font-bold" fallbackClassName="rounded bg-gray-200 text-gray-700" />
                       {c.gap === 0 ? (
@@ -474,41 +475,26 @@ function CommunityAverageContent() {
         </div>
 
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <div className="rounded-xl border border-line-soft glass p-4 shadow-sm">
+          <div className="community-about-strip p-4">
             <h2 className="text-sm font-bold text-ink">{t('template.about')}</h2>
             <p className="mt-1 text-sm font-semibold text-ink">{template.title}</p>
             {template.description && <p className="mt-1 text-sm text-muted">{template.description}</p>}
             <p className="mt-2 text-xs text-muted">{t('template.usesLabel', { n: formatCount(template.stats?.uses), v: formatCount(template.stats?.views) })}</p>
-            <Link to={`/template/${templateId}`} className="mt-3 inline-block rounded-full bg-brand-accent px-4 py-2 text-sm font-bold text-canvas transition-all hover:brightness-110 active:scale-95">
+            <Link to={`/template/${templateId}`} className="club-primary mt-3 inline-flex min-h-11 items-center px-4 py-2 text-sm">
               {t('template.viewTemplate')}
             </Link>
           </div>
         </aside>
       </div>
 
-      {reportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-ink">{t('post.reportTitle', 'Report')}</h3>
-            <p className="mt-1 text-sm text-muted">{t('post.reportDesc', 'Please provide a reason.')}</p>
-            <textarea
-              value={reportReason}
-              onChange={(e) => setReportReason(e.target.value)}
-              placeholder={t('post.reportReasonPh', 'Reason for reporting...')}
-              rows={3}
-              className="mt-4 w-full resize-none rounded-xl border border-line-soft bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-status-error"
-            />
-            <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => { setReportOpen(false); setReportTarget(null); }} className="rounded-full px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-canvas">
-                {t('common.cancel')}
-              </button>
-              <button onClick={submitReport} disabled={!reportReason.trim() || reporting} className="rounded-full bg-status-error px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-                {reporting ? t('common.loading') : t('common.submit')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal open={reportOpen} onClose={() => { if (!reporting) { setReportOpen(false); setReportTarget(null); } }} title={t('post.reportTitle')} footer={<>
+        <button type="button" disabled={reporting} onClick={() => { setReportOpen(false); setReportTarget(null); }} className="dialog-secondary">{t('common.cancel')}</button>
+        <button type="button" disabled={!reportReason.trim() || reporting} onClick={submitReport} className="dialog-danger">{reporting ? t('common.loading') : t('common.submit')}</button>
+      </>}>
+        <p className="text-sm text-ink-soft">{t('post.reportDesc')}</p>
+        <label htmlFor="community-report-reason" className="club-label mt-4">{t('template.reason')}</label>
+        <textarea id="community-report-reason" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder={t('post.reportReasonPh')} rows={3} className="club-field resize-none" />
+      </Modal>
     </main>
   )
 }

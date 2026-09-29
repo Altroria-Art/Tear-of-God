@@ -9,6 +9,7 @@ import SortDropdown from '../components/ui/SortDropdown'
 import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
+import Modal from '../components/ui/Modal'
 import ExportCard from '../components/ui/ExportCard'
 import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction, voteTemplate, voteRanking, reportTemplate, deleteTemplate } from '../lib/api'
 import { createPendingGuard } from '../lib/pendingGuard'
@@ -377,8 +378,8 @@ function TemplateDetailContent() {
   // A2: creator/admin ลบ template ตัวเอง — confirm ก่อน, สำเร็จแล้วไปหน้า templates
   const canDeleteTemplate = currentUser && (currentUser.role === 'admin' || currentUser.id === template?.profile?.id)
   const [isDeletingTemplate, setIsDeletingTemplate] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const handleDeleteTemplate = async () => {
-    if (!window.confirm(t('template.confirmDeleteTemplate', { title: template.title, count: template.stats?.uses || 0 }))) return
     setIsDeletingTemplate(true)
     const res = await deleteTemplate(templateId)
     setIsDeletingTemplate(false)
@@ -541,7 +542,7 @@ function TemplateDetailContent() {
               </button>{canDeleteTemplate && (
                 <button
                   type="button"
-                  onClick={handleDeleteTemplate}
+                  onClick={() => setDeleteOpen(true)}
                   disabled={isDeletingTemplate}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-status-error hover:bg-status-error/10 w-full disabled:opacity-50"
                   aria-label={t('template.deleteTemplate')}
@@ -792,48 +793,20 @@ function TemplateDetailContent() {
         filename={`template-${templateId}-average${periodDays ? `-${periodDays}d` : ''}.png`}
       />
 
-      {/* 📍 Modal รายงานเทมเพลต */}
-      {reportOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => { if (!reporting) setReportOpen(false) }}>
-          <div
-            className="glass w-full max-w-md rounded-2xl p-6 shadow-xl relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-ink mb-1">{t('template.reportTemplate')}</h3>
-            <p className="text-sm text-muted mb-4">{t('template.reportTemplateHelp')}</p>
-
-            <label className="block text-xs font-bold uppercase tracking-wider text-ink-soft mb-1">
-              {t('template.reason')}
-            </label>
-            <textarea
-              value={reportReason}
-              onChange={(e) => setReportReason(e.target.value)}
-              placeholder={t('template.reportReasonPh')}
-              rows={3}
-              className="w-full bg-surface border border-line-soft text-ink rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-brand placeholder-muted resize-none"
-            />
-
-            <div className="mt-5 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setReportOpen(false)}
-                disabled={reporting}
-                className="text-ink-soft hover:bg-surface-glass rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleReport}
-                disabled={reporting || !reportReason.trim()}
-                className="bg-brand hover:bg-brand-accent text-canvas rounded-xl px-5 py-2 text-sm font-bold disabled:opacity-50"
-              >
-                {reporting ? t('common.sending') : t('common.submit')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal open={deleteOpen} onClose={() => { if (!isDeletingTemplate) setDeleteOpen(false) }} title={t('common.delete')} footer={<>
+        <button type="button" disabled={isDeletingTemplate} onClick={() => setDeleteOpen(false)} className="dialog-secondary">{t('common.cancel')}</button>
+        <button type="button" disabled={isDeletingTemplate} onClick={handleDeleteTemplate} className="dialog-danger">{isDeletingTemplate ? t('common.deleting') : t('common.delete')}</button>
+      </>}>
+        <p className="text-sm text-ink-soft">{t('template.confirmDeleteTemplate', { title: template.title, count: template.stats?.uses || 0 })}</p>
+      </Modal>
+      <Modal open={reportOpen} onClose={() => { if (!reporting) setReportOpen(false) }} title={t('template.reportTemplate')} footer={<>
+        <button type="button" disabled={reporting} onClick={() => setReportOpen(false)} className="dialog-secondary">{t('common.cancel')}</button>
+        <button type="button" disabled={reporting || !reportReason.trim()} onClick={handleReport} className="dialog-danger">{reporting ? t('common.sending') : t('common.submit')}</button>
+      </>}>
+        <p className="text-sm text-ink-soft">{t('template.reportTemplateHelp')}</p>
+        <label htmlFor="template-report-reason" className="club-label mt-4">{t('template.reason')}</label>
+        <textarea id="template-report-reason" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder={t('template.reportReasonPh')} rows={3} className="club-field resize-none" />
+      </Modal>
     </main>
   )
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
-import { Download, Flag, X, Trash2, Swords } from 'lucide-react'
+import { Download, Flag, Trash2, Swords } from 'lucide-react'
 import { loginPath } from '../lib/navigation'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
@@ -13,6 +13,7 @@ import { useToast } from '../components/ui/Toast'
 import ShareExportModal from '../components/ui/ShareExportModal'
 import ExportCard from '../components/ui/ExportCard'
 import UserFollowButton from '../components/user/UserFollowButton'
+import Modal from '../components/ui/Modal'
 
 // 📍 นำเข้า createComment มาใช้งาน
 import { fetchRanking, createComment, deleteComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking, deleteAdminRanking } from '../lib/api'
@@ -294,8 +295,8 @@ function PostDetailContent() {
   const isOwner = currentUser?.id != null && currentUser.id === post?.authorId;
   const isAdmin = currentUser?.role === 'admin';
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const handleDeletePost = async () => {
-    if (!window.confirm(t('post.confirmDelete', 'Are you sure you want to delete this post?'))) return;
     setIsDeleting(true);
     const res = isOwner
       ? await deleteRanking(postId)
@@ -337,7 +338,7 @@ function PostDetailContent() {
     <main className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
-          <Link to="/" className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
+          <Link to="/" aria-label={t('common.backHome')} className="inline-flex h-11 w-11 items-center justify-center border border-line-soft text-ink-soft transition-colors hover:bg-surface">
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
 
@@ -379,7 +380,7 @@ function PostDetailContent() {
                 {(isOwner || isAdmin) && (
                   <button
                     type="button"
-                    onClick={handleDeletePost}
+                    onClick={() => setDeleteOpen(true)}
                     disabled={isDeleting}
                     className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97] disabled:opacity-50"
                     aria-label={t('common.delete')}
@@ -545,57 +546,20 @@ function PostDetailContent() {
         </div>
       </div>
 
-      {/* 📍 Modal รายงานโพสต์ */}
-      {reportOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
-          onClick={() => { if (!reporting) setReportOpen(false) }}
-        >
-          <div className="w-full max-w-md rounded-2xl border border-line-soft bg-surface-glass p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-bold text-ink">{t('post.reportPost')}</h3>
-                <p className="mt-0.5 text-sm text-muted">{t('post.reportPostHelp')}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => { if (!reporting) setReportOpen(false) }}
-                className="rounded-full p-1 text-muted transition-colors hover:bg-surface-glass hover:text-ink"
-                aria-label={t('post.close')}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <textarea
-              value={reportReason}
-              onChange={(e) => setReportReason(e.target.value)}
-              rows={4}
-              placeholder={t('post.reportReasonPh')}
-              className="mt-4 w-full resize-none rounded-xl border border-line-soft bg-canvas p-3 text-sm text-ink focus:border-highlight focus:outline-none"
-            />
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => { setReportOpen(false); setReportTarget(null); }}
-                className="rounded-full px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-canvas"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={submitReport}
-                disabled={reporting || !reportReason.trim()}
-                className="flex items-center gap-2 rounded-full bg-status-error px-5 py-2 text-sm font-bold text-white shadow-md transition-all hover:bg-red-700 disabled:opacity-60"
-              >
-                <Flag size={16} />
-                {reporting ? t('common.sending') : t('common.submit')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal open={deleteOpen} onClose={() => { if (!isDeleting) setDeleteOpen(false) }} title={t('common.delete')} footer={<>
+        <button type="button" disabled={isDeleting} onClick={() => setDeleteOpen(false)} className="dialog-secondary">{t('common.cancel')}</button>
+        <button type="button" disabled={isDeleting} onClick={handleDeletePost} className="dialog-danger">{isDeleting ? t('common.deleting') : t('common.delete')}</button>
+      </>}>
+        <p className="text-sm text-ink-soft">{t('post.confirmDelete')}</p>
+      </Modal>
+      <Modal open={reportOpen} onClose={() => { if (!reporting) { setReportOpen(false); setReportTarget(null); } }} title={t(reportTarget?.type === 'post' ? 'post.reportPost' : 'post.reportTitle')} footer={<>
+        <button type="button" disabled={reporting} onClick={() => { setReportOpen(false); setReportTarget(null); }} className="dialog-secondary">{t('common.cancel')}</button>
+        <button type="button" disabled={reporting || !reportReason.trim()} onClick={submitReport} className="dialog-danger"><Flag size={16} aria-hidden="true" />{reporting ? t('common.sending') : t('common.submit')}</button>
+      </>}>
+        <p className="text-sm text-ink-soft">{t(reportTarget?.type === 'post' ? 'post.reportPostHelp' : 'post.reportDesc')}</p>
+        <label htmlFor="post-report-reason" className="club-label mt-4">{t('template.reason')}</label>
+        <textarea id="post-report-reason" value={reportReason} onChange={(e) => setReportReason(e.target.value)} rows={4} placeholder={t('post.reportReasonPh')} className="club-field resize-none" />
+      </Modal>
     </main>
   )
 }

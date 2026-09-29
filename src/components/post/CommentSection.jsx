@@ -54,12 +54,12 @@ function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isR
             </p>
           </div>
           {canReport && (
-            <button onClick={() => onReport(id)} className="text-muted hover:text-status-error transition-colors p-1 rounded-md" aria-label={t('common.report')} title={t('common.report')}>
+            <button type="button" onClick={() => onReport(id)} className="grid min-h-11 min-w-11 place-items-center text-muted hover:text-status-error transition-colors" aria-label={t('common.report')} title={t('common.report')}>
               <Flag size={14} />
             </button>
           )}
           {canDelete && (
-            <button type="button" onClick={() => onDelete(id)} className="text-muted hover:text-status-error transition-colors p-1 rounded-md" aria-label={t('post.deleteComment')} title={t('post.deleteComment')}>
+            <button type="button" onClick={() => onDelete(id)} className="grid min-h-11 min-w-11 place-items-center text-muted hover:text-status-error transition-colors" aria-label={t('post.deleteComment')} title={t('post.deleteComment')}>
               <Trash2 size={14} />
             </button>
           )}
@@ -68,7 +68,7 @@ function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isR
         <div className="mt-1">
           <button 
             onClick={() => onReply(id, author?.name)} 
-            className="text-xs font-semibold text-muted hover:text-brand flex items-center gap-1 transition-colors"
+            className="min-h-11 text-xs font-semibold text-muted hover:text-brand flex items-center gap-1 transition-colors"
           >
             <Reply size={12} /> {t('post.reply', 'Reply')}
           </button>
@@ -207,8 +207,8 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
       </div>
       <Modal open={deleteTarget !== null} onClose={() => { if (!deletingRef.current) setDeleteTarget(null) }} title={t('post.deleteComment')}
         footer={<>
-          <button type="button" disabled={isDeleting} onClick={() => setDeleteTarget(null)} className="px-4 py-2 text-sm text-muted disabled:opacity-50">{t('common.cancel')}</button>
-          <button type="button" disabled={isDeleting} onClick={handleDelete} className="rounded-lg bg-status-error px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{t(isDeleting ? 'post.deletingComment' : 'common.delete')}</button>
+          <button type="button" disabled={isDeleting} onClick={() => setDeleteTarget(null)} className="dialog-secondary">{t('common.cancel')}</button>
+          <button type="button" disabled={isDeleting} onClick={handleDelete} className="dialog-danger">{t(isDeleting ? 'post.deletingComment' : 'common.delete')}</button>
         </>}>
         <p className="text-sm text-ink-soft">{t('post.confirmDeleteComment')}</p>
       </Modal>

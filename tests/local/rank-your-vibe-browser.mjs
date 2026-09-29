@@ -24,8 +24,9 @@ const shotRoutes = new Map([
   ['/', 'home'], ['/discover', 'discover'], ['/create', 'create'],
   ['/rank?template=ui-template', 'rank'], ['/post/ui-ranking', 'post'],
   ['/template/ui-template', 'template'], ['/template/ui-template/community', 'community'],
-  ['/profile/ui-user', 'profile'], ['/duel/ui-duel', 'duel'], ['/login', 'login'],
+  ['/profile/ui-user', 'profile'], ['/duel/ui-duel', 'duel'], ['/login', 'login'], ['/login?mode=signup', 'register'],
 ]);
+const compactDesktopShots = new Set(['/login', '/login?mode=signup', '/post/ui-ranking', '/template/ui-template/community', '/duel/ui-duel', '/profile/ui-user', '/discover']);
 if (shotPhase) fs.mkdirSync(`${output}/${shotPhase}`, { recursive: true });
 const errors = [];
 const violations = [];
@@ -70,7 +71,7 @@ try {
   const evaluate = async expression => { const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description); return r.result?.value; };
   await send('Runtime.enable'); await send('Page.enable');
   await send('Fetch.enable', { patterns: [{ urlPattern: '*/api/*' }] });
-  const routes = ['/', '/discover', '/discover?view=saved', '/discover/templates', '/discover/hashtags', '/create', '/rank?template=ui-template', '/rank?template=ui-template&mode=duel', '/template/ui-template', '/post/ui-ranking', '/template/ui-template/community', '/profile/ui-user', '/duel/ui-duel', '/login', '/forgot-password', '/reset-password', '/missing'];
+  const routes = ['/', '/discover', '/discover?view=saved', '/discover/templates', '/discover/hashtags', '/create', '/rank?template=ui-template', '/rank?template=ui-template&mode=duel', '/template/ui-template', '/post/ui-ranking', '/template/ui-template/community', '/profile/ui-user', '/duel/ui-duel', '/login', '/login?mode=signup', '/forgot-password', '/reset-password', '/missing'];
   let checks = 0;
   for (const theme of ['light', 'dark']) {
     for (const language of ['en', 'th']) {
@@ -82,13 +83,13 @@ try {
           if (await evaluate(`document.readyState === 'complete' && document.querySelector('nav') && !document.querySelector('.tier-loader')`)) break;
           await delay(100);
         }
-        for (const width of [320, 360, 375, 390, 412, 430, 768, 1024, 1440]) {
-          await send('Emulation.setDeviceMetricsOverride', { width, height: width === 390 ? 844 : 900, deviceScaleFactor: 1, mobile: false });
+        for (const width of [320, 360, 375, 390, 412, 430, 768, 1024, 1366, 1440]) {
+          await send('Emulation.setDeviceMetricsOverride', { width, height: width === 390 ? 844 : width === 1366 ? 768 : 900, deviceScaleFactor: 1, mobile: false });
           await delay(30);
           const result = await evaluate(`({ overflow: document.documentElement.scrollWidth > innerWidth + 1, width: document.documentElement.scrollWidth, title: document.querySelector('h1')?.textContent, error: document.body.textContent.includes('Something went wrong') })`);
           if (result.overflow || result.error) violations.push({ theme, language, route, width, result });
           checks++;
-          if ([390,1440].includes(width) && shotRoutes.has(route) && (language === 'en' || (shotPhase === 'after' && language === 'th' && ['/', '/discover', '/create', '/rank?template=ui-template'].includes(route)))) {
+          if (([390,1440].includes(width) || (width === 1366 && compactDesktopShots.has(route))) && shotRoutes.has(route) && (language === 'en' || (shotPhase === 'after' && language === 'th' && ['/', '/discover', '/create', '/rank?template=ui-template'].includes(route)))) {
             if (route === '/') await delay(500);
             const shot = await send('Page.captureScreenshot', { format: 'png' });
             fs.writeFileSync(`${output}/${shotPhase ? `${shotPhase}/` : ''}${theme}-${language === 'en' ? '' : 'th-'}${shotRoutes.get(route)}-${width}.png`, Buffer.from(shot.data, 'base64'));
@@ -184,7 +185,29 @@ try {
     assert.equal(controls.removeName, language === 'en' ? 'Remove #Food' : 'ลบ #Food');
     if (language === 'en') assert(!/[ก-๙]/.test(`${controls.placeholder} ${controls.removeName} ${controls.text}`), 'English tag controls contain no hardcoded Thai');
   }
-  fs.writeFileSync(`${output}/audit.json`, JSON.stringify({ checks, violations, errors, interactions: ['tap opens picker', 'focus enters picker', 'Escape dismisses picker', 'tap assignment', 'drop handler moves item', 'physical pointer drag', 'Discover search', 'Quick Add', '44px delete target', 'delete item', 'theme toggle', 'language toggle', 'Rank tag controls EN/TH', 'reduced motion'] }, null, 2));
+  viewer = { ...person, role: 'user' };
+  await evaluate(`localStorage.setItem('tog-lang', 'en')`);
+  await send('Page.navigate', { url: base + '/post/ui-ranking' });
+  for (let n = 0; n < 40; n++) { if (await evaluate(`!!document.querySelector('.post-board')`)) break; await delay(100); }
+  assert(await evaluate(`!!document.querySelector('button[aria-label="Delete"]')`), 'Owner sees post deletion action');
+  await evaluate(`(() => { const button = document.querySelector('button[aria-label="Report"]'); button.focus(); button.click(); })()`); await delay(80);
+  assert(await evaluate(`document.querySelector('[role=dialog][aria-modal=true]')?.textContent.includes('Report')`), 'Post report opens shared Action Modal');
+  assert(await evaluate(`document.querySelector('[role=dialog]').contains(document.activeElement)`), 'Report focus enters dialog');
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' }); await delay(80);
+  assert(await evaluate(`!document.querySelector('[role=dialog]') && document.activeElement?.getAttribute('aria-label') === 'Report'`), 'Report Escape closes and returns focus');
+  await evaluate(`document.querySelector('button[aria-label="Delete"]').click()`); await delay(80);
+  assert(await evaluate(`document.querySelector('[role=dialog][aria-modal=true]')?.textContent.includes('Delete')`), 'Delete uses shared Action Modal');
+  await evaluate(`document.querySelector('[role=dialog] .dialog-secondary').click()`); await delay(80);
+  assert(await evaluate(`!document.querySelector('[role=dialog]') && !!document.querySelector('.post-board')`), 'Delete Cancel keeps ranking intact');
+  await send('Page.navigate', { url: base + '/profile/ui-user' }); await delay(600);
+  assert(await evaluate(`!!Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Followers'))`), 'Profile follow list trigger renders');
+  await evaluate(`(() => { const button = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Followers')); button.focus(); button.click(); })()`); await delay(80);
+  assert(await evaluate(`!!document.querySelector('[role=dialog][aria-modal=true]') && document.querySelector('[role=dialog]').contains(document.activeElement)`), 'Profile follow list uses shared Modal and receives focus');
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' }); await delay(80);
+  assert(await evaluate(`!document.querySelector('[role=dialog]') && document.activeElement?.textContent.includes('Followers')`), 'Follow list Escape closes and returns focus');
+  fs.writeFileSync(`${output}/audit.json`, JSON.stringify({ checks, violations, errors, interactions: ['tap opens picker', 'focus enters picker', 'Escape dismisses picker', 'tap assignment', 'drop handler moves item', 'physical pointer drag', 'Discover search', 'Quick Add', '44px delete target', 'delete item', 'theme toggle', 'language toggle', 'Rank tag controls EN/TH', 'Post Action Modal report/delete focus and cancel', 'Profile follow list Modal focus and Escape', 'reduced motion'] }, null, 2));
   console.log(JSON.stringify({ checks, violations, errors }, null, 2));
   assert.equal(errors.length, 0, 'No runtime exceptions');
   assert.equal(violations.length, 0, 'No viewport overflow');

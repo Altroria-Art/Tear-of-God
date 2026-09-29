@@ -970,17 +970,31 @@ export default function Profile() {
           {/* Right Content: Create Template Button & List of User Posts */}
           <div className="lg:col-span-3 space-y-6">
 
+            {isOwnProfile && pinnedRankings.length > 0 && (
+              <section className="profile-defining-rankings">
+                <div className="profile-section-intro mb-4 p-4">
+                  <p className="club-serial text-ink-soft">TEAR OF GOD / {t('profile.pinnedTab')}</p>
+                  <h3 className="mt-1 text-lg font-black text-ink">{t('profile.pinnedTab')}</h3>
+                </div>
+                <div className="profile-ranking-grid grid grid-cols-2 gap-3 sm:gap-4">
+                  {pinnedRankings.slice(0, 3).map((post, index) => (
+                    <MiniTierTile key={post.id} post={post} isPinned isOwnProfile pinBusy={pinBusyId === post.id}
+                      onTogglePin={handleTogglePin} onSelect={() => navigate(`/post/${post.id}`)} featured={index === 0} t={t} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Create New Template Banner (เฉพาะโปรไฟล์ตัวเอง) */}
             {isOwnProfile && (
               <Link
                 to="/create"
-                className="profile-create-ticket border-2 border-dashed border-line hover:border-highlight p-6 text-center cursor-pointer transition-colors group"
+                className="profile-create-ticket border-2 border-dashed border-line hover:border-highlight p-4 text-left cursor-pointer transition-colors group"
               >
-                <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-canvas flex items-center justify-center text-brand group-hover:scale-105 transition-transform">
-                  +
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center border border-ink bg-surface text-xl font-black text-ink group-hover:scale-105 transition-transform" aria-hidden="true">+</span>
+                  <span><span className="block font-black text-ink">{t('profile.createNewTemplate')}</span><span className="block text-xs text-ink-soft">{t('profile.createNewTemplateHelp')}</span></span>
                 </div>
-                <h3 className="font-bold text-ink">{t('profile.createNewTemplate')}</h3>
-                <p className="text-xs text-muted">{t('profile.createNewTemplateHelp')}</p>
               </Link>
             )}
 
@@ -1416,32 +1430,21 @@ export default function Profile() {
 
       {/* Follow List Modal */}
       {followListModal && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setFollowListModal(null);
-          }}
+        <Modal
+          open
+          onClose={() => setFollowListModal(null)}
+          title={followListModal === 'followers' ? t('profile.followers') : t('profile.following')}
+          maxWidth="max-w-lg"
         >
-          <div className="glass w-full max-w-lg rounded-3xl p-8 shadow-2xl relative max-h-[85vh] flex flex-col">
-            <button
-              onClick={() => setFollowListModal(null)}
-              className="absolute top-4 right-4 text-muted hover:text-ink-soft font-bold"
-            >
-              ✕
-            </button>
-            <h3 className="text-xl font-bold text-ink mb-4 capitalize">
-              {followListModal === 'followers' ? t('profile.followers') : t('profile.following')}
-            </h3>
-            
-            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+            <div className="space-y-2">
               {isFollowListLoading ? (
                 <p className="text-center text-muted py-6">{t('profile.loading')}</p>
               ) : followListData.length === 0 ? (
                 <p className="text-center text-muted py-6">{t('profile.noUsers')}</p>
               ) : (
                 followListData.map(user => (
-                  <div key={user.id} 
-                    className="flex items-center gap-4 cursor-pointer hover:bg-surface p-3 rounded-xl transition-colors"
+                  <button key={user.id} type="button"
+                    className="flex min-h-11 w-full items-center gap-4 p-3 text-left transition-colors hover:bg-tag focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pop-violet"
                     onClick={() => {
                       setFollowListModal(null);
                       navigate(`/profile/${user.id}`);
@@ -1467,12 +1470,11 @@ export default function Profile() {
                       <div className="font-bold text-base text-ink">{user.username}</div>
                       {user.bio && <div className="text-sm text-muted line-clamp-1">{user.bio}</div>}
                     </div>
-                  </div>
+                  </button>
                 ))
               )}
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
     </div>
