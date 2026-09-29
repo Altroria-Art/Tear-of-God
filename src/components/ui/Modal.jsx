@@ -46,14 +46,14 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
-      <div ref={dialog} tabIndex={-1} className={`relative flex flex-col w-full max-h-[85dvh] ${maxWidth} rounded-2xl border border-line-soft bg-surface shadow-2xl shadow-black/30`}>
+      <div ref={dialog} tabIndex={-1} className={`dialog-panel relative flex flex-col w-full max-h-[85dvh] ${maxWidth} rounded-2xl border border-line bg-surface shadow-2xl shadow-black/30`}>
         <div className="flex shrink-0 items-center justify-between border-b border-line-soft px-5 py-4">
-          <h3 className="text-lg font-bold text-ink">{title}</h3>
+          <h3 className="min-w-0 text-lg font-black text-ink">{title}</h3>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onClose(); }}
             aria-label={t('common.close')}
-            className="rounded-md p-1.5 text-muted transition-colors hover:bg-tag hover:text-ink"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-muted transition-colors hover:bg-tag hover:text-ink"
           >
             <CloseIcon className="h-5 w-5" />
           </button>
@@ -64,7 +64,7 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
         </div>
 
         {footer && (
-          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-line-soft px-5 py-4">
+          <div className="flex flex-wrap shrink-0 items-center justify-end gap-3 border-t border-line-soft px-5 py-4">
             {footer}
           </div>
         )}

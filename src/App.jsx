@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { lazy } from 'react';
-import { useTranslation } from 'react-i18next';
+import TierLoader from './components/ui/TierLoader';
 import Navbar from './components/layout/Navbar';
 import ToastProvider from './components/ui/Toast';
 import { UserProvider } from './context/UserContext';
@@ -48,10 +48,9 @@ const AdminReports = lazy(() => import('./pages/admin/Reports'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function PageLoader() {
-  const { t } = useTranslation();
   return (
     <main className="min-h-screen flex items-center justify-center">
-      <p className="text-sm font-medium text-muted animate-pulse">{t('common.loading')}</p>
+      <TierLoader />
     </main>
   );
 }

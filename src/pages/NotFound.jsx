@@ -6,11 +6,12 @@ export default function NotFound() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-      <h1 className="text-4xl font-bold text-ink mb-4">404</h1>
+      <span className="sticker">404 · UNRANKED</span>
+      <h1 className="play-title">{t('play.missingTitle')}</h1>
       <h2 className="text-xl text-muted mb-8">{t('common.pageNotFound', 'Page not found')}</h2>
       <Link 
         to="/" 
-        className="px-6 py-2 bg-canvas border border-ink/10 rounded-md text-ink hover:bg-ink/5 transition-colors"
+        className="play-button"
       >
         {t('common.backHome')}
       </Link>

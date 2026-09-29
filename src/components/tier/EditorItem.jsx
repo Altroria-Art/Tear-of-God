@@ -5,6 +5,7 @@ import { normalizeImageUrl } from '../../lib/images';
 
 export default function EditorItem({ item, position, count, onMove, onShift, onDelete, onDragStart, onDragEnd }) {
   const { t } = useTranslation();
+  const [dragging, setDragging] = useState(false);
   const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
@@ -19,10 +20,11 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
     // The card is draggable, but its action buttons must remain reliable. Native
     // drag initiation from a nested button suppresses that button's click event
     // in some browsers, which made generated items appear non-interactive.
-    if (event.target instanceof Element && event.target.closest('button')) {
+    if (event.target instanceof Element && event.target.closest('button:not(.editor-item-main)')) {
       event.preventDefault();
       return;
     }
+    setDragging(true);
     onDragStart?.(event);
   };
 
@@ -33,16 +35,16 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
       data-item-id={item.id}
       draggable={Boolean(onDragStart)}
       onDragStart={handleDragStart}
-      onDragEnd={onDragEnd}
-      className="relative w-18 h-22 sm:w-20 sm:h-24 shrink-0 rounded-xl bg-item-card text-item-card-text border border-line-soft shadow-xs cursor-grab active:cursor-grabbing"
+      onDragEnd={event => { setDragging(false); onDragEnd?.(event); }}
+      className={`editor-item ${dragging ? 'is-dragging' : ''} relative w-22 h-28 sm:w-24 sm:h-30 shrink-0 rounded-xl bg-item-card text-item-card-text border border-line-soft shadow-xs cursor-grab active:cursor-grabbing`}
     >
       <button
         type="button"
-        onPointerDown={stopDragStart}
+        draggable={false}
         onClick={onMove}
         title={itemText}
         aria-label={t('editor.moveNamedItem', { name: itemText })}
-        className="w-full h-full px-1.5 pt-1.5 pb-7 rounded-xl text-center flex items-center justify-center overflow-hidden"
+        className="editor-item-main w-full h-full px-1.5 pt-1.5 pb-11 rounded-xl text-center flex items-center justify-center overflow-hidden"
       >
         {hasValidImage ? (
           <img
@@ -65,7 +67,7 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
           onClick={() => onShift(-1)}
           disabled={position === 0}
           aria-label={t('rank.moveLeft')}
-          className="p-1.5 rounded-lg hover:bg-tag disabled:opacity-25"
+          className="w-11 h-11 grid place-items-center rounded-lg hover:bg-tag disabled:opacity-25"
         >
           <ChevronLeft size={15} />
         </button>
@@ -75,7 +77,7 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
           onClick={() => onShift(1)}
           disabled={position === count - 1}
           aria-label={t('rank.moveRight')}
-          className="p-1.5 rounded-lg hover:bg-tag disabled:opacity-25"
+          className="w-11 h-11 grid place-items-center rounded-lg hover:bg-tag disabled:opacity-25"
         >
           <ChevronRight size={15} />
         </button>

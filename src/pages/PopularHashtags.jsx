@@ -1,3 +1,4 @@
+import TierLoader from '../components/ui/TierLoader';
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Filter } from 'lucide-react';
@@ -128,7 +129,7 @@ export default function PopularHashtags() {
             <button type="button" className="mt-4 rounded-xl bg-brand px-4 py-2 text-canvas" onClick={() => setRetry((n) => n + 1)}>{t('common.retry')}</button>
           </div>
         ) : isLoading ? (
-          <p className="text-muted animate-pulse text-center py-10">{t('discover.loadingHashtags')}</p>
+          <TierLoader />
         ) : hashtags.length === 0 ? (
           <p className="text-muted text-center py-10">{t('discover.emptyHashtags')}</p>
         ) : (

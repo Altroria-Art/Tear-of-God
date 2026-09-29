@@ -318,7 +318,7 @@ export default function ShareExportModal({
                 type="button"
                 onClick={handleDownload}
                 disabled={exporting}
-                className="rounded-lg bg-brand-accent px-4 py-2 text-sm font-bold text-canvas transition-all hover:brightness-110 active:scale-95 disabled:opacity-60"
+                className="play-button"
               >
                 {exporting ? t('shareExport.generating') : t('shareExport.download')}
               </button>
@@ -334,6 +334,7 @@ export default function ShareExportModal({
               <button
                 type="button"
                 onClick={() => setExportTheme('light')}
+                aria-pressed={exportTheme === 'light'}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                   exportTheme === 'light' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-muted hover:text-ink'
                 }`}
@@ -343,6 +344,7 @@ export default function ShareExportModal({
               <button
                 type="button"
                 onClick={() => setExportTheme('dark')}
+                aria-pressed={exportTheme === 'dark'}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                   exportTheme === 'dark' ? 'bg-gray-800 text-white shadow-sm border border-gray-700' : 'text-muted hover:text-ink'
                 }`}

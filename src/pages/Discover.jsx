@@ -1,3 +1,4 @@
+import PlayHeader from '../components/ui/PlayHeader';
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bookmark, ArrowRight, X } from 'lucide-react';
@@ -201,14 +202,15 @@ export default function Discover() {
     setParams(next);
   };
 
-  const grid = (list) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-      {list.map((template) => (
+  const grid = (list, editorial = false) => (
+    <div className={`grid grid-cols-1 sm:grid-cols-2 ${editorial ? 'xl:grid-cols-3 discover-editorial-grid' : 'xl:grid-cols-4'} gap-5`}>
+      {list.map((template, index) => (
         <TemplateCard
           key={template.id}
           template={template}
           onUse={useTemplate}
           inSavedView={saved}
+          featured={editorial && index === 0}
         />
       ))}
     </div>
@@ -216,12 +218,24 @@ export default function Discover() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-7 sm:py-10 text-ink">
+      {!saved && <PlayHeader eyebrow={t('play.discoverEyebrow')} title={t('play.discoverTitle')} description={t('play.discoverDescription')} />}
+      <form role="search" className="discover-search" onSubmit={event => {
+        event.preventDefault();
+        const query = new FormData(event.currentTarget).get('query').trim();
+        const next = new URLSearchParams(params);
+        if (query) next.set('q', query); else next.delete('q');
+        next.delete('page');
+        setParams(next);
+      }}>
+        <input key={q} name="query" type="search" defaultValue={q} aria-label={t('discover.search')} placeholder={t('nav.searchPlaceholder')} />
+        <button type="submit" className="play-button shrink-0">{t('play.searchAction')}</button>
+      </form>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-2">
+          <h2 className="text-xl font-extrabold tracking-tight mb-2">
             {t(saved ? 'discover.savedTemplates' : 'discover.title')}
-          </h1>
+          </h2>
           <p className="text-sm sm:text-base text-muted">
             {t(saved ? 'discover.savedHelp' : 'discover.subtitle')}
           </p>
@@ -327,7 +341,7 @@ export default function Discover() {
               </Link>
             </div>
             {templates.length ? (
-              grid(templates.slice(0, 4))
+              grid(templates.slice(0, 4), true)
             ) : (
               <p className="text-muted py-6">{t('discover.emptyTemplates')}</p>
             )}

@@ -1,3 +1,6 @@
+import TierLoader from '../components/ui/TierLoader';
+import HomeShowcase from '../components/ui/HomeShowcase';
+import PlayHeader from '../components/ui/PlayHeader';
 import TierRow from '../components/feed/TierRow';
 import { buildTierRows } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -148,7 +151,7 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   );
 }
 
-function HomeTierCard({ post, onRequireAuth, onVoteChange }) {
+function HomeTierCard({ post, onRequireAuth, onVoteChange, featured = false }) {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
@@ -223,7 +226,7 @@ function HomeTierCard({ post, onRequireAuth, onVoteChange }) {
   );
 
   return (
-    <article className="bg-surface border border-line-soft rounded-[20px] p-4 sm:p-6 shadow-sm">
+    <article className={`social-card bg-surface border border-line-soft rounded-[20px] p-4 sm:p-6 shadow-sm ${featured ? 'feed-card--featured' : ''}`}>
       {/* Header Profile & Use Template Button */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-4">
         <div className="flex min-w-0 items-start gap-3 sm:items-center">
@@ -895,6 +898,7 @@ export default function HomeFeed() {
 
   return (
     <div className="min-h-screen font-sans">
+      <div className="mx-auto max-w-7xl px-4 pt-5"><PlayHeader variant="home" eyebrow={t('play.homeEyebrow')} title={<><span>{t('play.homeWord1')}</span><span>{t('play.homeWord2')} <em>{t('play.homeWord3')}</em></span></>} description={t('play.homeDescription')} action={t('play.createAction')} to="/create" visual={<HomeShowcase />} /></div>
       {/* Floating Tab Navigation Capsule with Auto-hide on Scroll */}
       <div
         className={`sticky top-[80px] z-30 flex justify-center pointer-events-none transition-all duration-300 ease-in-out pb-2 ${
@@ -917,7 +921,7 @@ export default function HomeFeed() {
                   setActiveTab(id);
                 }
               }}
-              className={`flex items-center gap-1.5 rounded-full px-3 sm:px-5 py-1.5 text-[11px] sm:text-xs font-bold transition-all duration-200 ${
+              className={`flex items-center gap-1.5 rounded-full min-h-11 px-3 sm:px-5 py-1.5 text-[11px] sm:text-xs font-bold transition-all duration-200 ${
                 activeTab === id
                   ? 'bg-brand text-canvas shadow-xs scale-100'
                   : 'text-muted hover:text-ink hover:bg-surface-glass scale-95'
@@ -937,7 +941,7 @@ export default function HomeFeed() {
             <FeaturedPrompts compact />
           )}
         </aside>
-        <main className="w-full max-w-2xl shrink">
+        <main className="w-full min-w-0 max-w-2xl shrink">
         <div className="space-y-6">
           {activeTab === 'for_you' && !currentUser && (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-line-soft bg-surface/80 p-3.5 text-xs text-muted shadow-xs">
@@ -956,9 +960,7 @@ export default function HomeFeed() {
           )}
 
           {isLoading && (
-            <p className="text-center text-sm font-medium text-muted animate-pulse py-10">
-              {t('feed.loadingYourFeed')}
-            </p>
+            <TierLoader />
           )}
 
           {!isLoading && trendingError && (
@@ -999,7 +1001,7 @@ export default function HomeFeed() {
 
           {!isLoading && !feedLocked && !followingEmpty && !allSeen && !trendingError && displayData.length === 0 && (
             <div className="text-center py-16 bg-surface rounded-2xl border border-line-soft shadow-sm">
-              <p className="text-muted font-medium">{t('feed.empty')}</p>
+              <p className="text-xl font-black text-ink">{t('play.emptyTitle')}</p><p className="mt-2 text-muted font-medium">{t('feed.empty')}</p>
               <button onClick={() => navigate('/create')} className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-brand hover:underline">
                 {t('feed.emptyCta')}
               </button>
@@ -1053,11 +1055,11 @@ export default function HomeFeed() {
                 windowSize={12}
                 bufferBefore={3}
                 estimatedItemHeight={440}
-                renderItem={(post) => activeTab === 'trending' ? (
+                renderItem={(post, index) => activeTab === 'trending' ? (
                   <SeenCardObserver postId={post.id} onSeen={handleSeen}>
-                    <HomeTierCard post={post} onVoteChange={handleVoteChange} onRequireAuth={(next) => setGuestPrompt({ open: true, next })} />
+                    <HomeTierCard post={post} featured={index === 0} onVoteChange={handleVoteChange} onRequireAuth={(next) => setGuestPrompt({ open: true, next })} />
                   </SeenCardObserver>
-                ) : <HomeTierCard post={post} onVoteChange={handleVoteChange} onRequireAuth={(next) => setGuestPrompt({ open: true, next })} />}
+                ) : <HomeTierCard post={post} featured={index === 0} onVoteChange={handleVoteChange} onRequireAuth={(next) => setGuestPrompt({ open: true, next })} />}
               />
           )}
           {!isLoading && !isLoadingMore && hasMore && displayData.length === 0 && (

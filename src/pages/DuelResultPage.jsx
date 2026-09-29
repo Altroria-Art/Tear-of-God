@@ -1,3 +1,4 @@
+import PlayHeader from '../components/ui/PlayHeader';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Swords, ArrowLeft, User, Share2, Check, ExternalLink, Sparkles, Users } from 'lucide-react';
@@ -98,7 +99,7 @@ export default function DuelResultPage() {
     <main className="min-h-screen font-sans text-ink">
       <div className="mx-auto max-w-4xl px-4 py-6 sm:py-10 flex flex-col gap-6 sm:gap-8">
         {/* Navigation Bar */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap gap-3 items-center justify-between">
           <Link
             to={`/template/${encodeURIComponent(template.id)}`}
             className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-muted hover:text-ink transition-colors"
@@ -116,8 +117,9 @@ export default function DuelResultPage() {
           </button>
         </div>
 
+        <PlayHeader eyebrow={t('play.resultEyebrow')} title={t('play.resultTitle')} description={template.title} reveal />
         {/* Hero Card: Taste Match Overview */}
-        <section className="relative overflow-hidden rounded-3xl glass border border-line-soft/80 p-6 sm:p-10 shadow-xl text-center bg-surface/70 flex flex-col items-center gap-6">
+        <section className="duel-score relative overflow-hidden rounded-3xl glass border border-line-soft/80 p-6 sm:p-10 shadow-xl text-center bg-surface/70 flex flex-col items-center gap-6">
           {/* Ambient Glow */}
           <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-highlight/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -183,21 +185,10 @@ export default function DuelResultPage() {
           </div>
 
           {/* Dual Stat Metrics: Owner Match vs Community Match */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full max-w-xl mt-4">
-            {/* 1. vs Template Owner */}
-            <div className="rounded-2xl border border-line-soft/80 bg-surface/80 p-4 flex flex-col items-center text-center shadow-xs">
-              <span className="text-xs font-bold text-muted uppercase tracking-wider mb-1">
-                {t('duel.duelWith', { name: owner.username })}
-              </span>
-              <span className="text-2xl sm:text-3xl font-black text-ink">
-                {duel.similarity_score}%
-              </span>
-              <span className="text-xs text-muted mt-1">
-                {comparison?.matched_items} / {comparison?.total_items} {t('duel.sameTier')}
-              </span>
-            </div>
-
-            {/* 2. vs Community Average */}
+          <p className="rounded-full bg-tag px-3 py-1.5 text-xs font-bold text-ink-soft">
+            {comparison?.matched_items} / {comparison?.total_items} {t('duel.sameTier')}
+          </p>
+          <div className="w-full max-w-sm">
             <div className="rounded-2xl border border-line-soft/80 bg-surface/80 p-4 flex flex-col items-center text-center shadow-xs">
               <span className="text-xs font-bold text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
                 <Users size={14} className="text-brand-accent" />

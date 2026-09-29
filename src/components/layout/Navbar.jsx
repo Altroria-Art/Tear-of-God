@@ -175,7 +175,7 @@ const Navbar = () => {
   const isActive = (path) => {
     const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
     return active
-      ? 'text-brand font-bold bg-brand/10'
+      ? 'text-brand font-bold bg-brand/10 shadow-[inset_0_-3px_0_currentColor]'
       : 'text-ink-soft hover:text-ink hover:bg-surface/50 font-medium';
   };
 
@@ -209,19 +209,19 @@ const Navbar = () => {
           >
             {isMobileMenuOpen ? <X size={22} strokeWidth={2.75} /> : <Menu size={22} strokeWidth={2.75} />}
           </button>
-          <Link to="/" onClick={handleHomeClick} className="inline-flex min-h-10 items-center whitespace-nowrap text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
-            Tear of God
+          <Link to="/" onClick={handleHomeClick} className="brand-wordmark gap-2 inline-flex min-h-11 items-center whitespace-nowrap text-base min-[375px]:text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
+            <span className="brand-mark hidden min-[375px]:inline-grid" aria-hidden="true">t</span>Tear of God
           </Link>
         </div>
 
         <div className="hidden lg:flex items-center gap-1.5 text-sm">
-          <Link to="/" onClick={handleHomeClick} className={`inline-flex min-h-10 items-center px-3 rounded-lg transition-all ${isActive('/')}`}>
+          <Link to="/" onClick={handleHomeClick} className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/')}`}>
             {t('nav.home')}
           </Link>
-          <Link to="/create" className={`inline-flex min-h-10 items-center px-3 rounded-lg transition-all ${isActive('/create')}`}>
+          <Link to="/create" aria-current={location.pathname === '/create' ? 'page' : undefined} className="play-button">
             {t('nav.create')}
           </Link>
-          <Link to="/discover" className={`inline-flex min-h-10 items-center px-3 rounded-lg transition-all ${isActive('/discover')}`}>
+          <Link to="/discover" className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/discover')}`}>
             {t('nav.discover')}
           </Link>
         </div>
@@ -266,7 +266,7 @@ const Navbar = () => {
         {/* ปุ่มเปลี่ยนภาษา */}
         <button
           onClick={toggleLanguage}
-          className="w-10 h-10 bg-surface rounded-full hidden sm:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft cursor-pointer"
+          className="w-11 h-11 bg-surface rounded-full hidden sm:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft cursor-pointer"
           aria-label={t('nav.toggleLanguage')}
           title={t('nav.toggleLanguage')}
         >
@@ -276,7 +276,7 @@ const Navbar = () => {
         {/* ปุ่มเปลี่ยนธีม Ultra-smooth */}
         <button
           onClick={toggleTheme}
-          className="w-10 h-10 bg-surface rounded-full hidden sm:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 active:scale-90 hover:scale-105 shadow-sm border border-line-soft cursor-pointer select-none overflow-hidden"
+          className="w-11 h-11 bg-surface rounded-full hidden sm:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 active:scale-90 hover:scale-105 shadow-sm border border-line-soft cursor-pointer select-none overflow-hidden"
           aria-label={t('nav.toggleTheme')}
         >
           <div className="transform transition-transform duration-300">
@@ -300,7 +300,7 @@ const Navbar = () => {
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                   aria-label={t('nav.profile')}
                   aria-expanded={isDropdownOpen}
-                  className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
+                  className="w-11 h-11 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
                 >
                   {currentUser?.avatar_url ? (
                     <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
@@ -347,7 +347,7 @@ const Navbar = () => {
             <Link 
               to="/login" 
               aria-label={t('nav.login')}
-              className="w-10 h-10 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
+              className="w-11 h-11 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
             >
               <User size={18} strokeWidth={2.5} />
             </Link>

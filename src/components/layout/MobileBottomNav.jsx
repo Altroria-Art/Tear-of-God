@@ -25,7 +25,7 @@ export default function MobileBottomNav() {
       <div className="h-20 md:hidden" aria-hidden="true" />
       <nav
         aria-label={t('nav.mobileNavigation')}
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-line-soft bg-canvas/90 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden"
+        className="bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-line-soft bg-canvas/90 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden"
       >
         <div className="mx-auto grid max-w-md grid-cols-4">
           {items.map(({ to, icon: Icon, label, exact, prominent, saved }) => {
@@ -49,7 +49,7 @@ export default function MobileBottomNav() {
                   active ? 'text-brand' : 'text-muted hover:bg-surface-glass hover:text-ink'
                 }`}
               >
-                <span className={prominent ? 'grid h-8 w-11 place-items-center rounded-full bg-brand text-canvas shadow-sm' : ''}>
+                <span className={prominent ? 'grid h-8 w-11 place-items-center rounded-full bg-acid text-acid-ink shadow-sm' : ''}>
                   <Icon size={prominent ? 21 : 20} strokeWidth={active || prominent ? 2.5 : 2} fill={saved && active ? 'currentColor' : 'none'} />
                 </span>
                 <span className="max-w-20 truncate">{t(label)}</span>

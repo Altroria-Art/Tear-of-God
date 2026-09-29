@@ -341,7 +341,7 @@ function PostDetailContent() {
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
 
-          <article className="mt-4 rounded-2xl border border-line-soft glass p-4 shadow-sm">
+          <article className="social-card mt-4 p-4 sm:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
               <div className="flex min-w-0 items-center gap-3">
@@ -404,7 +404,7 @@ function PostDetailContent() {
             </div>
 
             <div className="mt-2 flex min-w-0 items-center gap-2.5 flex-wrap">
-              <h1 className="min-w-0 text-xl font-bold text-ink break-words sm:text-2xl">{title}</h1>
+              <h1 className="min-w-0 text-2xl font-black text-ink break-words sm:text-3xl">{title}</h1>
               {post.isOriginal ? (
                 <span
                   title={t('profile.badgeOriginal')}
@@ -481,7 +481,7 @@ function PostDetailContent() {
                 />
                 <ActionButton icon={CommentIcon} count={stats.comments} label={t('post.comments')} onClick={handleCommentClick} />
               </div>
-              <div className="ml-auto flex items-center gap-3">
+              <div className="ml-auto flex flex-wrap items-center gap-3">
                 {post.templateId && (
                   <ActionButton
                     icon={Swords}

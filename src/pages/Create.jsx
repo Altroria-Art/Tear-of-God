@@ -1,9 +1,11 @@
+import DropZone from '../components/tier/DropZone';
+import PlayHeader from '../components/ui/PlayHeader';
 import { getInsertIndexFromZone, groupEditorItems, normalizeCreateDraft } from '../lib/editorBoard';
 import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Settings, X, ChevronLeft, Zap, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -72,6 +74,7 @@ const CreateTierList = () => {
   const [title, setTitle] = useState(draft?.title ?? '');
   const [description, setDescription] = useState(draft?.description ?? '');
   const [isPublishing, setIsPublishing] = useState(false);
+  const publishPendingRef = useRef(false);
 
   // ลำดับ item ใน array = ลำดับการแสดงผลภายใน tier → restore แล้วตำแหน่งเดิมทุกชิ้น
   const [items, setItems] = useState(
@@ -325,7 +328,7 @@ const CreateTierList = () => {
 
   const handlePublish = async () => {
     if (!currentUser) { toast.warning(t('create.warnLoginPublish')); navigate(loginPath('/create')); return; }
-    if (isPublishing) return;
+    if (isPublishing || publishPendingRef.current) return;
     if (!title.trim()) { return toast.warning(t('create.warnName')); }
     if (selectedHashtags.length === 0) { return toast.warning(t('create.warnHashtag')); }
 
@@ -346,6 +349,7 @@ const CreateTierList = () => {
       return toast.error(t('create.errUnrankedItems', { count: unrankedItems.length, names, more }));
     }
 
+    publishPendingRef.current = true;
     setIsPublishing(true);
     const rankingData = {
       payload: {
@@ -378,6 +382,7 @@ const CreateTierList = () => {
     };
 
     const { error, data } = await createRanking(rankingData);
+    publishPendingRef.current = false;
     setIsPublishing(false);
 
     if (error) {
@@ -395,29 +400,19 @@ const CreateTierList = () => {
     <div className="min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
       
 {/* POPUP SETTINGS MODAL */}
-      {activeSettingsTier && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) closeSettings(); }}>
-          <div className="bg-surface border border-line text-ink w-full max-w-md rounded-lg shadow-2xl relative">
-            <button onClick={closeSettings} className="absolute top-4 right-4 text-muted hover:text-ink transition-colors"><X size={20} /></button>
-            <div className="p-8">
-              <h3 className="text-center font-bold text-base mb-6">{t('create.chooseLabelBg')}</h3>
-              <div className="flex flex-wrap justify-center gap-2.5 mb-8 px-4">
-                {palette.map(color => (
-                  <button key={color} onClick={() => handlePickColor(color)}
-                    style={{ backgroundColor: color }}
-                    className={`w-8 h-8 rounded-full cursor-pointer border-2 transition-all duration-200 hover:scale-110 ${(pendingColor ?? tiers.find((tier) => tier.id === activeSettingsTier.id)?.color) === color ? 'border-white scale-110' : 'border-transparent'}`}                  />
-                ))}
-              </div>
-              <h3 className="text-center font-bold text-base mb-4">{t('create.editLabelText')}</h3>
-              <input type="text" value={tiers.find((tier) => tier.id === activeSettingsTier.id)?.label || ''} onChange={(e) => updateTierData(activeSettingsTier.id, 'label', e.target.value)} className="w-full bg-canvas text-ink p-3.5 rounded-md outline-none focus:ring-2 focus:ring-brand mb-6 font-medium shadow-inner" />
-              <div className="flex justify-center">
-                <button onClick={saveTierSettings} className="bg-brand-accent hover:bg-surface text-canvas py-3 px-6 rounded-md font-bold transition-colors w-full shadow-sm">{t('common.save')}</button>
-              </div>
-            </div>
+      <Modal open={!!activeSettingsTier} onClose={closeSettings} title={t('create.chooseLabelBg')}>
+        {activeSettingsTier && <>
+          <div className="flex flex-wrap justify-center gap-3 mb-6">
+            {palette.map(color => {
+              const selected = (pendingColor ?? tiers.find(tier => tier.id === activeSettingsTier.id)?.color) === color;
+              return <button key={color} type="button" aria-label={color} aria-pressed={selected} onClick={() => handlePickColor(color)} style={{ backgroundColor: color }} className="w-11 h-11 rounded-xl border-2 border-line text-acid-ink font-black">{selected ? '✓' : ''}</button>;
+            })}
           </div>
-        </div>
-      )}
-
+          <label htmlFor="tier-label" className="block font-bold text-sm mb-2">{t('create.editLabelText')}</label>
+          <input id="tier-label" value={tiers.find(tier => tier.id === activeSettingsTier.id)?.label || ''} onChange={event => updateTierData(activeSettingsTier.id, 'label', event.target.value)} className="w-full bg-canvas text-ink p-3 rounded-xl border border-line mb-6" />
+          <button onClick={saveTierSettings} className="play-button w-full">{t('common.save')}</button>
+        </>}
+      </Modal>
 
       <AssignTierModal item={selectedItem} tiers={tiers} onClose={() => setSelectedItem(null)} onAssign={tierId => { setItems(prev => repositionItem(prev, selectedItem.id, tierId, 9999)); setSelectedItem(null); }} />
 
@@ -450,25 +445,84 @@ const CreateTierList = () => {
 
 
 
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-black text-brand">{t('create.title')}</h1>
-          {!currentUser && (
-            <span className="rounded-full border border-brand/30 bg-brand/10 px-3 py-1 text-xs font-bold text-brand">
-              {t('create.guestStart')}
-            </span>
-          )}
-        </div>
-        <p className="mt-2 text-muted font-medium">{t('create.subtitle')}</p>
-        <p className="mt-1 text-xs font-semibold text-muted">{t('create.detailsLater')}</p>
-      </div>
+      <div className="max-w-7xl mx-auto"><PlayHeader eyebrow={t('play.createEyebrow')} title={t('play.createTitle')} description={t('play.rankDescription')}>
+        <ol className="editor-steps"><li>{t('play.stepItems')}</li><li>{t('play.stepRank')}</li><li>{t('play.stepPublish')}</li></ol>
+        {!currentUser && <p className="mt-3 text-xs text-muted">{t('create.guestStart')}</p>}
+      </PlayHeader></div>
 
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6">
-        
-        {/* LEFT SIDEBAR */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-6">
-          <section className="order-1 glass p-4 sm:p-6 rounded-2xl">
+      <div className="max-w-7xl mx-auto grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
+          <div className={`quick-add-panel lg:col-start-2 lg:row-start-1 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4 ${items.length === 0 ? 'is-empty' : ''}`}>
+            <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>
+            <p className="text-xs text-muted mb-2 font-medium">{t('create.quickAddHelp')}</p>
+            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
+            <div className="flex justify-end">
+              <button onClick={handleGenerateCards} className="bg-surface hover:bg-brand hover:text-canvas hover:border-transparent text-brand font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
+                <Plus size={16} /> {t('create.generate')}
+              </button>
+            </div>
+          </div>
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2 flex flex-col gap-6">
+          <div className={`create-board glass p-4 sm:p-6 rounded-2xl ${items.length === 0 ? 'is-empty' : ''}`}>
+            {items.length === 0 && <p className="create-board-hint" role="status">{t('play.emptyBoardHint')}</p>}
+
+            <div className="flex flex-col gap-3">
+              {effectiveTiers.map((tier, tierIndex) => (
+                <div key={tier.id} className="flex min-h-[90px] bg-tag border border-line-soft rounded-2xl overflow-hidden">
+                  <TierLabel
+                    label={tier.label}
+                    color={tier.color}
+                    style={{ boxShadow: 'inset -2px 0 10px rgba(0,0,0,0.2)' }}
+                    className={`w-14 sm:w-24 p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
+                  />
+                  <DropZone topTier={tierIndex === 0} className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
+                    {(itemGroups.byTier.get(tier.id) ?? []).map(renderItemCard)}
+                  </DropZone>
+
+                  <div className="w-10 sm:w-14 shrink-0 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
+                    <button onClick={() => openTierSettings(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <hr className="my-8 border-line-soft/50" />
+
+            {/* UNRANKED ITEMS POOL */}
+            <div>
+              <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
+                <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">{t('create.unrankedPool')}</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleReturnToPool}
+                    title={t('create.backToPoolTip')}
+                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink-soft transition-all hover:bg-surface hover:text-ink hover:shadow-md active:scale-95"
+                  >
+                    <ChevronLeft size={14} /> {t('create.backToPool')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetAll}
+                    title={t('create.resetAllTip')}
+                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300 hover:shadow-md active:scale-95"
+                  >
+                    <X size={14} /> {t('create.resetAll')}
+                  </button>
+                </div>
+              </div>
+              <DropZone className="bg-surface-glass border border-line-soft min-h-24 rounded-xl p-3 flex flex-wrap gap-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
+                {itemGroups.unranked.length === 0 ? (
+                  <span className="text-muted text-sm italic font-medium w-full text-center my-5 pointer-events-none">{t('create.noItems')}</span>
+                ) : (
+                  itemGroups.unranked.map(renderItemCard)
+                )}</DropZone>
+            </div>
+
+
+          </div>
+        </div>
+
+          <section className="lg:col-start-2 lg:row-start-2 glass p-4 sm:p-6 rounded-2xl">
             <h2 className="font-bold">{t('editor.details')}</h2>
             <div className="flex flex-col gap-5 mt-4">
             <div>
@@ -551,80 +605,6 @@ const CreateTierList = () => {
             </div>
           </div>
           </section>
-
-          <div className="order-2 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4">
-            <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>
-            <p className="text-xs text-muted mb-2 font-medium">{t('create.quickAddHelp')}</p>
-            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
-            <div className="flex justify-end">
-              <button onClick={handleGenerateCards} className="bg-surface hover:bg-brand hover:text-canvas hover:border-transparent text-brand font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
-                <Plus size={16} /> {t('create.generate')}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT CANVAS */}
-        <div className="w-full lg:w-2/3 flex flex-col gap-6">
-          <div className="glass p-4 sm:p-6 rounded-2xl ">
-
-            <div className="flex flex-col gap-3">
-              {effectiveTiers.map((tier) => (
-                <div key={tier.id} className="flex min-h-[90px] bg-tag border border-line-soft rounded-2xl overflow-hidden">
-                  <TierLabel
-                    label={tier.label}
-                    color={tier.color}
-                    style={{ boxShadow: 'inset -2px 0 10px rgba(0,0,0,0.2)' }}
-                    className={`w-14 sm:w-24 p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
-                  />
-                  <div className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center bg-transparent" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>
-                    {(itemGroups.byTier.get(tier.id) ?? []).map(renderItemCard)}
-                  </div>
-
-                  <div className="w-10 sm:w-14 shrink-0 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
-                    <button onClick={() => openTierSettings(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <hr className="my-8 border-line-soft/50" />
-
-            {/* UNRANKED ITEMS POOL */}
-            <div>
-              <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
-                <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">{t('create.unrankedPool')}</h3>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleReturnToPool}
-                    title={t('create.backToPoolTip')}
-                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink-soft transition-all hover:bg-surface hover:text-ink hover:shadow-md active:scale-95"
-                  >
-                    <ChevronLeft size={14} /> {t('create.backToPool')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleResetAll}
-                    title={t('create.resetAllTip')}
-                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300 hover:shadow-md active:scale-95"
-                  >
-                    <X size={14} /> {t('create.resetAll')}
-                  </button>
-                </div>
-              </div>
-              <div className="bg-surface-glass border border-line-soft min-h-24 rounded-xl p-3 flex flex-wrap gap-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
-                {itemGroups.unranked.length === 0 ? (
-                  <span className="text-muted text-sm italic font-medium w-full text-center my-5 pointer-events-none">{t('create.noItems')}</span>
-                ) : (
-                  itemGroups.unranked.map(renderItemCard)
-                )}
-              </div>
-            </div>
-
-
-          </div>
-        </div>
       </div>
       <EditorToolbar ranked={items.length - itemGroups.unranked.length} total={items.length} onSave={handlePublish} saving={isPublishing} />
     </div>
