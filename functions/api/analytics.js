@@ -17,9 +17,12 @@ const EVENT_NAMES = [
   'ranking_start',
   'ranking_publish',
   'share_complete',
+  'discover_fallback',
+  'feed_end_reached',
+  'empty_state_cta_click',
 ];
 
-const ENTITY_TYPES = ['feed', 'template', 'ranking'];
+const ENTITY_TYPES = ['feed', 'template', 'ranking', 'discover_window', 'button'];
 
 function shouldRunCleanup() {
   const sample = new Uint8Array(1);

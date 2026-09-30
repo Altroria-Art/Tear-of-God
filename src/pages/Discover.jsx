@@ -142,7 +142,7 @@ export default function Discover() {
       if (result.success && result.fallback_from) {
         trackEvent('discover_fallback', {
           entityType: 'discover_window',
-          entityId: `${result.fallback_from}->${result.window}`,
+          entityId: `${result.fallback_from}:${result.window}`,
           onceKey: `fallback:${result.fallback_from}->${result.window}`
         });
       }
