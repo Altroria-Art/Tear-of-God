@@ -9,9 +9,9 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
     <div className={`
       hidden lg:flex flex-col items-center justify-center p-12
       absolute top-0 left-1/2 w-1/2 h-full z-20 overflow-hidden
-      bg-ink border-line-soft
+      bg-hero-surface border-line-soft
       transition-transform duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-      ${isRegister ? '-translate-x-full border-r-2 border-r-ink shadow-[5px_0_0_var(--color-pop-pink)]' : 'translate-x-0 border-l-2 border-l-ink shadow-[-5px_0_0_var(--color-pop-pink)]'}
+      ${isRegister ? '-translate-x-full border-r-2 border-r-hero-surface shadow-[5px_0_0_var(--color-pop-pink)]' : 'translate-x-0 border-l-2 border-l-hero-surface shadow-[-5px_0_0_var(--color-pop-pink)]'}
       motion-reduce:transition-none
     `}>
       {/* Background decoration */}
@@ -29,38 +29,38 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
         inert={isRegister ? true : undefined}
       >
         <div className="flex flex-col items-center max-w-[280px]">
-          <h2 className="text-3xl font-display font-black text-canvas uppercase tracking-tight leading-none mb-3">
+          <h2 className="text-3xl font-display font-black text-hero-ink uppercase tracking-tight leading-none mb-3">
             {t('auth.joinTheClub')}
           </h2>
           <RipMark className="h-4 w-24 text-acid mb-6" />
           
-          <div className="w-full bg-surface/10 rounded-xl p-4 mb-8 border border-white/10 shadow-lg" aria-hidden="true">
-            <div className="flex min-h-9 items-stretch gap-1 bg-ink/50 p-1 mb-1 rounded-sm border border-white/5">
+          <div className="w-full bg-hero-ink/10 rounded-xl p-4 mb-8 border border-white/10 shadow-lg" aria-hidden="true">
+            <div className="flex min-h-9 items-stretch gap-1 bg-hero-surface/50 p-1 mb-1 rounded-sm border border-white/5">
               <TierLabel label="S" color="bg-[#ff7f7f]" className="w-10 text-sm font-black" />
               <div className="flex flex-wrap items-center gap-1.5 px-2">
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleAnime')}</span>
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleMusic')}</span>
+                <span className="bg-hero-ink/90 text-hero-surface px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleAnime')}</span>
+                <span className="bg-hero-ink/90 text-hero-surface px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleMusic')}</span>
               </div>
             </div>
-            <div className="flex min-h-9 items-stretch gap-1 bg-ink/50 p-1 mb-1 rounded-sm border border-white/5">
+            <div className="flex min-h-9 items-stretch gap-1 bg-hero-surface/50 p-1 mb-1 rounded-sm border border-white/5">
               <TierLabel label="A" color="bg-[#ffbf7f]" className="w-10 text-sm font-black" />
               <div className="flex flex-wrap items-center gap-1.5 px-2">
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleGames')}</span>
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleFood')}</span>
+                <span className="bg-hero-ink/90 text-hero-surface px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleGames')}</span>
+                <span className="bg-hero-ink/90 text-hero-surface px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleFood')}</span>
               </div>
             </div>
-            <div className="flex min-h-9 items-stretch gap-1 bg-ink/50 p-1 rounded-sm border border-white/5">
+            <div className="flex min-h-9 items-stretch gap-1 bg-hero-surface/50 p-1 rounded-sm border border-white/5">
               <TierLabel label="B" color="bg-[#ffff7f]" className="w-10 text-sm font-black" />
               <div className="flex flex-wrap items-center gap-1.5 px-2">
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleMovies')}</span>
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleCampus')}</span>
+                <span className="bg-hero-ink/90 text-hero-surface px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleMovies')}</span>
+                <span className="bg-hero-ink/90 text-hero-surface px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleCampus')}</span>
               </div>
             </div>
           </div>
           
-          <p className="text-sm text-canvas/80 font-medium mb-1">{t('auth.buildTierLists')}</p>
-          <p className="text-sm text-canvas/80 font-medium mb-1">{t('auth.shareYourTakes')}</p>
-          <p className="text-sm text-canvas/80 font-medium mb-8">{t('auth.seeWhereEveryoneStands')}</p>
+          <p className="text-sm text-hero-ink/80 font-medium mb-1">{t('auth.buildTierLists')}</p>
+          <p className="text-sm text-hero-ink/80 font-medium mb-1">{t('auth.shareYourTakes')}</p>
+          <p className="text-sm text-hero-ink/80 font-medium mb-8">{t('auth.seeWhereEveryoneStands')}</p>
           
           <button 
             type="button" 
@@ -85,12 +85,12 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
         inert={!isRegister ? true : undefined}
       >
         <div className="flex flex-col items-center max-w-[280px]">
-          <h2 className="text-3xl font-display font-black text-canvas uppercase tracking-tight leading-none mb-3">
+          <h2 className="text-3xl font-display font-black text-hero-ink uppercase tracking-tight leading-none mb-3">
             {t('auth.alreadyRanking')}
           </h2>
           <RipMark className="h-4 w-24 text-pop-violet mb-6" />
           
-          <p className="text-base text-canvas/90 font-bold mb-8">{t('auth.yourListsWaiting')}</p>
+          <p className="text-base text-hero-ink/90 font-bold mb-8">{t('auth.yourListsWaiting')}</p>
           
           <button 
             type="button" 
