@@ -349,7 +349,11 @@
     "activityLoading": "กำลังโหลดกิจกรรม...",
     "activityLiked": "{{name}} กดถูกใจลิสต์",
     "activityUsedTemplate": "{{name}} เข้าร่วมเทมเพลต",
-    "activityCreatedRanking": "{{name}} สร้างลิสต์ใหม่"
+    "activityCreatedRanking": "{{name}} สร้างลิสต์ใหม่",
+    "allCaughtUp": "คุณดูครบหมดแล้ว!",
+    "allCaughtUpSubtitle": "คุณได้เห็นการจัดอันดับล่าสุดทั้งหมดแล้ว",
+    "exploreTemplates": "สำรวจเทมเพลต",
+    "createRanking": "สร้างการจัดอันดับ"
   },
   "topicFollow": {
     "follow": "ติดตามหัวข้อนี้",
@@ -621,7 +625,9 @@
     "reportDesc": "กรุณาระบุเหตุผลในการรายงาน",
     "confirmDelete": "คุณแน่ใจหรือไม่ว่าต้องการลบโพสต์นี้?",
     "deleteSuccess": "ลบโพสต์เรียบร้อยแล้ว",
-    "deleteFailed": "ลบโพสต์ไม่สำเร็จ: {{msg}}"
+    "deleteFailed": "ลบโพสต์ไม่สำเร็จ: {{msg}}",
+    "startDiscussion": "เริ่มบทสนทนา",
+    "beTheFirst": "มาเป็นคนแรกที่แชร์ความเห็นของคุณ"
   },
   "template": {
     "noCommunityAverage": "ยังไม่มีข้อมูลอันดับเฉลี่ยชุมชน",
@@ -746,7 +752,12 @@
     "communityPulse": "ชีพจรชุมชน",
     "fromRealActivity": "จากกิจกรรมจริง",
     "timeWindow": "เลือกช่วงเวลากิจกรรม",
-    "windows": { "now": "ตอนนี้", "today": "วันนี้", "week": "สัปดาห์นี้", "last_week": "สัปดาห์ก่อน" },
+    "windows": {
+      "now": "ตอนนี้",
+      "today": "วันนี้",
+      "week": "สัปดาห์นี้",
+      "last_week": "สัปดาห์ก่อน"
+    },
     "topic": "หัวข้อ",
     "rankingsCount": "จัดอันดับใหม่ {{count}} รายการ",
     "commentsCount": "คอมเมนต์ {{count}} รายการ",
@@ -778,7 +789,9 @@
     "allTemplates": "เทมเพลตทั้งหมด",
     "allHashtags": "แฮชแท็กทั้งหมด",
     "backToPulse": "กลับไปดูกระแส",
-    "searchHeading": "ค้นหาเรื่องที่สนใจ"
+    "searchHeading": "ค้นหาเรื่องที่สนใจ",
+    "fallbackNowWeek": "ช่วงนี้ยังเงียบอยู่ — กำลังแสดงไฮไลต์จากสัปดาห์นี้",
+    "fallbackTodayWeek": "วันนี้ยังเงียบอยู่ — กำลังแสดงไฮไลต์จากสัปดาห์นี้"
   },
   "category": {
     "empty": "ยังไม่มีโพสต์ในหมวดหมู่นี้",

@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import { Reply, Flag, X, Trash2 } from 'lucide-react'
+import { Reply, Flag, X, Trash2, MessageSquare } from 'lucide-react'
 import Modal from '../ui/Modal'
 import Avatar from '../ui/Avatar'
 import { timeAgo, shortTimeAgo } from '../../lib/format'
@@ -194,7 +194,13 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
 
       <div className="mt-2 divide-y divide-line-soft">
         {comments.length === 0 && (
-          <p className="py-4 text-center text-sm text-muted">{t('post.noComments')}</p>
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-glass text-muted">
+              <MessageSquare size={20} aria-hidden="true" />
+            </div>
+            <p className="text-sm font-bold text-ink">{t('post.startDiscussion')}</p>
+            <p className="mt-1 text-xs text-muted">{t('post.beTheFirst')}</p>
+          </div>
         )}
         {parents.map((parent) => (
           <div key={parent.id} className="divide-y divide-line-soft/30">

@@ -7,7 +7,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, voteRanking } from '../lib/api';
-import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, BarChart3, Check, RotateCcw, Plus } from 'lucide-react';
+import { trackEvent } from '../lib/analytics';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, BarChart3, Check, RotateCcw, Plus, Search } from 'lucide-react';
 
 
 
@@ -1073,15 +1074,42 @@ export default function HomeFeed() {
           )}
 
           {!isLoading && !hasMore && displayData.length > 0 && (
-            <div className="py-8 text-center space-y-1">
-              <p className="text-xs font-bold text-ink">
-                {activeTab === 'trending' ? t('feed.allSeen') : t('common.endOfFeed')}
+            <div 
+              ref={(el) => {
+                if (el && !el.dataset.tracked) {
+                  el.dataset.tracked = 'true';
+                  trackEvent('feed_end_reached', { entityType: 'feed', entityId: activeTab, onceKey: `feed_end_${activeTab}` });
+                }
+              }}
+              className="mt-8 mb-12 flex flex-col items-center justify-center rounded-2xl border border-line-soft bg-surface px-4 py-10 text-center shadow-sm"
+            >
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface-glass text-brand">
+                <Check size={24} aria-hidden="true" />
+              </div>
+              <p className="text-base font-bold text-ink">
+                {activeTab === 'trending' ? t('feed.allSeen') : t('feed.allCaughtUp')}
               </p>
-              {activeTab === 'trending' && (
-                <p className="text-[11px] text-muted">
-                  {t('feed.allSeenSubtitle')}
-                </p>
-              )}
+              <p className="mt-2 text-sm font-medium text-muted">
+                {activeTab === 'trending' ? t('feed.allSeenSubtitle') : t('feed.allCaughtUpSubtitle')}
+              </p>
+              <div className="mt-8 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+                <Link
+                  to="/discover/templates"
+                  onClick={() => trackEvent('empty_state_cta_click', { entityType: 'button', entityId: 'end_feed_explore_templates' })}
+                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border border-line-soft bg-surface px-6 py-2.5 text-sm font-bold text-ink shadow-xs transition-all hover:border-line hover:bg-surface-glass active:scale-[0.97] sm:w-auto"
+                >
+                  <Search size={18} aria-hidden="true" />
+                  {t('feed.exploreTemplates')}
+                </Link>
+                <Link
+                  to="/create"
+                  onClick={() => trackEvent('empty_state_cta_click', { entityType: 'button', entityId: 'end_feed_create' })}
+                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-canvas shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] sm:w-auto"
+                >
+                  <Plus size={18} aria-hidden="true" />
+                  {t('feed.createRanking')}
+                </Link>
+              </div>
             </div>
           )}
         </div>
