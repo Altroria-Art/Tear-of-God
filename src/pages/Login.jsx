@@ -7,14 +7,8 @@ import { useToast } from '../components/ui/Toast';
 import { registerUser, loginUser, syncGoogleUser } from '../lib/api';
 import { signInWithGoogle } from '../lib/firebase';
 import { returnPath } from '../lib/navigation';
-import TierLabel from '../components/tier/TierLabel';
 import RipMark from '../components/ui/RipMark';
-
-const SAMPLE_ROWS = [
-  { label: 'S', color: '#ff7f7f', items: ['ต้มยำกุ้ง', 'แกงเขียวหวาน'] },
-  { label: 'A', color: '#ffbf7f', items: ['ลาบหมู'] },
-  { label: 'B', color: '#ffff7f', items: ['หมูกระทะ'] },
-];
+import AuthVisualPanel from '../components/auth/AuthVisualPanel';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -96,56 +90,146 @@ export default function Login() {
     }
   };
 
-  return <main className="auth-v2 min-h-[calc(100dvh-68px)] px-4 py-5 sm:px-8 lg:py-8">
-    <div className="mx-auto max-w-7xl">
-      <div className="club-serial mb-3 flex items-center gap-3 text-ink-soft"><span className="brand-mark">t</span> TEAR OF GOD / {t('auth.clubEntry')}</div>
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,27rem)] lg:gap-12">
-        <div className="min-w-0 lg:pt-5">
-          <h1 key={isRegister ? 'register' : 'login'} className={`auth-display text-ink ${isRegister ? 'auth-display--register' : ''}`}>
-            {isRegister ? <><span>{t('auth.clubRegister1')}</span><span><mark>{t('auth.clubRegister2')}</mark></span><span>{t('auth.clubRegister3')}</span></> : <><span>{t('auth.clubLogin1')}</span><span><mark>{t('auth.clubLogin2')}</mark></span><span>{t('auth.clubLogin3a')}</span><span>{t('auth.clubLogin3b')}</span></>}
-          </h1>
-          <RipMark className="mt-4 h-5 w-32 text-pop-violet" />
-          <p className="mt-3 max-w-md text-sm leading-6 text-ink-soft sm:text-base">{t('auth.heroSubtitle')}</p>
-          <div className="auth-example mt-6 hidden lg:block" aria-label={t('play.example')}>
-            <div className="club-serial mb-2 text-muted">{t('play.example')} / #FOOD</div>
-            <div className="border-2 border-ink bg-surface p-3 shadow-[5px_5px_0_var(--color-pop-pink)]">
-              <p className="mb-2 text-sm font-black text-ink">{t('auth.clubSampleTitle')}</p>
-              {SAMPLE_ROWS.map(row => <div key={row.label} className="mb-1 flex min-h-10 items-stretch gap-1 bg-tag p-1">
-                <TierLabel label={row.label} color={row.color} className="grid w-9 shrink-0 place-items-center font-black text-acid-ink" />
-                <span className="flex flex-wrap items-center gap-1.5 px-1">{row.items.map(item => <span key={item} className="bg-surface px-2 py-1 text-[11px] font-bold text-ink">{item}</span>)}</span>
-              </div>)}
+  return (
+    <main className="auth-v2 min-h-[calc(100dvh-68px)] flex items-center justify-center p-4 sm:p-8">
+      {/* 
+        MAIN AUTH CARD 
+        Mobile: relative, stack layout
+        Desktop: relative, fixed height for sliding panel
+      */}
+      <div className="relative w-full max-w-[1000px] bg-surface rounded-2xl shadow-xl border-2 border-ink overflow-hidden flex flex-col lg:block lg:min-h-[600px] mx-auto">
+        
+        {/* MOBILE VISUAL HEADER (Below md) */}
+        <div className="lg:hidden flex flex-col items-center justify-center text-center p-8 bg-ink text-canvas">
+          <h2 className="text-2xl font-display font-black text-canvas uppercase tracking-tight leading-none mb-2">
+            {isRegister ? t('auth.joinTheClub') : t('auth.memberAccess')}
+          </h2>
+          <RipMark className="h-4 w-24 text-pop-violet mb-4" />
+          <p className="text-sm text-canvas/80 font-medium">
+            {isRegister ? t('auth.buildTierLists') : t('auth.yourListsWaiting')}
+          </p>
+        </div>
+
+        {/* LOGIN FORM PANE */}
+        <div className={`
+          w-full lg:absolute lg:top-0 lg:left-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-10 lg:p-14
+          transition-all duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+          ${!isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:translate-x-[20%] lg:pointer-events-none'}
+          motion-reduce:transition-opacity motion-reduce:translate-x-0
+        `}>
+          <div className="mb-8">
+            <p className="club-serial text-muted mb-2">TEAR OF GOD / {t('auth.memberAccess').toUpperCase()}</p>
+            <h2 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
+              {t('auth.clubWelcomeTitle')}
+            </h2>
+            <p className="mt-2 text-sm text-ink-soft">{t('auth.loginSubtitle')}</p>
+          </div>
+          
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            <div>
+              <label htmlFor="login-email" className="club-label">{t('auth.email')}</label>
+              <input id="login-email" className="club-field" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} />
             </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <label htmlFor="login-password" className="club-label">{t('auth.password')}</label>
+                <Link className="text-xs font-bold text-highlight hover:underline" to="/forgot-password">{t('auth.forgotPassword')}</Link>
+              </div>
+              <div className="relative">
+                <input id="login-password" className="club-field pr-12" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} />
+                <button type="button" aria-label={t('auth.showPassword')} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 grid min-h-11 w-11 place-items-center text-muted">
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+            <button type="submit" disabled={isLoading} className="play-button w-full mt-2">
+              {isLoading ? t('auth.processing') : t('auth.logIn')}
+              <ArrowUpRight size={18} aria-hidden="true" />
+            </button>
+          </form>
+          
+          <div className="mt-6 border-t border-dashed border-line-soft pt-5">
+            <p className="club-serial mb-3 text-center text-muted">{t('auth.or')}</p>
+            <button type="button" onClick={handleGoogleLogin} disabled={isLoading} className="club-choice flex w-full items-center justify-center gap-3 text-sm text-ink bg-canvas hover:bg-surface border-2 border-line-soft">
+              <span className="font-black text-hot-red">G</span>{t('auth.continueGoogle')}
+            </button>
           </div>
         </div>
 
-        <section className="club-ticket min-w-0 p-5 sm:p-6 lg:mt-8" aria-label={isRegister ? t('auth.signUp') : t('auth.logIn')}>
-          <div className="club-ticket-head">
-            <p className="club-serial text-muted">{t('auth.clubPass')} / 001</p>
-            <h2 className="mt-2 font-display text-3xl font-black uppercase leading-none tracking-tight text-ink sm:text-4xl">{isRegister ? t('auth.clubJoinTitle') : t('auth.clubWelcomeTitle')}</h2>
-            <p className="mt-2 text-sm text-ink-soft">{isRegister ? t('auth.quickTimeSubtitle') : t('auth.loginSubtitle')}</p>
+        {/* SIGNUP FORM PANE */}
+        <div className={`
+          w-full lg:absolute lg:top-0 lg:right-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-10 lg:p-14
+          transition-all duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+          ${isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:-translate-x-[20%] lg:pointer-events-none'}
+          motion-reduce:transition-opacity motion-reduce:translate-x-0
+        `}>
+          <div className="mb-8">
+            <p className="club-serial text-muted mb-2">TEAR OF GOD / {t('auth.newMember').toUpperCase()}</p>
+            <h2 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
+              {t('auth.clubJoinTitle')}
+            </h2>
+            <p className="mt-2 text-sm text-ink-soft">{t('auth.quickTimeSubtitle')}</p>
           </div>
-          <div className={`auth-mode-tabs mb-4 grid grid-cols-2 border-b-2 border-line-soft ${isRegister ? 'auth-mode-tabs--register' : ''}`} role="group" aria-label={t('auth.clubEntry')}>
-            <button type="button" aria-pressed={!isRegister} onClick={() => setIsRegister(false)} className={`min-h-11 px-2 py-2 text-sm font-black ${!isRegister ? 'text-ink' : 'text-muted'}`}>{t('auth.logIn')}</button>
-            <button type="button" aria-pressed={isRegister} onClick={() => setIsRegister(true)} className={`min-h-11 px-2 py-2 text-sm font-black ${isRegister ? 'text-ink' : 'text-muted'}`}>{t('auth.switchToSignup')}</button>
-          </div>
-          <div key={isRegister ? 'register-form' : 'login-form'} className="auth-form-content">
-          <form onSubmit={handleSubmit} noValidate className="space-y-3">
-            {isRegister && <div><label htmlFor="register-username" className="club-label">{t('auth.username')}</label><input id="register-username" className="club-field" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} placeholder={t('auth.usernamePlaceholder')} /></div>}
-            <div><label htmlFor={isRegister ? 'register-email' : 'login-email'} className="club-label">{t('auth.email')}</label><input id={isRegister ? 'register-email' : 'login-email'} className="club-field" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} /></div>
+          
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
-              <div className="flex items-center justify-between"><label htmlFor={isRegister ? 'register-password' : 'login-password'} className="club-label">{t('auth.password')}</label>{!isRegister && <Link className="text-xs font-bold text-highlight hover:underline" to="/forgot-password">{t('auth.forgotPassword')}</Link>}</div>
-              <div className="relative"><input id={isRegister ? 'register-password' : 'login-password'} className="club-field pr-12" type={showPassword ? 'text' : 'password'} autoComplete={isRegister ? 'new-password' : 'current-password'} value={password} onChange={event => setPassword(event.target.value)} /><button type="button" aria-label={t('auth.showPassword')} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 grid min-h-11 w-11 place-items-center text-muted">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
+              <label htmlFor="register-username" className="club-label">{t('auth.username')}</label>
+              <input id="register-username" className="club-field" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} placeholder={t('auth.usernamePlaceholder')} />
             </div>
-            {isRegister && <div><label htmlFor="register-confirm-password" className="club-label">{t('auth.confirmPassword')}</label><div className="relative"><input id="register-confirm-password" className="club-field pr-12" type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} /><button type="button" aria-label={t('auth.showPassword')} onClick={() => setShowConfirmPassword(value => !value)} className="absolute inset-y-0 right-0 grid min-h-11 w-11 place-items-center text-muted">{showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div></div>}
-            <button type="submit" disabled={isLoading} className="play-button w-full">{isLoading ? t('auth.processing') : isRegister ? t('auth.signUp') : t('auth.logIn')}<ArrowUpRight size={18} aria-hidden="true" /></button>
+            <div>
+              <label htmlFor="register-email" className="club-label">{t('auth.email')}</label>
+              <input id="register-email" className="club-field" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} />
+            </div>
+            <div>
+              <label htmlFor="register-password" className="club-label">{t('auth.password')}</label>
+              <div className="relative">
+                <input id="register-password" className="club-field pr-12" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} />
+                <button type="button" aria-label={t('auth.showPassword')} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 grid min-h-11 w-11 place-items-center text-muted">
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="register-confirm-password" className="club-label">{t('auth.confirmPassword')}</label>
+              <div className="relative">
+                <input id="register-confirm-password" className="club-field pr-12" type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} />
+                <button type="button" aria-label={t('auth.showPassword')} onClick={() => setShowConfirmPassword(value => !value)} className="absolute inset-y-0 right-0 grid min-h-11 w-11 place-items-center text-muted">
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+            <button type="submit" disabled={isLoading} className="play-button w-full mt-2">
+              {isLoading ? t('auth.processing') : t('auth.signUp')}
+              <ArrowUpRight size={18} aria-hidden="true" />
+            </button>
           </form>
-          <div className="mt-4 border-t border-dashed border-line-soft pt-3">
-            <p className="club-serial mb-2 text-center text-muted">{t('auth.or')}</p>
-            <button type="button" onClick={handleGoogleLogin} disabled={isLoading} className="club-choice flex w-full items-center justify-center gap-3 text-sm text-ink"><span className="font-black text-hot-red">G</span>{t('auth.continueGoogle')}</button>
+          
+          <div className="mt-6 border-t border-dashed border-line-soft pt-5">
+            <p className="club-serial mb-3 text-center text-muted">{t('auth.or')}</p>
+            <button type="button" onClick={handleGoogleLogin} disabled={isLoading} className="club-choice flex w-full items-center justify-center gap-3 text-sm text-ink bg-canvas hover:bg-surface border-2 border-line-soft">
+              <span className="font-black text-hot-red">G</span>{t('auth.continueGoogle')}
+            </button>
           </div>
-          </div>
-        </section>
+        </div>
+
+        {/* MOBILE MODE SWITCHER (Below md) */}
+        <div className="lg:hidden p-5 border-t-2 border-line-soft bg-surface text-center">
+          <p className="text-sm text-ink-soft mb-2">
+            {isRegister ? t('auth.alreadyRanking') : t('auth.newHere', 'New to Tear of God?')}
+          </p>
+          <button 
+            type="button" 
+            onClick={() => setIsRegister(!isRegister)} 
+            className="text-sm font-bold text-pop-violet hover:underline uppercase tracking-wide"
+          >
+            {isRegister ? t('auth.backToLoginBtn') : t('auth.createAccountBtn')}
+          </button>
+        </div>
+
+        {/* DESKTOP VISUAL SLIDING PANEL */}
+        <AuthVisualPanel isRegister={isRegister} onSwitchMode={setIsRegister} />
+        
       </div>
-    </div>
-  </main>;
+    </main>
+  );
 }

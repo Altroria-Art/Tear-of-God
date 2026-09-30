@@ -305,7 +305,17 @@
     "goToLoginNow": "ไปหน้าเข้าสู่ระบบทันที",
     "invalidOrExpiredToken": "ลิงก์ไม่ถูกต้อง หรืออาจหมดอายุแล้ว",
     "passwordLengthError": "รหัสผ่านต้องมี 8–256 ตัวอักษร",
-    "passwordsDoNotMatch": "รหัสผ่านไม่ตรงกัน"
+    "passwordsDoNotMatch": "รหัสผ่านไม่ตรงกัน",
+    "memberAccess": "สำหรับสมาชิก",
+    "newMember": "สมาชิกใหม่",
+    "joinTheClub": "เข้าร่วมชุมชน",
+    "alreadyRanking": "มีบัญชีอยู่แล้ว?",
+    "yourListsWaiting": "Tier List ของคุณรออยู่",
+    "createAccountBtn": "สร้างบัญชี",
+    "backToLoginBtn": "กลับไปเข้าสู่ระบบ",
+    "buildTierLists": "สร้าง Tier List",
+    "shareYourTakes": "แชร์อันดับของคุณ",
+    "seeWhereEveryoneStands": "ดูว่าคนอื่นคิดยังไง"
   },
   "feed": {
     "allSeen": "ดูครบแล้ว",
