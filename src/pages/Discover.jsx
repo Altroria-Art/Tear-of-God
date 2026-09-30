@@ -223,7 +223,7 @@ export default function Discover() {
             {t(`pulse.windows.${window}`)}</button>)}
         </div>
         {pulse?.fallback_from && pulse.active_rankings > 0 && !pulseLoading && (
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-line-soft bg-surface-glass p-3.5 text-sm font-medium text-ink shadow-xs transition-opacity duration-300 motion-safe:animate-in motion-safe:fade-in" role="status">
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-line-soft bg-surface-glass p-3.5 text-sm font-medium text-ink shadow-xs transition-opacity duration-300 motion-safe:animate-in motion-safe:fade-in motion-reduce:transition-none" role="status">
             <Info size={16} className="text-brand shrink-0" aria-hidden="true" />
             <p>{t(getFallbackKey(pulse.fallback_from, pulse.window))}</p>
           </div>

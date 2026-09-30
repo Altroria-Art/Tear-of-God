@@ -1084,13 +1084,14 @@ export default function HomeFeed() {
                   return;
                 }
                 const observer = new IntersectionObserver(([entry]) => {
-                  if (entry.isIntersecting) {
+                  if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
                     el.dataset.tracked = 'true';
                     trackEvent('feed_end_reached', { entityType: 'feed', entityId: activeTab, onceKey: `feed_end_${activeTab}` });
                     observer.disconnect();
                   }
                 }, { threshold: 0.5 });
                 observer.observe(el);
+                return () => observer.disconnect();
               }}
               className="mt-8 mb-12 flex flex-col items-center justify-center rounded-2xl border border-line-soft bg-surface px-4 py-10 text-center shadow-sm"
             >
