@@ -203,7 +203,7 @@
     "or": "หรือ",
     "continueGoogle": "เข้าสู่ระบบด้วย Google",
     "haveAccount": "มีบัญชีอยู่แล้ว?",
-    "newHere": "ใหม่กับ Tear of God?",
+    "newHere": "เพิ่งมา Tear of God?",
     "switchToLogin": "เข้าสู่ระบบ",
     "switchToSignup": "สร้างบัญชี",
     "warnFillAll": "กรุณากรอกอีเมลและรหัสผ่านให้ครบถ้วน",
@@ -315,7 +315,13 @@
     "backToLoginBtn": "กลับไปเข้าสู่ระบบ",
     "buildTierLists": "สร้าง Tier List",
     "shareYourTakes": "แชร์อันดับของคุณ",
-    "seeWhereEveryoneStands": "ดูว่าคนอื่นคิดยังไง"
+    "seeWhereEveryoneStands": "ดูว่าคนอื่นคิดยังไง",
+    "sampleAnime": "อนิเมะ",
+    "sampleMusic": "เพลง",
+    "sampleGames": "เกม",
+    "sampleFood": "อาหาร",
+    "sampleMovies": "หนัง",
+    "sampleCampus": "มหาวิทยาลัย"
   },
   "feed": {
     "allSeen": "ดูครบแล้ว",

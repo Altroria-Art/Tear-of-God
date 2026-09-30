@@ -315,7 +315,13 @@
     "backToLoginBtn": "Back to login",
     "buildTierLists": "Build tier lists.",
     "shareYourTakes": "Share your takes.",
-    "seeWhereEveryoneStands": "See where everyone stands."
+    "seeWhereEveryoneStands": "See where everyone stands.",
+    "sampleAnime": "Anime",
+    "sampleMusic": "Music",
+    "sampleGames": "Games",
+    "sampleFood": "Food",
+    "sampleMovies": "Movies",
+    "sampleCampus": "Campus"
   },
   "feed": {
     "allSeen": "You're all caught up",
