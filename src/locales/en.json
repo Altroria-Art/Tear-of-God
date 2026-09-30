@@ -358,13 +358,19 @@
   "homeDiscovery": {
     "stripTitle": "Discover",
     "stripAria": "Explore current community topics",
-    "railNow": "Trending now",
-    "railToday": "Active today",
-    "railWeek": "This week's topics",
-    "railLastWeek": "Last week's topics",
     "activeRankings_one": "{{count}} active ranking",
     "activeRankings_other": "{{count}} active rankings",
-    "exploreMore": "Explore more"
+    "exploreMore": "Explore more",
+    "communityPulse": "Community Pulse",
+    "activeNow": "Active rankings",
+    "discussions": "Discussions",
+    "templateInPlay": "Template in play",
+    "topicFallback": "Topics to explore",
+    "newRanking": "New ranking",
+    "comments_one": "{{count}} comment",
+    "comments_other": "{{count}} comments",
+    "reactions_one": "{{count}} reaction",
+    "reactions_other": "{{count}} reactions"
   },
   "topicFollow": {
     "follow": "Follow this topic",

@@ -358,12 +358,16 @@
   "homeDiscovery": {
     "stripTitle": "สำรวจ",
     "stripAria": "สำรวจหัวข้อที่ชุมชนกำลังสนใจ",
-    "railNow": "กระแสตอนนี้",
-    "railToday": "เรื่องที่คุยกันวันนี้",
-    "railWeek": "เรื่องเด่นสัปดาห์นี้",
-    "railLastWeek": "เรื่องเด่นสัปดาห์ก่อน",
     "activeRankings": "อันดับที่มีกิจกรรม {{count}} รายการ",
-    "exploreMore": "สำรวจเพิ่มเติม"
+    "exploreMore": "สำรวจเพิ่มเติม",
+    "communityPulse": "ชีพจรชุมชน",
+    "activeNow": "อันดับที่กำลังคึกคัก",
+    "discussions": "บทสนทนา",
+    "templateInPlay": "เทมเพลตที่กำลังเล่น",
+    "topicFallback": "หัวข้อชวนสำรวจ",
+    "newRanking": "อันดับใหม่",
+    "comments": "{{count}} คอมเมนต์",
+    "reactions": "{{count}} รีแอ็กชัน"
   },
   "topicFollow": {
     "follow": "ติดตามหัวข้อนี้",
