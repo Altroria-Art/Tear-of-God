@@ -45,7 +45,7 @@ const getC = (sql) => {
   return res && res[0] ? res[0].c : 0;
 };
 
-console.log('\n--- 1. AUDIT COUNTS (SAFE SYNTHETIC DATA) ---');
+console.log('\n--- 1. SYNTHETIC NAMESPACE INVENTORY ---');
 console.log(`profiles        Total: ${String(getC(`SELECT count(*) as c FROM profiles`)).padEnd(6)} Synthetic: ${getC(`SELECT count(*) as c FROM profiles WHERE ${isProfileSynth('id')}`)}`);
 console.log(`rankings        Total: ${String(getC(`SELECT count(*) as c FROM rankings`)).padEnd(6)} Synthetic: ${getC(`SELECT count(*) as c FROM rankings WHERE ${isRankingSynth('id')}`)}`);
 console.log(`templates       Total: ${String(getC(`SELECT count(*) as c FROM templates`)).padEnd(6)} Synthetic: ${getC(`SELECT count(*) as c FROM templates WHERE ${isTemplateSynth('id')}`)}`);
@@ -65,16 +65,21 @@ console.log(`follows                        Real user following synthetic profil
 console.log(`follows                        Synthetic profile following real user: ${getC(`SELECT count(*) as c FROM follows WHERE ${isProfileSynth('follower_id')} AND ${isRealUser('following_id')}`)}`);
 console.log(`duels                          Real user dueling synthetic owner: ${getC(`SELECT count(*) as c FROM duels WHERE ${isRealUser('challenger_id')} AND ${isProfileSynth('owner_id')}`)}`);
 console.log(`duels                          Synthetic challenger dueling real owner: ${getC(`SELECT count(*) as c FROM duels WHERE ${isProfileSynth('challenger_id')} AND ${isRealUser('owner_id')}`)}`);
+console.log(`duels                          Real user dueling with synthetic template/rankings: ${getC(`SELECT count(*) as c FROM duels WHERE (${isRealUser('challenger_id')} OR ${isRealUser('owner_id')}) AND (${isTemplateSynth('template_id')} OR ${isRankingSynth('challenger_ranking_id')} OR ${isRankingSynth('owner_ranking_id')})`)}`);
 
 console.log('\n--- 4. MODERATION/SYSTEM REFERENCES ---');
 console.log(`reports                        Filed by synthetic users: ${getC(`SELECT count(*) as c FROM reports WHERE ${isProfileSynth('reporter_id')}`)}`);
 console.log(`reports                        Filed by real users against synthetic content: ${getC(`SELECT count(*) as c FROM reports WHERE ${isRealUser('reporter_id')} AND (${isTemplateSynth('template_id')} OR ${isRankingSynth('ranking_id')})`)}`);
 console.log(`notifications                  Sent TO real users FROM synthetic actors: ${getC(`SELECT count(*) as c FROM notifications WHERE ${isRealUser('user_id')} AND ${isProfileSynth('actor_id')}`)}`);
 console.log(`notifications                  Sent TO synthetic users FROM real actors: ${getC(`SELECT count(*) as c FROM notifications WHERE ${isProfileSynth('user_id')} AND ${isRealUser('actor_id')}`)}`);
+console.log(`notifications                  Sent TO real users referencing synthetic template/ranking: ${getC(`SELECT count(*) as c FROM notifications WHERE ${isRealUser('user_id')} AND (${isRankingSynth('ranking_id')} OR ${isTemplateSynth('template_id')})`)}`);
 console.log(`topic_follows                  Synthetic user followed a topic: ${getC(`SELECT count(*) as c FROM topic_follows WHERE ${isProfileSynth('user_id')}`)}`);
+console.log(`topic_follows                  Real user following synthetic template topic: ${getC(`SELECT count(*) as c FROM topic_follows WHERE topic_type = 'template' AND ${isTemplateSynth('topic_key')} AND ${isRealUser('user_id')}`)}`);
 
 console.log('\n--- 5. LOGICAL ORPHANS (Data Integrity Risks) ---');
+console.log(`ranking_item_scores            Orphaned template references: ${getC(`SELECT count(*) as c FROM ranking_item_scores WHERE template_id NOT IN (SELECT id FROM templates)`)}`);
 console.log(`template_views                 Orphaned template views: ${getC(`SELECT count(*) as c FROM template_views WHERE template_id NOT IN (SELECT id FROM templates)`)}`);
+console.log(`template_views                 Orphaned user views: ${getC(`SELECT count(*) as c FROM template_views WHERE user_id NOT IN (SELECT id FROM profiles)`)}`);
 console.log(`templates                      Missing creator_id: ${getC(`SELECT count(*) as c FROM templates WHERE creator_id IS NOT NULL AND creator_id NOT IN (SELECT id FROM profiles)`)}`);
 
 console.log('\nAudit complete. To execute a cleanup, build an explicit SQL script based on these findings and carefully review it before running.');
