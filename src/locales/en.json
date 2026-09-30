@@ -799,7 +799,9 @@
     "backToPulse": "Back to the pulse",
     "searchHeading": "Find your thing",
     "fallbackNowWeek": "It's quiet right now — showing highlights from this week.",
-    "fallbackTodayWeek": "It's quiet today — showing highlights from this week."
+    "fallbackTodayWeek": "It's quiet today — showing highlights from this week.",
+    "fallbackNowToday": "It's quiet right now — showing activity from today.",
+    "fallbackNotice": "It's quiet right now — showing highlights from the effective window."
   },
   "category": {
     "empty": "No posts in this category yet",

@@ -14,6 +14,13 @@ import RipMark from '../components/ui/RipMark';
 
 const WINDOWS = ['now', 'today', 'week', 'last_week'];
 
+const getFallbackKey = (fallbackFrom, effective) => {
+  if (fallbackFrom === 'now' && effective === 'today') return 'pulse.fallbackNowToday';
+  if (fallbackFrom === 'now' && effective === 'week') return 'pulse.fallbackNowWeek';
+  if (fallbackFrom === 'today' && effective === 'week') return 'pulse.fallbackTodayWeek';
+  return 'pulse.fallbackNotice';
+};
+
 function TemplateCardSkeleton() {
   return <div className="social-card h-72 animate-pulse border border-line-soft bg-surface" aria-hidden="true" />;
 }
@@ -216,9 +223,9 @@ export default function Discover() {
             {t(`pulse.windows.${window}`)}</button>)}
         </div>
         {pulse?.fallback_from && pulse.active_rankings > 0 && !pulseLoading && (
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-line-soft bg-surface-glass p-3.5 text-sm font-medium text-ink shadow-xs transition-opacity duration-300 animate-in fade-in" role="status">
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-line-soft bg-surface-glass p-3.5 text-sm font-medium text-ink shadow-xs transition-opacity duration-300 motion-safe:animate-in motion-safe:fade-in" role="status">
             <Info size={16} className="text-brand shrink-0" aria-hidden="true" />
-            <p>{t(pulse.window === 'today' ? 'pulse.fallbackTodayWeek' : 'pulse.fallbackNowWeek')}</p>
+            <p>{t(getFallbackKey(pulse.fallback_from, pulse.window))}</p>
           </div>
         )}
         {pulse?.sampled && !pulseLoading && <p className="pulse-sample-note">{t('pulse.sampleNote')}</p>}
