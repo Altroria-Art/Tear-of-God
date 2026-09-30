@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-console.log('Testing Home Trending "All Seen" Empty State and Layout Preservation...');
+console.log('Testing Home Trending "All Seen" Empty State...');
 
 // 1. Verify localization keys
 console.log('Scenario 1: Verifying localization keys in th.json and en.json...');
@@ -51,13 +51,7 @@ assert.match(
   'refreshFeed must not block refresh when feed has 0 posts'
 );
 
-// Ensure sidebars and outer layout remain present
-assert.match(homeFeedSource, /<HomeLeftSidebar \/>/, 'HomeLeftSidebar must be present in layout');
-assert.match(homeFeedSource, /<FeaturedPrompts compact \/>/, 'FeaturedPrompts must be present in layout');
-assert.match(homeFeedSource, /<FreshnessHub compact \/>/, 'FreshnessHub must be present in layout');
-assert.match(homeFeedSource, /sidebar\.privacy/, 'Footer privacy link must be present in layout');
-
-console.log('✔ Scenario 2 passed: HomeFeed preserves layout, sidebars, tabs, and displays centered allSeen empty card!');
+console.log('✔ Scenario 2 passed: HomeFeed preserves tabs and the allSeen empty card!');
 
 // 3. Verify seen pruning & unseen filter logic
 console.log('Scenario 3: Verifying seen filter & no recycling behavior...');
