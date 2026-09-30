@@ -97,7 +97,7 @@ export default function Login() {
         Mobile: relative, stack layout
         Desktop: relative, fixed height for sliding panel
       */}
-      <div className="relative w-full max-w-[1000px] bg-surface rounded-2xl shadow-xl border-2 border-ink overflow-hidden flex flex-col lg:block lg:min-h-[600px] mx-auto">
+      <div className={`relative w-full max-w-[1000px] bg-surface rounded-2xl shadow-xl border-2 border-ink overflow-hidden flex flex-col lg:block mx-auto transition-[min-height] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${isRegister ? 'lg:min-h-[720px]' : 'lg:min-h-[600px]'}`}>
         
         {/* MOBILE VISUAL HEADER (Below md) */}
         <div className="lg:hidden flex flex-col items-center justify-center text-center p-8 bg-ink text-canvas">
@@ -111,12 +111,16 @@ export default function Login() {
         </div>
 
         {/* LOGIN FORM PANE */}
-        <div className={`
-          w-full lg:absolute lg:top-0 lg:left-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-10 lg:p-14
-          transition-all duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-          ${!isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:translate-x-[20%] lg:pointer-events-none'}
-          motion-reduce:transition-opacity motion-reduce:translate-x-0
-        `}>
+        <div 
+          className={`
+            w-full lg:absolute lg:top-0 lg:left-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-10 lg:p-14
+            transition-all duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+            ${!isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:translate-x-[20%] lg:pointer-events-none'}
+            motion-reduce:transition-opacity motion-reduce:translate-x-0
+          `}
+          inert={isRegister ? true : undefined}
+          aria-hidden={isRegister ? "true" : undefined}
+        >
           <div className="mb-8">
             <p className="club-serial text-muted mb-2">TEAR OF GOD / {t('auth.memberAccess').toUpperCase()}</p>
             <h2 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
@@ -157,12 +161,16 @@ export default function Login() {
         </div>
 
         {/* SIGNUP FORM PANE */}
-        <div className={`
-          w-full lg:absolute lg:top-0 lg:right-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-10 lg:p-14
-          transition-all duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-          ${isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:-translate-x-[20%] lg:pointer-events-none'}
-          motion-reduce:transition-opacity motion-reduce:translate-x-0
-        `}>
+        <div 
+          className={`
+            w-full lg:absolute lg:top-0 lg:right-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-10 lg:p-14
+            transition-all duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+            ${isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:-translate-x-[20%] lg:pointer-events-none'}
+            motion-reduce:transition-opacity motion-reduce:translate-x-0
+          `}
+          inert={!isRegister ? true : undefined}
+          aria-hidden={!isRegister ? "true" : undefined}
+        >
           <div className="mb-8">
             <p className="club-serial text-muted mb-2">TEAR OF GOD / {t('auth.newMember').toUpperCase()}</p>
             <h2 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">

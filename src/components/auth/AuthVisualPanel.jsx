@@ -18,12 +18,16 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" aria-hidden="true" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
       
       {/* Login Mode Content (encourage signup) */}
-      <div className={`
-        absolute inset-0 flex flex-col justify-center items-center p-12 text-center
-        transition-opacity duration-[400ms] ease-out
-        ${isRegister ? 'opacity-0 pointer-events-none delay-0' : 'opacity-100 delay-200'}
-        motion-reduce:transition-none
-      `} aria-hidden={isRegister}>
+      <div 
+        className={`
+          absolute inset-0 flex flex-col justify-center items-center p-12 text-center
+          transition-opacity duration-[400ms] ease-out
+          ${isRegister ? 'opacity-0 pointer-events-none delay-0' : 'opacity-100 delay-200'}
+          motion-reduce:transition-none
+        `} 
+        aria-hidden={isRegister ? "true" : undefined}
+        inert={isRegister ? true : undefined}
+      >
         <div className="flex flex-col items-center max-w-[280px]">
           <h2 className="text-3xl font-display font-black text-canvas uppercase tracking-tight leading-none mb-3">
             {t('auth.joinTheClub')}
@@ -34,22 +38,22 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
             <div className="flex min-h-9 items-stretch gap-1 bg-ink/50 p-1 mb-1 rounded-sm border border-white/5">
               <TierLabel label="S" color="bg-[#ff7f7f]" className="w-10 text-sm font-black" />
               <div className="flex flex-wrap items-center gap-1.5 px-2">
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">Anime</span>
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">Music</span>
+                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleAnime')}</span>
+                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleMusic')}</span>
               </div>
             </div>
             <div className="flex min-h-9 items-stretch gap-1 bg-ink/50 p-1 mb-1 rounded-sm border border-white/5">
               <TierLabel label="A" color="bg-[#ffbf7f]" className="w-10 text-sm font-black" />
               <div className="flex flex-wrap items-center gap-1.5 px-2">
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">Games</span>
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">Food</span>
+                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleGames')}</span>
+                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleFood')}</span>
               </div>
             </div>
             <div className="flex min-h-9 items-stretch gap-1 bg-ink/50 p-1 rounded-sm border border-white/5">
               <TierLabel label="B" color="bg-[#ffff7f]" className="w-10 text-sm font-black" />
               <div className="flex flex-wrap items-center gap-1.5 px-2">
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">Movies</span>
-                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">Campus</span>
+                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleMovies')}</span>
+                <span className="bg-canvas/90 text-ink px-2 py-0.5 text-xs font-bold rounded-sm">{t('auth.sampleCampus')}</span>
               </div>
             </div>
           </div>
@@ -70,12 +74,16 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
       </div>
 
       {/* Signup Mode Content (encourage login) */}
-      <div className={`
-        absolute inset-0 flex flex-col justify-center items-center p-12 text-center
-        transition-opacity duration-[400ms] ease-out
-        ${!isRegister ? 'opacity-0 pointer-events-none delay-0' : 'opacity-100 delay-200'}
-        motion-reduce:transition-none
-      `} aria-hidden={!isRegister}>
+      <div 
+        className={`
+          absolute inset-0 flex flex-col justify-center items-center p-12 text-center
+          transition-opacity duration-[400ms] ease-out
+          ${!isRegister ? 'opacity-0 pointer-events-none delay-0' : 'opacity-100 delay-200'}
+          motion-reduce:transition-none
+        `} 
+        aria-hidden={!isRegister ? "true" : undefined}
+        inert={!isRegister ? true : undefined}
+      >
         <div className="flex flex-col items-center max-w-[280px]">
           <h2 className="text-3xl font-display font-black text-canvas uppercase tracking-tight leading-none mb-3">
             {t('auth.alreadyRanking')}
