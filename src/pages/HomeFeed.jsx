@@ -30,6 +30,7 @@ import {
 import VirtualFeedContainer from '../components/feed/VirtualFeedContainer';
 import { createPendingGuard } from '../lib/pendingGuard';
 import HomePulseTopics from '../components/feed/HomePulseTopics';
+import HomeCommunityPulse from '../components/feed/HomeCommunityPulse';
 import GuestAuthPrompt from '../components/auth/GuestAuthPrompt';
 import { useTranslation } from 'react-i18next';
 
@@ -1130,8 +1131,8 @@ export default function HomeFeed() {
           )}
         </div>
       </main>
-      {!!discoverPulse?.topics?.length && <aside className="sticky top-[96px] hidden w-[280px] shrink-0 xl:block">
-        <HomePulseTopics topics={discoverPulse.topics} window={discoverPulse.window} sampled={discoverPulse.sampled} variant="rail" />
+      {discoverPulse && <aside className="sticky top-[96px] hidden w-[280px] shrink-0 xl:block empty:hidden">
+        <HomeCommunityPulse pulse={discoverPulse} />
       </aside>}
     </div>
       <GuestAuthPrompt
