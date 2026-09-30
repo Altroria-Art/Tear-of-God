@@ -355,6 +355,17 @@
     "exploreTemplates": "Explore Templates",
     "createRanking": "Create a Ranking"
   },
+  "homeDiscovery": {
+    "stripTitle": "Discover",
+    "stripAria": "Explore current community topics",
+    "railNow": "Trending now",
+    "railToday": "Active today",
+    "railWeek": "This week's topics",
+    "railLastWeek": "Last week's topics",
+    "activeRankings_one": "{{count}} active ranking",
+    "activeRankings_other": "{{count}} active rankings",
+    "exploreMore": "Explore more"
+  },
   "topicFollow": {
     "follow": "Follow this topic",
     "following": "Following this topic",

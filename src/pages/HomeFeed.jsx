@@ -6,7 +6,7 @@ import { buildTierRows } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, voteRanking } from '../lib/api';
+import { fetchDiscoverPulse, fetchRankings, voteRanking } from '../lib/api';
 import { trackEvent } from '../lib/analytics';
 import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, BarChart3, Check, RotateCcw, Plus, Search } from 'lucide-react';
 
@@ -29,9 +29,7 @@ import {
 } from '../lib/trendingSeen';
 import VirtualFeedContainer from '../components/feed/VirtualFeedContainer';
 import { createPendingGuard } from '../lib/pendingGuard';
-import HomeLeftSidebar from '../components/feed/HomeLeftSidebar';
-import FeaturedPrompts from '../components/feed/FeaturedPrompts';
-import FreshnessHub from '../components/feed/FreshnessHub';
+import HomePulseTopics from '../components/feed/HomePulseTopics';
 import GuestAuthPrompt from '../components/auth/GuestAuthPrompt';
 import { useTranslation } from 'react-i18next';
 
@@ -481,8 +479,7 @@ export default function HomeFeed() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
-  const isLg = useMediaQuery('(min-width: 1024px)');
-  const isXl = useMediaQuery('(min-width: 1280px)');
+  const showDesktopDiscovery = useMediaQuery('(min-width: 768px)');
   const toast = useToast();
   const [posts, setPosts] = useState([]);
   const postsRef = useRef(posts);
@@ -501,6 +498,18 @@ export default function HomeFeed() {
   const [guestPrompt, setGuestPrompt] = useState({ open: false, next: '/' });
   const [showTabNav, setShowTabNav] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [discoverPulse, setDiscoverPulse] = useState(null);
+  const discoverPulseRequestRef = useRef(null);
+
+  useEffect(() => {
+    if (!showDesktopDiscovery) return undefined;
+    let cancelled = false;
+    if (!discoverPulseRequestRef.current) discoverPulseRequestRef.current = fetchDiscoverPulse('now');
+    discoverPulseRequestRef.current.then(result => {
+      if (!cancelled) setDiscoverPulse(result?.success && Array.isArray(result.topics) ? result : null);
+    });
+    return () => { cancelled = true; };
+  }, [showDesktopDiscovery]);
 
   // Cache each feed+viewer separately, including pages loaded by infinite scroll.
   const cacheKey = `${activeTab}:${currentUser?.id ?? 'anon'}`;
@@ -935,15 +944,10 @@ export default function HomeFeed() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 flex gap-8 pt-3 pb-12 items-start justify-center">
-        <aside className="hidden lg:block w-[240px] shrink-0 sticky top-[88px] max-h-[calc(100vh-88px)] overflow-y-auto hide-scrollbar pb-6 space-y-4">
-          <HomeLeftSidebar />
-          {activeTab === 'trending' && isLg && (
-            <FeaturedPrompts compact />
-          )}
-        </aside>
-        <main className="w-full min-w-0 max-w-2xl shrink">
+      <div className="mx-auto flex max-w-[1120px] items-start justify-center gap-8 px-4 pt-3 pb-12">
+        <main className="home-feed-main w-full min-w-0 max-w-[760px]">
         <div className="space-y-6">
+          {!!discoverPulse?.topics?.length && <HomePulseTopics topics={discoverPulse.topics} />}
           {activeTab === 'for_you' && !currentUser && (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-line-soft bg-surface/80 p-3.5 text-xs text-muted shadow-xs">
               <div className="flex items-center gap-2.5">
@@ -1126,16 +1130,9 @@ export default function HomeFeed() {
           )}
         </div>
       </main>
-      <aside className="hidden xl:block w-[320px] shrink-0 sticky top-[88px] max-h-[calc(100vh-88px)] overflow-y-auto hide-scrollbar pb-6 space-y-4">
-        {isXl && <FreshnessHub compact />}
-        <div className="px-2 pt-2 text-[11px] font-medium text-muted/80 flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span>&copy; 2026 Tear of God</span>
-          <span>&bull;</span>
-          <a href="#" className="hover:text-ink transition-colors">{t('sidebar.privacy')}</a>
-          <span>&bull;</span>
-          <a href="#" className="hover:text-ink transition-colors">{t('sidebar.terms')}</a>
-        </div>
-      </aside>
+      {!!discoverPulse?.topics?.length && <aside className="sticky top-[96px] hidden w-[280px] shrink-0 xl:block">
+        <HomePulseTopics topics={discoverPulse.topics} window={discoverPulse.window} sampled={discoverPulse.sampled} variant="rail" />
+      </aside>}
     </div>
       <GuestAuthPrompt
         open={guestPrompt.open}

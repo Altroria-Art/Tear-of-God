@@ -355,6 +355,16 @@
     "exploreTemplates": "สำรวจเทมเพลต",
     "createRanking": "สร้างการจัดอันดับ"
   },
+  "homeDiscovery": {
+    "stripTitle": "สำรวจ",
+    "stripAria": "สำรวจหัวข้อที่ชุมชนกำลังสนใจ",
+    "railNow": "กระแสตอนนี้",
+    "railToday": "เรื่องที่คุยกันวันนี้",
+    "railWeek": "เรื่องเด่นสัปดาห์นี้",
+    "railLastWeek": "เรื่องเด่นสัปดาห์ก่อน",
+    "activeRankings": "อันดับที่มีกิจกรรม {{count}} รายการ",
+    "exploreMore": "สำรวจเพิ่มเติม"
+  },
   "topicFollow": {
     "follow": "ติดตามหัวข้อนี้",
     "following": "กำลังติดตามหัวข้อนี้",
