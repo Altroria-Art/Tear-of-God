@@ -32,7 +32,7 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
           <h2 className="text-3xl font-display font-black text-canvas uppercase tracking-tight leading-none mb-3">
             {t('auth.joinTheClub')}
           </h2>
-          <RipMark className="h-4 w-24 text-acid-green mb-6" />
+          <RipMark className="h-4 w-24 text-acid mb-6" />
           
           <div className="w-full bg-surface/10 rounded-xl p-4 mb-8 border border-white/10 shadow-lg" aria-hidden="true">
             <div className="flex min-h-9 items-stretch gap-1 bg-ink/50 p-1 mb-1 rounded-sm border border-white/5">
@@ -95,7 +95,7 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
           <button 
             type="button" 
             onClick={() => onSwitchMode(false)}
-            className="group relative inline-flex items-center justify-center px-6 py-3 font-bold text-ink bg-acid-green border-2 border-acid-green shadow-[3px_3px_0_var(--color-pop-violet)] active:translate-y-1 active:shadow-none transition-all uppercase tracking-wide text-sm w-full"
+            className="group relative inline-flex items-center justify-center px-6 py-3 font-bold text-acid-ink bg-acid border-2 border-acid shadow-[3px_3px_0_var(--color-pop-violet)] active:translate-y-1 active:shadow-none transition-all uppercase tracking-wide text-sm w-full"
           >
             <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span>
             {t('auth.backToLoginBtn')}
