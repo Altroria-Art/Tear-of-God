@@ -21,9 +21,9 @@ const errors = [];
 const failedApi = [];
 const violations = [];
 let pulseRequests = 0;
-let mockEmptyPulse = false;
+let mockPulse = null;
 let checks = 0;
-const deadline = setTimeout(() => { console.error('Home layout browser audit timed out'); ws?.close(); chrome.kill(); process.exit(1); }, 240000);
+const deadline = setTimeout(() => { console.error('Home layout browser audit timed out'); ws?.close(); chrome.kill(); process.exit(1); }, 360000);
 
 try {
   let targets;
@@ -55,10 +55,8 @@ try {
       failedApi.push({ url: message.params.response.url, status: message.params.response.status });
     } else if (message.method === 'Fetch.requestPaused') {
       const { requestId } = message.params;
-      if (mockEmptyPulse) {
-        const body = Buffer.from(JSON.stringify({ success: true, requested_window: 'now', window: 'week',
-          fallback_from: 'now', active_rankings: 0, sampled: false, topics: [], rankings: [],
-          discussions: [], hashtags: [], templates: [] })).toString('base64');
+      if (mockPulse) {
+        const body = Buffer.from(JSON.stringify(mockPulse)).toString('base64');
         send('Fetch.fulfillRequest', { requestId, responseCode: 200,
           responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body }).catch(error => errors.push(String(error)));
       } else send('Fetch.continueRequest', { requestId }).catch(error => errors.push(String(error)));
@@ -85,6 +83,7 @@ try {
     const script = await send('Page.addScriptToEvaluateOnNewDocument', { source:
       `try { localStorage.setItem('tog-theme', ${JSON.stringify(theme)}); localStorage.setItem('tog-lang', ${JSON.stringify(language)}); } catch {}` });
     for (const [width, height] of sizes) {
+      console.log(`Checking ${theme}/${language}/${width}`);
       await send('Page.navigate', { url: 'about:blank' });
       await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
       pulseRequests = 0;
@@ -101,6 +100,12 @@ try {
           stripVisible: !!strip && getComputedStyle(strip).display !== 'none',
           topicLinks: strip?.querySelectorAll('a[href]').length || 0,
           railVisible: !!rail && rail.width > 0, railWidth: rail?.width, railLeft: rail?.left,
+          railHeading: document.querySelector('#home-pulse-heading')?.textContent.trim(),
+          railTitles: [...document.querySelectorAll('.home-pulse-rail h3')].map(node => node.textContent.trim()),
+          contentLinks: [...document.querySelectorAll('.home-pulse-rail a[href]')].map(link => link.getAttribute('href')),
+          duplicateTopics: [...document.querySelectorAll('.home-pulse-strip a[href]')].some(link =>
+            link.getAttribute('href') !== '/discover' && document.querySelector('.home-pulse-rail')?.textContent.includes(link.textContent.trim())),
+          clipped: [...document.querySelectorAll('.home-pulse-rail a')].some(link => link.scrollWidth > link.clientWidth + 1),
           leftSidebar: !!document.querySelector('.saved-sticker'), language: document.documentElement.lang };
       })()`);
       const desktop = width >= 768;
@@ -109,6 +114,10 @@ try {
         || result.stripVisible !== desktop || result.railVisible !== (width >= 1280)
         || (desktop && (result.topicLinks < 2 || pulseRequests !== 1))
         || (!desktop && pulseRequests !== 0)
+        || result.duplicateTopics || result.clipped
+        || (width >= 1280 && result.railHeading !== (language === 'en' ? 'Community Pulse' : 'ชีพจรชุมชน'))
+        || (width >= 1280 && (!result.railTitles.length || !result.contentLinks.some(href =>
+          href.startsWith('/post/') || href.startsWith('/template/'))))
         || (width >= 1280 && (result.mainWidth < 720 || result.railWidth < 260
           || result.railWidth > 300 || result.railLeft - result.mainRight < 24))) {
         violations.push({ theme, language, width, result, pulseRequests });
@@ -149,18 +158,61 @@ try {
   await waitFor(`location.pathname === ${JSON.stringify(firstTopic)}`);
 
   await send('Fetch.enable', { patterns: [{ urlPattern: '*/api/discover-pulse*' }] });
-  mockEmptyPulse = true;
-  await send('Page.navigate', { url: base + '/' });
-  await waitFor(`document.querySelector('.home-feed-main')`);
-  await delay(400);
-  const empty = await evaluate(`({ strip: !!document.querySelector('.home-pulse-strip'),
-    rail: !!document.querySelector('.home-pulse-rail'), width: document.querySelector('.home-feed-main')?.getBoundingClientRect().width })`);
-  assert(!empty.strip && !empty.rail && empty.width >= 720, 'Empty Pulse keeps a centered, wide feed');
+  const basePulse = { success: true, requested_window: 'now', window: 'now', sampled: false,
+    active_rankings: 2, topics: [], rankings: [], discussions: [], templates: [], hashtags: [] };
+  const topic = { key: 'tag:gaming', label: '#Gaming', href: '/discover/hashtag/gaming', active_rankings: 2 };
+  const ranking = { id: 'ranking-a', title: 'Ranking A', author_name: 'alice', new_ranking: true, comments: 2, reactions: 1 };
+  const discussion = { id: 'ranking-b', title: 'Discussion B', author_name: 'bob', comments: 3 };
+  const template = { id: 'template-a', title: 'Template A', creator_name: 'carol', active_rankings: 4 };
+  const cases = [
+    { name: 'rankings + template', data: { topics: [topic], rankings: [ranking], discussions: [ranking], templates: [template] },
+      sections: 2, links: ['/post/ranking-a', '/template/template-a'], noDiscussion: true },
+    { name: 'unique discussion', data: { rankings: [ranking], discussions: [ranking, discussion], templates: [template] },
+      sections: 3, links: ['/post/ranking-a', '/post/ranking-b', '/template/template-a'] },
+    { name: 'rankings only', data: { rankings: [ranking] }, sections: 1, links: ['/post/ranking-a'] },
+    { name: 'template only', data: { templates: [template] }, sections: 1, links: ['/template/template-a'] },
+    { name: 'topics only', data: { topics: [topic] }, sections: 1, links: ['/discover/hashtag/gaming'] },
+    { name: 'empty', data: {}, sections: 0, links: [] },
+  ];
+  const sparse = [];
+  for (const testCase of cases) {
+    console.log(`Checking sparse case: ${testCase.name}`);
+    mockPulse = { ...basePulse, ...testCase.data };
+    pulseRequests = 0;
+    await send('Page.navigate', { url: 'about:blank' });
+    await send('Page.navigate', { url: base + '/' });
+    await waitFor(`document.querySelector('.home-feed-main')`);
+    if (testCase.sections) await waitFor(`document.querySelector('.home-pulse-rail')`);
+    else await delay(350);
+    const result = await evaluate(`({ strip: !!document.querySelector('.home-pulse-strip'),
+      rail: !!document.querySelector('.home-pulse-rail'),
+      asideDisplay: getComputedStyle(document.querySelector('.home-feed-main').nextElementSibling).display,
+      sections: document.querySelectorAll('.home-pulse-rail h3').length,
+      links: [...document.querySelectorAll('.home-pulse-rail a')].map(link => link.getAttribute('href')),
+      text: document.querySelector('.home-pulse-rail')?.textContent,
+      width: document.querySelector('.home-feed-main')?.getBoundingClientRect().width })`);
+    assert.equal(result.sections, testCase.sections, `${testCase.name}: section count`);
+    assert.equal(result.rail, testCase.sections > 0, `${testCase.name}: rail visibility`);
+    assert.equal(result.strip, !!testCase.data.topics?.length, `${testCase.name}: strip visibility`);
+    assert.equal(pulseRequests, 1, `${testCase.name}: one Pulse request`);
+    for (const href of testCase.links) assert(result.links.includes(href), `${testCase.name}: missing ${href}`);
+    if (testCase.noDiscussion) assert(!result.text.includes('Discussions'), 'Duplicate discussion is hidden');
+    if (testCase.name === 'empty') {
+      assert(result.width >= 720, 'Empty Pulse keeps a centered, wide feed');
+      assert.equal(result.asideDisplay, 'none', 'Empty Pulse hides aside completely');
+    }
+    if (testCase.links.length) {
+      const href = testCase.links[0];
+      await evaluate(`document.querySelector('.home-pulse-rail a[href=${JSON.stringify(href)}]').click()`);
+      await waitFor(`location.pathname === ${JSON.stringify(href)}`);
+    }
+    sparse.push({ name: testCase.name, sections: result.sections, links: result.links, pulseRequests });
+  }
   assert.deepEqual(violations, []);
   assert.deepEqual(errors, []);
   assert.deepEqual(failedApi, []);
-  console.log(JSON.stringify({ checks, violations, errors, failedApi, empty,
-    interactions: ['tab switching', 'sticky rail', 'hashtag navigation', 'empty Pulse'], screenshots: output }, null, 2));
+  console.log(JSON.stringify({ checks, violations, errors, failedApi, sparse,
+    interactions: ['tab switching', 'sticky rail', 'hashtag navigation', 'sparse Pulse'], screenshots: output }, null, 2));
 } finally {
   clearTimeout(deadline);
   ws?.close();
