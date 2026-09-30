@@ -3,7 +3,7 @@ import { parseHashtags } from '../lib/hashtags';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { returnPath } from '../lib/navigation';
-import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid, Swords } from 'lucide-react';
+import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid, Swords, Sparkles } from 'lucide-react';
 import BadgeGallery from '../components/user/BadgeGallery';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, fetchRanking, updateProfile, equipBadge, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
@@ -782,15 +782,22 @@ export default function Profile() {
 
   return (
     <div className="text-ink antialiased min-h-screen flex flex-col font-sans">
-      <main className="profile-v2 flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
-        <PlayHeader eyebrow={t('play.profileEyebrow')} title={t('play.profileTitle')} description={displayUser?.username || t('profile.tasteSnapshotHelp')} />
+      <main className="profile-v2 flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8 max-w-7xl">
+                  {/* DESKTOP HERO */}
+          <div className="hidden lg:block mb-6">
+            <PlayHeader eyebrow={t('play.profileEyebrow')} title={t('play.profileTitle')} description={displayUser?.username || t('profile.tasteSnapshotHelp')} />
+          </div>
+          {/* MOBILE HERO */}
+          <div className="lg:hidden text-center mb-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted"><Sparkles size={10} className="inline mr-1" />{t('play.profileEyebrow', 'TASTE PASSPORT')}</p>
+          </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-8">
 
           {/* Left Sidebar: User Profile Info */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="taste-passport-v2 p-6 text-center text-ink">
-              <div className="w-24 h-24 mx-auto mb-4 relative">
+          <div className="lg:col-span-1 space-y-0 lg:space-y-6">
+            <div className="taste-passport-v2 p-3 lg:p-6 text-center text-ink">
+              <div className="w-16 h-16 lg:w-24 lg:h-24 mx-auto mb-2 lg:mb-4 relative">
                 <div className="passport-avatar w-full h-full rounded-full overflow-hidden bg-surface">
                   {displayUser?.avatar_url ? (
                     <img src={displayUser.avatar_url} alt="Profile" className="w-full h-full object-cover" />
@@ -871,7 +878,7 @@ export default function Profile() {
                 </button>
               )}
 
-              <div className="passport-strip mt-6 flex justify-around text-center text-xs text-muted">
+              <div className="passport-strip hidden lg:flex mt-6 justify-around text-center text-xs text-muted">
                 <div>
                   <p className="font-bold text-ink">{joinedLabel}</p>
                   <p>{t('profile.joined')}</p>
@@ -883,9 +890,18 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+                {/* Mobile Joined/Likes (Compact) */}
+                <div className="lg:hidden mt-2 pt-2 border-t border-line-soft/60 flex items-center justify-center gap-2 text-[10px] text-muted">
+                  <span className="font-medium">Joined {joinedLabel}</span>
+                  <span>·</span>
+                  <span className="font-medium">{totalLikes} Likes</span>
+                </div>
 
-            {/* Keep the summary under the profile; the full identity opens on demand. */}
-            <section className="passport-taste p-5" aria-label={t('profile.tasteIdentity')}>
+            
+              {/* DESKTOP TASTE & BADGES */}
+              <div className="hidden lg:block">
+                {/* Keep the summary under the profile; the full identity opens on demand. */}
+            <section className="passport-taste p-4 lg:p-5" aria-label={t('profile.tasteIdentity')}>
               <div className="flex items-center gap-2 mb-1">
                 <Fingerprint size={16} className="text-brand" />
                 <h3 className="font-bold text-ink">{t('profile.tasteIdentity')}</h3>
@@ -941,7 +957,7 @@ export default function Profile() {
                 {t('profile.viewTasteDetails')} →
               </button>
             </section>
-            <section className="passport-badges p-5" aria-label={t('profile.badges')}>
+            <section className="passport-badges p-4 lg:p-5" aria-label={t('profile.badges')}>
               <div className="flex items-center gap-2">
                 <Award size={18} className="text-brand" aria-hidden="true" />
                 <h3 className="font-bold text-ink">{t('profile.badges')}</h3>
@@ -952,6 +968,7 @@ export default function Profile() {
                 {t('profile.viewAllBadges')}
               </button>
             </section>
+              </div>
           </div>
 
           <Modal open={isBadgesOpen} onClose={() => setIsBadgesOpen(false)} title={t('profile.badges')} maxWidth="max-w-2xl">
@@ -968,7 +985,43 @@ export default function Profile() {
           </Modal>
 
           {/* Right Content: Create Template Button & List of User Posts */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-3 lg:space-y-6">
+            {/* MOBILE COMPACT TASTE SNAPSHOT */}
+            <div className="lg:hidden taste-snapshot-mobile bg-surface/40 border border-line-soft/60 rounded-2xl px-4 py-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-ink text-[10px] uppercase tracking-wider font-bold">
+                  <Fingerprint size={12} className="text-brand" />
+                  <span>{t('profile.tasteIdentity')}</span>
+                </div>
+                {badges.length > 0 && (
+                  <button type="button" onClick={() => setIsBadgesOpen(true)} className="flex items-center gap-1 text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md hover:bg-amber-500/20 transition-colors">
+                    <Award size={12} />
+                    <span>{badges.length} {t('profile.badges', 'Badges')}</span>
+                  </button>
+                )}
+              </div>
+              
+              {hashtagDistribution.length === 0 ? (
+                <p className="text-xs text-muted">{t('profile.noTasteData')}</p>
+              ) : (
+                <div className="flex gap-2 flex-wrap mb-2">
+                  {hashtagDistribution.slice(0, 3).map((item) => (
+                    <span key={item.hashtag} className="text-[10px] font-semibold text-ink bg-surface px-2 py-0.5 rounded border border-line-soft/50 shadow-xs">
+                      #{item.hashtag} <span className="text-muted font-normal ml-0.5">{item.percentage}%</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              <button
+                type="button"
+                onClick={() => setIsTasteDetailsOpen(true)}
+                className="w-full pt-2 border-t border-line-soft/60 text-[10px] font-bold text-brand text-left hover:underline"
+              >
+                {t('profile.viewTasteDetails')} →
+              </button>
+            </div>
+
 
             {isOwnProfile && pinnedRankings.length > 0 && (
               <section className="profile-defining-rankings">
@@ -985,7 +1038,9 @@ export default function Profile() {
               </section>
             )}
 
-            {/* Create New Template Banner (เฉพาะโปรไฟล์ตัวเอง) */}
+            
+              <div className="hidden lg:block">
+                {/* Create New Template Banner (เฉพาะโปรไฟล์ตัวเอง) */}
             {isOwnProfile && (
               <Link
                 to="/create"
@@ -997,9 +1052,10 @@ export default function Profile() {
                 </div>
               </Link>
             )}
+              </div>
 
             {!isOwnProfile && (
-              <div className="profile-section-intro p-6">
+              <div className="profile-section-intro p-6 hidden lg:block">
                 <p className="club-serial mb-3">TEAR OF GOD / {t('profile.tasteIdentity')}</p>
                 <h3 className="text-lg font-bold text-ink">{t('profile.tierListsBy', { name: displayUser?.username })}</h3>
                 <p className="text-xs text-muted mt-1">{t('profile.tierListsByHelp', { name: displayUser?.username })}</p>
@@ -1116,7 +1172,7 @@ export default function Profile() {
             )}
 
             {/* TikTok-style Posts Section Header / Tabs */}
-            <div className="flex items-center justify-between border-b border-line-soft pb-3 pt-2">
+            <div className="flex items-center justify-between border-b border-line-soft pb-3">
               <div className="flex items-center gap-6">
                 <button
                   type="button"
@@ -1168,6 +1224,22 @@ export default function Profile() {
                 </span>
               )}
             </div>
+              <div className="lg:hidden">
+                {/* Create New Template (Secondary Action - Mobile) */}
+              {isOwnProfile && (
+                <Link
+                  to="/create"
+                  className="group flex flex-col sm:flex-row items-center justify-between border-2 border-ink bg-tag px-4 py-2.5 rounded-xl uppercase transition-colors hover:bg-highlight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand shadow-[4px_4px_0_var(--color-ink)]"
+                >
+                  <div className="flex items-center gap-3 w-full justify-center">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center border border-ink bg-surface text-base font-black text-ink group-hover:scale-105 transition-transform rounded-full" aria-hidden="true">+</span>
+                    <span>
+                      <span className="block font-black italic text-ink text-sm">{t('profile.createNewTemplate')}</span>
+                    </span>
+                  </div>
+                </Link>
+              )}
+              </div>
 
             {postTab === 'duels' ? (
               isDuelsLoading ? (
@@ -1267,7 +1339,10 @@ export default function Profile() {
 
         </div>
 
-      </main>
+      
+      
+      
+</main>
 
       {/* Edit Profile Modal (เฉพาะโปรไฟล์ตัวเอง) */}
       {isOwnProfile && isEditOpen && (
@@ -1278,7 +1353,7 @@ export default function Profile() {
             {isEducationSetup && <p className="text-sm text-muted mb-4">{t('profile.setupHelp')}</p>}
 
             <form onSubmit={handleSaveChanges} className="space-y-4">
-              <fieldset disabled={isSaving || isUploading} className="profile-editor-fields space-y-4">
+              <fieldset disabled={isSaving || isUploading} className="profile-editor-fields space-y-4 pb-24">
               {!isEducationSetup && <>
               <div className="text-center mb-4">
                 <div className="w-20 h-20 mx-auto rounded-full bg-surface overflow-hidden mb-2 relative">
@@ -1407,7 +1482,7 @@ export default function Profile() {
                 )}
               </div>
 
-              <div className="profile-editor-actions sticky bottom-0 flex justify-end gap-3 pt-4">
+              <div className="profile-editor-actions sticky bottom-0 flex justify-end gap-3 py-3 px-4 -mx-4 bg-surface/95 backdrop-blur-md border-t border-line-soft z-20">
                 <button
                   type="button"
                   onClick={closeProfileEditor}
