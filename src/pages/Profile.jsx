@@ -892,9 +892,9 @@ export default function Profile() {
             </div>
                 {/* Mobile Joined/Likes (Compact) */}
                 <div className="lg:hidden mt-2 pt-2 border-t border-line-soft/60 flex items-center justify-center gap-2 text-[10px] text-muted">
-                  <span className="font-medium">Joined {joinedLabel}</span>
+                  <span className="font-medium">{t('profile.joined')} {joinedLabel}</span>
                   <span>·</span>
-                  <span className="font-medium">{totalLikes} Likes</span>
+                  <span className="font-medium">{totalLikes} {t('profile.totalLikes')}</span>
                 </div>
 
             
@@ -987,18 +987,16 @@ export default function Profile() {
           {/* Right Content: Create Template Button & List of User Posts */}
           <div className="lg:col-span-3 space-y-3 lg:space-y-6">
             {/* MOBILE COMPACT TASTE SNAPSHOT */}
-            <div className="lg:hidden taste-snapshot-mobile bg-surface/40 border border-line-soft/60 rounded-2xl px-4 py-2">
-              <div className="flex items-center justify-between mb-2">
+            <div className="lg:hidden taste-snapshot-mobile bg-surface/40 border border-line-soft/60 rounded-2xl px-4 py-1">
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-1.5 text-ink text-[10px] uppercase tracking-wider font-bold">
                   <Fingerprint size={12} className="text-brand" />
                   <span>{t('profile.tasteIdentity')}</span>
                 </div>
-                {badges.length > 0 && (
-                  <button type="button" onClick={() => setIsBadgesOpen(true)} className="flex items-center gap-1 text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md hover:bg-amber-500/20 transition-colors">
-                    <Award size={12} />
-                    <span>{badges.length} {t('profile.badges', 'Badges')}</span>
+                <button type="button" onClick={() => setIsBadgesOpen(true)} className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-3 min-h-[44px] rounded-xl hover:bg-amber-500/20 transition-colors">
+                    <Award size={14} />
+                    <span>{badges.length} / {badgeStates.length} {t('profile.badges')}</span>
                   </button>
-                )}
               </div>
               
               {hashtagDistribution.length === 0 ? (
@@ -1016,7 +1014,7 @@ export default function Profile() {
               <button
                 type="button"
                 onClick={() => setIsTasteDetailsOpen(true)}
-                className="w-full pt-2 border-t border-line-soft/60 text-[10px] font-bold text-brand text-left hover:underline"
+                className="w-full flex items-center min-h-[44px] border-t border-line-soft/60 text-[11px] font-bold text-brand text-left hover:underline"
               >
                 {t('profile.viewTasteDetails')} →
               </button>
@@ -1024,7 +1022,7 @@ export default function Profile() {
 
 
             {isOwnProfile && pinnedRankings.length > 0 && (
-              <section className="profile-defining-rankings">
+              <section className="profile-defining-rankings hidden lg:block">
                 <div className="profile-section-intro mb-4 p-4">
                   <p className="club-serial text-ink-soft">TEAR OF GOD / {t('profile.pinnedTab')}</p>
                   <h3 className="mt-1 text-lg font-black text-ink">{t('profile.pinnedTab')}</h3>
