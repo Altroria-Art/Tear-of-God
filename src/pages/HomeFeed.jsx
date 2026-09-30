@@ -1075,11 +1075,22 @@ export default function HomeFeed() {
 
           {!isLoading && !hasMore && displayData.length > 0 && (
             <div 
+              key={`end_feed_${activeTab}`}
               ref={(el) => {
-                if (el && !el.dataset.tracked) {
+                if (!el || el.dataset.tracked) return;
+                if (typeof IntersectionObserver === 'undefined') {
                   el.dataset.tracked = 'true';
                   trackEvent('feed_end_reached', { entityType: 'feed', entityId: activeTab, onceKey: `feed_end_${activeTab}` });
+                  return;
                 }
+                const observer = new IntersectionObserver(([entry]) => {
+                  if (entry.isIntersecting) {
+                    el.dataset.tracked = 'true';
+                    trackEvent('feed_end_reached', { entityType: 'feed', entityId: activeTab, onceKey: `feed_end_${activeTab}` });
+                    observer.disconnect();
+                  }
+                }, { threshold: 0.5 });
+                observer.observe(el);
               }}
               className="mt-8 mb-12 flex flex-col items-center justify-center rounded-2xl border border-line-soft bg-surface px-4 py-10 text-center shadow-sm"
             >
