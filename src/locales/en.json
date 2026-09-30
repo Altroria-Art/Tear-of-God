@@ -305,7 +305,17 @@
     "goToLoginNow": "Go to login now",
     "invalidOrExpiredToken": "Invalid or expired reset link",
     "passwordLengthError": "Password must be 8–256 characters",
-    "passwordsDoNotMatch": "Passwords do not match"
+    "passwordsDoNotMatch": "Passwords do not match",
+    "memberAccess": "Member access",
+    "newMember": "New member",
+    "joinTheClub": "Join the club",
+    "alreadyRanking": "Already ranking?",
+    "yourListsWaiting": "Your lists are waiting.",
+    "createAccountBtn": "Create account",
+    "backToLoginBtn": "Back to login",
+    "buildTierLists": "Build tier lists.",
+    "shareYourTakes": "Share your takes.",
+    "seeWhereEveryoneStands": "See where everyone stands."
   },
   "feed": {
     "allSeen": "You're all caught up",
