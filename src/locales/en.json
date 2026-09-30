@@ -349,7 +349,11 @@
     "activityLoading": "Loading activity...",
     "activityLiked": "{{name}} liked a ranking",
     "activityUsedTemplate": "{{name}} ranked a template",
-    "activityCreatedRanking": "{{name}} created a new ranking"
+    "activityCreatedRanking": "{{name}} created a new ranking",
+    "allCaughtUp": "You're all caught up!",
+    "allCaughtUpSubtitle": "You've seen all the recent rankings.",
+    "exploreTemplates": "Explore Templates",
+    "createRanking": "Create a Ranking"
   },
   "topicFollow": {
     "follow": "Follow this topic",
@@ -621,7 +625,9 @@
     "reportDesc": "Please provide a reason.",
     "confirmDelete": "Are you sure you want to delete this post?",
     "deleteSuccess": "Post deleted successfully",
-    "deleteFailed": "Failed to delete post: {{msg}}"
+    "deleteFailed": "Failed to delete post: {{msg}}",
+    "startDiscussion": "Start the discussion",
+    "beTheFirst": "Be the first to share your take."
   },
   "template": {
     "noCommunityAverage": "No community average data yet",
@@ -750,7 +756,12 @@
     "communityPulse": "The community pulse",
     "fromRealActivity": "From real activity",
     "timeWindow": "Choose an activity window",
-    "windows": { "now": "Now", "today": "Today", "week": "This week", "last_week": "Last week" },
+    "windows": {
+      "now": "Now",
+      "today": "Today",
+      "week": "This week",
+      "last_week": "Last week"
+    },
     "topic": "Topic",
     "rankingsCount_one": "{{count}} recent ranking",
     "rankingsCount_other": "{{count}} recent rankings",
@@ -786,7 +797,9 @@
     "allTemplates": "All templates",
     "allHashtags": "All hashtags",
     "backToPulse": "Back to the pulse",
-    "searchHeading": "Find your thing"
+    "searchHeading": "Find your thing",
+    "fallbackNowWeek": "It's quiet right now — showing highlights from this week.",
+    "fallbackTodayWeek": "It's quiet today — showing highlights from this week."
   },
   "category": {
     "empty": "No posts in this category yet",

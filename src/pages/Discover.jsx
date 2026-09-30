@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Bookmark, MessageCircle, Search, X } from 'lucide-react';
+import { ArrowRight, Bookmark, MessageCircle, Search, X, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '../context/UserContext';
 import { useBookmarks } from '../context/BookmarkContext';
 import { useToast } from '../components/ui/Toast';
+import { trackEvent } from '../lib/analytics';
 import { fetchDiscoverPulse, fetchTemplates } from '../lib/api';
 import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
@@ -131,6 +132,13 @@ export default function Discover() {
     setPulseError('');
     fetchDiscoverPulse(requestedWindow).then(result => {
       if (cancelled) return;
+      if (result.success && result.fallback_from) {
+        trackEvent('discover_fallback', {
+          entityType: 'discover_window',
+          entityId: `${result.fallback_from}->${result.window}`,
+          onceKey: `fallback:${result.fallback_from}->${result.window}`
+        });
+      }
       setPulse(result.success ? result : null);
       setPulseError(result.error || '');
       setPulseLoading(false);
@@ -207,7 +215,12 @@ export default function Discover() {
             onClick={() => { const next = new URLSearchParams(params); next.set('window', window); setParams(next); }}>
             {t(`pulse.windows.${window}`)}</button>)}
         </div>
-        {pulse?.fallback_from && pulse.active_rankings > 0 && !pulseLoading && <p className="pulse-fallback" role="status">{t(pulse.window === 'today' ? 'pulse.fallbackToday' : 'pulse.fallbackWeek')}</p>}
+        {pulse?.fallback_from && pulse.active_rankings > 0 && !pulseLoading && (
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-line-soft bg-surface-glass p-3.5 text-sm font-medium text-ink shadow-xs transition-opacity duration-300 animate-in fade-in" role="status">
+            <Info size={16} className="text-brand shrink-0" aria-hidden="true" />
+            <p>{t(pulse.window === 'today' ? 'pulse.fallbackTodayWeek' : 'pulse.fallbackNowWeek')}</p>
+          </div>
+        )}
         {pulse?.sampled && !pulseLoading && <p className="pulse-sample-note">{t('pulse.sampleNote')}</p>}
         {pulseError ? <div className="pulse-empty" role="alert"><p>{pulseError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
           : pulseLoading ? <div className="pulse-topic-grid" aria-label={t('pulse.loading')}>{Array.from({ length: 3 }, (_, index) => <div key={index} className="pulse-topic pulse-topic--skeleton animate-pulse" />)}</div>
