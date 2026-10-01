@@ -315,36 +315,9 @@ assert.equal(cache.deleteCalls, 1, 'caches.default.delete must have been called 
 assert.equal(cache.store.has(cacheKey), false, 'Spotlight cache key must no longer exist in store');
 assert.equal(await cache.match(cacheKey), null, 'Cache match on spotlights key must return null after comment create');
 
-// Test client event simulation and token sharing between FreshnessHub and FeaturedPrompts
-const eventToken = String(Date.now());
-const simulatedUrls = [];
-const mockFreshnessHubHandler = (e) => {
-  const token = e.detail?.token;
-  simulatedUrls.push(`/api/spotlights?cycle=${token}`);
-};
-const mockFeaturedPromptsHandler = (e) => {
-  const token = e.detail?.token;
-  simulatedUrls.push(`/api/spotlights?cycle=${token}`);
-};
-
-const mockEvent = { detail: { token: eventToken } };
-mockFreshnessHubHandler(mockEvent);
-mockFeaturedPromptsHandler(mockEvent);
-
-assert.equal(simulatedUrls.length, 2);
-assert.equal(
-  simulatedUrls[0],
-  simulatedUrls[1],
-  'FreshnessHub and FeaturedPrompts must use the identical cycle token URL for inFlightGET dedup'
-);
-assert.ok(
-  simulatedUrls[0].includes(`?cycle=${eventToken}`),
-  'Request URL must include ?cycle=<token> to bypass browser cache'
-);
-
-// 4. GET /api/spotlights with new cycle token returns ranking with the new comment at #1
+// 4. The same URL must return fresh data after server-side cache invalidation.
 console.log('Verifying GET /api/spotlights returns ranking with new comment at #1...');
-const freshSpotlightRes = await callSpotlightsApi(db, `https://local.test/api/spotlights?cycle=${eventToken}`);
+const freshSpotlightRes = await callSpotlightsApi(db);
 assert.equal(freshSpotlightRes.success, true);
 const debateAfterComment = freshSpotlightRes.data.freshness.debate;
 assert.equal(debateAfterComment[0].id, targetRankingId, `Ranking ${targetRankingId} with the new comment must now be #1 in Active Debates`);
@@ -368,7 +341,7 @@ assert.equal(deleteRes.status, 200, 'Comment deletion must succeed');
 assert.equal(cache.deleteCalls, 2, 'caches.default.delete must be called on comment deletion');
 assert.equal(cache.store.has(cacheKey), false, 'Spotlight cache key must be invalidated after comment delete');
 
-console.log('✔ Scenario 4 passed: Cache warms, invalidates on create, reflects #1 ranking, dedupes token, and invalidates on delete!');
+console.log('✔ Scenario 4 passed: Cache warms, invalidates on create, reflects #1 ranking, and invalidates on delete!');
 
 globalThis.caches = originalCaches;
 

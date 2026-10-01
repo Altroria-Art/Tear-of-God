@@ -61,19 +61,7 @@ console.log('--- Running Profile Links Universal Audit ---');
   console.log('✓ PostDetail.jsx links author header to /profile/:authorId cleanly');
 }
 
-// 6. FreshnessHub.jsx audit
-{
-  const freshnessPath = path.join(rootDir, 'src/components/feed/FreshnessHub.jsx');
-  const content = fs.readFileSync(freshnessPath, 'utf8');
-  assert(content.includes('to={`/profile/${encodeURIComponent(userId)}`}'), 'FreshnessHub should link to /profile/:userId');
-  assert(content.includes('<Avatar name={username} src={ranking.profile?.avatar_url} size="xs" />'), 'FreshnessHub should render Avatar size xs');
-  assert(content.includes('e.stopPropagation()'), 'FreshnessHub user link should stop propagation');
-  // Check that outer container is not <Link> wrapping inner <Link>
-  assert(!content.includes('<Link\n      to={next}\n      data-auth-next={next}'), 'FreshnessHub should not wrap child Link inside outer Link');
-  console.log('✓ FreshnessHub.jsx renders Avatar and links to /profile/:userId without nested <a>');
-}
-
-// 7. HomeFeed.jsx audit
+// 6. HomeFeed.jsx audit
 {
   const homeFeedPath = path.join(rootDir, 'src/pages/HomeFeed.jsx');
   const content = fs.readFileSync(homeFeedPath, 'utf8');
@@ -82,7 +70,7 @@ console.log('--- Running Profile Links Universal Audit ---');
   console.log('✓ HomeFeed.jsx uses semantic Link to /profile/:userId with stopPropagation');
 }
 
-// 8. Admin pages audit
+// 7. Admin pages audit
 {
   const usersPath = path.join(rootDir, 'src/pages/admin/Users.jsx');
   const usersContent = fs.readFileSync(usersPath, 'utf8');

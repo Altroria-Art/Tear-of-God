@@ -43,17 +43,18 @@ await loading;
 assert.deepEqual(Array.from(posts, post => post.id), ['a', 'b'], 'late old-profile result must be discarded');
 
 const discover = await readFile(new URL('../../src/pages/Discover.jsx', import.meta.url), 'utf8');
-const loadStart = discover.indexOf('    async function load()');
-const loadEnd = discover.indexOf('    load();', loadStart);
+const loadStart = discover.indexOf('    async function loadResults()');
+const loadEnd = discover.indexOf('    loadResults();', loadStart);
 assert(loadStart >= 0 && loadEnd > loadStart);
 let params = new URLSearchParams('view=saved&page=2&q=hello');
 const discoverContext = vm.createContext({
-  saved: true, viewerId: 'user', browsingResults: true, q: 'hello', page: 2, cancelled: false,
-  URLSearchParams, setIsLoading() {}, setLoadError() {}, setTemplates() { throw Error('must redirect before rendering an invalid page'); },
+  saved: true, currentUser: { id: 'user' }, browsingResults: true, q: 'hello', page: 2, cancelled: false,
+  URLSearchParams, setIsLoading() {}, setLoadError() {}, setTotal() {},
+  setTemplates() { throw Error('must redirect before rendering an invalid page'); },
   fetchTemplates: async () => ({ data: [], total: 12 }),
   setParams: (update, options) => { assert.equal(options.replace, true); params = update(params); },
 });
-vm.runInContext(discover.slice(loadStart, loadEnd) + '\nthis.run = load;', discoverContext);
+vm.runInContext(discover.slice(loadStart, loadEnd) + '\nthis.run = loadResults;', discoverContext);
 await discoverContext.run();
 assert.equal(params.get('page'), null);
 assert.equal(params.get('view'), 'saved');
