@@ -37,7 +37,8 @@ export async function onRequest({ request, env, data: auth }) {
       const { results } = await db.prepare(query).bind(userId).all();
       return jsonResponse({ success: true, data: results, total: results.length });
     } catch (e) {
-      return jsonResponse({ error: e.message }, 500);
+      console.error('Follow list request failed:', e.message);
+      return jsonResponse({ error: 'Service temporarily unavailable' }, 500);
     }
   }
 
