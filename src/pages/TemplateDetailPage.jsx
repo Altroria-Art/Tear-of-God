@@ -504,8 +504,7 @@ function TemplateDetailContent() {
         <section className="mb-8 rounded-xl glass p-6 shadow-sm">
           <h1 className="play-title mb-4 text-3xl font-black md:text-4xl break-words">{template.title}</h1>
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 mb-6">
               {creatorId ? (
                 <Link
                   to={`/profile/${encodeURIComponent(creatorId)}`}
@@ -529,76 +528,57 @@ function TemplateDetailContent() {
               </span>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <details className="relative order-last"><summary aria-label={t('common.more')} className="cursor-pointer list-none px-3 py-2 rounded-xl border border-line-soft">•••</summary>              <div className="absolute right-0 top-full mt-2 z-30 rounded-xl bg-canvas border border-line p-2 min-w-40 shadow-panel"><button
-                type="button"
-                onClick={() => setReportOpen(true)}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-status-error hover:bg-tag w-full"
-                aria-label={t('template.report')}
-                title={t('template.report')}
-              >
-                <Flag size={16} />
-                <span>{t('template.report')}</span>
-              </button>{canDeleteTemplate && (
-                <button
-                  type="button"
-                  onClick={() => setDeleteOpen(true)}
-                  disabled={isDeletingTemplate}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-status-error hover:bg-status-error/10 w-full disabled:opacity-50"
-                  aria-label={t('template.deleteTemplate')}
-                  title={t('template.deleteTemplate')}
-                >
-                  <Trash2 size={16} />
-                  <span>{t('template.deleteTemplate')}</span>
-                </button>
-              )}</div></details>
-              <button
-                type="button"
-                onClick={handleShare}
-                className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97]"
-              >
-                <Share2 size={16} /> {t('common.share')}
-              </button>
-              <BookmarkButton 
-                template={template} 
-                className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97]" 
-              />
-              <TopicFollowButton
-                topicType="template"
-                topicKey={template.id}
-                showCount={false}
-                className="flex items-center gap-2 rounded-full glass px-4 py-2 font-bold text-ink shadow-md transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] disabled:cursor-wait disabled:opacity-60"
-              />
-              <button
-                type="button"
-                onClick={handleDuelTemplate}
-                disabled={templateCooldown?.active}
-                className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
-                  creatorId && currentUser?.id === creatorId
-                    ? 'border border-line bg-surface/50 text-muted opacity-70'
-                    : templateCooldown?.active
-                    ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
-                    : 'bg-highlight/15 text-highlight border border-highlight/40 hover:bg-highlight/25 hover:-translate-y-0.5 active:scale-[0.97]'
-                }`}
-                title={
-                  templateCooldown?.active
-                    ? t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })
-                    : creatorId && currentUser?.id === creatorId
-                    ? t('duel.warnSelfDuel')
-                    : t('duel.duelButton')
-                }
-              >
-                <Swords size={16} />
-                <span>{t('duel.duelButton')}</span>
-              </button>
+            {template.description && (
+              <p className="mb-3 max-w-3xl text-muted leading-relaxed">{template.description}</p>
+            )}
+
+            <HashtagList hashtags={template.hashtags} className="mb-6" />
+
+            {/* RAW ITEM PREVIEW */}
+            {template.template_items && template.template_items.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold text-ink-soft uppercase tracking-wider">{t('template.itemsInTemplate', 'Items in this template')} · {template.template_items.length}</h3>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 snap-x hide-scrollbar">
+                  {template.template_items.slice(0, 10).map(ti => (
+                    <div key={ti.id || ti.item_id} className="shrink-0 w-20 flex flex-col gap-1.5 snap-start">
+                      {ti.item?.image_url ? (
+                        <img src={ti.item.image_url} alt={ti.item.name} className="w-20 h-20 object-cover rounded-xl bg-surface border border-line-soft/30 shadow-sm" />
+                      ) : (
+                        <div className="w-20 h-20 rounded-xl bg-surface border border-line-soft/30 shadow-sm flex items-center justify-center p-2 text-center">
+                          <span className="text-[10px] text-muted line-clamp-3 leading-tight">{ti.item?.name || ti.item_id}</span>
+                        </div>
+                      )}
+                      <span className="text-[10px] font-medium text-ink truncate text-center" title={ti.item?.name}>{ti.item?.name || ti.item_id}</span>
+                    </div>
+                  ))}
+                  {template.template_items.length > 10 && (
+                    <div className="shrink-0 w-20 h-20 rounded-xl bg-surface-glass border border-line-soft/60 flex items-center justify-center snap-start">
+                      <span className="text-xs font-bold text-muted">+{template.template_items.length - 10}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {templateCooldown?.active && (
+              <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                <Clock size={18} className="shrink-0 text-amber-400" />
+                <span>{t('cooldown.activeBanner', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })}</span>
+              </div>
+            )}
+
+            {/* PRIMARY CTA & SECONDARY ACTIONS */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-t border-line-soft/60 pt-6">
               <button
                 type="button"
                 onClick={handleUseTemplate}
                 disabled={templateCooldown?.active}
-                className={`flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
+                className={`flex items-center justify-center gap-2 rounded-xl px-8 py-3.5 text-[15px] font-bold transition-all w-full lg:w-auto min-h-[48px] shadow-sm ${
                   templateCooldown?.active
                     ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
-                    : 'bg-brand text-canvas hover:bg-brand-accent'
+                    : 'bg-brand text-canvas hover:bg-brand-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-brand/20'
                 }`}
                 title={
                   templateCooldown?.active
@@ -610,20 +590,78 @@ function TemplateDetailContent() {
                   ? t('cooldown.buttonDisabled', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })
                   : t('template.use')}
               </button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDuelTemplate}
+                  disabled={templateCooldown?.active}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all min-h-[44px] ${
+                    creatorId && currentUser?.id === creatorId
+                      ? 'border border-line bg-surface/50 text-muted opacity-70'
+                      : templateCooldown?.active
+                      ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
+                      : 'bg-highlight/10 text-highlight border border-highlight/30 hover:bg-highlight/20 active:scale-[0.97]'
+                  }`}
+                  title={
+                    templateCooldown?.active
+                      ? t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })
+                      : creatorId && currentUser?.id === creatorId
+                      ? t('duel.warnSelfDuel')
+                      : t('duel.duelButton')
+                  }
+                >
+                  <Swords size={16} />
+                  <span>{t('duel.duelButton')}</span>
+                </button>
+
+                <BookmarkButton
+                  template={template}
+                  className="flex items-center gap-2 rounded-xl glass px-4 py-2.5 font-bold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] min-h-[44px]"
+                />
+                <TopicFollowButton
+                  topicType="template"
+                  topicKey={template.id}
+                  showCount={false}
+                  className="flex items-center gap-2 rounded-xl glass px-4 py-2.5 font-bold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] disabled:cursor-wait disabled:opacity-60 min-h-[44px]"
+                />
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="flex items-center gap-2 rounded-xl glass px-4 py-2.5 font-bold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] min-h-[44px]"
+                >
+                  <Share2 size={16} />
+                  <span className="hidden sm:inline">{t('common.share')}</span>
+                </button>
+                <details className="relative">
+                  <summary aria-label={t('common.more')} className="cursor-pointer list-none px-3 py-2.5 rounded-xl glass border border-line-soft min-h-[44px] flex items-center shadow-sm">•••</summary>
+                  <div className="absolute right-0 top-full mt-2 z-30 rounded-xl bg-canvas border border-line p-2 min-w-40 shadow-panel">
+                    <button
+                      type="button"
+                      onClick={() => setReportOpen(true)}
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-status-error hover:bg-tag w-full min-h-[44px]"
+                      aria-label={t('template.report')}
+                    >
+                      <Flag size={16} />
+                      <span>{t('template.report')}</span>
+                    </button>
+                    {canDeleteTemplate && (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteOpen(true)}
+                        disabled={isDeletingTemplate}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-status-error hover:bg-status-error/10 w-full disabled:opacity-50 min-h-[44px]"
+                        aria-label={t('template.deleteTemplate')}
+                      >
+                        <Trash2 size={16} />
+                        <span>{t('template.deleteTemplate')}</span>
+                      </button>
+                    )}
+                  </div>
+                </details>
+              </div>
             </div>
-          </div>
-
-          {templateCooldown?.active && (
-            <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-              <Clock size={18} className="shrink-0 text-amber-400" />
-              <span>{t('cooldown.activeBanner', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })}</span>
-            </div>
-          )}
-
-          <p className="mt-4 max-w-3xl text-muted">{template.description}</p>
-
-          <HashtagList hashtags={template.hashtags} className="mt-3" />
-        </section>
+          </section>
 
 
         <section>
