@@ -108,6 +108,7 @@ export async function onRequestGet(context) {
 
     return Response.json({ success: true, data, total: data.length });
   } catch (error) {
-    return Response.json({ success: false, error: error.message }, { status: 500 });
+    console.error('Template participants request failed:', error.message);
+    return Response.json({ success: false, error: 'Service temporarily unavailable' }, { status: 500 });
   }
 }
