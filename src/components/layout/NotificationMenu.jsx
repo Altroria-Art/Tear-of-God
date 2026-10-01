@@ -268,7 +268,7 @@ export default function NotificationMenu({ userId }) {
               type="button"
               onClick={markAllRead}
               disabled={!unreadCount}
-              className="flex items-center gap-1.5 text-xs font-bold text-brand disabled:text-muted disabled:cursor-default"
+              className="flex items-center gap-1.5 px-2 min-h-11 text-xs font-bold text-brand disabled:text-muted disabled:cursor-default"
             >
               <CheckCheck size={15} />
               {t('notifications.markAllRead')}
@@ -296,7 +296,7 @@ export default function NotificationMenu({ userId }) {
                   <button
                     type="button"
                     onClick={() => openNotification(notification)}
-                    className="min-w-0 flex flex-1 items-start gap-3 rounded-lg text-left hover:bg-surface-glass"
+                    className="min-h-11 min-w-0 flex flex-1 items-start gap-3 rounded-lg text-left hover:bg-surface-glass"
                   >
                     <span className="relative shrink-0">
                       {notification.actor_avatar_url ? (
@@ -321,7 +321,7 @@ export default function NotificationMenu({ userId }) {
                     onClick={() => handleDeleteNotification(notification)}
                     aria-label={t('notifications.delete')}
                     title={t('notifications.delete')}
-                    className="shrink-0 self-center rounded-lg p-3 text-muted transition-colors hover:bg-red-500/10 hover:text-red-400"
+                    className="min-w-11 min-h-11 flex items-center justify-center shrink-0 self-center rounded-lg p-3 text-muted transition-colors hover:bg-red-500/10 hover:text-red-400"
                   >
                     <Trash2 size={15} />
                   </button>
