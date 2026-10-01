@@ -550,7 +550,7 @@ function TemplateDetailContent() {
                           <span className="text-[10px] text-muted line-clamp-3 leading-tight">{ti.item?.name || ti.item_id}</span>
                         </div>
                       )}
-                      <span className="text-[10px] font-medium text-ink truncate text-center" title={ti.item?.name}>{ti.item?.name || ti.item_id}</span>
+                      <span className="text-[10px] font-medium text-ink line-clamp-2 break-words text-center leading-tight" title={ti.item?.name}>{ti.item?.name || ti.item_id}</span>
                     </div>
                   ))}
                   {template.template_items.length > 10 && (
@@ -628,13 +628,15 @@ function TemplateDetailContent() {
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="flex items-center gap-2 rounded-xl glass px-4 py-2.5 font-bold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] min-h-[44px]"
+                  aria-label={t('common.share')}
+                  title={t('common.share')}
+                  className="flex items-center justify-center gap-2 rounded-xl glass px-4 py-2.5 font-bold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] min-h-[44px] min-w-[44px] sm:min-w-0"
                 >
                   <Share2 size={16} />
                   <span className="hidden sm:inline">{t('common.share')}</span>
                 </button>
                 <details className="relative">
-                  <summary aria-label={t('common.more')} className="cursor-pointer list-none px-3 py-2.5 rounded-xl glass border border-line-soft min-h-[44px] flex items-center shadow-sm">•••</summary>
+                  <summary aria-label={t('common.more')} className="cursor-pointer list-none px-3 py-2.5 rounded-xl glass border border-line-soft min-h-[44px] min-w-[44px] flex justify-center items-center shadow-sm">•••</summary>
                   <div className="absolute right-0 top-full mt-2 z-30 rounded-xl bg-canvas border border-line p-2 min-w-40 shadow-panel">
                     <button
                       type="button"
