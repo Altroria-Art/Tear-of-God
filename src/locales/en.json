@@ -396,6 +396,7 @@
     "followers": "{{count}} followers"
   },
   "create": {
+    "emptyBoardHint": "Add a few items in Quick Add, then tap an item to choose its tier.",
     "makeItOfficial": "MAKE IT OFFICIAL.",
     "title": "Create Tier List",
     "subtitle": "Create your categories and rank items easily.",
@@ -454,7 +455,8 @@
     "resetConfirmTitle": "Reset all?",
     "resetConfirmMsg": "This will clear every item, the title, description and selected hashtags. Continue?",
     "assignTierTo": "Assign to tier",
-    "assignTier": "Assign to tier"
+    "assignTier": "Assign to tier",
+    "rankInstruction": "Tap an item to choose its tier, or drag it into place. Your taste makes the rules."
   },
   "rank": {
     "tapToRank": "Tap an item to choose its tier.",

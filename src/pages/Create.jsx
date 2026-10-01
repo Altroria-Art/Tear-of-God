@@ -75,6 +75,10 @@ const CreateTierList = () => {
   const [description, setDescription] = useState(draft?.description ?? '');
   const [isPublishing, setIsPublishing] = useState(false);
   const publishPendingRef = useRef(false);
+  const titleInputRef = useRef(null);
+  const hashtagInputRef = useRef(null);
+  const quickAddRef = useRef(null);
+  const tierBoardRef = useRef(null);
 
   // ลำดับ item ใน array = ลำดับการแสดงผลภายใน tier → restore แล้วตำแหน่งเดิมทุกชิ้น
   const [items, setItems] = useState(
@@ -326,24 +330,43 @@ const CreateTierList = () => {
 
   };
 
+
+  const revealAndFocus = (element, scrollTarget = element) => {
+    if (!element) return;
+    element.focus({ preventScroll: true });
+    scrollTarget?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    });
+  };
+
   const handlePublish = async () => {
     if (!currentUser) { toast.warning(t('create.warnLoginPublish')); navigate(loginPath('/create')); return; }
     if (isPublishing || publishPendingRef.current) return;
-    if (!title.trim()) { return toast.warning(t('create.warnName')); }
-    if (selectedHashtags.length === 0) { return toast.warning(t('create.warnHashtag')); }
+    if (!title.trim()) {
+      revealAndFocus(titleInputRef.current);
+      return toast.warning(t('create.warnName'));
+    }
+    if (selectedHashtags.length === 0) {
+      const hashtagInput = hashtagInputRef.current?.querySelector('input');
+      revealAndFocus(hashtagInput, hashtagInputRef.current);
+      return toast.warning(t('create.warnHashtag'));
+    }
 
-    // 📍 [เพิ่มใหม่]: ต้องมี item และจัด tier แล้วเท่านั้น — ไม่งั้นจะได้โพสต์เปล่า
     const rankedItems = items.filter(item => tiers.some(tier => tier.id === item.tierId));
     if (items.length === 0) {
+      const textarea = quickAddRef.current?.querySelector('textarea');
+      revealAndFocus(textarea, quickAddRef.current);
       return toast.error(t('create.errAddItem'));
     }
     if (rankedItems.length === 0) {
+      tierBoardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return toast.error(t('create.errMakeTier'));
     }
-    // 📍 [ใหม่]: ห้าม publish ถ้ายังมีไอเทมค้างใน Unranked Pool — เดิมไอเทมที่ยังไม่จัด
-    // tier จะโดน drop เงียบๆ ไม่ถูกบันทึกลง ranking_items (ดู docs/tier-list-empty-tier-and-publish-validation-plan.md)
+
     const unrankedItems = itemGroups.unranked;
     if (unrankedItems.length > 0) {
+      tierBoardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       const names = unrankedItems.slice(0, 3).map(i => i.content).join(', ');
       const more = unrankedItems.length > 3 ? t('create.errUnrankedItemsMore', { n: unrankedItems.length - 3 }) : '';
       return toast.error(t('create.errUnrankedItems', { count: unrankedItems.length, names, more }));
@@ -398,7 +421,7 @@ const CreateTierList = () => {
 
   return (
     <div className="min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
-      
+
 {/* POPUP SETTINGS MODAL */}
       <Modal open={!!activeSettingsTier} onClose={closeSettings} title={t('create.chooseLabelBg')} variant="editor">
         {activeSettingsTier && <>
@@ -445,13 +468,13 @@ const CreateTierList = () => {
 
 
 
-      <div className="max-w-7xl mx-auto"><PlayHeader eyebrow={t('play.createEyebrow')} title={t('play.createTitle')} description={t('play.rankDescription')}>
+      <div className="max-w-7xl mx-auto"><PlayHeader eyebrow={t('play.createEyebrow')} title={t('play.createTitle')} description={t('create.rankInstruction')}>
         <ol className="editor-steps"><li>{t('play.stepItems')}</li><li>{t('play.stepRank')}</li><li>{t('play.stepPublish')}</li></ol>
         {!currentUser && <p className="mt-3 text-xs text-muted">{t('create.guestStart')}</p>}
       </PlayHeader></div>
 
       <div className="max-w-7xl mx-auto grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
-          <div className={`quick-add-panel lg:col-start-2 lg:row-start-1 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4 ${items.length === 0 ? 'is-empty' : ''}`}>
+          <div ref={quickAddRef} className={`quick-add-panel lg:col-start-2 lg:row-start-1 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4 ${items.length === 0 ? 'is-empty' : ''}`}>
             <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>
             <p className="text-xs text-muted mb-2 font-medium">{t('create.quickAddHelp')}</p>
             <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
@@ -462,10 +485,10 @@ const CreateTierList = () => {
             </div>
           </div>
         <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2 flex flex-col gap-6">
-          <div className={`create-board glass p-4 sm:p-6 rounded-2xl ${items.length === 0 ? 'is-empty' : ''}`}>
-            {items.length === 0 && <p className="create-board-hint" role="status">{t('play.emptyBoardHint')}</p>}
+          <div ref={tierBoardRef} className={`create-board glass p-4 sm:p-6 rounded-2xl flex flex-col ${items.length === 0 ? 'is-empty' : ''}`}>
+            {items.length === 0 && <p className="create-board-hint" role="status">{t('create.emptyBoardHint')}</p>}
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 order-2 lg:order-1">
               {effectiveTiers.map((tier, tierIndex) => (
                 <div key={tier.id} className="flex min-h-[90px] bg-tag border border-line-soft rounded-2xl overflow-hidden">
                   <TierLabel
@@ -485,10 +508,10 @@ const CreateTierList = () => {
               ))}
             </div>
 
-            <hr className="my-8 border-line-soft/50" />
+            <hr className="my-8 border-line-soft/50 hidden lg:block order-2" />
 
             {/* UNRANKED ITEMS POOL */}
-            <div>
+            <div className="order-1 lg:order-3 mb-6 lg:mb-0">
               <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
                 <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">{t('create.unrankedPool')}</h3>
                 <div className="flex flex-wrap items-center gap-2">
@@ -496,7 +519,7 @@ const CreateTierList = () => {
                     type="button"
                     onClick={handleReturnToPool}
                     title={t('create.backToPoolTip')}
-                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-ink-soft transition-all hover:bg-surface hover:text-ink hover:shadow-md active:scale-95"
+                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 justify-center text-xs font-bold text-ink-soft transition-all hover:bg-surface hover:text-ink hover:shadow-md active:scale-95"
                   >
                     <ChevronLeft size={14} /> {t('create.backToPool')}
                   </button>
@@ -504,18 +527,20 @@ const CreateTierList = () => {
                     type="button"
                     onClick={handleResetAll}
                     title={t('create.resetAllTip')}
-                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 text-xs font-bold text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300 hover:shadow-md active:scale-95"
+                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 justify-center text-xs font-bold text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300 hover:shadow-md active:scale-95"
                   >
                     <X size={14} /> {t('create.resetAll')}
                   </button>
                 </div>
               </div>
-              <DropZone className="bg-surface-glass border border-line-soft min-h-24 rounded-xl p-3 flex flex-wrap gap-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
+              <div className="overflow-x-auto overflow-y-hidden pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 lg:pb-0 lg:mb-0">
+                <DropZone className="bg-surface-glass border border-line-soft min-h-24 rounded-xl p-3 flex flex-nowrap lg:flex-wrap w-max lg:w-full items-center gap-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
                 {itemGroups.unranked.length === 0 ? (
                   <span className="text-muted text-sm italic font-medium w-full text-center my-5 pointer-events-none">{t('create.noItems')}</span>
                 ) : (
                   itemGroups.unranked.map(renderItemCard)
                 )}</DropZone>
+              </div>
             </div>
 
 
@@ -528,14 +553,14 @@ const CreateTierList = () => {
             <div className="flex flex-col gap-5 mt-4">
             <div>
               <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.templateName')}</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('create.templateNamePh')} className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
+              <input ref={titleInputRef} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('create.templateNamePh')} className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
             </div>
-            
+
             {/* 📍 Hashtags Section */}
             <div>
               <label className="block text-sm font-bold mb-1 text-ink-soft uppercase tracking-wider">{t('create.hashtags')}</label>
               <p className="text-xs text-muted mb-3 font-medium">{t('create.hashtagHelp')}</p>
-              
+
               {selectedHashtags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   {selectedHashtags.map((tag, idx) => (
@@ -553,9 +578,9 @@ const CreateTierList = () => {
                   </button>
                 ))}
               </div>
-              
+
               {/* 📍 [ใหม่]: unified search/create input */}
-              <div className="flex flex-col gap-2 border-t border-line-soft/50 pt-4 relative">
+              <div ref={hashtagInputRef} className="flex flex-col gap-2 border-t border-line-soft/50 pt-4 relative">
                 <input
                   type="text"
                   value={tagQuery}
