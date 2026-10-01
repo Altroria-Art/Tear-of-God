@@ -58,7 +58,7 @@ const RankTierList = () => {
   const [cooldown, setTemplateCooldown] = useState(null);
   const templateCooldown = useCooldown(cooldown);
 
-  
+
 
   // 📍 Hashtags
   const [selectedHashtags, setSelectedHashtags] = useState([]);
@@ -473,8 +473,76 @@ const RankTierList = () => {
           {templateError && <p role="alert" className="text-xs font-bold text-status-error">{templateError}</p>}
         </div>
 
+        <div className="flex flex-col gap-6">
+
+        {/* Unranked Pool */}
+        <div className="bg-surface-glass rounded-xl p-3 sm:p-4 border border-line order-1 md:order-3">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <h2 className="text-[15px] sm:text-[17px] font-bold text-ink truncate">{t('rank.unrankedPool')} {itemGroups.unranked.length > 0 && <span className="text-muted font-medium ml-1 text-[13px] sm:text-[15px]">{itemGroups.unranked.length}</span>}</h2>
+            </div>
+
+            {/* Mobile Action Bar */}
+            <div className="flex md:hidden gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleShuffle}
+                aria-label={t('rank.shuffleItems')}
+                title={t('rank.shuffleItems')}
+                className="flex min-w-[44px] min-h-[44px] items-center justify-center gap-1 bg-surface hover:bg-surface-glass text-ink-soft text-[11px] font-bold py-1.5 px-2 rounded-md border border-line-soft transition-colors shadow-sm"
+              >
+                <Shuffle size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={handleSortAZ}
+                aria-label={t('rank.sortAZ')}
+                title={t('rank.sortAZ')}
+                className="flex min-w-[44px] min-h-[44px] items-center justify-center gap-1 bg-surface hover:bg-surface-glass text-ink-soft text-[11px] font-bold py-1.5 px-2 rounded-md border border-line-soft transition-colors shadow-sm"
+              >
+                <ArrowDownAZ size={14} />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative">
+            <DropZone className="min-h-[110px] grid grid-rows-1 grid-flow-col auto-cols-max gap-3 overflow-x-auto snap-x hide-scrollbar pb-3 md:flex md:flex-wrap md:auto-cols-auto md:grid-rows-none"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, null)}
+            >
+              {itemGroups.unranked.length === 0 ? (
+                <span className="text-muted text-sm italic py-4 pointer-events-none col-span-full">
+                  {t('rank.allRanked')}
+                </span>
+              ) : (
+                itemGroups.unranked.map(renderCard)
+              )}
+            </DropZone>
+          </div>
+        </div>
+
+        {/* Desktop Action Bar */}
+        <div className="hidden md:flex bg-surface-glass rounded-xl p-4 flex-row justify-end items-center gap-4 order-2">
+          <div className="flex gap-3 w-auto">
+            <button
+              onClick={handleShuffle}
+              className="flex-none flex items-center justify-center whitespace-nowrap gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
+            >
+              <Shuffle size={16} /> {t('rank.shuffleItems')}
+            </button>
+            <button
+              onClick={handleSortAZ}
+              className="flex-none flex items-center justify-center gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
+            >
+              <ArrowDownAZ size={16} /> {t('rank.sortAZ')}
+            </button>
+          </div>
+        </div>
+
         {/* Tier List Canvas */}
-        <div className="bg-surface-glass rounded-xl overflow-hidden flex flex-col">
+        <div className="bg-surface-glass rounded-xl overflow-hidden flex flex-col order-3 md:order-1">
+{/* Tier List Canvas */}
+
           {isLoadingTemplate ? (
             <TierLoader />
           ) : (
@@ -499,38 +567,7 @@ const RankTierList = () => {
           )}
         </div>
 
-        {/* Action Bar (Shuffle / Sort) */}
-        <div className="bg-surface-glass rounded-xl p-4 flex flex-col md:flex-row justify-end items-center gap-4">
-          <div className="flex gap-3 w-full md:w-auto">
-            <button
-              onClick={handleShuffle}
-              className="flex-1 md:flex-none flex items-center justify-center whitespace-nowrap gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
-            >
-              <Shuffle size={16} /> {t('rank.shuffleItems')}
-            </button>
-            <button
-              onClick={handleSortAZ}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface hover:bg-surface-glass text-ink-soft text-sm font-semibold py-2.5 px-4 rounded-md transition-colors"
-            >
-              <ArrowDownAZ size={16} /> {t('rank.sortAZ')}
-            </button>
-          </div>
-        </div>
 
-        {/* Unranked Pool (กล่องเก็บไอเทมที่ยังไม่ได้จัดอันดับ) */}
-        <div className="bg-surface-glass rounded-xl p-4 border border-line">
-          <h2 className="text-[17px] font-bold text-ink mb-4">{t('rank.unrankedPool')}</h2>
-          <DropZone className="min-h-24 flex flex-wrap gap-3"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, null)}
-          >
-            {itemGroups.unranked.length === 0 ? (
-              <span className="text-muted text-sm italic py-4 pointer-events-none">
-                {t('rank.allRanked')}
-              </span>
-            ) : (
-              itemGroups.unranked.map(renderCard)
-            )}</DropZone>
         </div>
 
         {/* Footer */}
