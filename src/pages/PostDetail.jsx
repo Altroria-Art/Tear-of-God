@@ -294,6 +294,7 @@ function PostDetailContent() {
   // ใช้ post?.authorId (authorId ที่ destructure ด้านล่างยังไม่เกิดตรงนี้ — กัน TDZ)
   const isOwner = currentUser?.id != null && currentUser.id === post?.authorId;
   const isAdmin = currentUser?.role === 'admin';
+  const canReportPost = !isOwner && !isAdmin;
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const handleDeletePost = async () => {
@@ -382,7 +383,7 @@ function PostDetailContent() {
                     type="button"
                     onClick={() => setDeleteOpen(true)}
                     disabled={isDeleting}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97] disabled:opacity-50"
+                    className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97] disabled:opacity-50 min-h-11"
                     aria-label={t('common.delete')}
                     title={t('common.delete')}
                   >
@@ -391,16 +392,18 @@ function PostDetailContent() {
                   </button>
                 )}
                 
-                <button
-                  type="button"
-                  onClick={handleReportPost}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97]"
-                  aria-label={t('post.report')}
-                  title={t('post.report')}
-                >
-                  <Flag size={14} />
-                  <span>{t('post.report')}</span>
-                </button>
+                {canReportPost && (
+                  <button
+                    type="button"
+                    onClick={handleReportPost}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97] min-h-11"
+                    aria-label={t('post.report')}
+                    title={t('post.report')}
+                  >
+                    <Flag size={14} />
+                    <span>{t('post.report')}</span>
+                  </button>
+                )}
               </div>
             </div>
 
