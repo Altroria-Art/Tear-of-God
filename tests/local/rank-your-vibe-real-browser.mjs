@@ -79,6 +79,23 @@ try {
     Object.getOwnPropertyDescriptor(proto, 'value').set.call(node, ${JSON.stringify(value)});
     node.dispatchEvent(new Event('input', { bubbles: true }));
   })()`);
+  // Both editors put tier zones directly in bg-tag rows. Create keeps Unranked
+  // inside .create-board, while Rank renders it before the tier canvas.
+  const unrankedZone = `(() => {
+    const zone = [...document.querySelectorAll('.drop-zone')].find(node => !node.parentElement?.classList.contains('bg-tag'));
+    if (!zone) throw new Error('Missing Unranked drop zone');
+    return zone;
+  })()`;
+  const tierZone = index => `(() => {
+    const zone = [...document.querySelectorAll('.drop-zone')].filter(node => node.parentElement?.classList.contains('bg-tag'))[${index}];
+    if (!zone) throw new Error('Missing tier drop zone at index ${index}');
+    return zone;
+  })()`;
+  const unrankedItem = `(() => {
+    const item = (${unrankedZone}).querySelector('[data-item-id] .editor-item-main');
+    if (!item) throw new Error('Missing item in Unranked drop zone');
+    return item;
+  })()`;
   await send('Runtime.enable'); await send('Page.enable'); await send('Network.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await send('Page.navigate', { url: base + '/create' });
@@ -126,8 +143,8 @@ try {
   await evaluate(`document.querySelector('.quick-add-panel button').click()`);
   await until(`document.querySelectorAll('[data-item-id]').length === 2`, 'Quick Add creates two items');
   await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
-  await evaluate(`([...document.querySelectorAll('.drop-zone')].at(-1)).querySelector('[data-item-id] .editor-item-main').scrollIntoView({ block: 'center', behavior: 'instant' })`);
-  const touchPoint = await evaluate(`(() => { const rect = ([...document.querySelectorAll('.drop-zone')].at(-1)).querySelector('[data-item-id] .editor-item-main').getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + 20 }; })()`);
+  await evaluate(`(${unrankedItem}).scrollIntoView({ block: 'center', behavior: 'instant' })`);
+  const touchPoint = await evaluate(`(() => { const rect = (${unrankedItem}).getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + 20 }; })()`);
   await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [touchPoint] }); await delay(180);
   await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await until(`!!document.querySelector('[role=dialog]')`, 'emulated touch opens tier picker');
@@ -141,21 +158,26 @@ try {
   await until(`!document.querySelector('[role=dialog]')`, 'Escape closes touch picker');
   await send('Emulation.setTouchEmulationEnabled', { enabled: false });
   for (let index = 0; index < 2; index++) {
-    await evaluate(`([...document.querySelectorAll('.drop-zone')].at(-1)).querySelector('[data-item-id] .editor-item-main').click()`);
+    await evaluate(`(${unrankedItem}).click()`);
     await until(`!!document.querySelector('[role=dialog]')`, 'tier picker opens');
     await evaluate(`document.querySelectorAll('[role=dialog] .grid button')[${index}].click()`);
     await until(`!document.querySelector('[role=dialog]')`, 'tier picker closes');
   }
   await until(`document.querySelector('.editor-toolbar-float').textContent.includes('2 / 2')`, 'ranked count reflects assignments');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1600, deviceScaleFactor: 1, mobile: false });
-  const mouseDrag = async (itemId, targetZoneIndex, beforeFirst = false) => {
+  const mouseDrag = async (itemId, targetZone, beforeFirst = false) => {
     await evaluate(`document.querySelector('.create-board').scrollIntoView({ block: 'start', behavior: 'instant' })`);
     await delay(50);
     const points = await evaluate(`(() => {
-      const source = document.querySelector('[data-item-id=${JSON.stringify(itemId)}] .editor-item-main').getBoundingClientRect();
-      const target = document.querySelectorAll('.drop-zone')[${targetZoneIndex}].getBoundingClientRect();
-      const first = document.querySelectorAll('.drop-zone')[${targetZoneIndex}].querySelector('[data-item-id]')?.getBoundingClientRect();
-      return { from: { x: source.left + source.width / 2, y: source.top + 20 }, to: { x: ${beforeFirst} && first ? first.left + 3 : ${targetZoneIndex} === 5 ? target.left + 80 : target.right - 25, y: ${beforeFirst} && first ? first.top + first.height / 2 : target.top + Math.min(target.height / 2, 45) } };
+      const sourceItem = document.querySelector('[data-item-id=${JSON.stringify(itemId)}] .editor-item-main');
+      if (!sourceItem) throw new Error('Missing drag source item: ' + ${JSON.stringify(itemId)});
+      const zone = ${targetZone === 'unranked' ? unrankedZone : tierZone(targetZone)};
+      const source = sourceItem.getBoundingClientRect();
+      const target = zone.getBoundingClientRect();
+      const firstItem = zone.querySelector('[data-item-id]');
+      if (${beforeFirst} && !firstItem) throw new Error('Missing first item for tier reorder');
+      const first = firstItem?.getBoundingClientRect();
+      return { from: { x: source.left + source.width / 2, y: source.top + 20 }, to: { x: ${beforeFirst} && first ? first.left + 3 : ${targetZone === 'unranked'} ? target.left + 80 : target.right - 25, y: ${beforeFirst} && first ? first.top + first.height / 2 : target.top + Math.min(target.height / 2, 45) } };
     })()`);
     assert(points.from.y > 0 && points.from.y < 1600 && points.to.y > 0 && points.to.y < 1600, 'Drag endpoints are visible');
     await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: points.from.x, y: points.from.y });
@@ -170,15 +192,20 @@ try {
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: points.to.x, y: points.to.y, button: 'left', buttons: 0, clickCount: 1 });
     await delay(100);
   };
-  const secondId = await evaluate(`document.querySelectorAll('.drop-zone')[1].querySelector('[data-item-id]').dataset.itemId`);
+  const secondId = await evaluate(`(${tierZone(1)}).querySelector('[data-item-id]').dataset.itemId`);
   await mouseDrag(secondId, 0);
-  await until(`document.querySelectorAll('.drop-zone')[0].querySelectorAll('[data-item-id]').length === 2`, 'physical mouse drag moves across tiers');
-  const firstId = await evaluate(`document.querySelectorAll('.drop-zone')[0].querySelector('[data-item-id]').dataset.itemId`);
-  await mouseDrag(secondId === firstId ? (await evaluate(`document.querySelectorAll('.drop-zone')[0].querySelectorAll('[data-item-id]')[1].dataset.itemId`)) : secondId, 0, true);
-  await until(`document.querySelectorAll('.drop-zone')[0].querySelector('[data-item-id]').dataset.itemId === ${JSON.stringify(secondId)}`, 'physical mouse drag reorders within tier');
-  await mouseDrag(secondId, 5);
-  await until(`!![...document.querySelectorAll('.drop-zone')].at(-1).querySelector('[data-item-id=${JSON.stringify(secondId)}]')`, 'physical mouse drag returns item to Unranked');
-  await evaluate(`([...document.querySelectorAll('.drop-zone')].at(-1)).querySelector('[data-item-id] .editor-item-main').click()`);
+  await until(`(${tierZone(0)}).querySelectorAll('[data-item-id]').length === 2 && !!(${tierZone(0)}).querySelector('[data-item-id=${JSON.stringify(secondId)}]') && !(${tierZone(1)}).querySelector('[data-item-id=${JSON.stringify(secondId)}]')`, 'physical mouse drag moves across tiers');
+  const firstId = await evaluate(`(${tierZone(0)}).querySelector('[data-item-id]').dataset.itemId`);
+  const reorderId = secondId === firstId ? (await evaluate(`(${tierZone(0)}).querySelectorAll('[data-item-id]')[1].dataset.itemId`)) : secondId;
+  await mouseDrag(reorderId, 0, true);
+  await until(`(${tierZone(0)}).querySelector('[data-item-id]').dataset.itemId === ${JSON.stringify(reorderId)} && ${JSON.stringify(reorderId)} !== ${JSON.stringify(firstId)}`, 'physical mouse drag reorders within tier');
+  await mouseDrag(secondId, 'unranked');
+  await until(`!!(${unrankedZone}).querySelector('[data-item-id=${JSON.stringify(secondId)}]')`, 'physical mouse drag returns item to Unranked');
+  await evaluate(`(() => {
+    const item = (${unrankedZone}).querySelector('[data-item-id=${JSON.stringify(secondId)}] .editor-item-main');
+    if (!item) throw new Error('Returned item missing from Unranked drop zone');
+    item.click();
+  })()`);
   await until(`!!document.querySelector('[role=dialog]')`, 'returned item picker opens');
   await evaluate(`document.querySelector('[role=dialog] .grid button').click()`);
   await until(`document.querySelector('.editor-toolbar-float').textContent.includes('2 / 2')`, 'all items ranked after return');
@@ -245,9 +272,9 @@ try {
   await until(`document.documentElement.lang !== ${JSON.stringify(beforeLang)}`, 'language toggles on authenticated Home');
   assert(detail.data.template_id, 'Published ranking has a template');
   await send('Page.navigate', { url: base + '/rank?template=' + encodeURIComponent(detail.data.template_id) });
-  await until(`document.querySelectorAll('.drop-zone').length >= 2 && !!document.querySelector('.drop-zone [data-item-id]')`, 'existing template loads in Rank editor');
+  await until(`[...document.querySelectorAll('.drop-zone')].some(zone => zone.parentElement?.classList.contains('bg-tag')) && !![...document.querySelectorAll('.drop-zone')].find(zone => !zone.parentElement?.classList.contains('bg-tag'))?.querySelector('[data-item-id]')`, 'existing template loads in Rank editor');
   for (let index = 0; index < 2; index++) {
-    await evaluate(`([...document.querySelectorAll('.drop-zone')].at(-1)).querySelector('[data-item-id] .editor-item-main').click()`);
+    await evaluate(`(${unrankedItem}).click()`);
     await until(`!!document.querySelector('[role=dialog]')`, 'Rank tier picker opens');
     await evaluate(`document.querySelector('[role=dialog] .grid button').click()`);
     await until(`!document.querySelector('[role=dialog]')`, 'Rank tier picker closes');
