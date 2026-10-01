@@ -10,7 +10,7 @@ Shared CSS in `src/index.css` defines the button, form, motion, and modal roles.
 
 ## Screenshot review
 
-Images in `artifacts/ux-v2/` were captured from local Pages + D1 at 1440×900 and 390×844. They are local QA artifacts and are ignored by Git. `before/` contains representative captures from `main`; matching filenames at the root show this branch. The reviewed light-mode pairs are Home, Login, Discover, Profile, Post, Community, Duel, Create, and Rank. The dark-mode baseline pairs are Home and Login. Additional after captures cover Register, Forgot/Reset Password, Edit Profile, First Profile Setup, and all major screens in dark mode.
+Images in the ignored `artifacts/ux-v2/` directory were captured from local Pages + D1 at 1440×900 and 390×844, then pruned after review. The original `before/` captures represented `main`, with matching captures of this branch. The reviewed light-mode pairs were Home, Login, Discover, Profile, Post, Community, Duel, Create, and Rank. The dark-mode baseline pairs were Home and Login. Additional after captures covered Register, Forgot/Reset Password, Edit Profile, First Profile Setup, and all major screens in dark mode.
 
 | Area | Main finding | UX v2 result |
 | --- | --- | --- |

@@ -34,7 +34,7 @@ The completed audit recorded **666 viewport checks**, no horizontal overflow and
 - Widths: 320, 360, 375, 390, 412, 430, 768, 1024 and 1440px.
 - Interaction checks: tap opens tier picker, focus moves into it, Escape closes it, tap assigns an item, a drop event moves it between tiers, Discover updates the query, and reduced-motion disables transitions.
 
-Generated screenshots and `audit.json` are under `artifacts/rank-your-vibe/` (ignored). Representative Home, Create, Discover and Community screenshots were visually inspected in both themes and at mobile/desktop sizes.
+The browser audit generates screenshots and `audit.json` under the ignored `artifacts/rank-your-vibe/` directory. Local copies were pruned after review; rerun the audit to recreate them. Representative Home, Create, Discover and Community screenshots were visually inspected in both themes and at mobile/desktop sizes.
 
 Existing checks passed:
 
