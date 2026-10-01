@@ -69,6 +69,16 @@ try {
     }
   };
   const evaluate = async expression => { const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description); return r.result?.value; };
+  const tierZone = index => `(() => {
+    const zone = [...document.querySelectorAll('.drop-zone')].filter(node => node.parentElement?.classList.contains('bg-tag'))[${index}];
+    if (!zone) throw new Error('Missing tier drop zone at index ${index}');
+    return zone;
+  })()`;
+  const unrankedZone = `(() => {
+    const zone = [...document.querySelectorAll('.drop-zone')].find(node => !node.parentElement?.classList.contains('bg-tag'));
+    if (!zone) throw new Error('Missing Unranked drop zone');
+    return zone;
+  })()`;
   await send('Runtime.enable'); await send('Page.enable');
   await send('Fetch.enable', { patterns: [{ urlPattern: '*/api/*' }] });
   const routes = ['/', '/discover', '/discover?view=saved', '/discover/templates', '/discover/hashtags', '/create', '/rank?template=ui-template', '/rank?template=ui-template&mode=duel', '/template/ui-template', '/post/ui-ranking', '/template/ui-template/community', '/profile/ui-user', '/duel/ui-duel', '/login', '/login?mode=signup', '/forgot-password', '/reset-password', '/missing'];
@@ -119,13 +129,22 @@ try {
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
   assert(await evaluate(`!document.querySelector('[role=dialog]')`), 'Escape closes picker');
-  await evaluate(`document.querySelector('[data-item-id="item-0"] button').click()`); await delay(80);
-  await evaluate(`document.querySelector('[role=dialog] .grid button').click()`); await delay(80);
-  assert(await evaluate(`document.querySelector('.drop-zone').querySelector('[data-item-id="item-0"]') !== null`), 'Tap assignment moves the item into the chosen tier');
-  await evaluate(`(() => { const transfer = new DataTransfer(); transfer.setData('itemId', 'item-0'); document.querySelectorAll('.drop-zone')[1].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer })); })()`); await delay(80);
-  assert(await evaluate(`document.querySelectorAll('.drop-zone')[1].querySelector('[data-item-id="item-0"]') !== null`), 'Drop handler moves the item between tiers');
-  await evaluate(`document.querySelectorAll('.drop-zone')[0].scrollIntoView({ block: 'center', behavior: 'instant' })`); await delay(100);
-  const dragPoints = await evaluate(`(() => { const a = document.querySelectorAll('.drop-zone')[1].querySelector('[data-item-id="item-0"] .editor-item-main').getBoundingClientRect(); const b = document.querySelectorAll('.drop-zone')[0].getBoundingClientRect(); return { from: { x: a.left + a.width / 2, y: a.top + 20 }, to: { x: b.left + Math.min(b.width / 2, 100), y: b.top + b.height / 2 } }; })()`);
+  await evaluate(`(() => { const item = (${unrankedZone}).querySelector('[data-item-id="item-0"] button'); if (!item) throw new Error('Missing item-0 in Unranked'); item.click(); })()`); await delay(80);
+  await evaluate(`(() => { const modal = document.querySelector('[role=dialog]'); if (!modal) throw new Error('Missing tier picker'); const button = modal.querySelector('.grid button'); if (!button) throw new Error('Missing first tier choice'); button.click(); })()`); await delay(80);
+  assert(await evaluate(`!!(${tierZone(0)}).querySelector('[data-item-id="item-0"]') && !(${unrankedZone}).querySelector('[data-item-id="item-0"]')`), 'Tap assignment moves item-0 from Unranked into tier 0');
+  await evaluate(`(() => { const transfer = new DataTransfer(); transfer.setData('itemId', 'item-0'); (${tierZone(1)}).dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer })); })()`); await delay(80);
+  assert(await evaluate(`!!(${tierZone(1)}).querySelector('[data-item-id="item-0"]') && !(${tierZone(0)}).querySelector('[data-item-id="item-0"]')`), 'Drop handler moves item-0 from tier 0 to tier 1');
+  await evaluate(`(${tierZone(0)}).scrollIntoView({ block: 'center', behavior: 'instant' })`); await delay(100);
+  const dragPoints = await evaluate(`(() => {
+    const sourceItem = (${tierZone(1)}).querySelector('[data-item-id="item-0"] .editor-item-main');
+    if (!sourceItem) throw new Error('Missing item-0 drag source in tier 1');
+    const targetZone = ${tierZone(0)};
+    const a = sourceItem.getBoundingClientRect();
+    const b = targetZone.getBoundingClientRect();
+    if (a.width <= 0 || a.height <= 0 || a.top < 0 || a.bottom > innerHeight) throw new Error('Drag source is not visible');
+    if (b.width <= 0 || b.height <= 0 || b.top < 0 || b.top >= innerHeight) throw new Error('Drag target is not visible');
+    return { from: { x: a.left + a.width / 2, y: a.top + 20 }, to: { x: b.left + Math.min(b.width / 2, 100), y: b.top + b.height / 2 } };
+  })()`);
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: dragPoints.from.x, y: dragPoints.from.y });
   await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: dragPoints.from.x, y: dragPoints.from.y, button: 'left', buttons: 1, clickCount: 1 });
   for (let step = 1; step <= 12; step++) {
@@ -135,12 +154,12 @@ try {
     await delay(25);
   }
   await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: dragPoints.to.x, y: dragPoints.to.y, button: 'left', buttons: 0, clickCount: 1 }); await delay(150);
-  assert(await evaluate(`document.querySelectorAll('.drop-zone')[0].querySelector('[data-item-id="item-0"]') !== null`), 'Physical pointer drag moves the item between tiers');
+  assert(await evaluate(`!!(${tierZone(0)}).querySelector('[data-item-id="item-0"]') && !(${tierZone(1)}).querySelector('[data-item-id="item-0"]')`), 'Physical pointer drag moves item-0 from tier 1 to tier 0');
   await send('Page.navigate', { url: base + '/discover' }); await delay(600);
   await evaluate(`(() => { const input = document.querySelector('input[name=query]'); input.value = 'matcha'; input.form.requestSubmit(); })()`); await delay(150);
   assert(await evaluate(`new URLSearchParams(location.search).get('q') === 'matcha'`), 'Discover search updates query');
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-  assert(await evaluate(`getComputedStyle(document.querySelector('.play-header')).transitionDuration.split(',').every(s => parseFloat(s) < .01)`), 'Reduced motion overrides transitions');
+  assert(await evaluate(`(() => { const button = document.querySelector('.pulse-search-button'); if (!button) throw new Error('Missing Discover search button for reduced-motion check'); return getComputedStyle(button).transitionDuration.split(',').every(s => parseFloat(s) < .01); })()`), 'Reduced motion overrides transitions');
   await send('Page.navigate', { url: base + '/create' }); await delay(500);
   await evaluate(`(() => { const field = document.querySelector('.quick-add-panel textarea'); const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set; setter.call(field, 'Tea, Coffee'); field.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await evaluate(`document.querySelector('.quick-add-panel button').click()`); await delay(100);
@@ -185,17 +204,21 @@ try {
     assert.equal(controls.removeName, language === 'en' ? 'Remove #Food' : 'ลบ #Food');
     if (language === 'en') assert(!/[ก-๙]/.test(`${controls.placeholder} ${controls.removeName} ${controls.text}`), 'English tag controls contain no hardcoded Thai');
   }
-  viewer = { ...person, role: 'user' };
+  viewer = { ...person, id: 'ui-viewer', role: 'user' };
   await evaluate(`localStorage.setItem('tog-lang', 'en')`);
   await send('Page.navigate', { url: base + '/post/ui-ranking' });
   for (let n = 0; n < 40; n++) { if (await evaluate(`!!document.querySelector('.post-board')`)) break; await delay(100); }
-  assert(await evaluate(`!!document.querySelector('button[aria-label="Delete"]')`), 'Owner sees post deletion action');
-  await evaluate(`(() => { const button = document.querySelector('button[aria-label="Report"]'); button.focus(); button.click(); })()`); await delay(80);
+  assert(await evaluate(`!!document.querySelector('button[aria-label="Report"]') && !document.querySelector('button[aria-label="Delete"]')`), 'Non-owner sees Report, not Delete');
+  await evaluate(`(() => { const button = document.querySelector('button[aria-label="Report"]'); if (!button) throw new Error('Missing non-owner Report action'); button.focus(); button.click(); })()`); await delay(80);
   assert(await evaluate(`document.querySelector('[role=dialog][aria-modal=true]')?.textContent.includes('Report')`), 'Post report opens shared Action Modal');
   assert(await evaluate(`document.querySelector('[role=dialog]').contains(document.activeElement)`), 'Report focus enters dialog');
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' }); await delay(80);
   assert(await evaluate(`!document.querySelector('[role=dialog]') && document.activeElement?.getAttribute('aria-label') === 'Report'`), 'Report Escape closes and returns focus');
+  viewer = { ...person, role: 'user' };
+  await send('Page.navigate', { url: base + '/post/ui-ranking' });
+  for (let n = 0; n < 40; n++) { if (await evaluate(`!!document.querySelector('.post-board')`)) break; await delay(100); }
+  assert(await evaluate(`!!document.querySelector('button[aria-label="Delete"]') && !document.querySelector('button[aria-label="Report"]')`), 'Owner sees Delete, not Report');
   await evaluate(`document.querySelector('button[aria-label="Delete"]').click()`); await delay(80);
   assert(await evaluate(`document.querySelector('[role=dialog][aria-modal=true]')?.textContent.includes('Delete')`), 'Delete uses shared Action Modal');
   await evaluate(`document.querySelector('[role=dialog] .dialog-secondary').click()`); await delay(80);
