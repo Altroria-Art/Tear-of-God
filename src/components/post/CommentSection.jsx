@@ -168,7 +168,7 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
               <Reply size={14} className="inline" /> 
               {t('post.replyingTo', 'Replying to')} <strong className="text-ink">{replyingTo.name}</strong>
             </span>
-            <button type="button" onClick={cancelReply} className="text-muted hover:text-ink p-0.5">
+            <button type="button" onClick={cancelReply} className="text-muted hover:text-ink min-w-11 min-h-11 flex items-center justify-center">
               <X size={14} />
             </button>
           </div>
@@ -185,7 +185,7 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
           <button
             type="submit"
             disabled={isSubmitting || !draft.trim()}
-            className="self-end rounded-full bg-brand-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 shrink-0"
+            className="self-end rounded-full bg-brand-accent px-4 py-2 text-sm font-semibold text-canvas transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 shrink-0 min-h-11"
           >
             {t('post.postComment')}
           </button>
