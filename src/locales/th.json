@@ -115,76 +115,6 @@
     "warnLoginDuel": "กรุณาเข้าสู่ระบบก่อนเริ่มการดวล",
     "warnSelfDuel": "คุณไม่สามารถดวลกับเทมเพลตของตัวเองได้"
   },
-  "spotlights": {
-    "eyebrow": "คัดโดย Tear of God",
-    "title": "เทมเพลตประจำวันและสัปดาห์",
-    "subtitle": "เทมเพลตคัดสรรประจำวันและประจำสัปดาห์ จัดอันดับก่อนเปลี่ยนรอบถัดไป",
-    "daily": "Daily Pick",
-    "weekly": "Weekly Debate",
-    "general": "ทั่วไป",
-    "rankedBy": "{{count}} คนจัดแล้ว",
-    "refreshesIn": "เปลี่ยนเทมเพลตใน {{time}}",
-    "rankNow": "จัดเลย",
-    "timeDays": "{{days}} วัน {{hours}} ชม.",
-    "timeHours": "{{hours}} ชม. {{minutes}} นาที",
-    "timeMinutes": "{{minutes}} นาที",
-    "loading": "กำลังโหลดเทมเพลต..."
-  },
-  "freshness": {
-    "eyebrow": "ไฮไลต์วันนี้",
-    "title": "วันนี้ใน Tear of God",
-    "subtitle": "ลิสต์ใหม่ ความเห็นที่น่าสนใจ และหัวข้อยอดนิยมตอนนี้",
-    "hot24": "มาแรงใน 24 ชั่วโมง",
-    "recent": "เพิ่งมีคนจัด",
-    "debate": "กำลังเป็นประเด็น",
-    "split": "เสียงแตก",
-    "seasonal": "หัวข้อตามเทศกาล",
-    "official": "คัดโดยทีมงาน",
-    "loading": "กำลังโหลดกิจกรรมวันนี้...",
-    "scrollHint": "เลื่อนซ้ายขวาเพื่อดูเพิ่มเติม",
-    "open": "เปิดดู",
-    "splitScore": "เห็นต่าง {{score}}%",
-    "seasonalHint": "เริ่มจัดหัวข้อนี้เป็นคนแรกเลย",
-    "officialHint": "เทมเพลตที่ทีม Tear of God คัดมาให้",
-    "seasonalTopics": {
-      "newYear": {
-        "title": "ปีใหม่ ลิสต์ใหม่",
-        "description": "เริ่มปีด้วยการจัดอันดับสิ่งที่คุณอยากเก็บไว้ใกล้ตัว"
-      },
-      "valentines": {
-        "title": "รักเลยหรือขอผ่าน",
-        "description": "จัดอันดับคู่รัก เพลง และสิ่งที่ทำให้ใจฟู"
-      },
-      "summer": {
-        "title": "ฤดูจัดอันดับหน้าร้อน",
-        "description": "สร้างลิสต์สำหรับวันร้อนและคืนยาวๆ"
-      },
-      "songkran": {
-        "title": "ของโปรดช่วงสงกรานต์",
-        "description": "จัดอันดับอาหาร เกม และเพลงที่ทำให้เทศกาลสนุกขึ้น"
-      },
-      "backToSchool": {
-        "title": "เปิดเทอมแล้ว",
-        "description": "จัดอันดับของจำเป็นในมหาวิทยาลัยและไอเดียสำหรับเทอมใหม่"
-      },
-      "rainySeason": {
-        "title": "ความสบายในวันฝนตก",
-        "description": "หาเรื่องดู ซีรีส์ และของกินที่เหมาะกับวันฝนพรำ"
-      },
-      "halloween": {
-        "title": "เทศกาลหลอน",
-        "description": "จัดอันดับหนังผี คอสตูม และวายร้ายที่ลืมไม่ลง"
-      },
-      "loyKrathong": {
-        "title": "ของโปรดวันลอยกระทง",
-        "description": "ฉลองเทศกาลด้วยลิสต์ที่ชวนมาถกเถียงกัน"
-      },
-      "yearEnd": {
-        "title": "รางวัลส่งท้ายปี",
-        "description": "เลือกโมเมนต์ ผลงาน และสิ่งค้นพบที่ดีที่สุดของปี"
-      }
-    }
-  },
   "auth": {
     "createAccountTitle": "สร้างบัญชีผู้ใช้",
     "loginTitle": "ยินดีต้อนรับกลับมา",
@@ -874,28 +804,6 @@
     "mostLiked": "ไลก์มากสุด",
     "az": "ก – ฮ"
   },
-  "sidebar": {
-    "home": "หน้าแรก",
-    "discover": "ค้นพบ",
-    "createTierList": "สร้าง Tier List",
-    "popularCategories": "หมวดหมู่ยอดนิยม",
-    "showAllCategories": "แสดงหมวดหมู่ทั้งหมด",
-    "trendingTopics": "หัวข้อยอดนิยม",
-    "noTrending": "ยังไม่มีหัวข้อยอดนิยม",
-    "exploreMoreTags": "สำรวจแท็กเพิ่มเติม",
-    "hotTemplates": "เทมเพลตฮิต",
-    "noHotTemplates": "ยังไม่มีเทมเพลตฮิต",
-    "browseTemplates": "เรียกดูเทมเพลต",
-    "privacy": "ความเป็นส่วนตัว",
-    "terms": "ข้อกำหนด",
-    "about": "เกี่ยวกับ",
-    "guidelines": "แนวปฏิบัติ",
-    "viewProfile": "ดูโปรไฟล์",
-    "joinCtaTitle": "สร้าง Tier List ของคุณ",
-    "joinCtaDesc": "จัดอันดับสิ่งที่คุณชอบ แล้วแชร์ให้ชุมชนร่วมแสดงความเห็น",
-    "startRanking": "เริ่มจัดอันดับ",
-    "savedHint": "คอลเลกชันที่บันทึกไว้"
-  },
   "admin": {
     "menu": "เมนูแอดมิน",
     "dashboard": "แดชบอร์ด",
@@ -1072,7 +980,6 @@
     "commentFetchFailed": "ไม่สามารถดึงคอมเมนต์ได้",
     "commentCreateFailed": "ไม่สามารถสร้างคอมเมนต์ได้",
     "templateFetchFailed": "ไม่สามารถดึงข้อมูลเทมเพลตได้",
-    "spotlightFetchFailed": "ไม่สามารถดึงเทมเพลตประจำวันได้",
     "hashtagFetchFailed": "ไม่สามารถดึงข้อมูลแฮชแท็กได้",
     "viewRecordFailed": "บันทึกการเข้าชมไม่สำเร็จ",
     "statsFetchFailed": "ไม่สามารถดึงสถิติได้",

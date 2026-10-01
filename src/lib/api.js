@@ -485,22 +485,6 @@ export async function voteRanking({ rankingId, userId: _userId, voteType }) {
   }
 }
 
-let latestSpotlightsCycleToken = null;
-
-export function getSpotlightsCycleToken() {
-  return latestSpotlightsCycleToken;
-}
-
-export function dispatchSpotlightsRefresh(token = Date.now()) {
-  latestSpotlightsCycleToken = token;
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('tog-spotlights-refresh', {
-      detail: { token }
-    }));
-  }
-  return token;
-}
-
 export async function deleteComment(id, isTemplateComment = false) {
   try {
     const response = await apiFetch(`/api/${isTemplateComment ? 'template-comments' : 'comments'}`, {
@@ -510,9 +494,6 @@ export async function deleteComment(id, isTemplateComment = false) {
     });
     const result = await response.json();
     if (!response.ok) return { success: false, error: result.error || i18n.t('errors.commentDeleteFailed') };
-    if (!isTemplateComment && result.success !== false) {
-      dispatchSpotlightsRefresh();
-    }
     return result;
   } catch {
     return { success: false, error: i18n.t('errors.commentDeleteFailed') };
@@ -535,9 +516,6 @@ export async function createComment({ ranking_id, user_id, content, parentId }) 
       body: JSON.stringify({ ranking_id, user_id, content, parent_id: parentId })
     });
     const result = await response.json();
-    if (response.ok && result.success !== false) {
-      dispatchSpotlightsRefresh();
-    }
     return result;
   } catch {
     return { success: false, error: i18n.t('errors.commentFailed') };
@@ -583,16 +561,6 @@ export async function fetchTemplates({ hashtag, limit, page, sort, q, saved, sug
     if (error.name === 'AbortError') throw error;
     console.error("fetchTemplates error:", error);
     return { data: [], error: i18n.t('errors.templateFetchFailed') };
-  }
-}
-
-export async function fetchSpotlights(refreshKey = null) {
-  try {
-    const suffix = refreshKey == null ? '' : `?cycle=${encodeURIComponent(refreshKey)}`;
-    return await getJSON(`${API_URL}/api/spotlights${suffix}`);
-  } catch (error) {
-    console.error("fetchSpotlights error:", error);
-    return { data: null, error: i18n.t('errors.spotlightFetchFailed') };
   }
 }
 
@@ -981,9 +949,6 @@ export async function deleteAdminComment(commentId, isTemplateComment) {
       body: JSON.stringify({ action: 'delete', target_id: commentId, is_template_comment: isTemplateComment })
     });
     const result = await response.json();
-    if (response.ok && result.success !== false && !isTemplateComment) {
-      dispatchSpotlightsRefresh();
-    }
     return result;
   } catch {
     return { success: false, error: i18n.t('errors.commentDeleteFailed') };

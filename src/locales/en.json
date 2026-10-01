@@ -115,76 +115,6 @@
     "warnLoginDuel": "Please log in to duel this template",
     "warnSelfDuel": "You cannot duel your own template"
   },
-  "spotlights": {
-    "eyebrow": "Picked by Tear of God",
-    "title": "Daily & Weekly Templates",
-    "subtitle": "One template, many opinions. Rank it before the next refresh.",
-    "daily": "Daily Pick",
-    "weekly": "Weekly Debate",
-    "general": "General",
-    "rankedBy": "Ranked by {{count}}",
-    "refreshesIn": "Refreshes in {{time}}",
-    "rankNow": "Rank now",
-    "timeDays": "{{days}}d {{hours}}h",
-    "timeHours": "{{hours}}h {{minutes}}m",
-    "timeMinutes": "{{minutes}}m",
-    "loading": "Loading templates..."
-  },
-  "freshness": {
-    "eyebrow": "Trending Today",
-    "title": "Live today",
-    "subtitle": "Fresh lists, active debates, and topics worth ranking right now.",
-    "hot24": "Hot in 24 hours",
-    "recent": "Just ranked",
-    "debate": "Active debates",
-    "split": "Split opinions",
-    "seasonal": "Seasonal topics",
-    "official": "Official picks",
-    "loading": "Loading today's activity...",
-    "scrollHint": "Scroll horizontally to see more",
-    "open": "Open",
-    "splitScore": "{{score}}% split",
-    "seasonalHint": "Be the first to start this seasonal list.",
-    "officialHint": "Templates curated by the Tear of God team.",
-    "seasonalTopics": {
-      "newYear": {
-        "title": "New year, new tiers",
-        "description": "Start the year by ranking the things you want to keep close."
-      },
-      "valentines": {
-        "title": "Love it or leave it",
-        "description": "Rank your favorite couples, songs, and comfort picks."
-      },
-      "summer": {
-        "title": "Summer ranking season",
-        "description": "Build a list for the hot days and long nights."
-      },
-      "songkran": {
-        "title": "Songkran picks",
-        "description": "Rank the food, games, and songs that make the holiday."
-      },
-      "backToSchool": {
-        "title": "Back to school",
-        "description": "Rank the campus essentials and ideas for a fresh semester."
-      },
-      "rainySeason": {
-        "title": "Rainy day comfort",
-        "description": "Find the best movies, series, and snacks for a rainy day."
-      },
-      "halloween": {
-        "title": "Spooky season",
-        "description": "Rank the horror, costumes, and villains you cannot forget."
-      },
-      "loyKrathong": {
-        "title": "Loy Krathong favorites",
-        "description": "Celebrate the season with a list worth debating."
-      },
-      "yearEnd": {
-        "title": "Year-end awards",
-        "description": "Choose the best moments, releases, and discoveries of the year."
-      }
-    }
-  },
   "auth": {
     "createAccountTitle": "Create an Account",
     "loginTitle": "Welcome Back",
@@ -885,28 +815,6 @@
     "mostLiked": "Most Liked",
     "az": "A – Z"
   },
-  "sidebar": {
-    "home": "Home",
-    "discover": "Discover",
-    "createTierList": "Create Tier List",
-    "popularCategories": "Popular Categories",
-    "showAllCategories": "Show all categories",
-    "trendingTopics": "Trending Topics",
-    "noTrending": "No trending tags yet.",
-    "exploreMoreTags": "Explore more tags",
-    "hotTemplates": "Hot Templates",
-    "noHotTemplates": "No hot templates yet.",
-    "browseTemplates": "Browse templates",
-    "privacy": "Privacy",
-    "terms": "Terms",
-    "about": "About",
-    "guidelines": "Guidelines",
-    "viewProfile": "View Profile",
-    "joinCtaTitle": "Create your Tier List",
-    "joinCtaDesc": "Rank your favorite items and share them with the community",
-    "startRanking": "Start Ranking",
-    "savedHint": "Your saved collection"
-  },
   "admin": {
     "menu": "Admin menu",
     "dashboard": "Dashboard",
@@ -1083,7 +991,6 @@
     "commentFetchFailed": "Could not fetch comments",
     "commentCreateFailed": "Could not create comment",
     "templateFetchFailed": "Could not fetch template data",
-    "spotlightFetchFailed": "Could not fetch daily templates",
     "hashtagFetchFailed": "Could not fetch hashtag data",
     "viewRecordFailed": "Could not record the view",
     "statsFetchFailed": "Could not fetch statistics",
