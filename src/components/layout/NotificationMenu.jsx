@@ -1,3 +1,4 @@
+import TearMascot from '../ui/TearMascot';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Swords, Trash2, TrendingUp, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -280,8 +281,8 @@ export default function NotificationMenu({ userId }) {
               <p className="px-4 py-10 text-center text-sm text-muted animate-pulse">{t('common.loading')}</p>
             )}
             {!isLoading && notifications.length === 0 && (
-              <div className="px-6 py-12 text-center">
-                <Bell size={28} className="mx-auto mb-3 text-muted" />
+              <div className="personality-empty notification-empty px-6 text-center">
+                <TearMascot pose="quiet" />
                 <p className="font-bold text-ink">{t('notifications.emptyTitle')}</p>
                 <p className="mt-1 text-xs text-muted">{t('notifications.emptyDesc')}</p>
               </div>

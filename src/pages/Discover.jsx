@@ -10,6 +10,7 @@ import { fetchDiscoverPulse, fetchTemplates } from '../lib/api';
 import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
+import TearMascot from '../components/ui/TearMascot';
 import RipMark from '../components/ui/RipMark';
 
 const WINDOWS = ['now', 'today', 'week', 'last_week'];
@@ -200,7 +201,7 @@ export default function Discover() {
     </form>
 
     {browsingResults ? <>
-      <div className="pulse-results-head"><div><h2 role="status">{q ? t('discover.searchResults', { q, count: total }) : t('discover.savedCount', { count: total })}</h2>
+      <div className="pulse-results-head"><div><h2 role="status">{q ? t('discover.searchResults', { q, count: total }) : saved && !currentUser ? t('discover.savedTemplates') : t('discover.savedCount', { count: total })}</h2>
         <p>{t(saved ? 'discover.savedHelp' : 'discover.subtitle')}</p></div>
         <div className="flex flex-wrap gap-2">{q && <button type="button" onClick={clearSearch} className="pulse-text-action"><X size={15} />{t('discover.clearSearch')}</button>}
           <Link to={saved ? '/discover' : '/discover?view=saved'} className="pulse-text-action"><Bookmark size={16} />{t(saved ? 'discover.explore' : 'discover.savedTemplates')}</Link></div>
@@ -208,7 +209,7 @@ export default function Discover() {
       {saved && !currentUser ? <div className="pulse-empty"><p>{t('discover.savedLogin')}</p><Link to={loginPath('/discover?view=saved')} className="pulse-solid-link">{t('nav.login')}</Link></div>
         : loadError ? <div role="alert" className="pulse-empty"><p>{loadError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
         : isLoading ? <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }, (_, index) => <TemplateCardSkeleton key={index} />)}</div>
-          : templates.length ? templateGrid : <div className="pulse-empty">{t(saved ? 'discover.noSaved' : 'discover.noResults')}</div>}
+          : templates.length ? templateGrid : saved ? <div className="pulse-empty personality-empty"><TearMascot pose="quiet" /><strong>{t('discover.noSaved')}</strong><p>{t('discover.savedEmptyHelp')}</p><Link to="/discover/templates" className="pulse-solid-link">{t('discover.savedEmptyCta')}</Link></div> : <div className="pulse-empty">{t('discover.noResults')}</div>}
       <Pagination page={page} totalPages={Math.ceil(total / 12)} onChange={nextPage => {
         const next = new URLSearchParams(params); next.set('page', String(nextPage)); setParams(next);
       }} />

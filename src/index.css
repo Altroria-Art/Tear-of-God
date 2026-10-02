@@ -723,3 +723,26 @@ html[lang="th"] .pulse-hero h1 { line-height: 1.2; }
 @media (max-width:767px) { .home-secondary-action { font-size:.75rem; } }
 
 @media (min-width:640px) and (max-width:1023px) { .play-header--home { grid-template-columns:minmax(0,1fr) minmax(12rem,17rem); gap:1rem; } }
+/* Original tear stickers: static by default, never part of the control geometry. */
+.tear-mascot { display:block; width:64px; height:64px; flex:none; pointer-events:none; }
+.create-tear-helper { position:relative; }
+.create-page .quick-add-panel.is-empty h3 { padding-right:56px; }
+.create-tear-helper .tear-mascot { position:absolute; width:56px; height:56px; right:-4px; bottom:calc(100% - 6px); }
+@media (min-width:768px) {
+  .create-page .quick-add-panel.is-empty h3 { padding-right:0; }
+  .create-tear-helper .tear-mascot { right:0; bottom:calc(100% + 64px); }
+}
+.personality-empty { padding:1.5rem 1rem; }
+.personality-empty > .tear-mascot { margin:0 auto .5rem; }
+.personality-empty > p { max-width:28rem; margin:.4rem auto 0; }
+.personality-empty > .pulse-solid-link { margin-top:.75rem; min-height:44px; }
+.notification-empty > .tear-mascot { width:56px; height:56px; }
+.auth-tear-scene { position:relative; min-height:170px; display:flex; align-items:center; justify-content:center; }
+.auth-tear-scene .tear-mascot { width:160px; height:160px; position:relative; z-index:1; }
+.auth-tear-board { width:165px; flex:none; margin-left:-50px; transform:rotate(5deg); padding:.4rem; border:2px solid var(--color-acid-ink); background:var(--color-hero-surface); box-shadow:3px 3px 0 var(--color-pop-cyan); }
+.auth-tear-board > div { min-height:32px; }
+.auth-tear-board span { font-size:.6rem; }
+.auth-tear-card { display:flex; align-items:center; gap:.5rem; margin-left:-38px; align-self:flex-end; margin-bottom:24px; transform:rotate(-6deg); padding:.3rem .5rem .3rem .3rem; background:var(--color-hero-ink); color:var(--color-acid-ink); border:2px solid var(--color-acid-ink); box-shadow:3px 3px 0 var(--color-pop-cyan); font-size:.75rem; font-weight:800; z-index:2; }
+@keyframes first-items-arrived { 0%,100% { filter:none; } 45% { filter:drop-shadow(0 0 5px var(--color-pop-violet)); } }
+.first-items-arrived { animation:first-items-arrived 320ms ease-out 1; }
+@media (prefers-reduced-motion:reduce) { .first-items-arrived { animation:none; } }
