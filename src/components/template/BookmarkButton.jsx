@@ -6,7 +6,7 @@ import { useUser } from '../../context/UserContext';
 import { useBookmarks } from '../../context/BookmarkContext';
 import { loginPath } from '../../lib/navigation';
 
-export default function BookmarkButton({ template, className, children, onRequireAuth, inSavedView = false }) {
+export default function BookmarkButton({ template, className, children, onRequireAuth, inSavedView = false, showLabel = false }) {
   const { t } = useTranslation();
   const { currentUser } = useUser();
   const { isSaved, toggleBookmark } = useBookmarks();
@@ -55,7 +55,7 @@ export default function BookmarkButton({ template, className, children, onRequir
         fill={saved ? 'currentColor' : 'none'}
         className={saved ? 'text-brand' : ''}
       />
-      {children}
+      {children || (showLabel && t(saved ? 'play.savedTemplate' : 'play.saveTemplate'))}
     </button>
   );
 }

@@ -326,8 +326,8 @@ const RankTierList = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans text-ink flex flex-col">
-      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-8 sm:pb-32 flex-1 flex flex-col gap-6">
+    <div className="rank-page min-h-screen font-sans text-ink flex flex-col">
+      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-5 sm:pb-32 flex-1 flex flex-col gap-6">
         <PlayHeader eyebrow={t(isDuel ? 'play.duelEyebrow' : 'play.rankEyebrow')} title={t(isDuel ? 'play.duelTitle' : 'play.rankTitle')} description={t('play.rankDescription')} />
         <p className="rank-touch-hint -mt-4 text-sm font-bold text-ink-soft sm:hidden">{t('rank.tapToRank')}</p>
         {templateCooldown?.active && (
@@ -377,7 +377,7 @@ const RankTierList = () => {
             <div className="hidden sm:flex items-center gap-3 pt-1 shrink-0">
               <button
                 onClick={handleShare}
-                className="flex items-center gap-1.5 text-xs font-bold text-ink-soft hover:text-ink transition-colors px-3 py-1.5 rounded-full border border-line-soft bg-surface-glass hover:bg-surface cursor-pointer"
+                className="flex min-h-11 items-center gap-1.5 text-xs font-bold text-ink-soft hover:text-ink transition-colors px-3 py-1.5 rounded-full border border-line-soft bg-surface-glass hover:bg-surface cursor-pointer"
               >
                 <Share2 size={14} /> {t('common.share')}
               </button>
@@ -473,10 +473,11 @@ const RankTierList = () => {
           {templateError && <p role="alert" className="text-xs font-bold text-status-error">{templateError}</p>}
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="rank-workspace flex flex-col gap-4">
 
+        <div className="rank-side">
         {/* Unranked Pool */}
-        <div className="bg-surface-glass rounded-xl p-3 sm:p-4 border border-line order-1 md:order-3">
+        <div className="rank-pool bg-surface-glass rounded-xl p-3 sm:p-4 border border-line order-1 md:order-3">
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 min-w-0">
               <h2 className="text-[15px] sm:text-[17px] font-bold text-ink truncate">{t('rank.unrankedPool')} {itemGroups.unranked.length > 0 && <span className="text-muted font-medium ml-1 text-[13px] sm:text-[15px]">{itemGroups.unranked.length}</span>}</h2>
@@ -506,7 +507,7 @@ const RankTierList = () => {
           </div>
 
           <div className="relative">
-            <DropZone className="min-h-[110px] grid grid-rows-1 grid-flow-col auto-cols-max gap-3 overflow-x-auto snap-x hide-scrollbar pb-3 md:flex md:flex-wrap md:auto-cols-auto md:grid-rows-none"
+            <DropZone className="min-h-[96px] grid grid-rows-1 grid-flow-col auto-cols-max gap-3 overflow-x-auto snap-x hide-scrollbar pb-3 md:flex md:flex-wrap md:auto-cols-auto md:grid-rows-none"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, null)}
             >
@@ -522,7 +523,7 @@ const RankTierList = () => {
         </div>
 
         {/* Desktop Action Bar */}
-        <div className="hidden md:flex bg-surface-glass rounded-xl p-4 flex-row justify-end items-center gap-4 order-2">
+        <div className="rank-controls hidden md:flex bg-surface-glass rounded-xl p-4 flex-row justify-end items-center gap-4 order-2">
           <div className="flex gap-3 w-auto">
             <button
               onClick={handleShuffle}
@@ -539,8 +540,9 @@ const RankTierList = () => {
           </div>
         </div>
 
+        </div>
         {/* Tier List Canvas */}
-        <div className="bg-surface-glass rounded-xl overflow-hidden flex flex-col order-3 md:order-1">
+        <div className="rank-board bg-surface-glass rounded-xl overflow-hidden flex flex-col order-3 md:order-1">
 {/* Tier List Canvas */}
 
           {isLoadingTemplate ? (

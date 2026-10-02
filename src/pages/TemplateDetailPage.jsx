@@ -500,11 +500,12 @@ function TemplateDetailContent() {
   const creatorId = template.profile?.id || template.creator_id || template.user_id || template.creator?.id
   return (
     <main className="template-page min-h-screen text-ink">
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        <section className="mb-8 rounded-xl glass p-6 shadow-sm">
+      <div className="mx-auto max-w-5xl px-4 py-4">
+        <section className="template-intro mb-5 rounded-xl glass p-4 sm:p-5 shadow-sm">
+          <p className="mb-2 text-sm font-bold text-ink-soft">{t('play.templateHelp')}</p>
           <h1 className="play-title mb-4 text-3xl font-black md:text-4xl break-words">{template.title}</h1>
 
-          <div className="flex flex-wrap items-center gap-3 mb-6">
+          <div className="flex flex-wrap items-center gap-3 mb-3">
               {creatorId ? (
                 <Link
                   to={`/profile/${encodeURIComponent(creatorId)}`}
@@ -532,11 +533,11 @@ function TemplateDetailContent() {
               <p className="mb-3 max-w-3xl text-muted leading-relaxed">{template.description}</p>
             )}
 
-            <HashtagList hashtags={template.hashtags} className="mb-6" />
+            <HashtagList hashtags={template.hashtags} className="mb-3" />
 
             {/* RAW ITEM PREVIEW */}
             {template.template_items && template.template_items.length > 0 && (
-              <div className="mb-8">
+              <div className="mb-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-bold text-ink-soft uppercase tracking-wider">{t('template.itemsInTemplate', 'Items in this template')} · {template.template_items.length}</h3>
                 </div>
@@ -570,7 +571,7 @@ function TemplateDetailContent() {
             )}
 
             {/* PRIMARY CTA & SECONDARY ACTIONS */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-t border-line-soft/60 pt-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-t border-line-soft/60 pt-4">
               <button
                 type="button"
                 onClick={handleUseTemplate}
@@ -617,6 +618,7 @@ function TemplateDetailContent() {
 
                 <BookmarkButton
                   template={template}
+                  showLabel
                   className="flex items-center gap-2 rounded-xl glass px-4 py-2.5 font-bold text-ink shadow-sm transition-all hover:-translate-y-0.5 hover:bg-surface-glass active:scale-[0.97] min-h-[44px]"
                 />
                 <TopicFollowButton

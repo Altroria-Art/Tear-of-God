@@ -420,7 +420,7 @@ const CreateTierList = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
+    <div className="create-page min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
 
 {/* POPUP SETTINGS MODAL */}
       <Modal open={!!activeSettingsTier} onClose={closeSettings} title={t('create.chooseLabelBg')} variant="editor">
@@ -469,22 +469,22 @@ const CreateTierList = () => {
 
 
       <div className="max-w-7xl mx-auto"><PlayHeader eyebrow={t('play.createEyebrow')} title={t('play.createTitle')} description={t('create.rankInstruction')}>
-        <ol className="editor-steps"><li>{t('play.stepItems')}</li><li>{t('play.stepRank')}</li><li>{t('play.stepPublish')}</li></ol>
+        <ol className="editor-steps"><li>{t('play.stepItems')}</li><li>{t('play.stepRank')}</li><li>{t('play.stepName')}</li><li>{t('editor.publish')}</li></ol>
         {!currentUser && <p className="mt-3 text-xs text-muted">{t('create.guestStart')}</p>}
       </PlayHeader></div>
 
-      <div className="max-w-7xl mx-auto grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
-          <div ref={quickAddRef} className={`quick-add-panel lg:col-start-2 lg:row-start-1 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4 ${items.length === 0 ? 'is-empty' : ''}`}>
+      <div className="create-workspace max-w-7xl mx-auto grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
+          <div ref={quickAddRef} className={`quick-add-panel md:col-start-2 md:row-start-1 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4 ${items.length === 0 ? 'is-empty' : ''}`}>
             <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>
             <p className="text-xs text-muted mb-2 font-medium">{t('create.quickAddHelp')}</p>
-            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="4" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
+            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="3" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
             <div className="flex justify-end">
               <button onClick={handleGenerateCards} className="bg-surface hover:bg-brand hover:text-canvas hover:border-transparent text-brand font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
                 <Plus size={16} /> {t('create.generate')}
               </button>
             </div>
           </div>
-        <div className="min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2 flex flex-col gap-6">
+        <div className="min-w-0 md:col-start-1 md:row-start-1 md:row-span-2 flex flex-col gap-6">
           <div ref={tierBoardRef} className={`create-board glass p-4 sm:p-6 rounded-2xl flex flex-col ${items.length === 0 ? 'is-empty' : ''}`}>
             {items.length === 0 && <p className="create-board-hint" role="status">{t('create.emptyBoardHint')}</p>}
 
@@ -501,14 +501,14 @@ const CreateTierList = () => {
                     {(itemGroups.byTier.get(tier.id) ?? []).map(renderItemCard)}
                   </DropZone>
 
-                  <div className="w-10 sm:w-14 shrink-0 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
-                    <button onClick={() => openTierSettings(tier)} className="text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
+                  <div className="w-11 sm:w-14 shrink-0 bg-black/10 flex items-center justify-center border-l border-line-soft/50 ">
+                    <button onClick={() => openTierSettings(tier)} className="min-h-11 min-w-11 text-muted hover:text-highlight hover:bg-surface transition-all p-2.5 rounded-full" title={t('create.settings')}><Settings size={18} /></button>
                   </div>
                 </div>
               ))}
             </div>
 
-            <hr className="my-8 border-line-soft/50 hidden lg:block order-2" />
+            <hr className="my-4 border-line-soft/50 hidden lg:block order-2" />
 
             {/* UNRANKED ITEMS POOL */}
             <div className="order-1 lg:order-3 mb-6 lg:mb-0">
@@ -519,7 +519,7 @@ const CreateTierList = () => {
                     type="button"
                     onClick={handleReturnToPool}
                     title={t('create.backToPoolTip')}
-                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 justify-center text-xs font-bold text-ink-soft transition-all hover:bg-surface hover:text-ink hover:shadow-md active:scale-95"
+                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 min-w-11 min-h-11 justify-center text-xs font-bold text-ink-soft transition-all hover:bg-surface hover:text-ink hover:shadow-md active:scale-95"
                   >
                     <ChevronLeft size={14} /> {t('create.backToPool')}
                   </button>
@@ -547,7 +547,7 @@ const CreateTierList = () => {
           </div>
         </div>
 
-          <section className="create-publish-panel lg:col-start-2 lg:row-start-2 glass p-4 sm:p-6 rounded-2xl">
+          <section className="create-publish-panel md:col-start-2 md:row-start-2 glass p-4 sm:p-6 rounded-2xl">
             <p className="club-serial mb-2">TEAR OF GOD / 03</p>
             <h2 className="font-bold">{t('create.makeItOfficial')}</h2>
             <div className="flex flex-col gap-5 mt-4">

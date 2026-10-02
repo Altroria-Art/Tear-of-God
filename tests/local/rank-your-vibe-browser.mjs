@@ -93,11 +93,23 @@ try {
           if (await evaluate(`document.readyState === 'complete' && document.querySelector('nav') && !document.querySelector('.tier-loader')`)) break;
           await delay(100);
         }
-        for (const width of [320, 360, 375, 390, 412, 430, 768, 1024, 1366, 1440]) {
-          await send('Emulation.setDeviceMetricsOverride', { width, height: width === 390 ? 844 : width === 1366 ? 768 : 900, deviceScaleFactor: 1, mobile: false });
+        for (const width of [320, 360, 375, 390, 412, 430, 768, 820, 1024, 1280, 1366, 1440]) {
+          await send('Emulation.setDeviceMetricsOverride', { width, height: ({390:844,430:932,768:1024,820:1180,1280:800,1366:768,1440:900})[width] || 900, deviceScaleFactor: 1, mobile: false });
           await delay(30);
           const result = await evaluate(`({ overflow: document.documentElement.scrollWidth > innerWidth + 1, width: document.documentElement.scrollWidth, title: document.querySelector('h1')?.textContent, error: document.body.textContent.includes('Something went wrong') })`);
           if (result.overflow || result.error) violations.push({ theme, language, route, width, result });
+          if (width >= 768 && ['/create', '/rank?template=ui-template', '/login', '/login?mode=signup'].includes(route)) {
+            await delay(650);
+            const layout = await evaluate(`(() => {
+              const rect = selector => document.querySelector(selector)?.getBoundingClientRect().toJSON();
+              const panes = [...document.querySelectorAll('.auth-v2 > div > div')].filter(n => n.querySelector('form') && n.getAttribute('aria-hidden') !== 'true');
+              return { board:rect('.create-board'), add:rect('.quick-add-panel'), pool:rect('.rank-pool'), rankBoard:rect('.rank-board'), auth:panes[0]?.getBoundingClientRect().toJSON(), card:rect('.auth-v2 > div'), publish:rect('.editor-toolbar-float button') };
+            })()`);
+            if (route === '/create') assert(layout.add.x >= layout.board.right - 1 && Math.abs(layout.add.y - layout.board.y) < 2, 'iPad/laptop Add controls stay beside the board');
+            if (route.startsWith('/rank')) assert(layout.pool.x >= layout.rankBoard.right - 1, 'Unranked stays beside the Rank board');
+            if (route.startsWith('/login') && width >= 1024) assert(Math.abs(layout.auth.width - (layout.card.width - 4) / 2) < 2, 'Auth form occupies half the card without panel overlap');
+            if (layout.publish) assert(layout.publish.height >= 44 && layout.publish.bottom <= (({390:844,430:932,768:1024,820:1180,1280:800,1366:768,1440:900})[width] || 900), 'Publish remains visible with 44px target');
+          }
           checks++;
           if (([390,1440].includes(width) || (width === 1366 && compactDesktopShots.has(route))) && shotRoutes.has(route) && (language === 'en' || (shotPhase === 'after' && language === 'th' && ['/', '/discover', '/create', '/rank?template=ui-template'].includes(route)))) {
             if (route === '/') await delay(500);

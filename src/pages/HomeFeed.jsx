@@ -909,10 +909,10 @@ export default function HomeFeed() {
 
   return (
     <div className="min-h-screen font-sans">
-      <div className="mx-auto max-w-7xl px-4 pt-5"><PlayHeader variant="home" eyebrow={t('play.homeEyebrow')} title={<><span>{t('play.homeWord1')}</span><span>{t('play.homeWord2')} <em>{t('play.homeWord3')}</em></span></>} description={t('play.homeDescription')} action={t('play.createAction')} to="/create" visual={<HomeShowcase />} /></div>
+      <div className="mx-auto max-w-7xl px-4 pt-5"><PlayHeader variant="home" eyebrow={t('play.homeEyebrow')} title={<><span>{t('play.homeWord1')}</span><span>{t('play.homeWord2')} <em>{t('play.homeWord3')}</em></span></>} description={t('play.homeDescription')} action={t('play.createAction')} to="/create" secondaryAction={t('play.browseAction')} secondaryTo="#home-feed" visual={<HomeShowcase />} /></div>
       {/* Floating Tab Navigation Capsule with Auto-hide on Scroll */}
       <div
-        className={`sticky top-[80px] z-30 flex justify-center pointer-events-none transition-all duration-300 ease-in-out pb-2 ${
+        id="home-feed" className={`sticky top-[80px] z-30 flex justify-center pointer-events-none transition-all duration-300 ease-in-out pb-2 ${
           (showTabNav || displayData.length === 0)
             ? 'translate-y-0 opacity-100'
             : '-translate-y-16 opacity-0'
