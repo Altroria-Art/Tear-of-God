@@ -520,13 +520,13 @@ function TemplateDetailContent() {
                   <span className="font-medium text-ink">@{template.profile?.username || t('common.unknownUser')}</span>
                 </div>
               )}
-              <span className="text-muted">|</span>
-              <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
-                <Users size={14} /> {formatCount(template.stats?.uses)} {t('template.uses')}
+              <span className="text-muted" aria-hidden="true">|</span>
+              <span className="template-social-metadata flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
+                <Users size={14} aria-hidden="true" /> {template.stats?.uses > 0 ? <>{formatCount(template.stats.uses)} {t('template.uses', { count: template.stats.uses })}</> : t('template.firstRank')}
               </span>
-              <span className="flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
-                <Eye size={14} /> {formatCount(template.stats?.views)} {t('template.views')}
-              </span>
+              {template.stats?.views > 0 && <span className="template-view-count flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
+                <Eye size={14} /> {formatCount(template.stats?.views)} {t('template.views', { count: template.stats.views })}
+              </span>}
             </div>
 
             {template.description && (

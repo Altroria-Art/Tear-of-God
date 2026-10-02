@@ -52,14 +52,14 @@ export default function TemplateCard({ template, onUse, inSavedView = false, fea
   return (
     <div className={`social-card overflow-hidden flex flex-col ${featured ? 'template-card--featured xl:col-span-2' : ''}`}>
       <Link to={detailHref} className="template-card-preview bg-surface-glass p-3 pt-9 h-44 flex flex-col justify-between relative overflow-hidden">
-        <div className="absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
-          <span className="flex items-center gap-1" title={t('common.uses')}>
+        {(template.use_count > 0 || template.view_count > 0) && <div className="template-card-metrics absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
+          {template.use_count > 0 && <span className="flex items-center gap-1" title={t('common.uses')}>
             <Users size={14} /> {formatCount(template.use_count)}
-          </span>
-          <span className="flex items-center gap-1" title={t('common.views')}>
+          </span>}
+          {template.view_count > 0 && <span className="flex items-center gap-1" title={t('common.views')}>
             <Eye size={14} /> {formatCount(template.view_count)}
-          </span>
-        </div>
+          </span>}
+        </div>}
 
         {preview.mode === 'grid' ? (
           <div className="w-full h-full rounded-lg border border-line-soft bg-surface/40 flex flex-col justify-center gap-2 p-2 overflow-hidden">
