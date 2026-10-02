@@ -18,6 +18,7 @@ const runtimeErrors = [];
 const failedApi = [];
 const consoleIssues = [];
 const apiRequests = new Map();
+const homeFeedUrls = [];
 let ws;
 const timeout = setTimeout(() => { console.error('Real browser audit timed out'); ws?.close(); chrome.kill(); process.exit(1); }, 180000);
 try {
@@ -51,6 +52,7 @@ try {
       consoleIssues.push(message.params.args.map(arg => arg.value ?? arg.description ?? '').join(' '));
     } else if (message.method === 'Network.requestWillBeSent') {
       const url = message.params.request.url;
+      if (url.startsWith(base + '/api/rankings?') && new URL(url).searchParams.has('feed_type')) homeFeedUrls.push(url);
       if (url.startsWith(base + '/api/')) {
         const path = new URL(url).pathname;
         apiRequests.set(path, (apiRequests.get(path) || 0) + 1);
@@ -223,8 +225,6 @@ try {
   await until(`location.pathname.startsWith('/post/')`, 'publish redirects to Post Detail', 20000);
   const rankingId = await evaluate(`location.pathname.split('/').pop()`);
   await until(`document.body.textContent.includes(${JSON.stringify(title)})`, 'Post Detail shows title');
-  await send('Page.reload');
-  await until(`document.body.textContent.includes(${JSON.stringify(title)})`, 'published post survives refresh');
   const detail = await fetch(base + '/api/rankings?id=' + encodeURIComponent(rankingId)).then(response => response.json());
   assert.equal(detail.data?.ranking_items?.length, 2, 'D1 contains both ranked items');
   assert.equal(detail.data?.tiers?.[0]?.label, 'สุดยอด QA', 'D1 contains edited tier');
@@ -239,8 +239,14 @@ try {
     console.error('Home diagnostics', JSON.stringify(await evaluate(`({ text: document.body.textContent.slice(0, 1800), cards: [...document.querySelectorAll('article')].map(node => node.textContent.slice(0, 80)) })`)));
     throw error;
   }
+  assert(homeFeedUrls.some(url => new URL(url).searchParams.get('pin') === rankingId),
+    'First SPA Home visit after publish requests the new ranking pin');
   assert.equal(await evaluate(`document.documentElement.scrollWidth > innerWidth + 1`), false);
   checks.push('mobile Home no overflow');
+  await send('Page.navigate', { url: base + `/post/${encodeURIComponent(rankingId)}` });
+  await until(`document.body.textContent.includes(${JSON.stringify(title)})`, 'published post opens after Home');
+  await send('Page.reload');
+  await until(`document.body.textContent.includes(${JSON.stringify(title)})`, 'published post survives refresh');
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url: base + '/profile' });
   await until(`location.pathname === '/profile' && document.body.textContent.includes(${JSON.stringify(username)})`, 'own profile loads real account');
