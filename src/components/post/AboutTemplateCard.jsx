@@ -25,6 +25,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
     <div className="post-about-ticket p-4">
       <h2 className="text-lg font-black text-ink">{t('template.about')}</h2>
 
+      {templateId && <p className="mt-2 text-sm text-ink-soft">{t('play.rankingHelp')}</p>}
       <p className="mt-2 text-sm text-muted">
         {t('template.aboutDesc', { name, n: itemCount })}
       </p>
@@ -35,7 +36,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
           type="button"
           disabled={!templateId}
           onClick={handleUseTemplate}
-          className="flex-1 flex min-h-11 items-center justify-center gap-2 border border-line py-2.5 font-bold text-ink-soft transition-transform hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex-1 flex min-w-0 min-h-11 items-center justify-center gap-2 border border-line py-2.5 font-bold text-ink-soft transition-transform hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <TemplateIcon className="h-4 w-4" />
           {t('template.use')}
@@ -48,6 +49,7 @@ export default function AboutTemplateCard({ name, description, itemCount, templa
         )}
       </div>
 
+      {templateId && <p className="mt-3 text-xs text-muted">{t('play.averageHelp')}</p>}
       {templateId ? (
         <Link
           to={`/template/${encodeURIComponent(templateId)}/community`}

@@ -97,10 +97,10 @@ export default function Login() {
         Mobile: relative, stack layout
         Desktop: relative, fixed height for sliding panel
       */}
-      <div className={`relative w-full max-w-[1000px] bg-surface rounded-2xl shadow-xl border-2 border-ink overflow-hidden flex flex-col lg:block mx-auto transition-[min-height] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${isRegister ? 'lg:min-h-[720px]' : 'lg:min-h-[600px]'}`}>
+      <div className={`relative w-full max-w-[1000px] bg-surface rounded-2xl shadow-xl border-2 border-ink overflow-hidden flex flex-col lg:block mx-auto transition-[min-height] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${isRegister ? 'auth-card--register lg:min-h-[650px]' : 'auth-card--login lg:min-h-[540px]'}`}>
         
         {/* MOBILE VISUAL HEADER (Below md) */}
-        <div className="lg:hidden flex flex-col items-center justify-center text-center p-8 bg-ink text-canvas">
+        <div className="lg:hidden flex flex-col items-center justify-center text-center p-4 bg-ink text-canvas">
           <h2 className="text-2xl font-display font-black text-canvas uppercase tracking-tight leading-none mb-2">
             {isRegister ? t('auth.joinTheClub') : t('auth.memberAccess')}
           </h2>
@@ -113,15 +113,15 @@ export default function Login() {
         {/* LOGIN FORM PANE */}
         <div 
           className={`
-            w-full lg:absolute lg:top-0 lg:left-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-10 lg:p-14
-            transition-all duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+            w-full lg:absolute lg:top-0 lg:left-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-6 lg:p-8
+            transition-[opacity,translate] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
             ${!isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:translate-x-[20%] lg:pointer-events-none'}
             motion-reduce:transition-opacity motion-reduce:translate-x-0
           `}
           inert={isRegister ? true : undefined}
           aria-hidden={isRegister ? "true" : undefined}
         >
-          <div className="mb-8">
+          <div className="mb-5">
             <p className="club-serial text-muted mb-2">TEAR OF GOD / {t('auth.memberAccess').toUpperCase()}</p>
             <h2 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
               {t('auth.clubWelcomeTitle')}
@@ -129,7 +129,7 @@ export default function Login() {
             <p className="mt-2 text-sm text-ink-soft">{t('auth.loginSubtitle')}</p>
           </div>
           
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-3">
             <div>
               <label htmlFor="login-email" className="club-label">{t('auth.email')}</label>
               <input id="login-email" className="club-field" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} />
@@ -152,7 +152,7 @@ export default function Login() {
             </button>
           </form>
           
-          <div className="mt-6 border-t border-dashed border-line-soft pt-5">
+          <div className="mt-4 border-t border-dashed border-line-soft pt-3">
             <p className="club-serial mb-3 text-center text-muted">{t('auth.or')}</p>
             <button type="button" onClick={handleGoogleLogin} disabled={isLoading} className="club-choice flex w-full items-center justify-center gap-3 text-sm text-ink bg-canvas hover:bg-surface border-2 border-line-soft">
               <span className="font-black text-hot-red">G</span>{t('auth.continueGoogle')}
@@ -163,15 +163,15 @@ export default function Login() {
         {/* SIGNUP FORM PANE */}
         <div 
           className={`
-            w-full lg:absolute lg:top-0 lg:right-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-10 lg:p-14
-            transition-all duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
+            w-full lg:absolute lg:top-0 lg:right-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-6 lg:p-8
+            transition-[opacity,translate] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
             ${isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:-translate-x-[20%] lg:pointer-events-none'}
             motion-reduce:transition-opacity motion-reduce:translate-x-0
           `}
           inert={!isRegister ? true : undefined}
           aria-hidden={!isRegister ? "true" : undefined}
         >
-          <div className="mb-8">
+          <div className="mb-5">
             <p className="club-serial text-muted mb-2">TEAR OF GOD / {t('auth.newMember').toUpperCase()}</p>
             <h2 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
               {t('auth.clubJoinTitle')}
@@ -179,7 +179,7 @@ export default function Login() {
             <p className="mt-2 text-sm text-ink-soft">{t('auth.quickTimeSubtitle')}</p>
           </div>
           
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-3">
             <div>
               <label htmlFor="register-username" className="club-label">{t('auth.username')}</label>
               <input id="register-username" className="club-field" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} placeholder={t('auth.usernamePlaceholder')} />
@@ -212,7 +212,7 @@ export default function Login() {
             </button>
           </form>
           
-          <div className="mt-6 border-t border-dashed border-line-soft pt-5">
+          <div className="mt-4 border-t border-dashed border-line-soft pt-3">
             <p className="club-serial mb-3 text-center text-muted">{t('auth.or')}</p>
             <button type="button" onClick={handleGoogleLogin} disabled={isLoading} className="club-choice flex w-full items-center justify-center gap-3 text-sm text-ink bg-canvas hover:bg-surface border-2 border-line-soft">
               <span className="font-black text-hot-red">G</span>{t('auth.continueGoogle')}
@@ -228,7 +228,7 @@ export default function Login() {
           <button 
             type="button" 
             onClick={() => setIsRegister(!isRegister)} 
-            className="text-sm font-bold text-pop-violet hover:underline uppercase tracking-wide"
+            className="min-h-11 px-3 text-sm font-bold text-pop-violet hover:underline uppercase tracking-wide"
           >
             {isRegister ? t('auth.backToLoginBtn') : t('auth.createAccountBtn')}
           </button>

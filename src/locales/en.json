@@ -1075,8 +1075,8 @@
     "emptyBoardHint": "Add a few items in Quick Add, then drag them into the tiers.",
     "example": "Example ranking",
     "homeTitle": "RANK EVERYTHING.",
-    "homeDescription": "Your taste. Your tier list. Rank what you love, share your take, and see where everyone stands.",
-    "createAction": "MAKE A TIER LIST",
+    "homeDescription": "Rank the things you love into tiers, share your list, and compare tastes with the community.",
+    "createAction": "TRY RANKING",
     "createTitle": "DROP ’EM. RANK ’EM.",
     "createEyebrow": "THE RANKING PLAYGROUND",
     "rankEyebrow": "YOUR TAKE. YOUR RULES.",
@@ -1098,6 +1098,13 @@
     "resultTitle": "SAME VIBE?",
     "missingTitle": "OFF THE CHART.",
     "emptyTitle": "Your next take starts here.",
-    "searchAction": "Search"
+    "searchAction": "Search",
+    "browseAction": "See what others ranked",
+    "stepName": "Name your list",
+    "templateHelp": "Template = a shared set of items. Use it to make your own ranking.",
+    "rankingHelp": "This is one person’s ranking. Use the same template to share your take.",
+    "averageHelp": "Community Average combines everyone’s rankings of this template.",
+    "saveTemplate": "Save template",
+    "savedTemplate": "Saved"
   }
 }

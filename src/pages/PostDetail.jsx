@@ -343,7 +343,7 @@ function PostDetailContent() {
             <ArrowLeftIcon className="h-5 w-5" />
           </Link>
 
-          <article className="post-ranking-v2 mt-4 p-4 sm:p-6">
+          <article className="post-ranking-v2 mt-3 p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               {/* 📍 คลิกชื่อ/รูปผู้สร้าง = ไปดูโปรไฟล์ของเขา */}
               <div className="flex min-w-0 items-center gap-3">
