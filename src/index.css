@@ -681,9 +681,11 @@ html[lang="th"] .pulse-hero h1 { line-height: 1.2; }
   .create-workspace .quick-add-panel, .create-workspace .create-publish-panel, .create-workspace .create-board { padding:1rem; }
   .create-workspace .create-board > div:first-of-type { gap:.5rem; }
   .rank-workspace { display:grid; grid-template-columns:minmax(0,1fr) 15rem; align-items:start; }
-  .rank-side { display:flex; flex-direction:column; gap:1rem; grid-column:2; grid-row:1; position:sticky; top:84px; }
-  .rank-side .rank-pool { order:1; max-height:calc(100dvh - 230px); overflow-y:auto; }
-  .rank-workspace .rank-controls { order:0; padding:.5rem; }
+  .rank-side { display:flex; flex-direction:column; gap:1rem; grid-column:2; grid-row:1; position:sticky; top:84px; max-height:calc(100dvh - 20rem); }
+  /* Budget the entire rail, including controls. Leave room for the editor footer
+     at the grid boundary on short boards; tall pools scroll inside this budget. */
+  .rank-side .rank-pool { order:1; min-height:0; flex:1 1 auto; max-height:none; overflow-y:auto; }
+  .rank-workspace .rank-controls { order:0; flex-shrink:0; padding:.5rem; }
   .rank-workspace .rank-controls > div { flex-wrap:wrap; gap:.25rem; }
   .rank-workspace .rank-controls button { min-height:44px; width:100%; padding:.5rem; }
   .rank-workspace .rank-board { grid-column:1; grid-row:1; }

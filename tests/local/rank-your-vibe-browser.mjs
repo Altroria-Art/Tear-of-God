@@ -31,6 +31,7 @@ if (shotPhase) fs.mkdirSync(`${output}/${shotPhase}`, { recursive: true });
 const errors = [];
 const violations = [];
 let viewer = null;
+let stickyFixture = null;
 const person = { id: 'ui-user', username: 'Vibe Collector', bio: 'รสนิยมไม่จำเป็นต้องเหมือนกัน', followers_count: 12, following_count: 3, taste_identity: { top_items: [], badges: [], hashtag_distribution: [], pinned_rankings: [] } };
 const tiers = [{ label: 'สุดยอดมาก', color: 'bg-[#ff7f7f]' }, { label: 'A', color: '#ffbf7f' }, { label: 'B', color: '#ffff7f' }];
 const items = ['ชาไทย', 'Matcha', 'Espresso', 'Cocoa'].map((name, i) => ({ item_id: 'item-' + i, tier: tiers[i % 3].label, tier_index: i % 3, item: { name } }));
@@ -60,7 +61,7 @@ try {
       let body = { success: true, data: [], total: 0, hasMore: false };
       if (url.pathname === '/api/auth') body.data = viewer;
       else if (url.pathname === '/api/admin' || url.pathname === '/api/admin/analytics') body.data = { activity: {}, funnel: [], daily_activity: [], recent_posts: [], recent_reports: [] };
-      else if (url.pathname === '/api/templates') { body.data = url.searchParams.has('id') ? template : [template]; body.total = 1; }
+      else if (url.pathname === '/api/templates') { body.data = url.searchParams.has('id') ? (stickyFixture || template) : [template]; body.total = 1; }
       else if (url.pathname === '/api/rankings') { body.data = url.searchParams.has('id') ? ranking : [ranking]; body.total = 1; }
       else if (url.pathname === '/api/users') body.data = person;
       else if (url.pathname === '/api/spotlights') body.data = { daily: null, weekly: null, freshness: {} };
@@ -120,6 +121,94 @@ try {
       }
     }
   }
+
+  // A long board proves actual sticky engagement; a short board catches a rail
+  // that dictates the grid row height and scrolls its controls under the navbar.
+  const stickyGeometry = [];
+  for (const language of ['en', 'th']) {
+    await evaluate(`localStorage.setItem('tog-lang', ${JSON.stringify(language)})`);
+    for (const tierCount of [5, 18]) {
+      stickyFixture = {
+        ...template,
+        tiers: Array.from({ length: tierCount }, (_, index) => ({ label: 'Tier ' + (index + 1), color: '#ff7f7f' })),
+        template_items: Array.from({ length: 18 }, (_, index) => ({ item_id: 'sticky-' + index, item: { name: 'Item ' + (index + 1) } })),
+      };
+      for (const [width, height] of [[768,1024], [820,1180], [1280,800], [1366,768], [1440,900]]) {
+        await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+        await send('Page.navigate', { url: base + '/rank?template=sticky-' + tierCount });
+        for (let n = 0; n < 60; n++) {
+          if (await evaluate(`document.querySelectorAll('.rank-pool [data-item-id]').length === 18 && document.querySelectorAll('.rank-board > div').length === ${tierCount}`)) break;
+          await delay(100);
+        }
+        assert.equal(await evaluate(`document.querySelectorAll('.rank-pool [data-item-id]').length`), 18, 'Tall pool fixture loaded');
+        const positions = [];
+        for (const requestedScroll of [0, 200, 550, 900]) {
+          await evaluate('window.scrollTo(0, ' + requestedScroll + ')'); await delay(80);
+          const geometry = await evaluate(`(() => {
+            const rail = document.querySelector('.rank-side');
+            const style = getComputedStyle(rail);
+            const rect = node => node.getBoundingClientRect().toJSON();
+            const navbar = document.querySelector('nav:not(.bottom-nav)');
+            return { scrollY, viewportHeight: innerHeight, scrollHeight: document.documentElement.scrollHeight,
+              position: style.position, inset: parseFloat(style.top), display: style.display,
+              rail: rect(rail), workspace: rect(rail.parentElement), board: rect(document.querySelector('.rank-board')), navbar: rect(navbar),
+              overflow: document.documentElement.scrollWidth > innerWidth + 1 };
+          })()`);
+          assert.equal(geometry.position, 'sticky');
+          assert.equal(geometry.display, 'flex');
+          assert(!geometry.overflow, 'Sticky Rank does not overflow');
+          if (requestedScroll >= 550) {
+            assert(geometry.rail.top >= geometry.navbar.bottom + 8, 'Rail controls remain below navbar even at a short board boundary');
+            assert(geometry.rail.bottom <= height - 8, 'Entire rail fits inside viewport on scroll');
+            if (tierCount === 18) {
+              assert.equal(geometry.scrollY, requestedScroll, 'Long fixture reaches the requested scroll position');
+              assert(geometry.board.height > height, 'Acceptance board is taller than viewport');
+              assert(geometry.rail.top <= geometry.navbar.bottom + 20, 'Long-board rail pins near navbar');
+              assert(Math.abs(geometry.rail.top - geometry.inset) <= 2, 'Sticky inset actually engages');
+            }
+          }
+          positions.push(geometry.rail.top);
+          stickyGeometry.push({ language, tierCount, width, height, requestedScroll, ...geometry });
+          checks++;
+        }
+        if (tierCount === 18) assert(Math.abs(positions[2] - positions[3]) <= 2, 'Rail top remains stable deeper in the board');
+        const targets = await evaluate(`(() => {
+          const pool = document.querySelector('.rank-pool'); pool.scrollTop = pool.scrollHeight;
+          const item = [...pool.querySelectorAll('.editor-item-main')].at(-1);
+          const publish = document.querySelector('.editor-toolbar-float button');
+          const controls = [...document.querySelectorAll('.rank-controls button')];
+          const hit = node => { const r = node.getBoundingClientRect(); return node.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); };
+          const r = item.getBoundingClientRect();
+          return { poolScrollable: pool.scrollHeight > pool.clientHeight, poolScrolled: pool.scrollTop > 0,
+            itemHit: hit(item), controlsHit: controls.every(hit), publishHit: hit(publish), publishHeight: publish.getBoundingClientRect().height,
+            itemCenter: { x: r.x + r.width / 2, y: r.y + r.height / 2 } };
+        })()`);
+        assert(targets.poolScrollable && targets.poolScrolled && targets.itemHit && targets.controlsHit, 'Internal pool scroll keeps final item and controls reachable');
+        assert(targets.publishHit && targets.publishHeight >= 44, 'Publish remains visible and usable without rail overlap');
+        await send('Input.dispatchMouseEvent', { type: 'mousePressed', button: 'left', clickCount: 1, ...targets.itemCenter });
+        await send('Input.dispatchMouseEvent', { type: 'mouseReleased', button: 'left', clickCount: 1, ...targets.itemCenter });
+        await delay(80);
+        assert(await evaluate(`!!document.querySelector('[role=dialog]')`), 'Scrolled Unranked item opens picker by pointer');
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
+      }
+    }
+  }
+  for (const [width, height] of [[390,844], [430,932]]) {
+    await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true });
+    await send('Page.navigate', { url: base + '/rank?template=sticky-mobile' });
+    for (let n = 0; n < 60; n++) { if (await evaluate(`!!document.querySelector('.rank-pool .editor-item-main')`)) break; await delay(100); }
+    assert(await evaluate(`getComputedStyle(document.querySelector('.rank-side')).display === 'contents' && getComputedStyle(document.querySelector('.rank-side')).position !== 'sticky' && getComputedStyle(document.querySelector('.rank-pool')).overflowY !== 'auto' && !document.querySelector('.rank-controls').offsetWidth`), 'Mobile keeps Unranked in normal flow without desktop rail');
+    assert(await evaluate(`document.documentElement.scrollWidth <= innerWidth + 1`), 'Mobile Rank does not overflow');
+    await evaluate(`document.querySelector('.rank-pool .editor-item-main').click()`); await delay(80);
+    assert(await evaluate(`!!document.querySelector('[role=dialog]')`), 'Mobile tap still opens AssignTierModal');
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
+    checks++;
+  }
+  stickyFixture = null;
+  fs.writeFileSync(output + '/sticky-geometry.json', JSON.stringify(stickyGeometry, null, 2));
+
   viewer = { ...person, role: 'admin' };
   for (const route of ['/', '/admin', '/admin/users', '/admin/templates', '/admin/rankings', '/admin/reports']) {
     await send('Page.navigate', { url: base + route }); await delay(700);
