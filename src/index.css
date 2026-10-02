@@ -683,7 +683,6 @@ html[lang="th"] .pulse-hero h1 { line-height: 1.2; }
 .create-page .create-board.is-empty .create-unranked .drop-zone { min-height:64px; width:100%; }
 .create-page .create-board.is-empty .create-unranked .drop-zone > span { margin-block:.25rem; }
 .create-page .editor-toolbar-float.is-idle > div { box-shadow:none; }
-.create-page .editor-toolbar-float.is-idle .play-button { background:var(--color-surface); color:var(--color-ink); box-shadow:none; border-color:var(--color-line-soft); }
 .discover-pulse .pulse-section-head h2 { font-size:clamp(1.3rem,2.2vw,1.9rem); }
 .discover-pulse .pulse-section-head--lead h2 { font-family:var(--font-sans); font-size:clamp(1.15rem,2vw,1.5rem); font-weight:800; letter-spacing:-.025em; text-transform:none; }
 .pulse-displayed-period { font-size:.75rem; font-weight:600; color:var(--color-muted); }

@@ -102,6 +102,28 @@ try {
     const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: full, ...(clip ? { clip } : {}) });
     fs.writeFileSync(`${output}/${phase}-${name}.png`, Buffer.from(r.data, 'base64'));
   };
+  const publishVisual = async () => evaluate(`(() => {
+    const button = document.querySelector('.editor-toolbar-float button');
+    const reference = document.createElement('button');
+    reference.className = 'play-button';
+    reference.style.cssText = 'position:fixed;left:-9999px;visibility:hidden';
+    document.body.append(reference);
+    const style = getComputedStyle(button), normal = getComputedStyle(reference);
+    const rect = button.getBoundingClientRect();
+    const result = {
+      green: style.backgroundColor === normal.backgroundColor,
+      darkInk: style.color === normal.color && style.borderTopColor === normal.borderTopColor,
+      normalShadow: style.boxShadow === normal.boxShadow && style.boxShadow !== 'none',
+      shadow: style.boxShadow, compact: parseFloat(style.borderRadius) < 10,
+      uploadIcon: !!button.querySelector('svg.lucide-upload'),
+      target: rect.height >= 44 && rect.width >= 44 && rect.bottom <= innerHeight
+        && button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)),
+      progressOpacity: getComputedStyle(document.querySelector('.editor-progress')).opacity,
+      overflow: document.documentElement.scrollWidth > innerWidth + 1,
+    };
+    reference.remove();
+    return result;
+  })()`);
   await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable');
   await send('Fetch.enable', { patterns: [{ urlPattern: '*/api/*' }] });
   await send('Page.navigate', { url: base }); await waitFor('!!document.querySelector("nav")');
@@ -120,6 +142,9 @@ try {
           check(geometry.placeholder === (lang==='en'?'Thai tea, Matcha, Cocoa':'ชาไทย, มัทฉะ, โกโก้'), 'Concrete localized examples');
           check(geometry.addLabel === (lang==='en'?'Add items':'เพิ่มไอเทม'), 'Localized Add items CTA');
           check(geometry.idle && !geometry.publishDisabled && geometry.publishHeight>=44, 'Idle Publish remains usable with unchanged validation');
+          const visual = await publishVisual();
+          check(visual.green && visual.darkInk && visual.normalShadow && visual.compact && visual.uploadIcon && visual.target
+            && visual.progressOpacity === '0.45', 'Idle Publish inherits the primary button style; only progress is subdued');
           check(geometry.minTierHeight>=72 && geometry.instructionCount===1, 'Usable tiers and one primary empty instruction');
           if(width>=768) {
             check(geometry.sideBySide,'Create retains two columns');
@@ -152,6 +177,26 @@ try {
       measurements.push({page,width,height,lang,theme,...common,...geometry});
       if(theme==='light'&&[390,430,768,1366].includes(width))await shot(`${page.toLowerCase()}-${lang}-${width}`);
       if(phase!=='before'&&lang==='en'&&theme==='light'&&[390,768,1366].includes(width))await shot(`${page.toLowerCase()}-${lang}-${width}-full`,true);
+      if(phase!=='before'&&page==='Create'&&[390,430,768,1366].includes(width)) {
+        await shot(`publish-idle-${lang}-${theme}-${width}`);
+        await evaluate(`(() => { const input = document.querySelector('.quick-add-panel textarea');
+          Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'Thai tea, Matcha, Cocoa');
+          input.dispatchEvent(new Event('input',{bubbles:true})); })()`);
+        await evaluate(`document.querySelector('.quick-add-panel button').click()`);
+        await waitFor(`document.querySelectorAll('[data-item-id]').length===3`);
+        for(const name of ['Thai tea','Matcha','Cocoa']) {
+          await evaluate(`[...document.querySelectorAll('.editor-item-main')].find(n=>n.textContent.includes(${JSON.stringify(name)})).click()`);
+          await waitFor(`!!document.querySelector('[role=dialog]')`);
+          await evaluate(`[...document.querySelectorAll('[role=dialog] button[aria-label]')].find(n=>n.getAttribute('aria-label').endsWith(' S')).click()`);
+          await waitFor(`!document.querySelector('[role=dialog]')`);
+        }
+        await waitFor(`document.querySelector('.editor-toolbar-float').classList.contains('is-ready')`);
+        await evaluate('window.scrollTo(0,0)'); await delay(200);
+        const visual = await publishVisual();
+        check(visual.green && visual.darkInk && visual.shadow !== 'none' && visual.target && !visual.overflow,
+          'Ready Publish stays green, reachable and at least 44px');
+        await shot(`publish-ready-${lang}-${theme}-${width}`);
+      }
     }
   }
   if(phase!=='before') {
@@ -161,8 +206,9 @@ try {
     await evaluate(`(()=>{const n=document.querySelector('.quick-add-panel textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(n,'Thai tea, Matcha, Cocoa');n.dispatchEvent(new Event('input',{bubbles:true}));})()`);
     await evaluate(`document.querySelector('.quick-add-panel button').click()`);
     await waitFor(`document.querySelectorAll('[data-item-id]').length===3`);
-    await waitFor(`document.querySelector('.editor-toolbar-float').classList.contains('is-progress')&&getComputedStyle(document.querySelector('.editor-toolbar-float button')).backgroundColor!==${JSON.stringify(idleColor)}`);
-    check(true,'Publish regains emphasis after items added');
+    await waitFor(`document.querySelector('.editor-toolbar-float').classList.contains('is-progress')`);
+    check(await evaluate(`getComputedStyle(document.querySelector('.editor-toolbar-float button')).backgroundColor===${JSON.stringify(idleColor)}`),
+      'Publish stays green from idle through progress');
     for(const name of ['Thai tea','Matcha','Cocoa']) {
       await evaluate(`[...document.querySelectorAll('.editor-item-main')].find(n=>n.innerText.includes(${JSON.stringify(name)})).click()`);
       await waitFor(`!!document.querySelector('[role=dialog]')`);
