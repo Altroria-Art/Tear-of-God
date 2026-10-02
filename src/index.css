@@ -673,10 +673,33 @@ html[lang="th"] .pulse-hero h1 { line-height: 1.2; }
 #home-feed { scroll-margin-top:96px; }
 .create-page .quick-add-panel { gap:.5rem; }
 .create-page .create-publish-panel > div { gap:1rem; margin-top:.75rem; }
+/* Clarity pass: the empty editor starts with Quick Add, then gains emphasis as items arrive. */
+.create-page .quick-add-panel .create-board-hint { margin:0; transform:none; box-shadow:none; background:transparent; color:var(--club-ink); padding:0; font-size:.875rem; }
+.create-page .create-board.is-empty .create-tier-row { min-height:72px; }
+.create-page .create-board.is-empty > div:first-of-type { gap:.5rem; }
+.create-page .create-board.is-empty .create-unranked { margin-bottom:.75rem; }
+.create-page .create-board.is-empty .create-unranked > div:first-child { margin-bottom:.5rem; }
+.create-page .create-board.is-empty .create-unranked-scroll { padding-bottom:.5rem; margin-bottom:0; }
+.create-page .create-board.is-empty .create-unranked .drop-zone { min-height:64px; width:100%; }
+.create-page .create-board.is-empty .create-unranked .drop-zone > span { margin-block:.25rem; }
+.create-page .editor-toolbar-float.is-idle > div { box-shadow:none; }
+.create-page .editor-toolbar-float.is-idle .play-button { background:var(--color-surface); color:var(--color-ink); box-shadow:none; border-color:var(--color-line-soft); }
+.discover-pulse .pulse-section-head h2 { font-size:clamp(1.3rem,2.2vw,1.9rem); }
+.discover-pulse .pulse-section-head--lead h2 { font-family:var(--font-sans); font-size:clamp(1.15rem,2vw,1.5rem); font-weight:800; letter-spacing:-.025em; text-transform:none; }
+.pulse-displayed-period { font-size:.75rem; font-weight:600; color:var(--color-muted); }
+.discover-pulse .pulse-topic { min-height:8rem; padding:1rem; }
+.discover-pulse .pulse-topic--lead { min-height:10rem; }
+.discover-pulse .pulse-topic-title { margin-top:.45rem; }
+.discover-pulse .pulse-topic-footer { padding-top:.5rem; }
+@media (max-width:639px) {
+  .discover-pulse .pulse-topic { min-height:7.5rem; padding:.85rem; }
+  .discover-pulse .pulse-topic--lead { min-height:9rem; }
+}
 .rank-page .rank-title-input { min-height:3rem; font-size:clamp(1.25rem,2vw,1.75rem); }
 .auth-v2 .club-choice { min-height:44px; }
 .rank-side { display:contents; }
 @media (min-width:768px) {
+  .create-page .editor-toolbar-float { right:auto; left:max(2rem,calc((100vw - 1280px)/2)); }
   .create-workspace { grid-template-columns:minmax(0,1fr) minmax(16rem,.55fr); gap:1rem; }
   .create-workspace .quick-add-panel, .create-workspace .create-publish-panel, .create-workspace .create-board { padding:1rem; }
   .create-workspace .create-board > div:first-of-type { gap:.5rem; }

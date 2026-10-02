@@ -69,11 +69,15 @@ try {
   await send('Runtime.enable'); await send('Page.enable'); await send('Log.enable'); await send('Network.enable');
   for (const theme of ['light', 'dark']) {
     for (const language of ['en', 'th']) {
-      await send('Page.navigate', { url: base + '/' }); await delay(200);
+      await send('Page.navigate', { url: base + '/' });
+      // Initial Thai loading must finish before setting the next case's locale;
+      // otherwise prepareInitialLanguage can overwrite the storage write.
+      await waitFor(`document.readyState === 'complete' && !!document.querySelector('nav')`);
       await evaluate(`localStorage.setItem('tog-theme', ${JSON.stringify(theme)}); localStorage.setItem('tog-lang', ${JSON.stringify(language)});`);
       for (const window of ['now', 'today', 'week', 'last_week']) {
         await send('Page.navigate', { url: `${base}/discover?window=${window}` });
         await waitFor(`document.querySelector('.pulse-lead-section') && !document.querySelector('.pulse-topic--skeleton') && (document.querySelector('.pulse-topic') || document.querySelector('.pulse-empty'))`);
+        await waitFor(`document.documentElement.lang === ${JSON.stringify(language)}`);
         for (const width of [320, 390, 768, 1366, 1440]) {
           await send('Emulation.setDeviceMetricsOverride', { width, height: width === 390 ? 844 : width === 1366 ? 768 : 900, deviceScaleFactor: 1, mobile: false });
           await delay(40);
