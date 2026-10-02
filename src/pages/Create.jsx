@@ -1,3 +1,4 @@
+import TearMascot from '../components/ui/TearMascot';
 import DropZone from '../components/tier/DropZone';
 import PlayHeader from '../components/ui/PlayHeader';
 import { getInsertIndexFromZone, groupEditorItems, normalizeCreateDraft } from '../lib/editorBoard';
@@ -69,6 +70,8 @@ const CreateTierList = () => {
   // 📍 [ใหม่]: อ่าน draft ครั้งเดียวตอน mount แล้วเอามาเป็นค่า initial ของทุก state
   const [draft] = useState(loadDraft);
 
+  const firstBatchSeen = useRef(Boolean(draft?.items?.length));
+  const [firstItemsArrived, setFirstItemsArrived] = useState(false);
   const [quickAddText, setQuickAddText] = useState('');
 
   const [title, setTitle] = useState(draft?.title ?? '');
@@ -163,6 +166,10 @@ const CreateTierList = () => {
         content: item,
         tierId: null
       }));
+    if (newItems.length && !firstBatchSeen.current) {
+      firstBatchSeen.current = true;
+      setFirstItemsArrived(true);
+    }
     setItems(prev => [...prev, ...newItems]);
     setQuickAddText('');
   };
@@ -476,7 +483,7 @@ const CreateTierList = () => {
       <div className="create-workspace max-w-7xl mx-auto grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
           <div ref={quickAddRef} className={`quick-add-panel md:col-start-2 md:row-start-1 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4 ${items.length === 0 ? 'is-empty' : ''}`}>
             <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>
-            {items.length === 0 && <p className="create-board-hint" role="status">{t('create.emptyBoardHint')}</p>}
+            {items.length === 0 && <p className="create-board-hint create-tear-helper" role="status"><TearMascot pose="point" />{t('create.emptyBoardHint')}</p>}
             <p className="text-xs text-muted font-medium">{t('create.quickAddHelp')}</p>
             <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="2" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
             <div className="flex justify-end">
@@ -510,7 +517,7 @@ const CreateTierList = () => {
             <hr className="my-4 border-line-soft/50 hidden lg:block order-2" />
 
             {/* UNRANKED ITEMS POOL */}
-            <div className="create-unranked order-1 lg:order-3 mb-6 lg:mb-0">
+            <div className={`create-unranked order-1 lg:order-3 mb-6 lg:mb-0 ${firstItemsArrived ? 'first-items-arrived' : ''}`}>
               <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
                 <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">{t('create.unrankedPool')}</h3>
                 <div className="flex flex-wrap items-center gap-2">

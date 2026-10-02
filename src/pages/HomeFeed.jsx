@@ -1,3 +1,4 @@
+import TearMascot from '../components/ui/TearMascot';
 import TierLoader from '../components/ui/TierLoader';
 import HomeShowcase from '../components/ui/HomeShowcase';
 import PlayHeader from '../components/ui/PlayHeader';
@@ -1035,16 +1036,14 @@ export default function HomeFeed() {
           )}
 
           {followingEmpty && (
-            <div className="text-center py-16 bg-surface rounded-2xl border border-line-soft shadow-sm">
-              <div className="mx-auto mb-4 w-12 h-12 flex items-center justify-center rounded-full bg-surface-glass text-brand">
-                <Users size={24} />
-              </div>
+            <div className="following-empty personality-empty text-center bg-surface rounded-2xl border border-line-soft shadow-sm">
+              <TearMascot pose="welcome" />
               <p className="text-base font-bold text-ink">{t('feed.followingEmptyTitle')}</p>
               <p className="mt-2 text-sm text-muted font-medium">{t('feed.followingEmptyDesc')}</p>
               <button
                 type="button"
                 onClick={() => setActiveTab('trending')}
-                className="mt-5 px-5 py-2.5 bg-brand text-canvas text-sm font-bold rounded-full shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97]"
+                className="mt-5 min-h-11 px-5 py-2.5 bg-brand text-canvas text-sm font-bold rounded-full shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97]"
               >
                 {t('feed.followingEmptyCta')}
               </button>
