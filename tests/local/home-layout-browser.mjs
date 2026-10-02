@@ -21,7 +21,22 @@ const errors = [];
 const failedApi = [];
 const violations = [];
 let pulseRequests = 0;
-let mockPulse = null;
+// This is a layout test: supply deterministic Home content instead of relying on
+// whatever happens to exist in the caller's local D1.
+const topic = { key: 'tag:gaming', label: '#Gaming', href: '/discover/hashtag/gaming', active_rankings: 2 };
+const secondTopic = { key: 'tag:music', label: '#Music', href: '/discover/hashtag/music', active_rankings: 1 };
+const ranking = { id: 'ranking-a', title: 'Ranking A', author_name: 'alice', new_ranking: true, comments: 2, reactions: 1 };
+const discussion = { id: 'ranking-b', title: 'Discussion B', author_name: 'bob', comments: 3 };
+const template = { id: 'template-a', title: 'Template A', creator_name: 'carol', active_rankings: 4 };
+const basePulse = { success: true, requested_window: 'now', window: 'now', sampled: false,
+  active_rankings: 2, topics: [], rankings: [], discussions: [], templates: [], hashtags: [] };
+let mockPulse = { ...basePulse, topics: [topic, secondTopic], rankings: [ranking], discussions: [discussion], templates: [template] };
+const feedCard = { id: 'ranking-a', title: 'Ranking A', hashtags: '#Gaming', user_id: 'alice', template_id: 'template-a',
+  created_at: '2026-10-01 00:00:00', profile: { id: 'alice', username: 'alice', avatar_url: null, is_following: false },
+  stats: { likes: 2, dislikes: 0, comments: 2, templateUses: 4 }, user_vote: null,
+  tiers: [{ label: 'S', color: '#ff7f7f' }], ranking_items: [{ id: 'item-a', tier: 'S', item: { id: 'item-a', name: 'Item A' } }], preview: true };
+const mockFeed = { success: true, data: Array.from({ length: 4 }, (_, index) => ({ ...feedCard,
+  id: `ranking-${index}`, title: `Ranking ${index}` })), page: 1, limit: 12, hasMore: false, nextCursor: null };
 let checks = 0;
 const deadline = setTimeout(() => { console.error('Home layout browser audit timed out'); ws?.close(); chrome.kill(); process.exit(1); }, 360000);
 
@@ -54,9 +69,12 @@ try {
       && message.params.response.url.includes('/api/')) {
       failedApi.push({ url: message.params.response.url, status: message.params.response.status });
     } else if (message.method === 'Fetch.requestPaused') {
-      const { requestId } = message.params;
-      if (mockPulse) {
-        const body = Buffer.from(JSON.stringify(mockPulse)).toString('base64');
+      const { requestId, request } = message.params;
+      const url = new URL(request.url);
+      const fixture = url.pathname === '/api/discover-pulse' ? mockPulse :
+        (url.pathname === '/api/rankings' && url.searchParams.has('feed_type') ? mockFeed : null);
+      if (fixture) {
+        const body = Buffer.from(JSON.stringify(fixture)).toString('base64');
         send('Fetch.fulfillRequest', { requestId, responseCode: 200,
           responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body }).catch(error => errors.push(String(error)));
       } else send('Fetch.continueRequest', { requestId }).catch(error => errors.push(String(error)));
@@ -77,6 +95,10 @@ try {
   };
   await send('Runtime.enable'); await send('Page.enable'); await send('Network.enable');
   await send('Network.setCacheDisabled', { cacheDisabled: true });
+  await send('Fetch.enable', { patterns: [
+    { urlPattern: '*/api/discover-pulse*' },
+    { urlPattern: '*/api/rankings?*feed_type=*' },
+  ] });
 
   const sizes = [[320, 568], [375, 812], [390, 844], [768, 1024], [1280, 800], [1440, 900]];
   for (const theme of ['light', 'dark']) for (const language of ['en', 'th']) {
@@ -157,13 +179,6 @@ try {
   await evaluate(`document.querySelector('.home-pulse-strip a[href]:not([href="/discover"])').click()`);
   await waitFor(`location.pathname === ${JSON.stringify(firstTopic)}`);
 
-  await send('Fetch.enable', { patterns: [{ urlPattern: '*/api/discover-pulse*' }] });
-  const basePulse = { success: true, requested_window: 'now', window: 'now', sampled: false,
-    active_rankings: 2, topics: [], rankings: [], discussions: [], templates: [], hashtags: [] };
-  const topic = { key: 'tag:gaming', label: '#Gaming', href: '/discover/hashtag/gaming', active_rankings: 2 };
-  const ranking = { id: 'ranking-a', title: 'Ranking A', author_name: 'alice', new_ranking: true, comments: 2, reactions: 1 };
-  const discussion = { id: 'ranking-b', title: 'Discussion B', author_name: 'bob', comments: 3 };
-  const template = { id: 'template-a', title: 'Template A', creator_name: 'carol', active_rankings: 4 };
   const cases = [
     { name: 'rankings + template', data: { topics: [topic], rankings: [ranking], discussions: [ranking], templates: [template] },
       sections: 2, links: ['/post/ranking-a', '/template/template-a'], noDiscussion: true },

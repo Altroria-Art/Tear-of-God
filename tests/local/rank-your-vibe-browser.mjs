@@ -192,7 +192,10 @@ try {
   for (const language of ['en', 'th']) {
     await evaluate(`localStorage.setItem('tog-lang', ${JSON.stringify(language)})`);
     await send('Page.navigate', { url: base + '/rank?template=ui-template' });
-    for (let n = 0; n < 40; n++) { if (await evaluate(`!!document.querySelector('.editor-metadata input')`)) break; await delay(100); }
+    for (let n = 0; n < 40; n++) {
+      if (await evaluate(`!!document.querySelector('.editor-metadata button[aria-label^="Remove"], .editor-metadata button[aria-label^="ลบ"]')`)) break;
+      await delay(100);
+    }
     const controls = await evaluate(`(() => {
       const details = document.querySelector('.editor-metadata'); details.open = true;
       const input = details.querySelector('input');
