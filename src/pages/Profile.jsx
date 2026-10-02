@@ -835,6 +835,11 @@ export default function Profile() {
                   </div>
                 );
               })()}
+              {/* 📍 bio จาก DB จริงแล้ว (migrations/0003_profile_bio.sql) — โชว์ได้ทั้งโปรไฟล์ตัวเองและคนอื่น */}
+              {displayUser?.bio ? (
+                <p className="profile-bio text-sm text-ink-soft mb-3 leading-relaxed">{displayUser.bio}</p>
+              ) : null}
+
               <div className="flex justify-center gap-4 text-sm text-muted mb-3">
                 <button type="button" className="min-h-11 cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> {t('profile.followers')}</button>
                 <button type="button" className="min-h-11 cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> {t('profile.following')}</button>
@@ -843,7 +848,7 @@ export default function Profile() {
                 <button
                   onClick={handleToggleFollow}
                   disabled={followPending}
-                  className={`w-full py-2 mb-4 font-bold rounded-xl text-sm transition-all shadow-sm active:scale-[0.97] ${
+                  className={`profile-follow min-h-11 w-full py-2 mb-4 font-bold rounded-xl text-sm transition-all shadow-sm active:scale-[0.97] ${
                     isFollowing 
                       ? 'bg-surface-glass text-muted hover:bg-surface '
                       : 'bg-ink text-canvas hover:bg-brand-accent'
@@ -852,13 +857,6 @@ export default function Profile() {
                   {isFollowing ? t('profile.unfollow') : t('profile.follow')}
                 </button>
               )}
-              {/* 📍 bio จาก DB จริงแล้ว (migrations/0003_profile_bio.sql) — โชว์ได้ทั้งโปรไฟล์ตัวเองและคนอื่น */}
-              {displayUser?.bio ? (
-                <p className="text-xs text-muted mb-4 leading-relaxed">{displayUser.bio}</p>
-              ) : (
-                <p className="text-xs text-muted italic mb-4 leading-relaxed">{t('profile.noBio')}</p>
-              )}
-
               {/* Education Info */}
               {(displayUser?.university || displayUser?.faculty || displayUser?.major || displayUser?.year) && (
                 <div className="mt-4 mb-4 text-xs text-ink-soft text-left bg-surface p-3 rounded-xl space-y-1">
@@ -884,17 +882,16 @@ export default function Profile() {
                   <p>{t('profile.joined')}</p>
                 </div>
                 {/* ยอดไลก์รวมจากโพสต์จริง (แทนสูตร views ปลอมเดิม) */}
-                <div>
+                {totalLikes > 0 && <div className="profile-social-total">
                   <p className="font-bold text-ink">{totalLikes}</p>
                   <p>{t('profile.totalLikes')}</p>
-                </div>
+                </div>}
               </div>
             </div>
                 {/* Mobile Joined/Likes (Compact) */}
                 <div className="lg:hidden mt-2 pt-2 border-t border-line-soft/60 flex items-center justify-center gap-2 text-[10px] text-muted">
                   <span className="font-medium">{t('profile.joined')} {joinedLabel}</span>
-                  <span>·</span>
-                  <span className="font-medium">{totalLikes} {t('profile.totalLikes')}</span>
+                  {totalLikes > 0 && <><span>·</span><span className="profile-social-total font-medium">{totalLikes} {t('profile.totalLikes')}</span></>}
                 </div>
 
             
@@ -909,7 +906,7 @@ export default function Profile() {
               <p className="text-[11px] text-muted mb-4">{t('profile.tasteSnapshotHelp')}</p>
 
               {hashtagDistribution.length === 0 && topItems.length === 0 ? (
-                <p className="text-xs text-muted bg-surface rounded-xl px-3 py-3">{t('profile.noTasteData')}</p>
+                <p className="text-xs text-muted bg-surface rounded-xl px-3 py-3">{t(isOwnProfile ? 'profile.noTasteData' : 'profile.noTasteDataOther')}</p>
               ) : (
                 <>
                   <div className="space-y-2.5">
@@ -985,42 +982,7 @@ export default function Profile() {
           </Modal>
 
           {/* Right Content: Create Template Button & List of User Posts */}
-          <div className="lg:col-span-3 space-y-3 lg:space-y-6">
-            {/* MOBILE COMPACT TASTE SNAPSHOT */}
-            <div className="lg:hidden taste-snapshot-mobile bg-surface/40 border border-line-soft/60 rounded-2xl px-4 py-1">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5 text-ink text-[10px] uppercase tracking-wider font-bold">
-                  <Fingerprint size={12} className="text-brand" />
-                  <span>{t('profile.tasteIdentity')}</span>
-                </div>
-                <button type="button" onClick={() => setIsBadgesOpen(true)} className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-3 min-h-[44px] rounded-xl hover:bg-amber-500/20 transition-colors">
-                    <Award size={14} />
-                    <span>{badges.length} / {badgeStates.length} {t('profile.badges')}</span>
-                  </button>
-              </div>
-              
-              {hashtagDistribution.length === 0 ? (
-                <p className="text-xs text-muted">{t('profile.noTasteData')}</p>
-              ) : (
-                <div className="flex gap-2 flex-wrap mb-2">
-                  {hashtagDistribution.slice(0, 3).map((item) => (
-                    <span key={item.hashtag} className="text-[10px] font-semibold text-ink bg-surface px-2 py-0.5 rounded border border-line-soft/50 shadow-xs">
-                      #{item.hashtag} <span className="text-muted font-normal ml-0.5">{item.percentage}%</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-              
-              <button
-                type="button"
-                onClick={() => setIsTasteDetailsOpen(true)}
-                className="w-full flex items-center min-h-[44px] border-t border-line-soft/60 text-[11px] font-bold text-brand text-left hover:underline"
-              >
-                {t('profile.viewTasteDetails')} →
-              </button>
-            </div>
-
-
+          <div className="profile-community-content lg:col-span-3 space-y-3 lg:space-y-6">
             {isOwnProfile && pinnedRankings.length > 0 && (
               <section className="profile-defining-rankings hidden lg:block">
                 <div className="profile-section-intro mb-4 p-4">
@@ -1072,7 +1034,7 @@ export default function Profile() {
                   </div>
 
               {hashtagDistribution.length === 0 && topItems.length === 0 ? (
-                <p className="text-sm text-muted bg-surface rounded-xl px-4 py-5 text-center">{t('profile.noTasteData')}</p>
+                <p className="text-sm text-muted bg-surface rounded-xl px-4 py-5 text-center">{t(isOwnProfile ? 'profile.noTasteData' : 'profile.noTasteDataOther')}</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
@@ -1298,10 +1260,10 @@ export default function Profile() {
                 </div>
               )
             ) : visiblePosts.length === 0 ? (
-              <div className="text-center text-sm text-muted py-12 glass rounded-2xl">
+              <div className="profile-rankings-empty text-center text-sm text-muted py-8 glass rounded-2xl">
                 {postTab === 'pinned'
                   ? (isOwnProfile ? t('profile.pinnedHint') : t('profile.noPinned'))
-                  : (isOwnProfile ? t('profile.emptyOwn') : t('profile.emptyOther', { name: displayUser?.username || t('common.unknownUser') }))
+                  : <><p className="font-bold text-ink">{t('profile.emptyRankingsTitle')}</p><p className="mt-2">{t(isOwnProfile ? 'profile.emptyOwn' : 'profile.emptyOther')}</p></>
                 }
               </div>
             ) : (
@@ -1332,6 +1294,40 @@ export default function Profile() {
                 {t(loadingPosts ? 'common.loading' : 'common.next')}
               </button>
             )}
+
+            {/* MOBILE COMPACT TASTE SNAPSHOT */}
+            <div className="lg:hidden taste-snapshot-mobile bg-surface/40 border border-line-soft/60 rounded-2xl px-4 py-1">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5 text-ink text-[10px] uppercase tracking-wider font-bold">
+                  <Fingerprint size={12} className="text-brand" />
+                  <span>{t('profile.tasteIdentity')}</span>
+                </div>
+                <button type="button" onClick={() => setIsBadgesOpen(true)} className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-3 min-h-[44px] rounded-xl hover:bg-amber-500/20 transition-colors">
+                    <Award size={14} />
+                    <span>{badges.length} / {badgeStates.length} {t('profile.badges')}</span>
+                  </button>
+              </div>
+
+              {hashtagDistribution.length === 0 ? (
+                <p className="text-xs text-muted">{t(isOwnProfile ? 'profile.noTasteData' : 'profile.noTasteDataOther')}</p>
+              ) : (
+                <div className="flex gap-2 flex-wrap mb-2">
+                  {hashtagDistribution.slice(0, 3).map((item) => (
+                    <span key={item.hashtag} className="text-[10px] font-semibold text-ink bg-surface px-2 py-0.5 rounded border border-line-soft/50 shadow-xs">
+                      #{item.hashtag} <span className="text-muted font-normal ml-0.5">{item.percentage}%</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsTasteDetailsOpen(true)}
+                className="w-full flex items-center min-h-[44px] border-t border-line-soft/60 text-[11px] font-bold text-brand text-left hover:underline"
+              >
+                {t('profile.viewTasteDetails')} →
+              </button>
+            </div>
 
           </div>
 
