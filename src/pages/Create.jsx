@@ -468,7 +468,7 @@ const CreateTierList = () => {
 
 
 
-      <div className="max-w-7xl mx-auto"><PlayHeader eyebrow={t('play.createEyebrow')} title={t('play.createTitle')} description={t('create.rankInstruction')}>
+      <div className="max-w-7xl mx-auto"><PlayHeader eyebrow={t('play.createEyebrow')} title={t('play.createTitle')}>
         <ol className="editor-steps"><li>{t('play.stepItems')}</li><li>{t('play.stepRank')}</li><li>{t('play.stepName')}</li><li>{t('editor.publish')}</li></ol>
         {!currentUser && <p className="mt-3 text-xs text-muted">{t('create.guestStart')}</p>}
       </PlayHeader></div>
@@ -476,8 +476,9 @@ const CreateTierList = () => {
       <div className="create-workspace max-w-7xl mx-auto grid md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-6 items-start">
           <div ref={quickAddRef} className={`quick-add-panel md:col-start-2 md:row-start-1 glass p-4 sm:p-6 rounded-2xl flex flex-col gap-4 ${items.length === 0 ? 'is-empty' : ''}`}>
             <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>
-            <p className="text-xs text-muted mb-2 font-medium">{t('create.quickAddHelp')}</p>
-            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="3" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
+            {items.length === 0 && <p className="create-board-hint" role="status">{t('create.emptyBoardHint')}</p>}
+            <p className="text-xs text-muted font-medium">{t('create.quickAddHelp')}</p>
+            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="2" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
             <div className="flex justify-end">
               <button onClick={handleGenerateCards} className="bg-surface hover:bg-brand hover:text-canvas hover:border-transparent text-brand font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
                 <Plus size={16} /> {t('create.generate')}
@@ -486,11 +487,9 @@ const CreateTierList = () => {
           </div>
         <div className="min-w-0 md:col-start-1 md:row-start-1 md:row-span-2 flex flex-col gap-6">
           <div ref={tierBoardRef} className={`create-board glass p-4 sm:p-6 rounded-2xl flex flex-col ${items.length === 0 ? 'is-empty' : ''}`}>
-            {items.length === 0 && <p className="create-board-hint" role="status">{t('create.emptyBoardHint')}</p>}
-
             <div className="flex flex-col gap-3 order-2 lg:order-1">
               {effectiveTiers.map((tier, tierIndex) => (
-                <div key={tier.id} className="flex min-h-[90px] bg-tag border border-line-soft rounded-2xl overflow-hidden">
+                <div key={tier.id} className="create-tier-row flex min-h-[90px] bg-tag border border-line-soft rounded-2xl overflow-hidden">
                   <TierLabel
                     label={tier.label}
                     color={tier.color}
@@ -511,7 +510,7 @@ const CreateTierList = () => {
             <hr className="my-4 border-line-soft/50 hidden lg:block order-2" />
 
             {/* UNRANKED ITEMS POOL */}
-            <div className="order-1 lg:order-3 mb-6 lg:mb-0">
+            <div className="create-unranked order-1 lg:order-3 mb-6 lg:mb-0">
               <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
                 <h3 className="text-sm font-bold text-ink-soft uppercase tracking-widest">{t('create.unrankedPool')}</h3>
                 <div className="flex flex-wrap items-center gap-2">
@@ -527,13 +526,13 @@ const CreateTierList = () => {
                     type="button"
                     onClick={handleResetAll}
                     title={t('create.resetAllTip')}
-                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 justify-center text-xs font-bold text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300 hover:shadow-md active:scale-95"
+                    className="flex items-center whitespace-nowrap gap-1.5 rounded-lg border border-line-soft bg-surface-glass px-3 py-1.5 min-w-11 min-h-11 justify-center text-xs font-bold text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300 hover:shadow-md active:scale-95"
                   >
                     <X size={14} /> {t('create.resetAll')}
                   </button>
                 </div>
               </div>
-              <div className="overflow-x-auto overflow-y-hidden pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 lg:pb-0 lg:mb-0">
+              <div className="create-unranked-scroll overflow-x-auto overflow-y-hidden pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 lg:pb-0 lg:mb-0">
                 <DropZone className="bg-surface-glass border border-line-soft min-h-24 rounded-xl p-3 flex flex-nowrap lg:flex-wrap w-max lg:w-full items-center gap-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
                 {itemGroups.unranked.length === 0 ? (
                   <span className="text-muted text-sm italic font-medium w-full text-center my-5 pointer-events-none">{t('create.noItems')}</span>
@@ -552,8 +551,8 @@ const CreateTierList = () => {
             <h2 className="font-bold">{t('create.makeItOfficial')}</h2>
             <div className="flex flex-col gap-5 mt-4">
             <div>
-              <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.templateName')}</label>
-              <input ref={titleInputRef} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('create.templateNamePh')} className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
+              <label htmlFor="create-list-name" className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.templateName')}</label>
+              <input id="create-list-name" ref={titleInputRef} type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('create.templateNamePh')} className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all" />
             </div>
 
             {/* 📍 Hashtags Section */}

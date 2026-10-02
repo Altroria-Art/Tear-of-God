@@ -54,7 +54,7 @@ function RankingCard({ ranking, t }) {
   return <Link to={`/post/${encodeURIComponent(ranking.id)}`} className="pulse-ranking-card">
     <span className="club-serial text-muted">{ranking.new_ranking ? t('pulse.newRanking') : t('pulse.recentActivity')}</span>
     <strong>{ranking.title}</strong>
-    {ranking.template_title && <span className="pulse-card-context">{ranking.template_title}</span>}
+    {ranking.template_title && ranking.template_title.trim() !== ranking.title?.trim() && <span className="pulse-card-context">{ranking.template_title}</span>}
     <span className="pulse-card-bottom"><PulseSignals item={ranking} t={t} showRankings={false} /><ArrowRight size={17} aria-hidden="true" /></span>
   </Link>;
 }
@@ -214,8 +214,8 @@ export default function Discover() {
       }} />
     </> : <>
       <section className="pulse-lead-section" aria-labelledby="pulse-heading">
-        <div className="pulse-section-head pulse-section-head--lead"><div><p className="club-serial text-muted">01 / {t('pulse.eyebrow')}</p><h2 id="pulse-heading">{t('pulse.communityPulse')}</h2></div>
-          <span className="pulse-live-mark">{t('pulse.fromRealActivity')}</span></div>
+        <div className="pulse-section-head pulse-section-head--lead"><h2 id="pulse-heading">{t('pulse.leadHeading')}</h2>
+          {pulse?.active_rankings > 0 && !pulseLoading && <span className="pulse-displayed-period">{t('pulse.displayedPeriod', { period: t(`pulse.windows.${pulse.window}`) })}</span>}</div>
         <div className="pulse-tabs" role="group" aria-label={t('pulse.timeWindow')} style={{ '--pulse-tab-index': WINDOWS.indexOf(requestedWindow) }}>
           {WINDOWS.map(window => <button key={window} type="button" aria-pressed={requestedWindow === window}
             className={requestedWindow === window ? 'is-active' : ''}
@@ -228,7 +228,7 @@ export default function Discover() {
             <p>{t(getFallbackKey(pulse.fallback_from, pulse.window))}</p>
           </div>
         )}
-        {pulse?.sampled && !pulseLoading && <p className="pulse-sample-note">{t('pulse.sampleNote')}</p>}
+        {pulse?.sampled && !pulseLoading && <p className="pulse-sample-note">{t('pulse.snapshotNote')}</p>}
         {pulseError ? <div className="pulse-empty" role="alert"><p>{pulseError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
           : pulseLoading ? <div className="pulse-topic-grid" aria-label={t('pulse.loading')}>{Array.from({ length: 3 }, (_, index) => <div key={index} className="pulse-topic pulse-topic--skeleton animate-pulse" />)}</div>
             : pulse?.active_rankings ? <div key={pulse.window} className="pulse-topic-grid pulse-content-enter">{pulse.topics.map((topic, index) => <TopicCard key={topic.key} topic={topic} index={index} t={t} />)}</div>

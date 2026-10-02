@@ -396,7 +396,7 @@ function PostDetailContent() {
                   <button
                     type="button"
                     onClick={handleReportPost}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full glass px-3 py-1.5 text-xs font-bold text-status-error shadow-sm transition-all hover:-translate-y-0.5 hover:bg-status-error/10 active:scale-[0.97] min-h-11"
+                    className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:text-status-error hover:bg-status-error/10 min-h-11"
                     aria-label={t('post.report')}
                     title={t('post.report')}
                   >
@@ -439,7 +439,6 @@ function PostDetailContent() {
                 )
               )}
             </div>
-            {description && <p className="mt-2 text-sm text-ink-soft break-words whitespace-pre-wrap">{description}</p>}
             
             {post.hashtags && (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -464,6 +463,8 @@ function PostDetailContent() {
                 <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}
             </div>
+
+            {description && <p className="post-description mt-3 text-sm text-ink-soft break-words whitespace-pre-wrap">{description}</p>}
 
             <div className="mt-4 flex flex-wrap items-center gap-y-3 border-t border-line-soft pt-3">
               <div className="flex items-center gap-4 sm:gap-5">
@@ -528,16 +529,6 @@ function PostDetailContent() {
 
           </div>
 
-        {/* 📍 About this template — mobile เรียงต่อจากโพสต์, desktop เป็น sticky sidebar ขวา */}
-        <aside className="lg:sticky lg:top-6 lg:self-start lg:col-start-2 lg:row-start-1 lg:row-span-2">
-          <AboutTemplateCard
-            templateId={post.templateId}
-            name={tpl?.title ?? title}
-            description={tpl?.description ?? description}
-            itemCount={tpl?.template_items?.length ?? itemCount}
-          />
-        </aside>
-
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
           <CommentSection 
             comments={comments} 
@@ -547,6 +538,16 @@ function PostDetailContent() {
             inputRef={commentInputRef} 
           />
         </div>
+
+        {/* Conversation follows the ranking; Template stays beside it on desktop. */}
+        <aside className="lg:sticky lg:top-6 lg:self-start lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <AboutTemplateCard
+            templateId={post.templateId}
+            name={tpl?.title ?? title}
+            description={tpl?.description ?? description}
+            itemCount={tpl?.template_items?.length ?? itemCount}
+          />
+        </aside>
       </div>
 
       <Modal open={deleteOpen} onClose={() => { if (!isDeleting) setDeleteOpen(false) }} title={t('common.delete')} footer={<>
