@@ -78,7 +78,7 @@ function Comment({ id, author, createdAt, body, onReply, onReport, onDelete, isR
   )
 }
 
-export default function CommentSection({ comments = [], onSubmit, onReportComment, onDeleteComment, inputRef }) {
+export default function CommentSection({ comments = [], onSubmit, onReportComment, onDeleteComment, inputRef, prompt }) {
   const [draft, setDraft] = useState('')
   const [replyingTo, setReplyingTo] = useState(null) // { id, name }
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -160,6 +160,7 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
   return (
     <section className="mt-6 rounded-2xl border border-line bg-surface p-4 shadow-sm">
       <h2 className="text-lg font-bold text-ink">{t('post.comments')}</h2>
+      {prompt && <p className="mt-1 text-sm text-ink-soft">{prompt}</p>}
 
       <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-2">
         {replyingTo && (
@@ -178,7 +179,8 @@ export default function CommentSection({ comments = [], onSubmit, onReportCommen
             ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={t('post.commentPh')}
+            aria-label={prompt || t('post.commentPh')}
+            placeholder={prompt || t('post.commentPh')}
             rows={2}
             className="min-w-0 flex-1 resize-none rounded-xl border border-line-soft bg-canvas px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-accent"
           />

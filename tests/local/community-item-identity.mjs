@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
+import { buildCommunityRows, compareCommunityRanking } from '../../src/lib/communityComparison.js';
 
 const template = {
   tiers: [{ label: 'ดี', color: 'bg-[#123456]' }, { label: 'A', color: 'bg-[#654321]' }],
@@ -18,7 +19,7 @@ for (const file of ['TemplateDetailPage', 'CommunityAveragePage']) {
   const start = source.indexOf('  const tiersDef = template.tiers || []');
   const end = source.indexOf(file === 'TemplateDetailPage' ? '  const creatorId =' : '\n  return (\n    <main', start);
   assert(start >= 0 && end > start);
-  const context = vm.createContext({ template, total: 2, PAGE_SIZE: 12,
+  const context = vm.createContext({ template, total: 2, PAGE_SIZE: 12, buildCommunityRows, compareCommunityRanking,
     myRanking: { ranking_items: [
       { tier: 'ดี', item_id: 'id-1', item: { name: 'Same name' } },
       { tier: 'A', item_id: 'id-2', item: { name: 'Same name' } },

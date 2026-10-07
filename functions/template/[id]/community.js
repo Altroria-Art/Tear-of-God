@@ -7,15 +7,15 @@ export async function onRequestGet(context) {
   try {
     const template = await context.env.tear_of_god_db.prepare(`
       SELECT t.title, t.description,
-        (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS participant_count
+        (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS ranking_count
       FROM templates t
       WHERE t.id = ?
     `).bind(id).first();
 
     if (template) {
       metadata = {
-        title: `Community Average: ${template.title}`,
-        description: `ดูอันดับเฉลี่ยจาก ${Number(template.participant_count) || 0} คน แล้วมาดูกันว่าชุมชนเห็นตรงกันแค่ไหน`
+        title: `Community ranking: ${template.title}`,
+        description: `หัวข้อนี้มีการจัดอันดับ ${Number(template.ranking_count) || 0} รายการ ดูอันดับรวมของชุมชน แล้วเทียบกับการจัดของคุณ`
       };
     }
   } catch (error) {

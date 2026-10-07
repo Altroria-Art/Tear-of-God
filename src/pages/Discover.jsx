@@ -10,7 +10,7 @@ import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import TearMascot from '../components/ui/TearMascot';
-import RipMark from '../components/ui/RipMark';
+import { selectDiscoverSections } from '../lib/discoverSections';
 
 const WINDOWS = ['now', 'today', 'week', 'last_week'];
 
@@ -34,16 +34,15 @@ function PulseSignals({ item, t, showRankings = true }) {
   </span>;
 }
 
-function SectionTitle({ number, eyebrow, title, action }) {
+function SectionTitle({ title, action }) {
   return <div className="pulse-section-head">
-    <div><p className="club-serial text-muted">{number} / {eyebrow}</p><h2>{title}</h2></div>
+    <h2>{title}</h2>
     {action}
   </div>;
 }
 
-function TopicCard({ topic, index, t }) {
-  return <Link to={topic.href} className={`pulse-topic pulse-topic--${index === 0 ? 'lead' : index % 3 === 1 ? 'violet' : 'cyan'}`}>
-    <span className="pulse-topic-kicker">{t('pulse.topic')} / {String(index + 1).padStart(2, '0')}</span>
+function TopicCard({ topic, t }) {
+  return <Link to={topic.href} className="pulse-topic">
     <strong className="pulse-topic-title">{topic.label}</strong>
     {topic.preview_rankings?.[0]?.title && <span className="pulse-topic-preview">{topic.preview_rankings[0].title}</span>}
     <span className="pulse-topic-footer"><PulseSignals item={topic} t={t} /><ArrowRight size={19} aria-hidden="true" /></span>
@@ -74,7 +73,7 @@ function ActiveTemplate({ template, t }) {
     <strong>{template.title}</strong>
     {template.creator_name && <span className="pulse-card-context">@{template.creator_name}</span>}
     {!!template.preview_items?.length && <span className="pulse-template-preview" aria-label={t('pulse.itemPreview')}>
-      {template.preview_items.map((item, index) => <span key={`${item.name}-${index}`} title={item.tier || undefined}>{item.name}</span>)}
+      {template.preview_items.map((item, index) => <span key={`${item.name}-${index}`}>{item.name}</span>)}
     </span>}
     {template.preview_ranking?.title && <span className="pulse-card-context">{t('pulse.latestTake')}: {template.preview_ranking.title}</span>}
     <span className="pulse-card-bottom"><PulseSignals item={template} t={t} /><ArrowRight size={17} aria-hidden="true" /></span>
@@ -176,13 +175,11 @@ export default function Discover() {
     {templates.map(template => <TemplateCard key={template.id} template={template} onUse={useTemplate} inSavedView={saved} />)}
   </div>;
 
-  return <main className="discover-v2 discover-pulse mx-auto max-w-7xl px-4 py-5 text-ink sm:px-6 sm:py-6">
-    {!browsingResults && <header className="pulse-hero">
-      <p className="club-serial pulse-hero-kicker">TEAR OF GOD / {t('pulse.eyebrow')}</p>
-      <h1><span>{t('pulse.heroFirst')}</span><span><mark>{t('pulse.heroSecond')}</mark></span></h1>
-      <RipMark className="pulse-hero-rip" />
-      <p>{t('pulse.heroDescription')}</p>
-    </header>}
+  const sections = selectDiscoverSections(pulse || {});
+
+  return <main className="discover-v2 discover-pulse discover-social mx-auto max-w-7xl px-4 py-5 text-ink sm:px-6 sm:py-6">
+    {!browsingResults && <header className="mb-4"><h1 className="text-2xl sm:text-3xl font-black">{t('discover.title')}</h1><p className="mt-1 text-sm text-muted">{t('social.discoverIntro')}</p></header>}
+    <Link to="/discover/templates" className="opinion-secondary mb-3 gap-2">{t('pulse.allTemplates')} <ArrowRight size={16} /></Link>
     {browsingResults && <div className="pulse-results-intro"><Link to="/discover" className="club-serial">← {t('pulse.backToPulse')}</Link>
       <h1>{t(saved ? 'discover.savedTemplates' : 'pulse.searchHeading')}</h1></div>}
 
@@ -229,28 +226,28 @@ export default function Discover() {
         {pulse?.sampled && !pulseLoading && <p className="pulse-sample-note">{t('pulse.snapshotNote')}</p>}
         {pulseError ? <div className="pulse-empty" role="alert"><p>{pulseError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
           : pulseLoading ? <div className="pulse-topic-grid" aria-label={t('pulse.loading')}>{Array.from({ length: 3 }, (_, index) => <div key={index} className="pulse-topic pulse-topic--skeleton animate-pulse" />)}</div>
-            : pulse?.active_rankings ? <div key={pulse.window} className="pulse-topic-grid pulse-content-enter">{pulse.topics.map((topic, index) => <TopicCard key={topic.key} topic={topic} index={index} t={t} />)}</div>
+            : pulse?.active_rankings ? (sections.topics.length ? <div key={pulse.window} className="pulse-topic-grid pulse-content-enter">{sections.topics.map(topic => <TopicCard key={topic.key} topic={topic} t={t} />)}</div> : null)
               : <div className="pulse-empty"><strong>{t('pulse.quietTitle')}</strong><p>{t('pulse.quietDescription')}</p><Link className="pulse-solid-link" to="/discover/templates">{t('pulse.exploreTemplates')}</Link></div>}
       </section>
 
-      {!!pulse?.rankings?.length && !pulseLoading && <section className="pulse-section">
-        <SectionTitle number="02" eyebrow={t('pulse.activityEyebrow')} title={t('pulse.activeHeading')} />
-        <div className="pulse-ranking-grid">{pulse.rankings.map(ranking => <RankingCard key={ranking.id} ranking={ranking} t={t} />)}</div>
-      </section>}
-      {!!pulse?.discussions?.length && !pulseLoading && <section className="pulse-section">
+      {!!sections.discussions.length && !pulseLoading && <section className="pulse-section">
         <SectionTitle number="03" eyebrow={t('pulse.discussionEyebrow')} title={t('pulse.discussionHeading')} />
-        <div className="pulse-discussion-list">{pulse.discussions.map(ranking => <DiscussionCard key={ranking.id} ranking={ranking} t={t} />)}</div>
+        <div className="pulse-discussion-list">{sections.discussions.map(ranking => <DiscussionCard key={ranking.id} ranking={ranking} t={t} />)}</div>
       </section>}
-      {!!pulse?.hashtags?.length && !pulseLoading && <section className="pulse-section">
+      {!!sections.rankings.length && !pulseLoading && <section className="pulse-section">
+        <SectionTitle number="02" eyebrow={t('pulse.activityEyebrow')} title={t('pulse.activeHeading')} />
+        <div className="pulse-ranking-grid">{sections.rankings.map(ranking => <RankingCard key={ranking.id} ranking={ranking} t={t} />)}</div>
+      </section>}
+      {!!sections.hashtags.length && !pulseLoading && <section className="pulse-section">
         <SectionTitle number="04" eyebrow={t('pulse.topicsEyebrow')} title={t('pulse.hashtagHeading')}
           action={<Link className="pulse-section-link" to="/discover/hashtags">{t('discover.viewAll')} <ArrowRight size={16} /></Link>} />
-        <div className="pulse-hashtags">{pulse.hashtags.map(tag => <Link key={tag.key} to={tag.href} className="pulse-hashtag">
+        <div className="pulse-hashtags">{sections.hashtags.map(tag => <Link key={tag.key} to={tag.href} className="pulse-hashtag">
           <strong>{tag.label}</strong><span>{t('pulse.activityCount', { count: tag.activity_count })}</span></Link>)}</div>
       </section>}
-      {!!pulse?.templates?.length && !pulseLoading && <section className="pulse-section">
+      {!!sections.templates.length && !pulseLoading && <section className="pulse-section">
         <SectionTitle number="05" eyebrow={t('pulse.templatesEyebrow')} title={t('pulse.templatesHeading')}
           action={<Link className="pulse-section-link" to="/discover/templates">{t('discover.viewAll')} <ArrowRight size={16} /></Link>} />
-        <div className="pulse-template-grid">{pulse.templates.map(template => <ActiveTemplate key={template.id} template={template} t={t} />)}</div>
+        <div className="pulse-template-grid">{sections.templates.map(template => <ActiveTemplate key={template.id} template={template} t={t} />)}</div>
       </section>}
       <section className="pulse-explore pulse-section">
         <SectionTitle number="06" eyebrow={t('pulse.exploreEyebrow')} title={t('pulse.exploreHeading')} />
