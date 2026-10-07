@@ -97,7 +97,7 @@ export default function Login() {
         Mobile: relative, stack layout
         Desktop: relative, fixed height for sliding panel
       */}
-      <div className={`relative w-full max-w-[1000px] bg-surface rounded-2xl shadow-xl border-2 border-ink overflow-hidden flex flex-col lg:block mx-auto transition-[min-height] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${isRegister ? 'auth-card--register lg:min-h-[650px]' : 'auth-card--login lg:min-h-[540px]'}`}>
+      <div className={`auth-card social-card relative w-full max-w-[1000px] overflow-hidden flex flex-col lg:block mx-auto transition-[min-height] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${isRegister ? 'auth-card--register lg:min-h-[650px]' : 'auth-card--login lg:min-h-[540px]'}`}>
         
         {/* MOBILE VISUAL HEADER (Below md) */}
         <div className="lg:hidden flex flex-col items-center justify-center text-center p-4 bg-ink text-canvas">

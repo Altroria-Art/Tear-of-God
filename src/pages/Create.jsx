@@ -500,7 +500,6 @@ const CreateTierList = () => {
                   <TierLabel
                     label={tier.label}
                     color={tier.color}
-                    style={{ boxShadow: 'inset -2px 0 10px rgba(0,0,0,0.2)' }}
                     className={`w-14 sm:w-24 p-2 font-black ${tier.label.length > 2 ? 'text-sm' : 'text-2xl'}`}
                   />
                   <DropZone topTier={tierIndex === 0} className="min-w-0 flex-1 p-2 sm:p-3 flex flex-wrap gap-2 items-center" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, tier.id)}>

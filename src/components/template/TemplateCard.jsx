@@ -1,11 +1,10 @@
 import BookmarkButton from './BookmarkButton';
 import { useMemo, useState } from 'react';
-import { ListOrdered, Eye, Share2 } from 'lucide-react';
+import { ListOrdered, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { shareUrl } from '../../lib/share';
 import ShareExportModal from '../ui/ShareExportModal';
 import Avatar from '../ui/Avatar';
-import { formatCount } from '../../lib/format';
 import { normalizeTopicItemPreview } from '../../lib/templatePreview';
 import { useTranslation } from 'react-i18next';
 
@@ -50,12 +49,9 @@ export default function TemplateCard({ template, onUse, inSavedView = false, fea
   return (
     <div className={`social-card overflow-hidden flex flex-col ${featured ? 'template-card--featured xl:col-span-2' : ''}`}>
       <Link to={detailHref} className="template-card-preview bg-surface-glass p-4 pt-10 flex flex-col relative">
-        {(template.use_count > 0 || template.view_count > 0) && <div className="template-card-metrics absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
+        {template.use_count > 0 && <div className="template-card-metrics absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
           {template.use_count > 0 && <span className="flex items-center gap-1" title={t('common.uses')}>
             <ListOrdered size={14} /> {t('social.rankingCount', { count: Number(template.use_count) })}
-          </span>}
-          {template.view_count > 0 && <span className="flex items-center gap-1" title={t('common.views')}>
-            <Eye size={14} /> {formatCount(template.view_count)}
           </span>}
         </div>}
 
@@ -106,7 +102,7 @@ export default function TemplateCard({ template, onUse, inSavedView = false, fea
             onClick={handleShare}
             aria-label={t('common.share')}
             title={t('common.share')}
-            className="shrink-0 px-3 py-2.5 text-muted hover:text-ink transition-colors rounded-lg border border-line-soft hover:bg-surface"
+            className="min-h-11 min-w-11 shrink-0 px-3 py-2.5 text-muted hover:text-ink transition-colors rounded-lg border border-line-soft hover:bg-surface"
           >
             <Share2 size={16} />
           </button>

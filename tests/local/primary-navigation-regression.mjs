@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import { primaryNavigation, navigationIsActive, usesEditorNavigation } from '../../src/lib/primaryNavigation.js';
+
+const user = { id: 'owner' };
+const guest = primaryNavigation(null);
+const signedIn = primaryNavigation(user);
+assert.deepEqual(guest.map(item => item.to), ['/', '/discover', '/create', '/login']);
+assert.deepEqual(signedIn.map(item => item.to), ['/', '/discover', '/create', '/profile']);
+const active = path => signedIn.filter(item => navigationIsActive(path, item, user)).map(item => item.to);
+assert.deepEqual(active('/'), ['/']);
+assert.deepEqual(active('/discover/saved'), ['/discover']);
+assert.deepEqual(active('/discover/templates'), ['/discover']);
+assert.deepEqual(active('/discovery'), []);
+assert.deepEqual(active('/profile/owner'), ['/profile']);
+assert.deepEqual(active('/profile/other'), []);
+assert.deepEqual(active('/rank'), ['/create']);
+assert.deepEqual(active('/create'), ['/create']);
+assert.equal(usesEditorNavigation('/create'), true);
+assert.equal(usesEditorNavigation('/rank'), true);
+assert.equal(usesEditorNavigation('/login'), false);
+assert.equal(usesEditorNavigation('/creator'), false);
+assert.equal(navigationIsActive('/login', guest[3], null), true);
+console.log('Primary navigation: guest, owner, saved and editor routes pass.');

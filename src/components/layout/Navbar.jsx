@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, LogOut, Sun, Moon, Languages, Menu, X, Crown, Plus } from 'lucide-react';
+import { Search, User, LogOut, Sun, Moon, Languages, Menu, X, Crown, Plus, Bookmark } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useTranslation } from 'react-i18next';
 import { switchLanguage } from '../../i18n';
+import { navigationIsActive, usesEditorNavigation } from '../../lib/primaryNavigation';
 import NotificationMenu from './NotificationMenu';
 import SearchSuggestions from './SearchSuggestions';
 import { fetchTemplates, fetchHashtags } from '../../lib/api';
@@ -53,6 +54,8 @@ const Navbar = () => {
   const dropdownRef = useRef(null);
   const desktopSearchRef = useRef(null);
   const mobileSearchRef = useRef(null);
+  const mobileMenuButtonRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
   useEffect(() => {
     setSearchQuery(new URLSearchParams(location.search).get('q') || '');
@@ -147,6 +150,9 @@ const Navbar = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
+      if (!mobileMenuRef.current?.contains(event.target) && !mobileMenuButtonRef.current?.contains(event.target)) {
+        setIsMobileMenuOpen(false);
+      }
       if (
         (!desktopSearchRef.current || !desktopSearchRef.current.contains(event.target)) &&
         (!mobileSearchRef.current || !mobileSearchRef.current.contains(event.target))
@@ -156,12 +162,15 @@ const Navbar = () => {
     };
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
+        if (document.getElementById('secondary-navigation')) mobileMenuButtonRef.current?.focus();
+        setIsMobileMenuOpen(false);
         setIsSuggestOpen(false);
         setIsDropdownOpen(false);
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        desktopSearchRef.current?.querySelector('input')?.focus();
+        if (window.matchMedia('(min-width: 1024px)').matches) desktopSearchRef.current?.querySelector('input')?.focus();
+        else setIsMobileMenuOpen(true);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -172,10 +181,14 @@ const Navbar = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isMobileMenuOpen) mobileSearchRef.current?.querySelector('input')?.focus();
+  }, [isMobileMenuOpen]);
+
   const isActive = (path) => {
-    const active = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+    const active = navigationIsActive(location.pathname, { to: path, exact: path === '/' }, currentUser);
     return active
-      ? 'text-brand font-bold bg-brand/10 shadow-[inset_0_-3px_0_currentColor]'
+      ? 'text-ink font-bold bg-acid/20 shadow-[inset_0_-3px_0_var(--color-acid)]'
       : 'text-ink-soft hover:text-ink hover:bg-surface/50 font-medium';
   };
 
@@ -192,14 +205,16 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="glass-nav px-4 sm:px-8 py-3 flex items-center justify-between sticky top-0 z-50">
+    <nav aria-label={t('nav.primaryNavigation')} className="glass-nav site-navbar px-3 sm:px-5 py-3 flex items-center justify-between sticky top-0 z-50">
       
       {/* ฝั่งซ้าย: โลโก้ และ ลิงก์เมนู */}
-      <div className="flex items-center gap-6 lg:gap-8 min-w-0">
+      <div className="flex items-center gap-3 min-w-0">
         <div className="flex items-center gap-2">
           <button 
+            ref={mobileMenuButtonRef}
             aria-label={t('nav.menu')}
             aria-expanded={isMobileMenuOpen}
+            aria-controls="secondary-navigation"
             className={`lg:hidden grid h-11 w-11 shrink-0 place-items-center rounded-xl border shadow-sm transition-all ${
               isMobileMenuOpen
                 ? 'bg-brand text-canvas border-brand'
@@ -215,14 +230,14 @@ const Navbar = () => {
         </div>
 
         <div className="hidden lg:flex items-center gap-1.5 text-sm">
-          <Link to="/" onClick={handleHomeClick} className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/')}`}>
+          <Link to="/" aria-current={location.pathname === '/' ? 'page' : undefined} onClick={handleHomeClick} className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/')}`}>
             {t('nav.home')}
           </Link>
-          <Link to="/create" aria-current={location.pathname === '/create' ? 'page' : undefined} className="play-button inline-flex items-center gap-1">
-            <Plus size={18} strokeWidth={3} aria-hidden="true" />{t('nav.rankCta')}
-          </Link>
-          <Link to="/discover" className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/discover')}`}>
+          <Link to="/discover" aria-current={navigationIsActive(location.pathname, { to: '/discover' }) ? 'page' : undefined} className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/discover')}`}>
             {t('nav.discover')}
+          </Link>
+          <Link to="/create" aria-current={navigationIsActive(location.pathname, { to: '/create' }) ? 'page' : undefined} className={`opinion-secondary inline-flex items-center gap-1 ${isActive('/create')}`}>
+            <Plus size={18} strokeWidth={3} aria-hidden="true" />{t('nav.create')}
           </Link>
         </div>
       </div>
@@ -246,7 +261,7 @@ const Navbar = () => {
               onFocus={() => {
                 if (searchQuery.trim()) setIsSuggestOpen(true);
               }}
-              className="bg-search border border-line-soft rounded-full py-2.5 pl-10 pr-4 text-sm w-48 xl:w-72 outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
+              className="min-h-11 bg-search border border-line-soft rounded-full py-2.5 pl-10 pr-4 text-sm w-48 xl:w-72 outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
             />
           </form>
 
@@ -266,7 +281,7 @@ const Navbar = () => {
         {/* ปุ่มเปลี่ยนภาษา */}
         <button
           onClick={toggleLanguage}
-          className="w-11 h-11 bg-surface rounded-full hidden sm:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft cursor-pointer"
+          className="w-11 h-11 bg-surface rounded-full hidden lg:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors shadow-sm border border-line-soft cursor-pointer"
           aria-label={t('nav.toggleLanguage')}
           title={t('nav.toggleLanguage')}
         >
@@ -276,7 +291,7 @@ const Navbar = () => {
         {/* ปุ่มเปลี่ยนธีม Ultra-smooth */}
         <button
           onClick={toggleTheme}
-          className="w-11 h-11 bg-surface rounded-full hidden sm:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 active:scale-90 hover:scale-105 shadow-sm border border-line-soft cursor-pointer select-none overflow-hidden"
+          className="w-11 h-11 bg-surface rounded-full hidden lg:flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-all duration-200 shadow-sm border border-line-soft cursor-pointer select-none overflow-hidden"
           aria-label={t('nav.toggleTheme')}
         >
           <div className="transform transition-transform duration-300">
@@ -320,7 +335,7 @@ const Navbar = () => {
                 <div className="absolute right-0 top-12 w-40 glass rounded-xl py-2 z-50">
                   <Link 
                     to="/profile" 
-                    className="block px-4 py-2 text-sm text-ink hover:bg-surface-glass font-medium transition-colors"
+                    className="flex min-h-11 items-center px-4 py-2 text-sm text-ink hover:bg-surface-glass font-medium transition-colors"
                     onClick={() => setIsDropdownOpen(false)}
                   >
                     {t('nav.profile')}
@@ -328,7 +343,7 @@ const Navbar = () => {
                   {currentUser.role === 'admin' && (
                     <Link 
                       to="/admin" 
-                      className="block px-4 py-2 text-sm text-ink hover:bg-surface-glass font-medium transition-colors"
+                      className="flex min-h-11 items-center px-4 py-2 text-sm text-ink hover:bg-surface-glass font-medium transition-colors"
                       onClick={() => setIsDropdownOpen(false)}
                     >
                       {t('nav.admin')}
@@ -336,7 +351,7 @@ const Navbar = () => {
                   )}
                   <button 
                     onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-status-error hover:bg-status-error/10 font-medium flex items-center gap-2 transition-colors"
+                    className="min-h-11 w-full text-left px-4 py-2 text-sm text-status-error hover:bg-status-error/10 font-medium flex items-center gap-2 transition-colors"
                   >
                     <LogOut size={14} /> {t('nav.logout')}
                   </button>
@@ -358,11 +373,7 @@ const Navbar = () => {
 
       {/* Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden absolute top-full left-0 w-full max-h-[calc(100dvh-5rem)] overflow-y-auto bg-canvas border-t border-line-soft p-4 flex flex-col gap-4 shadow-xl z-50">
-          <div className="flex gap-2 sm:hidden">
-            <button type="button" onClick={toggleLanguage} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line-soft px-3 text-sm" aria-label={t('nav.toggleLanguage')}><Languages size={18} />{i18n.language === 'th' ? 'English' : 'ไทย'}</button>
-            <button type="button" onClick={toggleTheme} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line-soft px-3 text-sm" aria-label={t('nav.toggleTheme')}>{isLightMode ? <Moon size={18} /> : <Sun size={18} />}{t('nav.toggleTheme')}</button>
-          </div>
+        <div ref={mobileMenuRef} id="secondary-navigation" className="lg:hidden absolute top-full left-0 w-full max-h-[calc(100dvh-9rem)] overflow-y-auto bg-canvas border-t border-line-soft p-4 flex flex-col gap-4 shadow-xl z-50">
           <div ref={mobileSearchRef} className="relative w-full">
             <form onSubmit={handleSearch}>
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
@@ -378,7 +389,7 @@ const Navbar = () => {
                 onFocus={() => {
                   if (searchQuery.trim()) setIsSuggestOpen(true);
                 }}
-                className="bg-search border border-line-soft rounded-full py-2 pl-10 pr-4 text-sm w-full outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
+                className="min-h-11 bg-search border border-line-soft rounded-full py-2 pl-10 pr-4 text-sm w-full outline-none focus:ring-1 focus:ring-brand-accent text-ink transition-shadow placeholder-muted"
               />
             </form>
 
@@ -395,16 +406,14 @@ const Navbar = () => {
             )}
           </div>
           <div className="flex flex-col gap-2">
-            <Link to="/" className={`px-4 py-2 rounded-lg ${isActive('/')}`} onClick={() => setIsMobileMenuOpen(false)}>
-              {t('nav.home')}
-            </Link>
-            <Link to="/create" className={`px-4 py-2 rounded-lg ${isActive('/create')}`} onClick={() => setIsMobileMenuOpen(false)}>
-              {t('nav.create')}
-            </Link>
-            <Link to="/discover" className={`px-4 py-2 rounded-lg ${isActive('/discover')}`} onClick={() => setIsMobileMenuOpen(false)}>
-              {t('nav.discover')}
-            </Link>
+            {usesEditorNavigation(location.pathname) && <Link to="/discover" className="opinion-secondary justify-start" onClick={() => setIsMobileMenuOpen(false)}>{t('nav.discover')}</Link>}
+            <Link to="/discover?view=saved" className="opinion-secondary justify-start gap-2" onClick={() => setIsMobileMenuOpen(false)}><Bookmark size={18} />{t('discover.savedTemplates')}</Link>
           </div>
+          <div className="flex gap-2 border-t border-line-soft pt-3">
+            <button type="button" onClick={toggleLanguage} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line-soft px-3 text-sm" aria-label={t('nav.toggleLanguage')}><Languages size={18} />{i18n.language === 'th' ? 'English' : 'ไทย'}</button>
+            <button type="button" onClick={toggleTheme} className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-line-soft px-3 text-sm" aria-label={t('nav.toggleTheme')}>{isLightMode ? <Moon size={18} /> : <Sun size={18} />}{t('nav.toggleTheme')}</button>
+          </div>
+
         </div>
       )}
     </nav>

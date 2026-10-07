@@ -1,0 +1,223 @@
+[
+  {
+    "actual": {
+      "height": 568,
+      "width": 320
+    },
+    "desktop": [
+      "tTear of God",
+      ""
+    ],
+    "nav": [
+      {
+        "current": "page",
+        "height": 52.5,
+        "text": "Home"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Discover"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Create"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Log in"
+      }
+    ],
+    "overflow": -15,
+    "size": {
+      "height": 568,
+      "width": 320
+    },
+    "theme": "light"
+  },
+  {
+    "actual": {
+      "height": 844,
+      "width": 390
+    },
+    "desktop": [
+      "tTear of God",
+      ""
+    ],
+    "nav": [
+      {
+        "current": "page",
+        "height": 52.5,
+        "text": "Home"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Discover"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Create"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Log in"
+      }
+    ],
+    "overflow": -15,
+    "size": {
+      "height": 844,
+      "width": 390
+    },
+    "theme": "light"
+  },
+  {
+    "actual": {
+      "height": 1024,
+      "width": 768
+    },
+    "desktop": [
+      "tTear of God",
+      ""
+    ],
+    "nav": [
+      {
+        "current": "page",
+        "height": 52.5,
+        "text": "Home"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Discover"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Create"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Log in"
+      }
+    ],
+    "overflow": -15,
+    "size": {
+      "height": 1024,
+      "width": 768
+    },
+    "theme": "light"
+  },
+  {
+    "actual": {
+      "height": 1180,
+      "width": 820
+    },
+    "desktop": [
+      "tTear of God",
+      ""
+    ],
+    "nav": [
+      {
+        "current": "page",
+        "height": 52.5,
+        "text": "Home"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Discover"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Create"
+      },
+      {
+        "current": null,
+        "height": 52.5,
+        "text": "Log in"
+      }
+    ],
+    "overflow": -15,
+    "size": {
+      "height": 1180,
+      "width": 820
+    },
+    "theme": "light"
+  },
+  {
+    "actual": {
+      "height": 768,
+      "width": 1024
+    },
+    "desktop": [
+      "tTear of God",
+      "Home",
+      "Discover",
+      "Create",
+      ""
+    ],
+    "nav": [],
+    "overflow": -15,
+    "size": {
+      "height": 768,
+      "width": 1024
+    },
+    "theme": "light"
+  },
+  {
+    "actual": {
+      "height": 844,
+      "width": 390
+    },
+    "nav": [
+      "Home",
+      "Discover",
+      "Create",
+      "Log in"
+    ],
+    "overflow": -15,
+    "size": {
+      "height": 844,
+      "width": 390
+    },
+    "theme": "dark"
+  },
+  {
+    "actual": {
+      "height": 1180,
+      "width": 820
+    },
+    "nav": [
+      "Home",
+      "Discover",
+      "Create",
+      "Log in"
+    ],
+    "overflow": 0,
+    "size": {
+      "height": 1180,
+      "width": 820
+    },
+    "theme": "dark"
+  },
+  {
+    "actual": {
+      "height": 768,
+      "width": 1024
+    },
+    "nav": [],
+    "overflow": -15,
+    "size": {
+      "height": 768,
+      "width": 1024
+    },
+    "theme": "dark"
+  }
+]

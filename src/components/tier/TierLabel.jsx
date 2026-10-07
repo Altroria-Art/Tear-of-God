@@ -1,14 +1,11 @@
 
-import { resolveTierColor, tierGlowStyle, TIER_LABEL_INK } from '../../lib/tiers'
+import { resolveTierColor, TIER_LABEL_INK } from '../../lib/tiers'
 
 
 // Shared tier badge. Color always comes from the tier's own `color` field
 // (resolved via resolveTierColor), never from its display label — a tier
 // named in Thai (or anything other than S/A/B/C/D) still renders its color.
-// The outer glow (highlight) is derived from that same resolved color via
-// tierGlowStyle(), so the highlight stays in sync with the header color even
-// after a user edits it. `style` is merged in: its `boxShadow` is composed
-// together with the glow (callers like Create pass an extra inset shadow).
+// Caller styles may add an inset border; the badge itself has no decorative glow.
 // `index` is an optional last-resort fallback (position in the tier list)
 // used only when there is neither a stored color nor a classic S/A/B/C/D
 // label — e.g. a ranking with no template, so no color exists anywhere for
@@ -23,9 +20,8 @@ import { resolveTierColor, tierGlowStyle, TIER_LABEL_INK } from '../../lib/tiers
 export default function TierLabel({ label, color, index, className = '', fallbackClassName = 'bg-surface text-ink', style = {} }) {
   const bg = resolveTierColor(color, label, index)
 
-  const glow = tierGlowStyle(bg)
   const { boxShadow: callerShadow, ...restStyle } = style
-  const base = 'flex shrink-0 items-center justify-center break-words text-center leading-tight drop-shadow-sm transition-all duration-300 ease-out'
+  const base = 'flex shrink-0 items-center justify-center break-words text-center leading-tight transition-colors'
 
 
   if (bg) {
@@ -34,7 +30,7 @@ export default function TierLabel({ label, color, index, className = '', fallbac
         style={{
           backgroundColor: bg,
           color: TIER_LABEL_INK,
-          boxShadow: [callerShadow, glow].filter(Boolean).join(', ') || undefined,
+          boxShadow: callerShadow,
           ...restStyle,
         }}
         className={`${base} ${className}`}

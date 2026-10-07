@@ -1,4 +1,4 @@
-import { ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import RipMark from './RipMark';
 
@@ -7,7 +7,7 @@ export default function PlayHeader({ eyebrow, title, description, action, to, re
   return (
     <header className={`play-header ${variant ? `play-header--${variant}` : ''} ${reveal ? 'tear-reveal' : ''}`}>
       <div className="min-w-0 flex-1">
-        {eyebrow && <span className="sticker"><Sparkles size={13} aria-hidden="true" />{eyebrow}</span>}
+        {eyebrow && <p className="text-xs font-semibold text-muted">{eyebrow}</p>}
         <h1 className="play-title">{title}</h1>
         <RipMark className="play-rip-mark" />
         {description && <p className="play-description">{description}</p>}

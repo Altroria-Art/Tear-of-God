@@ -1,42 +1,34 @@
-import { Bookmark, Compass, Home, PlusCircle } from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Compass, Home, PlusCircle, User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useUser } from '../../context/UserContext';
+import { primaryNavigation, navigationIsActive, usesEditorNavigation } from '../../lib/primaryNavigation';
 
-const items = [
-  { to: '/', icon: Home, label: 'nav.home', exact: true },
-  { to: '/discover', icon: Compass, label: 'nav.discover' },
-  { to: '/create', icon: PlusCircle, label: 'nav.create', prominent: true },
-  { to: '/discover?view=saved', icon: Bookmark, label: 'discover.savedTemplates', saved: true },
-];
+const icons = { home: Home, discover: Compass, create: PlusCircle, profile: User };
 
 export default function MobileBottomNav() {
   const { t } = useTranslation();
+  const { currentUser } = useUser();
   const location = useLocation();
-  const hidden = ['/login', '/forgot-password', '/reset-password', '/create', '/rank', '/admin']
-    .some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`));
+  const hidden = usesEditorNavigation(location.pathname);
 
   if (hidden) return null;
 
-  const savedView = location.pathname === '/discover'
-    && new URLSearchParams(location.search).get('view') === 'saved';
-
   return (
     <>
-      <div className="h-20 md:hidden" aria-hidden="true" />
+      <div className="h-20 lg:hidden" aria-hidden="true" />
       <nav
         aria-label={t('nav.mobileNavigation')}
-        className="bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-line-soft bg-canvas/90 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl md:hidden"
+        className="bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-line-soft bg-canvas px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:hidden"
       >
         <div className="mx-auto grid max-w-md grid-cols-4">
-          {items.map(({ to, icon: Icon, label, exact, prominent, saved }) => {
-            const active = saved
-              ? savedView
-              : exact
-                ? location.pathname === '/'
-                : location.pathname.startsWith(to) && !(to === '/discover' && savedView);
+          {primaryNavigation(currentUser).map(item => {
+            const { to, icon, label, prominent } = item;
+            const Icon = icons[icon];
+            const active = navigationIsActive(location.pathname, item, currentUser);
 
             return (
-              <NavLink
+              <Link
                 key={to}
                 to={to}
                 onClick={() => {
@@ -50,10 +42,10 @@ export default function MobileBottomNav() {
                 }`}
               >
                 <span className={prominent ? 'mobile-rank-action grid h-9 w-11 place-items-center bg-acid text-acid-ink' : ''}>
-                  <Icon size={prominent ? 21 : 20} strokeWidth={active || prominent ? 2.5 : 2} fill={saved && active ? 'currentColor' : 'none'} />
+                  <Icon size={20} strokeWidth={active || prominent ? 2.5 : 2} />
                 </span>
-                <span className="max-w-20 truncate">{t(label)}</span>
-              </NavLink>
+                <span className="max-w-full text-center leading-tight">{t(label)}</span>
+              </Link>
             );
           })}
         </div>
