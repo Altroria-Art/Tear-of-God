@@ -1,3 +1,4 @@
+import TopicRankActions from '../components/template/TopicRankActions';
 import PlayHeader from '../components/ui/PlayHeader';
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -406,6 +407,8 @@ function CommunityAverageContent() {
             filename={`template-${templateId}-stats.png`}
           />
 
+          <TopicRankActions templateId={templateId} className="mt-4" showCommunity={false} />
+
           <section className="community-data-section mt-6 py-5">
             <div className="mb-2 flex items-center justify-between px-1">
               <h2 className="text-sm font-bold text-ink">{t('stats.title')}</h2>
@@ -430,9 +433,7 @@ function CommunityAverageContent() {
 
           <section className="community-data-section mt-6 py-5">
             <h2 className="text-sm font-bold text-ink">{t('stats.vsCommunity')}</h2>
-            {!currentUser ? (
-              <p className="mt-2 text-sm text-muted">{t('stats.loginToCompare')}</p>
-            ) : myComparison.length === 0 ? (
+            {!currentUser || myComparison.length === 0 ? (
               <p className="mt-2 text-sm text-muted">
                 {t('stats.noRankingYet')}{' '}
                 <Link to={`/rank?template=${templateId}`} className="font-bold text-brand hover:underline">

@@ -4,7 +4,6 @@ import { ArrowRight, Bookmark, MessageCircle, Search, X, Info } from 'lucide-rea
 import { useTranslation } from 'react-i18next';
 import { useUser } from '../context/UserContext';
 import { useBookmarks } from '../context/BookmarkContext';
-import { useToast } from '../components/ui/Toast';
 import { trackEvent } from '../lib/analytics';
 import { fetchDiscoverPulse, fetchTemplates } from '../lib/api';
 import { loginPath } from '../lib/navigation';
@@ -86,7 +85,6 @@ export default function Discover() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { addSavedIds } = useBookmarks();
-  const toast = useToast();
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const q = (params.get('q') || '').trim();
@@ -167,7 +165,6 @@ export default function Discover() {
 
   const useTemplate = template => {
     const next = `/rank?template=${encodeURIComponent(template.id)}`;
-    if (!currentUser) { toast.warning(t('discover.protectedLogin')); navigate(loginPath(next)); return; }
     navigate(next);
   };
   const clearSearch = () => {

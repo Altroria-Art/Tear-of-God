@@ -1,24 +1,14 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { EyeIcon, TemplateIcon } from '../ui/Icons'
-import { useUser } from '../../context/UserContext'
 import { useTranslation } from 'react-i18next'
 import BookmarkButton from '../template/BookmarkButton'
-import { loginPath } from '../../lib/navigation'
-import { useToast } from '../ui/Toast'
 
 export default function AboutTemplateCard({ name, description, itemCount, templateId }) {
   const navigate = useNavigate()
-  const { currentUser } = useUser()
   const { t } = useTranslation()
-  const toast = useToast()
 
   const handleUseTemplate = () => {
-    if (!currentUser) {
-      toast.warning(t('template.warnLoginUse'))
-      navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}`))
-      return
-    }
-    navigate(`/rank?template=${templateId}`)
+    navigate(`/rank?template=${encodeURIComponent(templateId)}`)
   }
 
   return (

@@ -1,7 +1,5 @@
 import TearMascot from '../components/ui/TearMascot';
 import TierLoader from '../components/ui/TierLoader';
-import HomeShowcase from '../components/ui/HomeShowcase';
-import PlayHeader from '../components/ui/PlayHeader';
 import TierRow from '../components/feed/TierRow';
 import { buildTierRows } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -154,7 +152,6 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
 
 function HomeTierCard({ post, onRequireAuth, onVoteChange, featured = false }) {
   const navigate = useNavigate();
-  const { currentUser } = useUser();
   const { t } = useTranslation();
   const [mobileExpanded, setMobileExpanded] = useState(false);
   // Full placements are loaded by Post Detail, including explicit export/share.
@@ -206,19 +203,10 @@ function HomeTierCard({ post, onRequireAuth, onVoteChange, featured = false }) {
         className="flex items-center gap-1.5 px-3 py-1.5 min-h-11 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
       />
       <button
-        onClick={() => {
-          if (!currentUser) {
-            if (onRequireAuth) {
-              onRequireAuth(`/rank?template=${encodeURIComponent(post.template_id || '')}`);
-            } else {
-              navigate(`/login?next=${encodeURIComponent(`/rank?template=${post.template_id || ''}`)}`);
-            }
-            return;
-          }
-          navigate(`/rank?template=${post.template_id || ''}`);
-        }}
+        onClick={() => navigate(`/rank?template=${encodeURIComponent(post.template_id)}`)}
+        disabled={!post.template_id}
         title={t('feed.useTemplate', { title: post.title })}
-        className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 min-h-11 bg-surface-glass border border-line-soft text-ink-soft text-xs font-bold rounded-full transition-all shadow-xs hover:bg-surface hover:text-ink hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]"
+        className="play-button px-3 py-1.5 text-xs disabled:opacity-40"
       >
         <Copy size={12} strokeWidth={2.5} />
         <span>{t('feed.useTemplateShort')}</span>
@@ -341,6 +329,7 @@ function HomeTierCard({ post, onRequireAuth, onVoteChange, featured = false }) {
       </div>
 
       {/* Title */}
+      <p className="mb-1 text-xs text-muted">{t('template.ownerRanking', { name: post.profile?.username || t('common.unknownUser') })}</p>
       <h2
         data-auth-next={`/post/${post.id}`}
         onClick={() => navigate(`/post/${post.id}`)}
@@ -910,10 +899,21 @@ export default function HomeFeed() {
 
   return (
     <div className="min-h-screen font-sans">
-      <div className="mx-auto max-w-7xl px-4 pt-5"><PlayHeader variant="home" eyebrow={t('play.homeEyebrow')} title={<><span>{t('play.homeWord1')}</span><span>{t('play.homeWord2')} <em>{t('play.homeWord3')}</em></span></>} description={t('play.homeDescription')} action={t('play.createAction')} to="/create" secondaryAction={t('play.browseAction')} secondaryTo="#home-feed" visual={<HomeShowcase />} /></div>
+      <div className="mx-auto max-w-[1120px] px-4 pt-5">
+        <header className="opinion-home rounded-2xl border border-line-soft bg-surface p-5 sm:p-6 mb-5">
+          <p className="text-xs font-bold text-highlight">{t('play.homeEyebrow')}</p>
+          <h1 className="mt-2 text-2xl sm:text-3xl font-black text-ink">{t('play.homeTitle')}</h1>
+          <p className="mt-2 max-w-2xl text-sm text-ink-soft">{t('play.homeDescription')}</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Link to="/discover/templates" className="play-button">{t('play.pickAction')}</Link>
+            <a href="#home-feed" className="opinion-secondary">{t('play.browseAction')}</a>
+            <Link to="/create" className="min-h-11 inline-flex items-center text-sm text-muted underline underline-offset-4">{t('play.newTopicAction')}</Link>
+          </div>
+        </header>
+      </div>
       {/* Floating Tab Navigation Capsule with Auto-hide on Scroll */}
       <div
-        id="home-feed" className={`sticky top-[80px] z-30 flex justify-center pointer-events-none transition-all duration-300 ease-in-out pb-2 ${
+        id="home-feed" className={`scroll-mt-24 sticky top-[80px] z-30 flex justify-center pointer-events-none transition-all duration-300 ease-in-out pb-2 ${
           (showTabNav || displayData.length === 0)
             ? 'translate-y-0 opacity-100'
             : '-translate-y-16 opacity-0'
@@ -935,7 +935,7 @@ export default function HomeFeed() {
               }}
               className={`flex items-center gap-1.5 rounded-full min-h-11 px-3 sm:px-5 py-1.5 text-[11px] sm:text-xs font-bold transition-all duration-200 ${
                 activeTab === id
-                  ? 'bg-brand text-canvas shadow-xs scale-100'
+                  ? 'opinion-active shadow-xs scale-100'
                   : 'text-muted hover:text-ink hover:bg-surface-glass scale-95'
               }`}
             >
@@ -996,11 +996,11 @@ export default function HomeFeed() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate('/create')}
+                  onClick={() => navigate('/discover/templates')}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-brand px-5 py-2 text-sm font-bold text-canvas shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97]"
                 >
-                  <Plus size={16} aria-hidden="true" />
-                  {t('feed.emptyCta')}
+                  <Search size={16} aria-hidden="true" />
+                  {t('feed.exploreTemplates')}
                 </button>
               </div>
             </div>
@@ -1009,8 +1009,8 @@ export default function HomeFeed() {
           {!isLoading && !feedLocked && !followingEmpty && !allSeen && !trendingError && displayData.length === 0 && (
             <div className="text-center py-16 bg-surface rounded-2xl border border-line-soft shadow-sm">
               <p className="text-xl font-black text-ink">{t('play.emptyTitle')}</p><p className="mt-2 text-muted font-medium">{t('feed.empty')}</p>
-              <button onClick={() => navigate('/create')} className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-brand hover:underline">
-                {t('feed.emptyCta')}
+              <button onClick={() => navigate('/discover/templates')} className="play-button mt-4">
+                {t('feed.exploreTemplates')}
               </button>
             </div>
           )}
@@ -1112,7 +1112,7 @@ export default function HomeFeed() {
                 <Link
                   to="/discover/templates"
                   onClick={() => trackEvent('empty_state_cta_click', { entityType: 'button', entityId: 'end_feed_explore_templates' })}
-                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full border border-line-soft bg-surface px-6 py-2.5 text-sm font-bold text-ink shadow-xs transition-all hover:border-line hover:bg-surface-glass active:scale-[0.97] sm:w-auto"
+                  className="play-button w-full sm:w-auto"
                 >
                   <Search size={18} aria-hidden="true" />
                   {t('feed.exploreTemplates')}
@@ -1120,10 +1120,10 @@ export default function HomeFeed() {
                 <Link
                   to="/create"
                   onClick={() => trackEvent('empty_state_cta_click', { entityType: 'button', entityId: 'end_feed_create' })}
-                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-brand px-6 py-2.5 text-sm font-bold text-canvas shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] sm:w-auto"
+                  className="opinion-secondary w-full gap-2 sm:w-auto"
                 >
                   <Plus size={18} aria-hidden="true" />
-                  {t('feed.createRanking')}
+                  {t('play.newTopicAction')}
                 </Link>
               </div>
             </div>

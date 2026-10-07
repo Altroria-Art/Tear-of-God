@@ -697,6 +697,14 @@ html[lang="th"] .pulse-hero h1 { line-height: 1.2; }
 .rank-page .rank-title-input { min-height:3rem; font-size:clamp(1.25rem,2vw,1.75rem); }
 .auth-v2 .club-choice { min-height:44px; }
 .rank-side { display:contents; }
+
+/* First opinion flow: the same lime CTA in both themes, quiet secondary links. */
+.opinion-secondary { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:.6rem 1rem; border:1px solid var(--color-line-soft); border-radius:.35rem; color:var(--color-ink-soft); background:var(--color-surface); font-size:.875rem; font-weight:700; text-align:center; }
+.opinion-secondary:hover { color:var(--color-ink); border-color:var(--color-line); }
+.opinion-active { background:var(--color-acid); color:var(--color-acid-ink); }
+.opinion-home h1 { text-wrap:balance; }
+.topic-rank-actions > a { max-width:100%; }
+@media (max-width:639px) { .opinion-home .play-button, .topic-rank-actions > a { flex:1 1 auto; } }
 @media (min-width:768px) {
   .create-page .editor-toolbar-float { right:auto; left:max(2rem,calc((100vw - 1280px)/2)); }
   .create-workspace { grid-template-columns:minmax(0,1fr) minmax(16rem,.55fr); gap:1rem; }
@@ -707,7 +715,7 @@ html[lang="th"] .pulse-hero h1 { line-height: 1.2; }
   /* Budget the entire rail, including controls. Leave room for the editor footer
      at the grid boundary on short boards; tall pools scroll inside this budget. */
   .rank-side .rank-pool { order:1; min-height:0; flex:1 1 auto; max-height:none; overflow-y:auto; }
-  .rank-workspace .rank-controls { order:0; flex-shrink:0; padding:.5rem; }
+  .rank-workspace .rank-controls { order:2; flex-shrink:0; padding:.5rem; }
   .rank-workspace .rank-controls > div { flex-wrap:wrap; gap:.25rem; }
   .rank-workspace .rank-controls button { min-height:44px; width:100%; padding:.5rem; }
   .rank-workspace .rank-board { grid-column:1; grid-row:1; }

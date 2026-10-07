@@ -1,16 +1,13 @@
 import TierLoader from '../components/ui/TierLoader';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
 import { fetchTemplates } from '../lib/api';
-import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
 import { ArrowLeftIcon } from '../components/ui/Icons';
 import { useTranslation } from 'react-i18next';
 
-import { useToast } from '../components/ui/Toast';
 
 const PAGE_SIZE = 12;
 const SORT_OPTIONS = [
@@ -21,9 +18,7 @@ const SORT_OPTIONS = [
 
 export default function PopularTemplates() {
   const navigate = useNavigate();
-  const { currentUser } = useUser();
   const { t } = useTranslation();
-  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
@@ -55,11 +50,6 @@ export default function PopularTemplates() {
 
   const handleUseTemplate = (template) => {
     const next = `/rank?template=${encodeURIComponent(template.id)}`;
-    if (!currentUser) {
-      toast.warning(t('discover.protectedLogin'));
-      navigate(loginPath(next));
-      return;
-    }
     navigate(next);
   };
 
