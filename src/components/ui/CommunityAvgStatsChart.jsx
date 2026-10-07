@@ -173,7 +173,7 @@ export default function CommunityAvgStatsChart({
               const rankColor = isTop3 ? (idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#d97706') : textMuted;
               return (
                 <div
-                  key={it.name}
+                  key={it.id ?? it.name}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -322,7 +322,7 @@ export default function CommunityAvgStatsChart({
             const isTop3 = idx < 3;
             const rankColor = isTop3 ? (idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#d97706') : textMuted;
             return (
-              <div key={it.name} className="flex items-center gap-2 sm:gap-3 py-0.5">
+              <div key={it.id ?? it.name} className="flex items-center gap-2 sm:gap-3 py-0.5">
                 <span className="w-6 shrink-0 text-right text-[11px] font-bold" style={{ color: rankColor }}>
                   {idx + 1}
                 </span>

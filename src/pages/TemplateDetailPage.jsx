@@ -2,7 +2,7 @@ import TopicRankActions from '../components/template/TopicRankActions';
 import { useState, useEffect, useRef } from 'react'
 import useCooldown from '../lib/useCooldown'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, Users, Eye, Flag, Trash2, Swords, Clock } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, MessageSquare, Share2, Download, Star, ListOrdered, Eye, Flag, Trash2, Swords, Clock } from 'lucide-react'
 import { loginPath } from '../lib/navigation'
 import Avatar from '../components/ui/Avatar'
 import Pagination from '../components/ui/Pagination'
@@ -510,7 +510,7 @@ function TemplateDetailContent() {
               )}
               <span className="text-muted" aria-hidden="true">|</span>
               <span className="template-social-metadata flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
-                <Users size={14} aria-hidden="true" /> {template.stats?.uses > 0 ? <>{formatCount(template.stats.uses)} {t('template.uses', { count: template.stats.uses })}</> : t('template.firstRank')}
+                <ListOrdered size={14} aria-hidden="true" /> {template.stats?.uses > 0 ? <>{formatCount(template.stats.uses)} {t('template.uses', { count: template.stats.uses })}</> : t('template.firstRank')}
               </span>
               {template.stats?.views > 0 && <span className="template-view-count flex items-center gap-1.5 rounded-full glass px-3 py-1 text-xs font-medium text-ink">
                 <Eye size={14} /> {formatCount(template.stats?.views)} {t('template.views', { count: template.stats.views })}

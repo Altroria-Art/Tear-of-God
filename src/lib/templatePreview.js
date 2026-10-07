@@ -112,3 +112,9 @@ export function normalizeTemplatePreview(
 }
 
 export const normalizePreviewRows = normalizeTemplatePreview;
+
+// A topic is an item set, even when its creator assigned tiers. Keep that opinion
+// out of the Topic card preview; the full Topic/Post pages still show real tiers.
+export function normalizeTopicItemPreview(template) {
+  return normalizeTemplatePreview({ ...template, tiers: [] });
+}

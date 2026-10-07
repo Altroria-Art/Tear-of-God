@@ -7,7 +7,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { fetchDiscoverPulse, fetchRankings, voteRanking } from '../lib/api';
 import { trackEvent } from '../lib/analytics';
-import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, BarChart3, Check, RotateCcw, Plus, Search } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, ListOrdered, BarChart3, Check, RotateCcw, Plus, Search } from 'lucide-react';
 
 
 
@@ -339,10 +339,10 @@ function HomeTierCard({ post, onRequireAuth, onVoteChange, featured = false }) {
       </h2>
 
       <div className="mb-4 flex flex-wrap items-center gap-2" aria-label={t('feed.featuredStats')}>
-        {post.template_id && (
+        {post.template_id && templateUses > 0 && (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-line-soft bg-surface-glass px-2.5 py-1 text-[11px] font-bold text-ink-soft">
-            <Users size={13} className="text-brand" />
-            {t('feed.rankedBy', { count: formatCount(Math.max(1, templateUses)) })}
+            <ListOrdered size={13} className="text-brand" />
+            {t('feed.rankedBy', { count: formatCount(templateUses) })}
           </span>
         )}
         {disagreementValue !== null && (

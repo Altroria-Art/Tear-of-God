@@ -1,13 +1,12 @@
 import BookmarkButton from './BookmarkButton';
 import { useMemo, useState } from 'react';
-import { Users, Eye, Share2 } from 'lucide-react';
+import { ListOrdered, Eye, Share2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { shareUrl } from '../../lib/share';
 import ShareExportModal from '../ui/ShareExportModal';
 import Avatar from '../ui/Avatar';
 import { formatCount } from '../../lib/format';
-import TierLabel from '../tier/TierLabel';
-import { normalizePreviewRows } from '../../lib/templatePreview';
+import { normalizeTopicItemPreview } from '../../lib/templatePreview';
 import { useTranslation } from 'react-i18next';
 
 function PreviewItemBox({ item }) {
@@ -16,22 +15,21 @@ function PreviewItemBox({ item }) {
 
   return (
     <span
-      className="relative aspect-square w-8 h-8 shrink-0 rounded-md bg-item-card text-item-card-text backdrop-blur-md border border-line-soft p-0.5 flex items-center justify-center text-center overflow-hidden select-none shadow-2xs"
+      className="relative min-w-0 min-h-16 rounded-lg bg-item-card text-item-card-text border border-line-soft p-1 flex flex-col items-center justify-center text-center overflow-hidden select-none"
       title={item.name}
     >
-      {hasImage ? (
+      {hasImage && (
         <img
           src={item.imageUrl}
           alt={item.name}
-          className="w-full h-full object-cover rounded-sm pointer-events-none"
+          className="h-10 w-10 object-cover rounded pointer-events-none"
           loading="lazy"
           onError={() => setImgError(true)}
         />
-      ) : (
-        <span className="w-full line-clamp-2 text-[8px] font-bold leading-[1.1] text-ink text-center break-words px-0.5">
+      )}
+        <span className="w-full line-clamp-2 text-[10px] font-bold leading-[1.1] text-ink text-center break-words px-0.5">
           {item.name}
         </span>
-      )}
     </span>
   );
 }
@@ -39,7 +37,7 @@ function PreviewItemBox({ item }) {
 export default function TemplateCard({ template, onUse, inSavedView = false, featured = false }) {
   const { t } = useTranslation();
   const [shareOpen, setShareOpen] = useState(false);
-  const preview = useMemo(() => normalizePreviewRows(template), [template]);
+  const preview = useMemo(() => normalizeTopicItemPreview(template), [template]);
 
   const detailHref = `/template/${template.id}`;
 
@@ -51,80 +49,22 @@ export default function TemplateCard({ template, onUse, inSavedView = false, fea
 
   return (
     <div className={`social-card overflow-hidden flex flex-col ${featured ? 'template-card--featured xl:col-span-2' : ''}`}>
-      <Link to={detailHref} className="template-card-preview bg-surface-glass p-3 pt-9 h-44 flex flex-col justify-between relative overflow-hidden">
+      <Link to={detailHref} className="template-card-preview bg-surface-glass p-4 pt-10 flex flex-col relative">
         {(template.use_count > 0 || template.view_count > 0) && <div className="template-card-metrics absolute top-2 right-2 bg-surface px-2 py-1 rounded text-xs text-brand flex items-center gap-2 z-10 shadow-xs">
           {template.use_count > 0 && <span className="flex items-center gap-1" title={t('common.uses')}>
-            <Users size={14} /> {formatCount(template.use_count)}
+            <ListOrdered size={14} /> {t('social.rankingCount', { count: Number(template.use_count) })}
           </span>}
           {template.view_count > 0 && <span className="flex items-center gap-1" title={t('common.views')}>
             <Eye size={14} /> {formatCount(template.view_count)}
           </span>}
         </div>}
 
-        {preview.mode === 'grid' ? (
-          <div className="w-full h-full rounded-lg border border-line-soft bg-surface/40 flex flex-col justify-center gap-2 p-2 overflow-hidden">
-            {preview.totalCount === 0 ? (
-              <div className="flex items-center justify-center h-full text-xs text-muted/60 select-none">
-                {t('template.noItems', 'No items')}
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-center gap-1.5 min-w-0">
-                  {preview.rows[0].map((item) => (
-                    <PreviewItemBox key={item.key} item={item} />
-                  ))}
-                </div>
-                {(preview.rows[1].length > 0 || preview.overflow > 0) && (
-                  <div className="flex items-center justify-center gap-1.5 min-w-0">
-                    {preview.rows[1].map((item) => (
-                      <PreviewItemBox key={item.key} item={item} />
-                    ))}
-                    {preview.overflow > 0 && (
-                      <span
-                        className="aspect-square w-8 h-8 shrink-0 rounded-md border border-line-soft bg-surface/80 text-ink-soft font-bold text-[10px] flex items-center justify-center select-none shadow-2xs"
-                        title={`+${preview.overflow}`}
-                      >
-                        +{preview.overflow}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="w-full h-full flex flex-col justify-center gap-2">
-            {preview.rows.map((row) => (
-              <div
-                key={row.key}
-                className="flex h-11 min-h-0 w-full rounded-lg border border-line-soft bg-surface/40 overflow-hidden items-stretch"
-              >
-                <TierLabel
-                  label={row.label}
-                  color={row.color}
-                  className={`w-14 h-full max-h-full min-h-0 shrink-0 border-r border-line-soft/40 font-bold px-1 select-none flex items-center justify-center text-center overflow-hidden ${
-                    row.label.length > 2
-                      ? 'text-[10px] leading-tight break-words line-clamp-2 truncate'
-                      : 'text-sm'
-                  }`}
-                />
-                <div className="flex-1 min-w-0 h-full flex items-center gap-1.5 px-2 overflow-hidden bg-surface/30">
-                  {row.items.map((item) => (
-                    <PreviewItemBox key={item.key} item={item} />
-                  ))}
-                  {row.overflow > 0 && (
-                    <span
-                      className="aspect-square w-8 h-8 shrink-0 rounded-md border border-line-soft bg-surface/80 text-ink-soft font-bold text-[10px] flex items-center justify-center select-none shadow-2xs"
-                      title={`+${row.overflow}`}
-                    >
-                      +{row.overflow}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <p className="text-xs font-bold text-muted">{t('social.previewItems', { count: preview.rows.flat().length })}</p>
+        <div className="topic-items-preview grid grid-cols-4 gap-2 mt-2" aria-label={t('social.itemPreview')}>
+          {preview.rows.flat().map(item => <PreviewItemBox key={item.key} item={item} />)}
+          {preview.totalCount === 0 && <p className="col-span-4 py-4 text-sm text-muted">{t('template.noItems', 'No items')}</p>}
+        </div>
+        {preview.overflow > 0 && <p className="mt-2 text-xs text-muted">{t('social.moreItems', { count: preview.overflow })}</p>}
       </Link>
       <div className="p-4 flex-grow flex flex-col justify-between bg-surface/50 border-t border-line-soft">
         <div>

@@ -1,0 +1,122 @@
+[
+  {
+    "page": "topics",
+    "previewCount": "Preview · 4 items to rank",
+    "scrollWidth": 345,
+    "width": 360
+  },
+  {
+    "page": "topics",
+    "previewCount": "Preview · 4 items to rank",
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "page": "topics",
+    "previewCount": "Preview · 4 items to rank",
+    "scrollWidth": 753,
+    "width": 768
+  },
+  {
+    "page": "topics",
+    "previewCount": "Preview · 4 items to rank",
+    "scrollWidth": 1009,
+    "width": 1024
+  },
+  {
+    "page": "topics",
+    "previewCount": "Preview · 4 items to rank",
+    "scrollWidth": 1265,
+    "width": 1280
+  },
+  {
+    "boardY": 1201.5,
+    "commentsY": 2014.25,
+    "comparisonY": 451.5,
+    "detailsY": 2542.5,
+    "page": "community",
+    "scrollWidth": 345,
+    "width": 360
+  },
+  {
+    "boardY": 1169.5,
+    "commentsY": 1925.5,
+    "comparisonY": 419.5,
+    "detailsY": 2453.75,
+    "page": "community",
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "boardY": 1001.5,
+    "commentsY": 1612.71875,
+    "comparisonY": 375.5,
+    "detailsY": 2062.21875,
+    "page": "community",
+    "scrollWidth": 753,
+    "width": 768
+  },
+  {
+    "boardY": 985.5,
+    "commentsY": 1597.5,
+    "comparisonY": 375.5,
+    "detailsY": 2047,
+    "page": "community",
+    "scrollWidth": 1009,
+    "width": 1024
+  },
+  {
+    "boardY": 985.5,
+    "commentsY": 1597.5,
+    "comparisonY": 375.5,
+    "detailsY": 2047,
+    "page": "community",
+    "scrollWidth": 1265,
+    "width": 1280
+  },
+  {
+    "allTopicsY": 181,
+    "page": "discover",
+    "postLinks": [
+      "/post/5b2a0949-72ad-44d8-a064-ec27d52d7bcd"
+    ],
+    "scrollWidth": 345,
+    "width": 360
+  },
+  {
+    "allTopicsY": 181,
+    "page": "discover",
+    "postLinks": [
+      "/post/5b2a0949-72ad-44d8-a064-ec27d52d7bcd"
+    ],
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "allTopicsY": 169,
+    "page": "discover",
+    "postLinks": [
+      "/post/5b2a0949-72ad-44d8-a064-ec27d52d7bcd"
+    ],
+    "scrollWidth": 753,
+    "width": 768
+  },
+  {
+    "allTopicsY": 169,
+    "page": "discover",
+    "postLinks": [
+      "/post/5b2a0949-72ad-44d8-a064-ec27d52d7bcd"
+    ],
+    "scrollWidth": 1009,
+    "width": 1024
+  },
+  {
+    "allTopicsY": 169,
+    "page": "discover",
+    "postLinks": [
+      "/post/5b2a0949-72ad-44d8-a064-ec27d52d7bcd"
+    ],
+    "scrollWidth": 1265,
+    "width": 1280
+  }
+]
