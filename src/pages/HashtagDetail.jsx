@@ -1,10 +1,7 @@
 import TierLoader from '../components/ui/TierLoader';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useUser } from '../context/UserContext';
 import { fetchTemplates } from '../lib/api';
-import { loginPath } from '../lib/navigation';
-import { useToast } from '../components/ui/Toast';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import SortDropdown from '../components/ui/SortDropdown';
@@ -22,9 +19,7 @@ const SORT_OPTIONS = [
 export default function HashtagDetail() {
   const { tag } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useUser();
   const { t } = useTranslation();
-  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
@@ -56,11 +51,6 @@ export default function HashtagDetail() {
 
   const handleUseTemplate = (template) => {
     const next = `/rank?template=${encodeURIComponent(template.id)}`;
-    if (!currentUser) {
-      toast.warning(t('discover.protectedLogin'));
-      navigate(loginPath(next));
-      return;
-    }
     navigate(next);
   };
 

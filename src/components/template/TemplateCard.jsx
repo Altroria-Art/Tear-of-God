@@ -156,7 +156,7 @@ export default function TemplateCard({ template, onUse, inSavedView = false, fea
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => onUse?.(template)}
-            className="flex-1 min-w-24 py-2.5 bg-brand hover:bg-brand-accent text-canvas text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-colors"
+            className="play-button flex-1 min-w-24"
           >
             {t('template.use')}
           </button>

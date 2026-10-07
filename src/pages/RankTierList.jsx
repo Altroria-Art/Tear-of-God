@@ -1,13 +1,12 @@
 import TierLoader from '../components/ui/TierLoader';
 import DropZone from '../components/tier/DropZone';
-import PlayHeader from '../components/ui/PlayHeader';
 import { getInsertIndexFromZone, groupEditorItems } from '../lib/editorBoard';
 import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Share2, Shuffle, ArrowDownAZ, Hash, Swords, Clock } from 'lucide-react';
+import { Shuffle, ArrowDownAZ, Hash, Swords, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { useToast } from '../components/ui/Toast';
@@ -52,6 +51,7 @@ const RankTierList = () => {
   const [draftStatus, setDraftStatus] = useState('');
   const draftKey = 'tog-rank-draft:' + (currentUser?.id || 'guest') + ':' + templateId;
   const guestDraftKey = 'tog-rank-draft:guest:' + templateId;
+  const resumeDraftKey = 'tog-rank-resume:' + templateId;
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(!!templateId);
   const [isSaving, setIsSaving] = useState(false);
   const savePendingRef = useRef(false);
@@ -89,7 +89,8 @@ const RankTierList = () => {
       const inherited = [...new Set((data.hashtags || '').split(',').map(tag => tag.trim()).filter(Boolean).map(tag => tag.startsWith('#') ? tag : '#' + tag))];
       let saved = null;
       try {
-        saved = JSON.parse(localStorage.getItem(draftKey) || localStorage.getItem(guestDraftKey) || 'null');
+        const resumeGuest = currentUserId && sessionStorage.getItem(resumeDraftKey) === 'guest';
+        saved = JSON.parse((resumeGuest && localStorage.getItem(guestDraftKey)) || localStorage.getItem(draftKey) || localStorage.getItem(guestDraftKey) || 'null');
         const ids = new Set(pool.map(item => item.id));
         if (saved?.signature !== signature || !Array.isArray(saved.items) || saved.items.length !== pool.length || new Set(saved.items.map(item => item.id)).size !== pool.length || saved.items.some(item => !ids.has(item.id))) saved = null;
       } catch { saved = null; }
@@ -106,13 +107,16 @@ const RankTierList = () => {
     }
     load();
     return () => { cancelled = true; };
-  }, [templateId, draftKey, guestDraftKey, navigate, t, currentUserId, isDuel, toast]);
+  }, [templateId, draftKey, guestDraftKey, resumeDraftKey, navigate, t, currentUserId, isDuel, toast]);
 
   useEffect(() => {
     if (loadedKey?.key !== draftKey) return;
-    try { localStorage.setItem(draftKey, JSON.stringify({ signature: loadedKey.signature, title, description, items, hashtags: selectedHashtags })); }
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({ signature: loadedKey.signature, title, description, items, hashtags: selectedHashtags }));
+      if (currentUserId) sessionStorage.removeItem(resumeDraftKey);
+    }
     catch { setDraftStatus('editor.draftUnavailable'); }
-  }, [loadedKey, draftKey, title, description, items, selectedHashtags]);
+  }, [loadedKey, draftKey, title, description, items, selectedHashtags, currentUserId, resumeDraftKey]);
 
   const [selectedItemForModal, setSelectedItemForModal] = useState(null);
 
@@ -214,12 +218,18 @@ const RankTierList = () => {
     }
   };
 
-  const handleShare = () => {
-    toast.info(t('rank.shareInfo'));
-  };
-
   const handleSaveRanking = async () => {
     if (!currentUser) {
+      // Flush before leaving and prefer this guest draft over an older account draft on return.
+      try {
+        if (loadedKey?.key === draftKey) {
+          localStorage.setItem(guestDraftKey, JSON.stringify({ signature: loadedKey.signature, title, description, items, hashtags: selectedHashtags }));
+          sessionStorage.setItem(resumeDraftKey, 'guest');
+        }
+      } catch {
+        toast.warning(t('editor.draftUnavailable'));
+        return;
+      }
       toast.warning(t('rank.warnLoginSave'));
       navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}${isDuel ? '&mode=duel' : ''}`));
       return;
@@ -327,9 +337,12 @@ const RankTierList = () => {
 
   return (
     <div className="rank-page min-h-screen font-sans text-ink flex flex-col">
-      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-5 sm:pb-32 flex-1 flex flex-col gap-6">
-        <PlayHeader eyebrow={t(isDuel ? 'play.duelEyebrow' : 'play.rankEyebrow')} title={t(isDuel ? 'play.duelTitle' : 'play.rankTitle')} description={t('play.rankDescription')} />
-        <p className="rank-touch-hint -mt-4 text-sm font-bold text-ink-soft sm:hidden">{t('rank.tapToRank')}</p>
+      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-5 sm:pb-32 flex-1 flex flex-col gap-3">
+        <header className="rank-intro">
+          <h1 className="text-xl sm:text-2xl font-black">{t(isDuel ? 'play.duelTitle' : 'play.rankTitle')}</h1>
+          <p className="mt-1 text-sm text-ink-soft">{t('play.rankDescription')}</p>
+          {!currentUser && <p className="mt-1 text-xs text-muted">{t('rank.guestHint')}</p>}
+        </header>
         {templateCooldown?.active && (
           <div className="flex items-center gap-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 p-4 sm:p-5 shadow-sm text-amber-200">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
@@ -363,29 +376,21 @@ const RankTierList = () => {
         )}
 
         {/* Top Info Card: Title, Description & Hashtags */}
-        <div className="glass rounded-2xl p-4 sm:p-6 flex flex-col gap-4 shadow-sm border border-line-soft">
+        <div className="bg-surface rounded-2xl p-3 sm:p-4 flex flex-col gap-1 border border-line-soft">
           {/* Title & Share */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <textarea
-              rows={2}
+              rows={1}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('rank.titlePh')}
               aria-label={t('rank.titlePh')}
               className="rank-title-input flex-1 text-2xl sm:text-[28px] font-black text-ink bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-brand rounded px-1 -mx-1 resize-none"
             />
-            <div className="hidden sm:flex items-center gap-3 pt-1 shrink-0">
-              <button
-                onClick={handleShare}
-                className="flex min-h-11 items-center gap-1.5 text-xs font-bold text-ink-soft hover:text-ink transition-colors px-3 py-1.5 rounded-full border border-line-soft bg-surface-glass hover:bg-surface cursor-pointer"
-              >
-                <Share2 size={14} /> {t('common.share')}
-              </button>
-            </div>
           </div>
 
           <details className="editor-metadata">
-          <summary className="min-h-11 cursor-pointer py-3 font-bold text-sm text-ink-soft">{t('editor.details')} · {selectedHashtags.length} {t('common.tags')}</summary>
+          <summary className="min-h-11 cursor-pointer py-2 font-bold text-sm text-ink-soft">{t('editor.details')} · {selectedHashtags.length} {t('common.tags')}</summary>
           <div>
             <textarea
               value={description}

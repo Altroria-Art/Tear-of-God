@@ -1,3 +1,4 @@
+import TopicRankActions from '../components/template/TopicRankActions';
 import { useState, useEffect, useRef } from 'react'
 import useCooldown from '../lib/useCooldown'
 import { useParams, useNavigate, Link } from 'react-router-dom'
@@ -358,19 +359,6 @@ function TemplateDetailContent() {
     navigate(`/rank?template=${encodeURIComponent(templateId)}&mode=duel`)
   }
 
-  const handleUseTemplate = () => {
-    if (!currentUser) {
-      toast.warning(t('template.warnLoginUse'))
-      navigate(loginPath(`/rank?template=${encodeURIComponent(templateId)}`))
-      return
-    }
-    if (templateCooldown?.active) {
-      toast.warning(t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) }))
-      return
-    }
-    navigate(`/rank?template=${templateId}`)
-  }
-
   const handleShare = () => setModal('share')
 
   const handleExportAverage = () => setModal('export')
@@ -571,26 +559,8 @@ function TemplateDetailContent() {
             )}
 
             {/* PRIMARY CTA & SECONDARY ACTIONS */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-t border-line-soft/60 pt-4">
-              <button
-                type="button"
-                onClick={handleUseTemplate}
-                disabled={templateCooldown?.active}
-                className={`flex items-center justify-center gap-2 rounded-xl px-8 py-3.5 text-[15px] font-bold transition-all w-full lg:w-auto min-h-[48px] shadow-sm ${
-                  templateCooldown?.active
-                    ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
-                    : 'bg-brand text-canvas hover:bg-brand-accent hover:-translate-y-0.5 active:scale-[0.98] shadow-brand/20'
-                }`}
-                title={
-                  templateCooldown?.active
-                    ? t('cooldown.activeWarning', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })
-                    : t('template.use')
-                }
-              >
-                {templateCooldown?.active
-                  ? t('cooldown.buttonDisabled', { time: formatRemainingCooldown(templateCooldown.remainingSeconds, t) })
-                  : t('template.use')}
-              </button>
+            <div className="flex flex-col gap-4 border-t border-line-soft/60 pt-4">
+              <TopicRankActions templateId={templateId} />
 
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -602,7 +572,7 @@ function TemplateDetailContent() {
                       ? 'border border-line bg-surface/50 text-muted opacity-70'
                       : templateCooldown?.active
                       ? 'border border-line bg-surface/50 text-muted opacity-60 cursor-not-allowed'
-                      : 'bg-highlight/10 text-highlight border border-highlight/30 hover:bg-highlight/20 active:scale-[0.97]'
+                      : 'border border-line-soft text-muted hover:text-ink hover:bg-surface active:scale-[0.97]'
                   }`}
                   title={
                     templateCooldown?.active

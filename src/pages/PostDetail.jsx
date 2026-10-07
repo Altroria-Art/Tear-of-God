@@ -1,3 +1,4 @@
+import TopicRankActions from '../components/template/TopicRankActions';
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Download, Flag, Trash2, Swords } from 'lucide-react'
@@ -420,10 +421,10 @@ function PostDetailContent() {
                 post.templateId ? (
                   <Link
                     to={`/template/${encodeURIComponent(post.templateId)}`}
-                    title={t('profile.usedTemplateTooltip', { title: post.templateTitle || tpl?.title || title })}
+                    title={t('template.viewTemplate')}
                     className="max-w-full min-w-0 px-2.5 py-0.5 rounded-full border border-highlight/40 bg-highlight/15 text-highlight text-xs font-bold shadow-2xs hover:bg-highlight/25 transition-colors inline-flex items-center gap-1"
                   >
-                    <span>{t('profile.badgeTemplate')}</span>
+                    <span>{t('template.topicBadge')}</span>
                     {(post.templateTitle || tpl?.title) && (
                       <span className="min-w-0 text-[11px] font-medium opacity-85 max-w-[160px] truncate">
                         : {post.templateTitle || tpl?.title}
@@ -434,11 +435,12 @@ function PostDetailContent() {
                   <span
                     className="px-2.5 py-0.5 rounded-full border border-highlight/40 bg-highlight/15 text-highlight text-xs font-bold shadow-2xs"
                   >
-                    {t('profile.badgeTemplate')}
+                    {t('template.topicBadge')}
                   </span>
                 )
               )}
             </div>
+            <p className="mt-2 text-xs text-muted">{t('template.ownerRanking', { name: author?.name || t('common.unknownUser') })}</p>
             
             {post.hashtags && (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -463,6 +465,8 @@ function PostDetailContent() {
                 <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}
             </div>
+
+            <TopicRankActions templateId={post.templateId} className="mt-4" />
 
             {description && <p className="post-description mt-3 text-sm text-ink-soft break-words whitespace-pre-wrap">{description}</p>}
 

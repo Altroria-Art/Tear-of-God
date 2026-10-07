@@ -1,0 +1,307 @@
+[
+  {
+    "boardTop": 544,
+    "client": 345,
+    "page": "rank",
+    "poolTop": 322,
+    "scroll": 345,
+    "toolbarBottom": 844,
+    "width": 360
+  },
+  {
+    "boardTop": 544,
+    "client": 375,
+    "page": "rank",
+    "poolTop": 322,
+    "scroll": 375,
+    "toolbarBottom": 844,
+    "width": 390
+  },
+  {
+    "boardTop": 298,
+    "client": 753,
+    "page": "rank",
+    "poolTop": 298,
+    "scroll": 753,
+    "toolbarBottom": 820,
+    "width": 768
+  },
+  {
+    "boardTop": 298,
+    "client": 1009,
+    "page": "rank",
+    "poolTop": 298,
+    "scroll": 1009,
+    "toolbarBottom": 820,
+    "width": 1024
+  },
+  {
+    "boardTop": 298,
+    "client": 1265,
+    "page": "rank",
+    "poolTop": 298,
+    "scroll": 1265,
+    "toolbarBottom": 820,
+    "width": 1280
+  },
+  {
+    "client": 345,
+    "page": "topics",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "client": 375,
+    "page": "topics",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "client": 753,
+    "page": "topics",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "client": 1009,
+    "page": "topics",
+    "scroll": 1009,
+    "width": 1024
+  },
+  {
+    "client": 1265,
+    "page": "topics",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "actions": [
+      {
+        "height": 44,
+        "right": 149.34375,
+        "text": "Rank mine"
+      },
+      {
+        "height": 44,
+        "right": 312,
+        "text": "See community"
+      }
+    ],
+    "client": 345,
+    "page": "topic",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "actions": [
+      {
+        "height": 44,
+        "right": 164.34375,
+        "text": "Rank mine"
+      },
+      {
+        "height": 44,
+        "right": 342,
+        "text": "See community"
+      }
+    ],
+    "client": 375,
+    "page": "topic",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "actions": [
+      {
+        "height": 44,
+        "right": 141.875,
+        "text": "Rank mine"
+      },
+      {
+        "height": 44,
+        "right": 293.046875,
+        "text": "See community"
+      }
+    ],
+    "client": 753,
+    "page": "topic",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "actions": [
+      {
+        "height": 44,
+        "right": 141.875,
+        "text": "Rank mine"
+      },
+      {
+        "height": 44,
+        "right": 293.046875,
+        "text": "See community"
+      }
+    ],
+    "client": 1009,
+    "page": "topic",
+    "scroll": 1009,
+    "width": 1024
+  },
+  {
+    "actions": [
+      {
+        "height": 44,
+        "right": 262.375,
+        "text": "Rank mine"
+      },
+      {
+        "height": 44,
+        "right": 413.546875,
+        "text": "See community"
+      }
+    ],
+    "client": 1265,
+    "page": "topic",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "client": 345,
+    "page": "community",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "client": 375,
+    "page": "community",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "client": 753,
+    "page": "community",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "client": 1009,
+    "page": "community",
+    "scroll": 1009,
+    "width": 1024
+  },
+  {
+    "client": 1265,
+    "page": "community",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "client": 345,
+    "page": "post",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "client": 375,
+    "page": "post",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "client": 753,
+    "page": "post",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "client": 1009,
+    "page": "post",
+    "scroll": 1009,
+    "width": 1024
+  },
+  {
+    "client": 1265,
+    "page": "post",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "client": 345,
+    "feedTop": 423,
+    "heroHeight": 314,
+    "page": "home-en",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "client": 375,
+    "feedTop": 423,
+    "heroHeight": 314,
+    "page": "home-en",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "client": 753,
+    "feedTop": 327,
+    "heroHeight": 218,
+    "page": "home-en",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "client": 1009,
+    "feedTop": 327,
+    "heroHeight": 218,
+    "page": "home-en",
+    "scroll": 1009,
+    "width": 1024
+  },
+  {
+    "client": 1265,
+    "feedTop": 327,
+    "heroHeight": 218,
+    "page": "home-en",
+    "scroll": 1265,
+    "width": 1280
+  },
+  {
+    "client": 345,
+    "feedTop": 403,
+    "heroHeight": 294,
+    "page": "home-th-dark",
+    "scroll": 345,
+    "width": 360
+  },
+  {
+    "client": 375,
+    "feedTop": 403,
+    "heroHeight": 294,
+    "page": "home-th-dark",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "client": 753,
+    "feedTop": 307,
+    "heroHeight": 198,
+    "page": "home-th-dark",
+    "scroll": 753,
+    "width": 768
+  },
+  {
+    "client": 1009,
+    "feedTop": 307,
+    "heroHeight": 198,
+    "page": "home-th-dark",
+    "scroll": 1009,
+    "width": 1024
+  },
+  {
+    "client": 1265,
+    "feedTop": 307,
+    "heroHeight": 198,
+    "page": "home-th-dark",
+    "scroll": 1265,
+    "width": 1280
+  }
+]
