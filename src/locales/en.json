@@ -18,7 +18,7 @@
     "unknownUser": "Unknown User",
     "unknownItem": "Unknown Item",
     "uses": "Rankings",
-    "views": "Views",
+    "views": "Recorded views",
     "allTime": "All time",
     "lastDays": "Last {{n}} days",
     "updated": "Updated {{time}}",
@@ -60,7 +60,8 @@
       "hashtags": "Hashtags",
       "seeAll": "See all results for \"{{q}}\"",
       "noResults": "No matching topics or hashtags found"
-    }
+    },
+    "primaryNavigation": "Primary navigation"
   },
   "guestGate": {
     "title": "Log in to continue",
@@ -555,7 +556,9 @@
     "uploading": "Uploading...",
     "cancel": "Cancel",
     "saveChanges": "Save Changes",
-    "noUsers": "No users"
+    "noUsers": "No users",
+    "educationContext": "Education",
+    "tasteSummaryHelp": "Topics and favorites from these rankings."
   },
   "post": {
     "deleteComment": "Delete comment",
@@ -617,9 +620,9 @@
     "uses": "Rankings",
     "uses_one": "Ranking",
     "uses_other": "Rankings",
-    "views": "Views",
-    "views_one": "View",
-    "views_other": "Views",
+    "views": "Recorded views",
+    "views_one": "Recorded view",
+    "views_other": "Recorded views",
     "deleteTemplate": "Delete topic",
     "confirmDeleteTemplate": "Delete \"{{title}}\"? All rankings made from it ({{count}}) will also be removed.",
     "deleteTemplateSuccess": "Topic deleted",
@@ -1092,7 +1095,7 @@
     "homeTitle": "One topic. A thousand opinions.",
     "homeDescription": "See different takes on things you know. Rank yours, compare with the community, and join the conversation.",
     "createAction": "TRY RANKING",
-    "createTitle": "DROP ’EM. RANK ’EM.",
+    "createTitle": "Create a ranking",
     "createEyebrow": "THE RANKING PLAYGROUND",
     "rankEyebrow": "YOUR TAKE. YOUR RULES.",
     "duelEyebrow": "TASTE ARENA",

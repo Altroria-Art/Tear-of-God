@@ -312,7 +312,7 @@ function CommunityAverageContent() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {currentUser?.role === 'admin' && <Link to={`/template/${encodeURIComponent(templateId)}/participants`} className="opinion-secondary gap-2"><Users size={14} />{t('template.viewParticipants')}</Link>}
-              <ActionButton icon={Download} label={t('common.export')} onClick={() => setModal('export')} />
+              <ActionButton icon={Download} showLabel label={t('common.export')} onClick={() => setModal('export')} />
               <ActionButton icon={ShareIcon} label={t('common.share')} onClick={() => setModal('share')} />
             </div>
           </div>

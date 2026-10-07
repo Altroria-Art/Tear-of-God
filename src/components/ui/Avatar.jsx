@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { UserIcon } from './Icons'
 
 const SIZES = {
@@ -22,13 +23,15 @@ function initialsFrom(name) {
  * Three variants, in fallback order: photo, initials, generic person glyph.
  */
 export default function Avatar({ name, src, initials, size = 'md', style }) {
+  const [failedSrc, setFailedSrc] = useState(null)
   const sizeClass = SIZES[size] ?? SIZES.md
   const label = initials ?? initialsFrom(name)
 
-  if (src) {
+  if (src && src !== failedSrc) {
     return (
       <img
         src={src}
+        onError={() => setFailedSrc(src)}
         alt={name}
         className={`${sizeClass} shrink-0 rounded-full object-cover`}
         style={style}

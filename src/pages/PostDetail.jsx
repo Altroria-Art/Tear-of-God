@@ -494,12 +494,13 @@ function PostDetailContent() {
                 {post.templateId && (
                   <ActionButton
                     icon={Swords}
+                    showLabel
                     label={t('duel.duelButton')}
                     onClick={handleDuelPost}
                     activeClass="hover:text-highlight"
                   />
                 )}
-                <ActionButton icon={Download} label={t('common.export')} onClick={handleExport} activeClass="hover:text-highlight" />
+                <ActionButton icon={Download} showLabel label={t('common.export')} onClick={handleExport} activeClass="hover:text-highlight" />
                 <ActionButton
                   icon={ShareIcon}
                   label={t('common.share')}
