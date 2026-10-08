@@ -4,6 +4,8 @@
 
 ส่วนนี้เป็นสถานะล่าสุด ส่วนตาราง 428 ไฟล์ด้านล่างเก็บผลก่อนแก้ไว้เพื่อเทียบย้อนหลัง.
 
+**ปิด Audit และ release แล้ว:** commit `a490aad`, Cloudflare Preview QA ผ่านก่อน deploy Production `00af7dc9`; Production Smoke ผ่าน. ไม่มีไฟล์ลับหรือ QA outputs เพิ่มเข้า Git. รายละเอียดการเชื่อม D1/R2, deployment และข้อจำกัดอยู่ใน [release-audit-2026-10-09.md](release-audit-2026-10-09.md).
+
 - แก้ชุดตรวจ Discover ให้ execute หน้าและ effects ปัจจุบัน: Popular/New เมื่อ Pulse เงียบ, loading/error/empty/retry, response จาก tab เก่า และลำดับ Active. ไม่ใช้การค้นหา useEffect รุ่นเก่าเป็นเกณฑ์อีกแล้ว.
 - แก้ชุดตรวจ Profile ให้ตรวจ header/education/join date/grid ปัจจุบันและการ append หน้า 2 จริงสำหรับ 100 รายการ พร้อมเคส 0/3/20/50. ชุด profile-pagination-regression เดิมที่ตรวจ pending lock, dedup, failure/retry และการเปลี่ยนผู้ใช้ยังเก็บและรันผ่าน.
 - Comments ลด **9 → 7 SQL statements** ใน fixture verified-session เดิม: รวม count/activity เป็น UPDATE เดียว และ JOIN count ใน SELECT comment กลับมา. เกณฑ์ยังเป็น **8**; เพิ่มตรวจจำนวนจริงจาก DB, response shape และ reply ที่ผ่านเกณฑ์เดิม. ไม่มี migration หรือการลดการตรวจสิทธิ์.
@@ -11,7 +13,7 @@
 - ถอนเฉพาะ **7 ไฟล์ในตาราง ARCHIVE** ออกจาก checkout หลังตรวจ dependency. scripts สร้าง demo ถอนทั้งคู่พร้อม generator เก่า; output k6 ทั้งหมดถูก ignore และยังเก็บ generator/โฟลเดอร์ output. ไม่ลบข้อมูล D1/R2 และไม่แตะ migrations.
 - **เก็บ activity.js และ spotlights.js**: ไม่มี UI caller ปัจจุบัน แต่ยังเป็น API ที่ตอบ request ได้และมี regression coverage. ไม่ได้ตรวจ traffic/client ภายนอก จึงยังไม่มีหลักฐานพอให้ปิด API. README ระบุสถานะนี้; cache invalidation/middleware ที่อ้าง Spotlight ยังเก็บครบ.
 - ผลรันหลังแก้และถอนไฟล์: **91/91 standalone checks ผ่าน** (ลดจาก 92 เพราะถอน copied-constant geometry check หนึ่งไฟล์). Build/Lint ผ่าน; Lint มี Fast Refresh warnings เดิม 4 จุด. `git diff --check` ผ่าน.
-- **Browser QA เสร็จตามสามส่วนที่ขอ: 32/32 scenarios ผ่าน** ด้วย Chrome/CDP โดยตรง หลัง CUA/node_repl runtime ล่ม. ใช้ production build + Pages Functions + D1/R2 Local แยก และสองบัญชีคนละ browser context. รายละเอียดและข้อจำกัดอยู่ใน [browser-qa-2026-10-09.md](browser-qa-2026-10-09.md); วิธีรันใน [local-browser-qa.md](local-browser-qa.md). ยังไม่ commit/deploy รอบนี้.
+- **Browser QA เสร็จตามสามส่วนที่ขอ: 32/32 scenarios ผ่าน** ด้วย Chrome/CDP โดยตรง หลัง CUA/node_repl runtime ล่ม. ใช้ production build + Pages Functions + D1/R2 Local แยก และสองบัญชีคนละ browser context. รายละเอียดและข้อจำกัดอยู่ใน [browser-qa-2026-10-09.md](browser-qa-2026-10-09.md); วิธีรันใน [local-browser-qa.md](local-browser-qa.md). Commit/deploy และ remote QA เสร็จตามรายงาน release ด้านบน.
 - Browser QA พบว่า Discover list ใช้ item ID เป็นชื่อแสดงผล. แก้ query เดิมให้ JOIN ชื่อ/รูปจาก items และรักษา legacy name fallback โดยไม่เพิ่ม SQL statements. เพิ่ม regression และรัน standalone checks ซ้ำ **91/91 ผ่าน**, Build/Lint/diff check ผ่าน.
 
 ### Coverage ของ Browser QA และส่วนที่ยังไม่ได้รัน
@@ -19,7 +21,7 @@
 - Discover: tabs, loading, error/retry ทั้งสาม tab, empty, activity windows, สลับ tab/เปลี่ยนหน้าระหว่าง request, DOM/geometry ที่ 320–1440px ผ่าน.
 - Profile: เคส 0/1/3/20/49/50/51/100 rankings, หน้า 2, dedup, pin นอกหน้าแรก, Pinned tab, grid และเปลี่ยนเจ้าของระหว่างโหลดหน้า 2 ผ่าน. screenshots มี education labels/join date; duels ไม่ได้ตรวจใน Browser QA นี้.
 - Comments: สองบัญชีสร้าง/ตอบ/ลบ, UI/server counter, notifications และข้อมูลหลัง refresh, draft ค้าง, สิทธิ์ลบ ผ่าน. hidden/offline resume ยังไม่ได้ตรวจบน browser.
-- browser harnesses อื่น, real-flow test และ Wrangler migration rehearsal ที่ต้องมี setup เฉพาะยังไม่ได้รัน. Browser QA ใหม่นี้เป็น integration จริงกับ Pages Functions + isolated Local D1; ไม่ใช่ production end-to-end.
+- browser harnesses อื่น, real-flow test และ Wrangler migration rehearsal ที่ต้องมี setup เฉพาะยังไม่ได้รัน. Browser QA 32 scenarios เป็น integration จริงกับ Pages Functions + isolated Local D1; remote Preview ตรวจสองบัญชีเพิ่มและ Production ตรวจ smoke ตามรายงาน release ไม่ใช่การตรวจทุก Production flow.
 
 ## ผล audit ก่อนแก้
 

@@ -34,4 +34,4 @@
 
 ## ขอบเขต
 
-ครอบคลุมสามส่วนตามคำขอด้วย fresh local schema และ Chrome emulation. ยังไม่ได้ตรวจ Safari/Firefox/มือถือจริง, hidden/offline resume, ทุก admin/duel flow, production integration หรือ migration rehearsal. Browser harness อื่นใน repo ที่มี setup เฉพาะไม่ได้ถูกนับว่ารันผ่านจากผลชุดนี้. ยังไม่ commit หรือ deploy รอบตรวจนี้.
+ผลในเอกสารนี้ครอบคลุมสามส่วนตามคำขอด้วย fresh local schema และ Chrome emulation. ยังไม่ได้ตรวจ Safari/Firefox/มือถือจริง, hidden/offline resume, ทุก admin/duel flow หรือ migration rehearsal. Browser harness อื่นใน repo ที่มี setup เฉพาะไม่ได้ถูกนับว่ารันผ่านจากผลชุดนี้. หลังรอบ Local นี้ commit `a490aad` และ deploy ผ่าน Preview QA ก่อนขึ้น Production พร้อม Smoke Test แล้ว; ผล remote integration และข้อจำกัดเพิ่มเติมอยู่ใน [release-audit-2026-10-09.md](release-audit-2026-10-09.md).
