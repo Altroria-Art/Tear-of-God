@@ -236,7 +236,7 @@ const Navbar = () => {
           <Link to="/discover" aria-current={navigationIsActive(location.pathname, { to: '/discover' }) ? 'page' : undefined} className={`inline-flex min-h-11 items-center px-3 rounded-lg transition-all ${isActive('/discover')}`}>
             {t('nav.discover')}
           </Link>
-          <Link to="/create" aria-current={navigationIsActive(location.pathname, { to: '/create' }) ? 'page' : undefined} className={`opinion-secondary inline-flex items-center gap-1 ${isActive('/create')}`}>
+          <Link to="/create" aria-current={navigationIsActive(location.pathname, { to: '/create' }) ? 'page' : undefined} className="play-button inline-flex items-center gap-1">
             <Plus size={18} strokeWidth={3} aria-hidden="true" />{t('nav.create')}
           </Link>
         </div>

@@ -12,7 +12,7 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
       absolute top-0 left-1/2 w-1/2 h-full z-20 overflow-hidden
       bg-hero-surface border-line-soft
       transition-transform duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-      ${isRegister ? '-translate-x-full border-r-2 border-r-hero-surface ' : 'translate-x-0 border-l-2 border-l-hero-surface '}
+      ${isRegister ? '-translate-x-full border-r-2 border-r-hero-surface shadow-[5px_0_0_var(--color-pop-pink)]' : 'translate-x-0 border-l-2 border-l-hero-surface shadow-[-5px_0_0_var(--color-pop-pink)]'}
       motion-reduce:transition-none
     `}>
       {/* Background decoration */}
@@ -69,10 +69,10 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
           <button 
             type="button" 
             onClick={() => onSwitchMode(true)}
-            className="opinion-secondary w-full gap-2"
+            className="group relative inline-flex items-center justify-center px-6 py-3 font-bold text-acid-ink bg-pop-pink border-2 border-pop-pink shadow-[3px_3px_0_var(--color-pop-violet)] active:translate-y-1 active:shadow-none transition-all uppercase tracking-wide text-sm w-full"
           >
             {t('auth.createAccountBtn')}
-            <span className="ml-2 transition-transform">→</span>
+            <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
           </button>
         </div>
       </div>
@@ -106,9 +106,9 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
           <button 
             type="button" 
             onClick={() => onSwitchMode(false)}
-            className="opinion-secondary w-full gap-2"
+            className="group relative inline-flex items-center justify-center px-6 py-3 font-bold text-acid-ink bg-acid border-2 border-acid shadow-[3px_3px_0_var(--color-pop-violet)] active:translate-y-1 active:shadow-none transition-all uppercase tracking-wide text-sm w-full"
           >
-            <span className="mr-2 transition-transform">←</span>
+            <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span>
             {t('auth.backToLoginBtn')}
           </button>
         </div>
