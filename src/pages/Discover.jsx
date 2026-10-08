@@ -10,6 +10,7 @@ import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import TearMascot from '../components/ui/TearMascot';
+import RipMark from '../components/ui/RipMark';
 import { selectDiscoverSections } from '../lib/discoverSections';
 
 const WINDOWS = ['now', 'today', 'week', 'last_week'];
@@ -99,6 +100,21 @@ export default function Discover() {
   const [pulseLoading, setPulseLoading] = useState(true);
   const [pulseError, setPulseError] = useState('');
   const [retry, setRetry] = useState(0);
+  const [quietTopics, setQuietTopics] = useState([]);
+  const [quietTopicsLoading, setQuietTopicsLoading] = useState(false);
+  const isQuiet = !browsingResults && !pulseLoading && !pulseError && !!pulse && !pulse.active_rankings;
+
+  useEffect(() => {
+    if (!isQuiet) { setQuietTopics([]); return undefined; }
+    let cancelled = false;
+    setQuietTopicsLoading(true);
+    fetchTemplates({ sort: 'popular', limit: 6, page: 1 }).then(result => {
+      if (cancelled) return;
+      setQuietTopics(result.error ? [] : result.data || []);
+      setQuietTopicsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [isQuiet, retry]);
 
   useEffect(() => {
     if (!browsingResults) return undefined;
@@ -178,8 +194,13 @@ export default function Discover() {
   const sections = selectDiscoverSections(pulse || {});
 
   return <main className="discover-v2 discover-pulse discover-social mx-auto max-w-7xl px-4 py-5 text-ink sm:px-6 sm:py-6">
-    {!browsingResults && <header className="mb-4"><h1 className="text-2xl sm:text-3xl font-black">{t('discover.title')}</h1><p className="mt-1 text-sm text-muted">{t('social.discoverIntro')}</p></header>}
-    <Link to="/discover/templates" className="opinion-secondary mb-3 gap-2">{t('pulse.allTemplates')} <ArrowRight size={16} /></Link>
+    {!browsingResults && <header className="discover-editorial-header mb-4">
+      <p className="club-serial mb-2">TEAR OF GOD / {t('pulse.community')}</p>
+      <h1>{t('discover.title')}</h1>
+      <RipMark className="w-20 h-3 text-pop-violet mt-1" />
+      <p className="mt-2 text-sm text-ink-soft">{t('social.discoverIntro')}</p>
+    </header>}
+    {browsingResults && <Link to="/discover/templates" className="opinion-secondary mb-3 gap-2">{t('pulse.allTemplates')} <ArrowRight size={16} /></Link>}
     {browsingResults && <div className="pulse-results-intro"><Link to="/discover" className="club-serial">← {t('pulse.backToPulse')}</Link>
       <h1>{t(saved ? 'discover.savedTemplates' : 'pulse.searchHeading')}</h1></div>}
 
@@ -227,7 +248,13 @@ export default function Discover() {
         {pulseError ? <div className="pulse-empty" role="alert"><p>{pulseError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
           : pulseLoading ? <div className="pulse-topic-grid" aria-label={t('pulse.loading')}>{Array.from({ length: 3 }, (_, index) => <div key={index} className="pulse-topic pulse-topic--skeleton animate-pulse" />)}</div>
             : pulse?.active_rankings ? (sections.topics.length ? <div key={pulse.window} className="pulse-topic-grid pulse-content-enter">{sections.topics.map(topic => <TopicCard key={topic.key} topic={topic} t={t} />)}</div> : null)
-              : <div className="pulse-empty"><strong>{t('pulse.quietTitle')}</strong><p>{t('pulse.quietDescription')}</p><Link className="pulse-solid-link" to="/discover/templates">{t('pulse.exploreTemplates')}</Link></div>}
+              : <div className="py-4"><strong>{t('pulse.quietTitle')}</strong><p className="mt-1 text-sm text-muted">{t('pulse.quietDescription')}</p></div>}
+        {isQuiet && <section className="discover-quiet-topics mt-4" aria-labelledby="quiet-topics-heading">
+          <h3 id="quiet-topics-heading" className="text-lg font-bold mb-4">{t('pulse.popularToTry')}</h3>
+          {quietTopicsLoading ? <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" aria-busy="true">{Array.from({ length: 6 }, (_, index) => <TemplateCardSkeleton key={index} />)}</div>
+            : quietTopics.length ? <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">{quietTopics.map(template => <TemplateCard key={template.id} template={template} onUse={useTemplate} />)}</div>
+              : <p className="text-sm text-muted">{t('pulse.quietDescription')}</p>}
+        </section>}
       </section>
 
       {!!sections.discussions.length && !pulseLoading && <section className="pulse-section">

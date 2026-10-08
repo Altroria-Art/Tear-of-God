@@ -487,7 +487,7 @@ const CreateTierList = () => {
             <p className="text-xs text-muted font-medium">{t('create.quickAddHelp')}</p>
             <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="2" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
             <div className="flex justify-end">
-              <button onClick={handleGenerateCards} className="bg-surface hover:bg-brand hover:text-canvas hover:border-transparent text-brand font-bold py-2.5 px-5 rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95">
+              <button onClick={handleGenerateCards} className="play-button">
                 <Plus size={16} /> {t('create.generate')}
               </button>
             </div>

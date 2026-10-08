@@ -27,14 +27,26 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const [authError, setAuthError] = useState('');
+  const changeMode = (register) => {
+    if (isLoading) return;
+    setPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setAuthError('');
+    setIsRegister(register);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setAuthError('');
     if (!email || !password || (isRegister && !username.trim())) {
-      toast.warning(t('auth.warnFillAll'));
+      setAuthError(t('auth.warnFillAll'));
       return;
     }
     if (isRegister && password !== confirmPassword) {
-      toast.warning(t('auth.warnPasswordMismatch'));
+      setAuthError(t('auth.warnPasswordMismatch'));
       return;
     }
     setIsLoading(true);
@@ -42,7 +54,7 @@ export default function Login() {
       const { error } = await registerUser({ email, password, username });
       setIsLoading(false);
       if (error) {
-        toast.error(t('auth.errRegisterFailed', { msg: error }));
+        setAuthError(t('auth.errRegisterFailed', { msg: error }));
       } else {
         toast.success(t('auth.successRegister'));
         setIsLoading(true);
@@ -51,9 +63,9 @@ export default function Login() {
         setPassword('');
         setConfirmPassword('');
         setUsername('');
-        setIsRegister(false);
+        changeMode(false);
         if (loginError) {
-          toast.error(t('auth.errLoginFailed', { msg: loginError }));
+          setAuthError(t('auth.errLoginFailed', { msg: loginError }));
           navigate(`/login?next=${encodeURIComponent(setupPath)}`, { replace: true });
         } else {
           login(data);
@@ -64,7 +76,7 @@ export default function Login() {
       const { data, error } = await loginUser({ email, password });
       setIsLoading(false);
       if (error) {
-        toast.error(t('auth.errLoginFailed', { msg: error }));
+        setAuthError(t('auth.errLoginFailed', { msg: error }));
       } else {
         login(data);
         toast.success(t('auth.successLogin'));
@@ -77,14 +89,14 @@ export default function Login() {
     setIsLoading(true);
     try {
       const { data: firebaseUser, error } = await signInWithGoogle();
-      if (error) { toast.error(t('auth.errGoogleFailed', { msg: error })); return; }
+      if (error) { setAuthError(t('auth.errGoogleFailed', { msg: error })); return; }
       const { data: dbUser, error: syncError, isNewUser } = await syncGoogleUser(firebaseUser);
-      if (syncError) { toast.error(t('auth.errSyncFailed', { msg: syncError })); return; }
+      if (syncError) { setAuthError(t('auth.errSyncFailed', { msg: syncError })); return; }
       login(dbUser);
       toast.success(t('auth.successWelcome', { name: dbUser?.username || firebaseUser.username }));
       navigate(isNewUser ? setupPath : next, { replace: true });
     } catch (error) {
-      toast.error(t('auth.errGoogleFailed', { msg: error.message }));
+      setAuthError(t('auth.errGoogleFailed', { msg: error.message }));
     } finally {
       setIsLoading(false);
     }
@@ -130,6 +142,7 @@ export default function Login() {
           </div>
           
           <form onSubmit={handleSubmit} noValidate className="space-y-3">
+            {authError && <p role="alert" className="text-sm text-hot-red">{authError}</p>}
             <div>
               <label htmlFor="login-email" className="club-label">{t('auth.email')}</label>
               <input id="login-email" className="club-field" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} />
@@ -180,6 +193,7 @@ export default function Login() {
           </div>
           
           <form onSubmit={handleSubmit} noValidate className="space-y-3">
+            {authError && <p role="alert" className="text-sm text-hot-red">{authError}</p>}
             <div>
               <label htmlFor="register-username" className="club-label">{t('auth.username')}</label>
               <input id="register-username" className="club-field" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} placeholder={t('auth.usernamePlaceholder')} />
@@ -227,7 +241,7 @@ export default function Login() {
           </p>
           <button 
             type="button" 
-            onClick={() => setIsRegister(!isRegister)} 
+            onClick={() => changeMode(!isRegister)}
             className="min-h-11 px-3 text-sm font-bold text-pop-violet hover:underline uppercase tracking-wide"
           >
             {isRegister ? t('auth.backToLoginBtn') : t('auth.createAccountBtn')}
@@ -235,7 +249,7 @@ export default function Login() {
         </div>
 
         {/* DESKTOP VISUAL SLIDING PANEL */}
-        <AuthVisualPanel isRegister={isRegister} onSwitchMode={setIsRegister} />
+        <AuthVisualPanel isRegister={isRegister} onSwitchMode={changeMode} />
         
       </div>
     </main>

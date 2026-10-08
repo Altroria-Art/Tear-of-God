@@ -1,0 +1,245 @@
+[
+  {
+    "expectedWidth": 320,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 305,
+    "width": 320
+  },
+  {
+    "expectedWidth": 320,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 305,
+    "width": 320
+  },
+  {
+    "expectedWidth": 320,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 305,
+    "width": 320
+  },
+  {
+    "expectedWidth": 360,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 345,
+    "width": 360
+  },
+  {
+    "expectedWidth": 360,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 345,
+    "width": 360
+  },
+  {
+    "expectedWidth": 360,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 345,
+    "width": 360
+  },
+  {
+    "expectedWidth": 390,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "expectedWidth": 390,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "expectedWidth": 390,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 375,
+    "width": 390
+  },
+  {
+    "expectedWidth": 768,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 753,
+    "width": 768
+  },
+  {
+    "expectedWidth": 768,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 768,
+    "width": 768
+  },
+  {
+    "expectedWidth": 768,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 753,
+    "width": 768
+  },
+  {
+    "expectedWidth": 820,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 805,
+    "width": 820
+  },
+  {
+    "expectedWidth": 820,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 820,
+    "width": 820
+  },
+  {
+    "expectedWidth": 820,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 805,
+    "width": 820
+  },
+  {
+    "expectedWidth": 1024,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 1009,
+    "width": 1024
+  },
+  {
+    "expectedWidth": 1024,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 1024,
+    "width": 1024
+  },
+  {
+    "expectedWidth": 1024,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 1024,
+    "width": 1024
+  },
+  {
+    "expectedWidth": 1280,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 1265,
+    "width": 1280
+  },
+  {
+    "expectedWidth": 1280,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "expectedWidth": 1280,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 1280,
+    "width": 1280
+  },
+  {
+    "expectedWidth": 1440,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 1425,
+    "width": 1440
+  },
+  {
+    "expectedWidth": 1440,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "expectedWidth": 1440,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 1440,
+    "width": 1440
+  },
+  {
+    "expectedWidth": 1920,
+    "window": "now",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 18,
+    "scrollWidth": 1905,
+    "width": 1920
+  },
+  {
+    "expectedWidth": 1920,
+    "window": "week",
+    "activeTopics": 1,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 1920,
+    "width": 1920
+  },
+  {
+    "expectedWidth": 1920,
+    "window": "last_week",
+    "activeTopics": 0,
+    "exploreLinks": 3,
+    "fallbackCards": 0,
+    "scrollWidth": 1920,
+    "width": 1920
+  }
+]

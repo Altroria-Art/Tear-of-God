@@ -1,0 +1,362 @@
+[
+  {
+    "expectedWidth": 320,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 305,
+    "visibilityReset": true,
+    "width": 320
+  },
+  {
+    "expectedWidth": 320,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 305,
+    "visibilityReset": true,
+    "width": 320
+  },
+  {
+    "expectedWidth": 320,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 305,
+    "visibilityReset": true,
+    "width": 320
+  },
+  {
+    "expectedWidth": 320,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 305,
+    "visibilityReset": true,
+    "width": 320
+  },
+  {
+    "expectedWidth": 360,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 345,
+    "visibilityReset": true,
+    "width": 360
+  },
+  {
+    "expectedWidth": 360,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 345,
+    "visibilityReset": true,
+    "width": 360
+  },
+  {
+    "expectedWidth": 360,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 345,
+    "visibilityReset": true,
+    "width": 360
+  },
+  {
+    "expectedWidth": 360,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 345,
+    "visibilityReset": true,
+    "width": 360
+  },
+  {
+    "expectedWidth": 390,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 375,
+    "visibilityReset": true,
+    "width": 390
+  },
+  {
+    "expectedWidth": 390,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 375,
+    "visibilityReset": true,
+    "width": 390
+  },
+  {
+    "expectedWidth": 390,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 375,
+    "visibilityReset": true,
+    "width": 390
+  },
+  {
+    "expectedWidth": 390,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 375,
+    "visibilityReset": true,
+    "width": 390
+  },
+  {
+    "expectedWidth": 768,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 753,
+    "visibilityReset": true,
+    "width": 768
+  },
+  {
+    "expectedWidth": 768,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 753,
+    "visibilityReset": true,
+    "width": 768
+  },
+  {
+    "expectedWidth": 768,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 753,
+    "visibilityReset": true,
+    "width": 768
+  },
+  {
+    "expectedWidth": 768,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 753,
+    "visibilityReset": true,
+    "width": 768
+  },
+  {
+    "expectedWidth": 820,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 805,
+    "visibilityReset": true,
+    "width": 820
+  },
+  {
+    "expectedWidth": 820,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 805,
+    "visibilityReset": true,
+    "width": 820
+  },
+  {
+    "expectedWidth": 820,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 805,
+    "visibilityReset": true,
+    "width": 820
+  },
+  {
+    "expectedWidth": 820,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 805,
+    "visibilityReset": true,
+    "width": 820
+  },
+  {
+    "expectedWidth": 1024,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1009,
+    "visibilityReset": true,
+    "width": 1024
+  },
+  {
+    "expectedWidth": 1024,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1009,
+    "visibilityReset": true,
+    "width": 1024
+  },
+  {
+    "expectedWidth": 1024,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1009,
+    "visibilityReset": true,
+    "width": 1024
+  },
+  {
+    "expectedWidth": 1024,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1009,
+    "visibilityReset": true,
+    "width": 1024
+  },
+  {
+    "expectedWidth": 1280,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1265,
+    "visibilityReset": true,
+    "width": 1280
+  },
+  {
+    "expectedWidth": 1280,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1265,
+    "visibilityReset": true,
+    "width": 1280
+  },
+  {
+    "expectedWidth": 1280,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1265,
+    "visibilityReset": true,
+    "width": 1280
+  },
+  {
+    "expectedWidth": 1280,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1265,
+    "visibilityReset": true,
+    "width": 1280
+  },
+  {
+    "expectedWidth": 1440,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1425,
+    "visibilityReset": true,
+    "width": 1440
+  },
+  {
+    "expectedWidth": 1440,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1425,
+    "visibilityReset": true,
+    "width": 1440
+  },
+  {
+    "expectedWidth": 1440,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1425,
+    "visibilityReset": true,
+    "width": 1440
+  },
+  {
+    "expectedWidth": 1440,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1425,
+    "visibilityReset": true,
+    "width": 1440
+  },
+  {
+    "expectedWidth": 1920,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1905,
+    "visibilityReset": true,
+    "width": 1920
+  },
+  {
+    "expectedWidth": 1920,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1905,
+    "visibilityReset": true,
+    "width": 1920
+  },
+  {
+    "expectedWidth": 1920,
+    "mode": "register",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1905,
+    "visibilityReset": true,
+    "width": 1920
+  },
+  {
+    "expectedWidth": 1920,
+    "mode": "login",
+    "emailObservation": "Non-empty fields; exact value preservation asserted by auth-mode-reset-regression (browser redacts values)",
+    "emailBothPopulated": true,
+    "passwordsEmpty": true,
+    "scrollWidth": 1905,
+    "visibilityReset": true,
+    "width": 1920
+  }
+]

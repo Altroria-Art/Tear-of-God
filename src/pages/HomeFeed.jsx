@@ -1,5 +1,7 @@
 import TearMascot from '../components/ui/TearMascot';
 import TierLoader from '../components/ui/TierLoader';
+import HomeShowcase from '../components/ui/HomeShowcase';
+import PlayHeader from '../components/ui/PlayHeader';
 import TierRow from '../components/feed/TierRow';
 import { buildTierRows } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -900,16 +902,15 @@ export default function HomeFeed() {
   return (
     <div className="min-h-screen font-sans">
       <div className="mx-auto max-w-[1120px] px-4 pt-5">
-        <header className="opinion-home rounded-2xl border border-line-soft bg-surface p-5 sm:p-6 mb-5">
-          <p className="text-xs font-bold text-highlight">{t('play.homeEyebrow')}</p>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-black text-ink">{t('play.homeTitle')}</h1>
-          <p className="mt-2 max-w-2xl text-sm text-ink-soft">{t('play.homeDescription')}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+        <PlayHeader variant="home" eyebrow={t('play.homeEyebrow')}
+          title={<><span>{t('play.homeTitleLead')}</span><span><em>{t('play.homeTitleAccent')}</em></span></>}
+          description={t('play.homeDescription')} visual={<HomeShowcase />}>
+          <div className="home-actions mt-4">
             <Link to="/discover/templates" className="play-button">{t('play.pickAction')}</Link>
-            <a href="#home-feed" className="opinion-secondary">{t('play.browseAction')}</a>
-            <Link to="/create" className="min-h-11 inline-flex items-center text-sm text-muted underline underline-offset-4">{t('play.newTopicAction')}</Link>
+            <a href="#home-feed" className="home-secondary-action">{t('play.browseAction')}</a>
+            <Link to="/create" className="home-secondary-action">{t('play.newTopicAction')}</Link>
           </div>
-        </header>
+        </PlayHeader>
       </div>
       {/* Floating Tab Navigation Capsule with Auto-hide on Scroll */}
       <div
