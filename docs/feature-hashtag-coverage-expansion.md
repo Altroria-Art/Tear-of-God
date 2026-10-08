@@ -1,7 +1,8 @@
 # Feature: Hashtag Coverage Expansion (32 → 62 templates)
+> Historical implementation record. The legacy synthetic seed generator and its demo catalog were retired from the checkout on 9 October 2026. References to those files below describe the earlier implementation; do not run the old generation instructions. Current maintenance guidance is in `docs/synthetic-data-cleanup.md`.
 
-> Read this before touching `templates-seed.sql`, `scripts/gen-community-seed.mjs`, or
-> `community-rankings-seed.sql`. All three must stay in lockstep — see §3 Traps.
+> At the time of this feature, `templates-seed.sql`, the community generator and
+> `community-rankings-seed.sql` had to stay in lockstep — see §3 Traps. Those seed tools are retired; this is not a current setup instruction.
 
 ## 1. Scope
 

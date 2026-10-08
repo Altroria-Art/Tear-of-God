@@ -12,7 +12,7 @@ export function fixtureTemplate(id='topic0') {
     has_community_average_all_time:true,community_average:{updated_at:'2026-10-01 00:00:00',tiers:[{label:'ร้านประจำ',items:[{name:'coffee',avg:0,votes:3}]},{label:'อร่อย',items:[{name:'library',avg:1,votes:3}]}]}};
 }
 export function fixtureProfile(id = 'fixture3') {
-  const count = Number(id.match(/\d+/)?.[0] || 3);
+  const count = Number(id.match(/\d+/)?.[0] ?? 3);
   const emptyIdentity = id.includes('bare');
   return {id,username:id.includes('long') ? 'นักศึกษามหาวิทยาลัยพะเยาผู้ชอบจัดอันดับร้านกาแฟและแสดงความคิดเห็นกับเพื่อนๆ'.repeat(2) : 'นักศึกษาทดสอบ UX',bio:'ข้อมูลจำลองสำหรับทดสอบการอ่านรสนิยม',posts_count:count,followers_count:2,following_count:1,created_at:'2026-08-01 00:00:00',
     ...(emptyIdentity ? {} : {university:'มหาวิทยาลัยพะเยา',faculty:'คณะเทคโนโลยีสารสนเทศและการสื่อสาร',major:'สาขาวิชาวิศวกรรมซอฟต์แวร์และระบบสารสนเทศที่มีชื่อยาว',year:'67'}),

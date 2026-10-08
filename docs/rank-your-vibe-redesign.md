@@ -47,10 +47,13 @@ node tests/local/bookmark-state-regression.mjs
 node tests/local/client-request-regression.mjs
 node tests/local/export-card-consistency.mjs
 node tests/local/template-card-preview-comprehensive.mjs
-node tests/local/template-card-preview-dimensions.mjs
+node tests/local/discover-quiet-fallback-regression.mjs
+node tests/local/profile-placement-scalability-regression.mjs
 node tests/local/profile-similar-lazy.mjs
 node tests/local/profile-links-audit.mjs
 node tests/local/notification-polling.mjs
 ```
+
+The old copied-constant preview dimension check was retired on 9 October 2026. The current Discover/Profile checks above execute page behavior with controlled hooks and shallow children; they do not measure DOM geometry.
 
 Limits: the browser suite uses fixtures, not a full real-session end-to-end login/upload/publish flow. The drop assertion exercises DOM event handlers rather than a physical pointer drag. It is a responsive and accessibility smoke audit, not a complete WCAG or device-lab certification. Admin viewport fixtures cover empty management tables; populated backend behavior remains covered by existing implementation and unchanged APIs.

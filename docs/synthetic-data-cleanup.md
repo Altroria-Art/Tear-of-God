@@ -1,7 +1,7 @@
 # Synthetic Data Cleanup
 
 This document outlines the procedure to remove synthetic seed/demo data from the production Cloudflare D1 database.
-The data comes from deterministic generation scripts like `scripts/gen-community-seed.mjs` and `scripts/prepare-demo-templates.mjs`.
+The data originally came from the legacy community seed generator and September demo-template generator. Those two generators and the demo catalog were retired from the checkout on 9 October 2026; their source remains in Git history. This maintenance audit/runbook remains relevant to identifying historical rows. Removing source files does not delete any database records.
 
 ## Known Synthetic Namespaces
 - **Profiles**: `user_###`, `curator_###`, `community_###`, `filler_####`

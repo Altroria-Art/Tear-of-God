@@ -1,4 +1,5 @@
 # Home Feed D1 quota optimization — 2026-09-28
+> Historical implementation record. The legacy synthetic seed generator and its demo catalog were retired from the checkout on 9 October 2026. References to those files below describe the earlier implementation; do not run the old generation instructions. Current maintenance guidance is in `docs/synthetic-data-cleanup.md`.
 
 **Release update:** A schema-compatible variant is now deployed. Migrations 0024/0025 remain unapplied after automatic approval review rejected them. See [the release report](home-feed-deployment-2026-09-28.md) for the actual deployed mode and its 6,550/2,611/2,567 cold-read benchmark; the lower figures below describe the indexed, reconciled-mirror mode.
 

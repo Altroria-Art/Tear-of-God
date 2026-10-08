@@ -1,17 +1,17 @@
 # AGENTS.md
 
-Social tier-list app. React 19 + Vite 8 (ESM, `.jsx`), Tailwind CSS 4 (`@tailwindcss/vite` plugin), React Router v7. Backend is hand-written serverless functions on Cloudflare Pages Functions (`functions/api/`), running on the Workers runtime (not Node.js — no `fs`, no raw TCP, no Node-only packages). Database is Cloudflare D1 (SQLite), accessed via the `env.tear_of_god_db` binding, no ORM. No tests/typecheck yet. Design source of truth: `SDS.md` (Thai; schema in §6, screen inventory in §7, open decisions in §9) — note SDS.md predates the move off Supabase and still needs a pass on §2 (architecture) and §6 (schema) to match `schema.sql`.
+Social tier-list app. React 19 + Vite 8 (ESM, `.jsx`), Tailwind CSS 4 (`@tailwindcss/vite` plugin), React Router v7. Backend is hand-written serverless functions on Cloudflare Pages Functions (`functions/api/`), running on the Workers runtime (not Node.js — no `fs`, no raw TCP, no Node-only packages). Database is Cloudflare D1 (SQLite), accessed via the `env.tear_of_god_db` binding, no ORM. Standalone regressions live in `tests/local/`; k6 scenarios live in `tests/scenarios/`. There is no unified npm test runner or typecheck. Design source of truth: `SDS.md` (Thai; schema in §6, screen inventory in §7, open decisions in §9); `schema.sql` and the implementation define current database behavior. Dated plans/reports describe their recorded versions, not necessarily the current UI.
 
 ## Commands
 
-- `npm run dev` — Vite dev server (UI only, mock data; `/api/*` calls will 404 or fall through to index.html)
+- `npm run dev` — Vite dev server (UI only; `/api/*` calls will 404 or fall through to index.html, so API-backed pages show empty/error states)
 - `npm run build` — production build
 - `npm run lint` — oxlint only (config: `.oxlintrc.json`)
 - `npm run preview` — serve built output
 - `npx wrangler pages dev dist --local` — full stack: serves the build AND runs `functions/api/*` against local D1
 - `npx wrangler d1 execute tear-of-god-db --local --file=./schema.sql` — (re)apply schema to local D1
 
-There are no test or typecheck scripts; do not invent them.
+There are no npm test or typecheck scripts; do not invent them. Run applicable standalone checks with `node tests/local/<name>.mjs`. Fixtures, helpers and k6 scenarios are not standalone Node tests. Browser/real-flow/rehearsal checks require their documented setup; do not count source inspection as Browser QA.
 
 ## Backend (functions/api/)
 
@@ -28,7 +28,7 @@ Auth for email/password lives in `functions/api/auth.js` against the `profiles` 
 - Design tokens are custom Tailwind 4 theme colors defined in `src/index.css` (`@theme`): `bg-canvas`, `text-ink`, `bg-tier-s`, etc. These are not stock Tailwind colors — add new ones to `@theme`, don't inline hex.
 - Tier names are data, not a fixed 5-value set — templates can define custom tier labels (including Thai). Tier color must always come from the tier's own `color` field via `resolveTierColor()` in `src/lib/tiers.js`, applied as an inline `style`, never looked up by indexing a map with the display label (colors are stored as `bg-[#hex]` and are not Tailwind classes the build can see). Render every tier badge through the shared `<TierLabel>` component (`src/components/tier/TierLabel.jsx`) — don't re-derive tier color/markup per screen. See `docs/tier-list-ui-fix-plan.md` for the full investigation.
 - Icons primarily come from `lucide-react`. Legacy hand-rolled inline SVGs exist in `src/components/ui/Icons.jsx` but new icons should prefer `lucide-react` for consistency.
-- Mock data still lives in `src/data/mockFeed.js` and is used by `FeedProvider.jsx`; `HomeFeed.jsx` and `useRankings.js`, however, already call the real `functions/api/rankings` endpoint via `src/lib/api.js`. Don't assume the whole feed is mocked — check which component you're touching before adding more mock arrays.
+- Pages call the real backend through `src/lib/api.js`; `src/data/mockFeed.js` and `FeedProvider.jsx` have been removed. Synthetic fixtures belong in `tests/`, not in the production feed.
 - D1 returns `created_at`/`updated_at` as `"YYYY-MM-DD HH:MM:SS"` in **UTC with no timezone marker**. Never pass one to `new Date()` directly — a zone-less date-time string is parsed as local time, not UTC, which shifted every fresh row by the viewer's UTC offset (was visible as newly-created tier lists showing "7 hours ago" in Feed). Always parse through `parseDbDate()` / `formatDbDate()` in `src/lib/format.js`. See `docs/tier-list-feed-timestamp-fix-plan.md` for the full investigation.
 
 ## Repo state / gotchas

@@ -133,8 +133,29 @@ try {
   });
   assert.equal(comment.response.status, 201);
   assert.equal(comment.body.data.user_id, verifiedUserId);
+  const counter = await db.prepare('SELECT comments_count, last_activity_at FROM rankings WHERE id = ?').bind(rankingId).first();
+  assert.equal(comment.body.comments_count, counter.comments_count, 'POST returns the canonical database count without a separate counter read');
+  assert.equal(counter.comments_count, 1);
+  assert.ok(counter.last_activity_at, 'Comment updates recent activity alongside the count');
+  assert.equal(comment.preparedSql.filter(sql => /^UPDATE rankings SET/i.test(sql)).length, 1, 'Count/activity share one UPDATE');
+  assert.equal(comment.preparedSql.filter(sql => /^SELECT comments_count FROM rankings/i.test(sql)).length, 0, 'No extra counter round trip');
+  assert.equal(Object.hasOwn(comment.body.data, 'comments_count'), false, 'The canonical count stays at the response top level');
+  console.log(`POST /api/comments uses ${comment.preparedSql.length} statements (budget remains 8).`);
   const storedComment = await db.prepare('SELECT user_id FROM comments WHERE id = ?').bind(comment.body.data.id).first();
   assert.equal(storedComment.user_id, verifiedUserId);
+
+  const reply = await callThroughMiddleware(db, commentsEndpoint, {
+    path: '/api/comments',
+    body: { ranking_id: rankingId, parent_id: comment.body.data.id, user_id: fakeClientUserId, content: 'Verified reply' },
+  });
+  assertVerifiedSessionMutation(reply, {
+    label: 'POST /api/comments reply',
+    corePatterns: [/INSERT INTO comments/i, /UPDATE rankings SET comments_count/i],
+    maxStatements: 8,
+  });
+  assert.equal(reply.body.data.parent_id, comment.body.data.id);
+  assert.equal(reply.body.comments_count, 2, 'Reply returns the incremented canonical count');
+  assert.equal(reply.body.data.user_id, verifiedUserId);
 
   const templateComment = await callThroughMiddleware(db, templateCommentsEndpoint, {
     path: '/api/template-comments',
