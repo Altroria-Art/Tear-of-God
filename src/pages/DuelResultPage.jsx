@@ -1,6 +1,7 @@
+import BackButton from '../components/ui/BackButton';
 import PlayHeader from '../components/ui/PlayHeader';
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Swords, ArrowLeft, User, Share2, Check, ExternalLink, Sparkles, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fetchDuel } from '../lib/api';
@@ -12,7 +13,6 @@ import { copyToClipboard } from '../lib/share';
 
 export default function DuelResultPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const toast = useToast();
 
@@ -79,14 +79,12 @@ export default function DuelResultPage() {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-4 text-center">
         <p className="text-lg font-bold text-ink">{error || t('common.notFound')}</p>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
+        <BackButton fallback="/"
           className="inline-flex items-center gap-2 rounded-xl bg-surface px-4 py-2 text-sm font-bold text-ink hover:bg-surface-glass"
         >
           <ArrowLeft size={16} />
           <span>{t('common.back')}</span>
-        </button>
+        </BackButton>
       </main>
     );
   }
@@ -100,13 +98,12 @@ export default function DuelResultPage() {
       <div className="mx-auto max-w-4xl px-4 py-4 sm:py-6 flex flex-col gap-4 sm:gap-5">
         {/* Navigation Bar */}
         <div className="flex flex-wrap gap-3 items-center justify-between">
-          <Link
-            to={`/template/${encodeURIComponent(template.id)}`}
+          <BackButton fallback={`/template/${encodeURIComponent(template.id)}`}
             className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-muted hover:text-ink transition-colors"
           >
             <ArrowLeft size={16} />
-            <span>{t('duel.backToTemplate')}</span>
-          </Link>
+            <span>{t('common.back')}</span>
+          </BackButton>
           <button
             type="button"
             onClick={handleShare}

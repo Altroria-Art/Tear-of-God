@@ -1,18 +1,13 @@
 import TearMascot from '../ui/TearMascot';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Swords, Trash2, TrendingUp, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { deleteNotification, fetchNotifications, markNotificationRead } from '../../lib/api';
-import {
-  POLL_INTERVAL_MS,
-  createRequestDeduper,
-  shouldPollTick,
-  shouldRefreshOnVisible,
-  shouldReuseFreshFetch,
-} from '../../lib/notificationFeed';
+import { POLL_INTERVAL_MS, shouldReuseFreshFetch } from '../../lib/notificationFeed';
+import useLiveRefresh from '../../lib/useLiveRefresh';
 import { timeAgo } from '../../lib/format';
-import { createPollActivity, watchPollActivity } from '../../lib/pollActivity';
+
 
 const notificationIcon = {
   comment: MessageCircle,
@@ -48,96 +43,24 @@ export default function NotificationMenu({ userId }) {
   const [isLoading, setIsLoading] = useState(true);
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
-  const requestIdRef = useRef(0);
-  const lastRefreshedAtRef = useRef(0);
   const lastSuccessAtRef = useRef(0);
-  const deduperRef = useRef(null);
-  if (!deduperRef.current) deduperRef.current = createRequestDeduper();
-
-  const refresh = useCallback(async ({ quiet = false } = {}) => {
-    if (!userId) return;
-    lastRefreshedAtRef.current = Date.now();
-    const requestId = ++requestIdRef.current;
-    if (!quiet) setIsLoading(true);
-    // Concurrent triggers (timer + menu open, visibility + menu open) share
-    // the pending GET instead of firing N requests. Sequential triggers fetch
-    // normally — this is dedup, not a response cache.
-    let result;
-    try {
-      result = await deduperRef.current.run(() => fetchNotifications(20));
-    } catch {
-      result = { success: false };
-    }
-    if (requestId !== requestIdRef.current) return;
-    if (result.success !== false) {
+  const refreshLive = useLiveRefresh({
+    resourceKey: userId,
+    enabled: !!userId,
+    interval: POLL_INTERVAL_MS,
+    load: signal => fetchNotifications(20, { signal }),
+    apply: result => {
       setNotifications(result.data || []);
       setUnreadCount(result.unreadCount || 0);
       lastSuccessAtRef.current = Date.now();
-    }
-    setIsLoading(false);
-  }, [userId]);
-
-  useEffect(() => {
-    if (!userId) return undefined;
-    const activity = createPollActivity();
-    if (document.visibilityState === 'visible') refresh();
-
-    // 5-minute polling is for the active tab only: the interval is stopped
-    // while hidden (not merely skipped inside) and restarted on return.
-    // Active use retains the five-minute cadence; after five minutes without
-    // interaction, skip polls until activity or tab return. The 60s guard stays.
-    let interval = null;
-    const startPolling = () => {
-      if (interval) return;
-      interval = window.setInterval(() => {
-        if (shouldPollTick({
-          userId,
-          visible: document.visibilityState === 'visible' && activity.active(),
-          now: Date.now(),
-          lastRefreshAt: lastRefreshedAtRef.current,
-        })) {
-          refresh({ quiet: true });
-        }
-      }, POLL_INTERVAL_MS);
-    };
-    const stopPolling = () => {
-      if (interval) {
-        window.clearInterval(interval);
-        interval = null;
-      }
-    };
-    if (document.visibilityState === 'visible') startPolling();
-    const stopWatching = watchPollActivity(window, activity, () => {
-      if (document.visibilityState === 'visible' &&
-          shouldRefreshOnVisible({ now: Date.now(), lastRefreshAt: lastRefreshedAtRef.current })) {
-        refresh({ quiet: true });
-      }
-    });
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        activity.touch();
-        if (shouldRefreshOnVisible({ now: Date.now(), lastRefreshAt: lastRefreshedAtRef.current })) {
-          refresh({ quiet: true });
-        }
-        startPolling();
-      } else {
-        stopPolling();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      stopPolling();
-      stopWatching();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      // Logout / user switch / unmount: drop shared in-flight state so a
-      // pending response can never fill the next identity's state (the
-      // request-id bump above already discards its result as well).
-      deduperRef.current.reset();
-      requestIdRef.current += 1;
-    };
-  }, [refresh, userId]);
+    },
+    onSettled: () => setIsLoading(false),
+  });
+  const refresh = ({ quiet = false } = {}) => {
+    if (!userId) return;
+    if (!quiet) setIsLoading(true);
+    refreshLive();
+  };
 
   useEffect(() => {
     const handleOutside = (event) => {

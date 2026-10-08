@@ -12,6 +12,7 @@ export default function HomeShowcase() {
   const { t } = useTranslation();
   const board = useRef(null);
   const [visible, setVisible] = useState(false);
+  const [order, setOrder] = useState([0, 1, 2]);
 
   useEffect(() => {
     if (!('IntersectionObserver' in window)) return;
@@ -23,10 +24,16 @@ export default function HomeShowcase() {
   }, []);
 
   return <div ref={board} className={`home-demo ${visible ? 'is-visible' : ''}`} aria-label={t('play.demoBoard')}>
-    <div className="home-demo-caption"><span className="ink-drop" aria-hidden="true" />{t('play.demoBoard')}</div>
-    {DEMO_TIERS.map(({ label, color, icon, key }, index) => <div className="home-demo-row" key={label}>
+    <div className="home-demo-caption"><span className="ink-drop" aria-hidden="true" />{t('play.demoBoard')}<button type="button" className="ml-auto min-h-11 underline" onClick={() => setOrder([0, 1, 2])}>{t('play.demoReset')}</button></div>
+    {DEMO_TIERS.map(({ label, color }, index) => <div className="home-demo-row" key={label}>
       <TierLabel label={label} color={color} className="home-demo-tier" />
-      <span className="home-demo-item" style={{ '--demo-index': index }}><span aria-hidden="true">{icon}</span>{t(`play.${key}`)}</span>
+      <button type="button" className="home-demo-item" aria-label={t('play.demoMove', { item: t(`play.${DEMO_TIERS[order[index]].key}`), tier: label })} onClick={() => setOrder(previous => {
+        const next = [...previous];
+        const destination = (index + 1) % next.length;
+        [next[index], next[destination]] = [next[destination], next[index]];
+        return next;
+      })} style={{ '--demo-index': index }}><span aria-hidden="true">{DEMO_TIERS[order[index]].icon}</span>{t(`play.${DEMO_TIERS[order[index]].key}`)}<span aria-hidden="true">↕</span></button>
     </div>)}
+    <p className="home-demo-help" role="status">{t('play.demoHelp')}</p>
   </div>;
 }

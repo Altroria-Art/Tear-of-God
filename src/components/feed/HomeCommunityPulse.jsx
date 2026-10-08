@@ -1,4 +1,4 @@
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -18,7 +18,7 @@ function PulseItem({ href, title, context, detail }) {
   </Link>;
 }
 
-export default function HomeCommunityPulse({ pulse }) {
+export default function HomeCommunityPulse({ pulse, expanded = false, compact = false }) {
   const { t } = useTranslation();
   const rankings = (pulse?.rankings || []).filter(item => item.id && item.title).slice(0, 2);
   const rankingIds = new Set(rankings.map(item => item.id));
@@ -34,8 +34,23 @@ export default function HomeCommunityPulse({ pulse }) {
     item.reactions > 0 ? t('homeDiscovery.reactions', { count: item.reactions }) : null,
   ].filter(Boolean).join(' · ');
 
-  return <section aria-labelledby="home-pulse-heading" className="home-pulse-rail rounded-2xl border border-line-soft bg-surface p-4 text-ink">
-    <h2 id="home-pulse-heading" className="text-xs font-black uppercase tracking-[0.12em] text-ink">{t('homeDiscovery.communityPulse')}</h2>
+  if (compact) {
+    const links = [
+      ...discussions.map(item => ({ href: `/post/${encodeURIComponent(item.id)}`, title: item.title, detail: t('homeDiscovery.comments', { count: item.comments || 0 }) })),
+      ...rankings.map(item => ({ href: `/post/${encodeURIComponent(item.id)}`, title: item.title, detail: rankingDetail(item) })),
+      ...(template ? [{ href: `/template/${encodeURIComponent(template.id)}`, title: template.title, detail: t('homeDiscovery.activeRankings', { count: template.active_rankings || 0 }) }] : []),
+      ...topics.map(item => ({ href: item.href, title: item.label })),
+    ].filter((item, index, items) => items.findIndex(other => other.title === item.title) === index).slice(0, 3);
+    return <section className="discover-pulse-strip" aria-label={t('homeDiscovery.communityPulse')}>
+      <h2><Activity size={17} aria-hidden="true" />{t('homeDiscovery.communityPulse')}</h2>
+      <div>{links.map(item => <Link key={item.href} to={item.href} title={item.title}><strong>{item.title}</strong>{item.detail && <span>{item.detail}</span>}<ArrowRight size={14} aria-hidden="true" /></Link>)}</div>
+    </section>;
+  }
+
+  return <section aria-labelledby="home-pulse-heading" className={`home-pulse-rail rounded-2xl border border-line-soft bg-surface p-4 text-ink ${expanded ? 'discover-community-pulse' : ''}`}>
+    <h2 id="home-pulse-heading" className="text-lg font-bold text-ink">{t('homeDiscovery.communityPulse')}</h2>
+    {expanded && <p className="mt-1 text-sm text-muted">{t('discover.pulseHelp')}</p>}
+    <div className={expanded ? 'grid gap-4 md:grid-cols-3' : ''}>
     {rankings.length > 0 && <PulseSection title={t('homeDiscovery.activeNow')} className="mt-4">
       {rankings.map(item => <PulseItem key={item.id} href={`/post/${encodeURIComponent(item.id)}`}
         title={item.title} context={item.author_name ? `@${item.author_name}` : item.template_title} detail={rankingDetail(item)} />)}
@@ -53,9 +68,10 @@ export default function HomeCommunityPulse({ pulse }) {
     {topics.length > 0 && <PulseSection title={t('homeDiscovery.topicFallback')} className="mt-4">
       {topics.map(item => <PulseItem key={item.key || item.href} href={item.href} title={item.label} />)}
     </PulseSection>}
+    </div>
     {pulse.sampled && <p className="mt-3 text-[11px] leading-snug text-muted">{t('pulse.sampleNote')}</p>}
-    <Link to="/discover" className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-xs font-bold text-ink transition-colors hover:text-brand">
+    {!expanded && <Link to="/discover" className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-xs font-bold text-ink transition-colors hover:text-brand">
       {t('homeDiscovery.exploreMore')} <ArrowRight size={14} aria-hidden="true" />
-    </Link>
+    </Link>}
   </section>;
 }

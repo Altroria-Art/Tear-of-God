@@ -9,9 +9,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-artifacts/rank-your-vibe/
-artifacts/ux-v2/
-artifacts/discover-pulse/
+/artifacts/
+# Local screenshots and reference captures are not publishable source files.
+/docs/benchmarks/**/*.png
+/docs/benchmarks/**/*.jpg
+/docs/benchmarks/**/*.jpeg
+/docs/benchmarks/**/*.webp
+/backups/
 *.local
 
 .vscode/*

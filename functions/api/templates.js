@@ -143,27 +143,23 @@ async function queryTemplates(context) {
       const total = totalRows[0]?.n || 0;
 
       const itemsMap = Object.create(null);
+      const itemCounts = Object.create(null);
+      const rankingPreviews = Object.create(null);
       if (templates.length > 0) {
         const templateIds = templates.map(t => t.id);
         const placeholders = templateIds.map(() => '?').join(',');
-        // 📍 เดิมดึง template_items "ทุกแถว" ของทุก template ในหน้านี้ แต่การ์ด (TemplateCard)
-        // โชว์แค่ 2 tier บนสุด x 2 ไอเทม/tier = อย่างมาก 4 ไอเทมต่อการ์ด — วัดจริงจาก D1 trace:
-        // ~933 rows/request เพื่อโชว์จริงแค่ ~15% ของที่ดึงมา (ดู
-        // docs/row-read-optimization-plan.md §5/§8, C4) จำกัดด้วย ROW_NUMBER() ต่อ template
-        // ไม่เกิน 4 แถวแรก (เรียงตาม position) — พอสำหรับพรีวิว ไม่กระทบโหมด detail (ยังดึงครบ)
-        // 📍 เดิมดึง template_items "ทุกแถว" ของทุก template ในหน้านี้ แต่การ์ด (TemplateCard)
-        // โชว์แค่ 2 tier บนสุด x 2 ไอเทม/tier = อย่างมาก 4 ไอเทมต่อการ์ด — วัดจริงจาก D1 trace:
-        // 933 rows/request (50 templates) เพื่อโชว์จริงแค่ ~15% ของที่ดึงมา (ดู
-        // docs/row-read-optimization-plan.md §5/§8, C4)
-        // ⚠️ ลองใช้ ROW_NUMBER() OVER (PARTITION BY ...) มาก่อน แต่วัดจริงแล้วพบว่า D1 อ่านแพงกว่า
-        // เดิม (2,018 rows, มากกว่า uncapped อีก) — window function ทำให้ D1 ต้องอ่านซ้ำหลายรอบ
-        // เพื่อ sort ภายในแต่ละ partition ก่อนกรอง แก้ด้วย "position < 4" แทน (plain WHERE ธรรมดา
-        // ไม่ต้อง sort) ปลอดภัยเพราะ position ของ template_items มาจาก seed เท่านั้น
-        // (grep แล้ว: ไม่มี INSERT INTO template_items ที่ไหนในแอปตอนรันจริง) และ seed ทุกแถวเรียง
-        // position ต่อเนื่องเริ่มที่ 0 เสมอ (ยืนยันด้วย query ตรวจ MIN/MAX/COUNT ต่อ template แล้ว)
+        // Bound each topic preview to 12 ordered items so lower tier rows can
+        // appear without loading the complete item set for every card.
         const { results: allItems } = await db.prepare(
-          `SELECT * FROM template_items WHERE template_id IN (${placeholders}) AND position < 4 ORDER BY template_id, position ASC`
+          `SELECT * FROM template_items WHERE template_id IN (${placeholders}) AND position < 12 ORDER BY template_id, position ASC`
         ).bind(...templateIds).all();
+        const { results: counts = [] } = await db.prepare(
+          `SELECT template_id, tier, COUNT(*) AS count FROM template_items WHERE template_id IN (${placeholders}) GROUP BY template_id, tier`
+        ).bind(...templateIds).all();
+        for (const row of counts) {
+          if (!itemCounts[row.template_id]) itemCounts[row.template_id] = [];
+          itemCounts[row.template_id].push({ tier: row.tier, count: Number(row.count) });
+        }
 
         allItems.forEach(ti => {
           if (!itemsMap[ti.template_id]) itemsMap[ti.template_id] = [];
@@ -172,6 +168,24 @@ async function queryTemplates(context) {
             item: { id: ti.item_id, name: ti.item_id, image_url: null }
           });
         });
+        const unassignedIds = templates.filter(t => !(itemsMap[t.id] || []).some(item => item.tier)).map(t => t.id);
+        if (unassignedIds.length) {
+          const slots = unassignedIds.map(() => '?').join(',');
+          const latest = `SELECT t.id AS template_id, (SELECT r.id FROM rankings r WHERE r.template_id = t.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS ranking_id FROM templates t WHERE t.id IN (${slots})`;
+          const { results: previewItems = [] } = await db.prepare(
+            `WITH latest AS (${latest}) SELECT l.template_id, ri.item_id, ri.tier, ri.position, COALESCE(i.name, ri.item_id) AS name, i.image_url FROM latest l JOIN ranking_items ri ON ri.ranking_id = l.ranking_id LEFT JOIN items i ON i.id = ri.item_id WHERE ri.position < 12 ORDER BY l.template_id, ri.position, ri.id`
+          ).bind(...unassignedIds).all();
+          const { results: previewCounts = [] } = await db.prepare(
+            `WITH latest AS (${latest}) SELECT l.template_id, ri.tier, COUNT(*) AS count FROM latest l JOIN ranking_items ri ON ri.ranking_id = l.ranking_id GROUP BY l.template_id, ri.tier`
+          ).bind(...unassignedIds).all();
+          for (const item of previewItems) {
+            if (!rankingPreviews[item.template_id]) rankingPreviews[item.template_id] = { items: [], counts: [] };
+            rankingPreviews[item.template_id].items.push({ item_id: item.item_id, tier: item.tier, item: { name: item.name, image_url: item.image_url } });
+          }
+          for (const row of previewCounts) {
+            if (rankingPreviews[row.template_id]) rankingPreviews[row.template_id].counts.push({ tier: row.tier, count: Number(row.count) });
+          }
+        }
       }
 
       const data = templates.map(t => ({
@@ -184,7 +198,10 @@ async function queryTemplates(context) {
         use_count: t.live_uses || 0,
         view_count: t.live_views || 0,
         profile: { id: t.creator_id, username: t.username, avatar_url: t.avatar_url },
-        template_items: itemsMap[t.id] || []
+        template_items: itemsMap[t.id] || [],
+        preview_item_counts: itemCounts[t.id] || [],
+        item_count: (itemCounts[t.id] || []).reduce((sum, row) => sum + row.count, 0),
+        ranking_preview: rankingPreviews[t.id] || null
       }));
 
       // The middleware marks authenticated responses private/no-store because is_saved is personal.

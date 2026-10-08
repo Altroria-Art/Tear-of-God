@@ -99,6 +99,9 @@ Browser verification uses isolated local D1 on port 8799 with synthetic posts (n
 
 Verified on the completed build at mobile 390×844 and desktop 1440×1000 (client widths 375/1425 after the scrollbar): no horizontal overflow. Fresh mobile Home navigation added exactly **one** `/api/rankings` request in the local server log and mounted 12 cards. Each tab advanced to a virtual range such as indices 7–18 after reaching the previous batch bottom; DOM remained 12 cards. Like stayed selected with count 1 after the card was unmounted and remounted. Comments submission and persisted count 1 passed. Template detail loaded its items, community rankings and cooldown UI. Post Detail now shows Following correctly. Home Export navigates to Post Detail and displays the full export preview/modal; its click-event serialization error was fixed and covered by a regression assertion.
 
-![Mobile Home](benchmarks/home-feed-2026-09-28/mobile.png)
+Mobile Home
 
-![Desktop Home](benchmarks/home-feed-2026-09-28/desktop.png)
+Desktop Home
+
+
+> Screenshot captures and local visual-audit artifacts were removed before publishing this repository. The implementation findings above are retained.

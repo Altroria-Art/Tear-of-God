@@ -37,4 +37,7 @@ Cold reduction versus the old handler is about 91–96%. Real production billing
 - D1 bookmark and previous mirror values were saved before any attempted migration in `.wrangler/audit-logs/home-release-before.json`. Do not restore the full database just to roll back code, because it could discard subsequent user writes. Roll back the Pages deployment instead.
 - Logs: `.wrangler/audit-logs/home-release-deploy.log`, `home-release-smoke.json`, `home-release-verify.mjs`.
 
-![Production Home](benchmarks/home-feed-2026-09-28/production-release.png)
+Production Home
+
+
+> Screenshot captures and local visual-audit artifacts were removed before publishing this repository. The implementation findings above are retained.

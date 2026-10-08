@@ -1,3 +1,4 @@
+import BackButton from '../components/ui/BackButton';
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { useUser } from '../context/UserContext'
@@ -355,9 +356,9 @@ function CommunityParticipantsContent() {
   if (participants.length === 0) {
     return (
       <main className="mx-auto max-w-4xl px-6 py-16 text-center">
-        <Link to={`/template/${templateId}/community`} className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
+        <BackButton fallback={`/template/${templateId}/community`} className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
           <ArrowLeftIcon className="h-5 w-5" />
-        </Link>
+        </BackButton>
         <Users className="mx-auto h-12 w-12 text-muted mt-6" />
         <p className="mt-4 text-lg font-bold text-ink">{t('participants.noUsers')}</p>
         <p className="mt-1 text-sm text-muted">{t('participants.noUsersDesc')}</p>
@@ -371,9 +372,9 @@ function CommunityParticipantsContent() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-6">
       {/* Back */}
-      <Link to={`/template/${templateId}/community`} className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
+      <BackButton fallback={`/template/${templateId}/community`} className="inline-flex items-center gap-1.5 rounded-full border border-line-soft glass p-2 text-ink-soft transition-colors hover:bg-surface-glass">
         <ArrowLeftIcon className="h-5 w-5" />
-      </Link>
+      </BackButton>
 
       <div className="mt-4">
         <h1 className="text-2xl font-bold text-ink">{template?.title}</h1>

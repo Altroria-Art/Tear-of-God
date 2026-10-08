@@ -56,7 +56,7 @@ Browser: built app served by local Wrangler on port 8788 with local D1. Guest Ho
 
 The synthetic profile, ranking and comment were removed from local D1 after verification; the profile/ranking cleanup queries both returned zero. Production D1 was not used. No migration, auth backend, Community algorithm, Profile/Admin redesign, or deployment was performed.
 
-Responsive browser checks used **360, 390, 768, 1024 and 1280 × 844** for Community, Discover and Topic cards. At every width `scrollWidth <= innerWidth`; scrollbar consumes 15 px. Personal comparison starts at document Y 452/420/376/376/376 respectively. Comments follow board/actions and precede collapsed statistics. At 390 px, expanded statistics table was 309 px wide with no document overflow. All topics appears at Y 181 on mobile and 169 on larger widths. Measurements: [responsive-checks.json](../artifacts/community-social-loop/responsive-checks.json).
+Responsive browser checks used **360, 390, 768, 1024 and 1280 × 844** for Community, Discover and Topic cards. At every width `scrollWidth <= innerWidth`; scrollbar consumes 15 px. Personal comparison starts at document Y 452/420/376/376/376 respectively. Comments follow board/actions and precede collapsed statistics. At 390 px, expanded statistics table was 309 px wide with no document overflow. All topics appears at Y 181 on mobile and 169 on larger widths. Measurements: responsive-checks.json (local capture removed).
 
 Browser did not simulate network failures; those branches were reviewed in code. Missing/unknown comparison data is covered by helper regression tests.
 
@@ -66,18 +66,21 @@ Before/after guest Community (same topic, 390 px):
 
 | Before | After |
 | --- | --- |
-| ![Before](../artifacts/community-social-loop/community-before-390.jpg) | ![After](../artifacts/community-social-loop/community-guest-after-390.jpg) |
+| Before | After |
 
 Before/after Discover (390 px):
 
 | Before | After |
 | --- | --- |
-| ![Before](../artifacts/community-social-loop/discover-before-390.jpg) | ![After](../artifacts/community-social-loop/discover-after-390.jpg) |
+| Before | After |
 
 Before/after Topic cards (390 px):
 
 | Before | After |
 | --- | --- |
-| ![Before](../artifacts/community-social-loop/topics-before-390.jpg) | ![After](../artifacts/community-social-loop/topics-after-390.jpg) |
+| Before | After |
 
-Additional evidence in [artifacts/community-social-loop](../artifacts/community-social-loop): Community/Discover/Topic screenshots at all five widths, signed-in comparison, expanded detail statistics, and Thai mobile Community. Signed-in screenshots include the synthetic QA ranking/comment before cleanup.
+Additional evidence in artifacts/community-social-loop (local capture removed): Community/Discover/Topic screenshots at all five widths, signed-in comparison, expanded detail statistics, and Thai mobile Community. Signed-in screenshots include the synthetic QA ranking/comment before cleanup.
+
+
+> Screenshot captures and local visual-audit artifacts were removed before publishing this repository. The implementation findings above are retained.

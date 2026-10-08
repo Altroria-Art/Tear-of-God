@@ -1,3 +1,5 @@
+import BackButton from '../components/ui/BackButton';
+import { ArrowLeft as BackArrow } from 'lucide-react';
 import TopicRankActions from '../components/template/TopicRankActions';
 import { useState, useEffect, useRef } from 'react'
 import useCooldown from '../lib/useCooldown'
@@ -489,6 +491,7 @@ function TemplateDetailContent() {
   return (
     <main className="template-page min-h-screen text-ink">
       <div className="mx-auto max-w-5xl px-4 py-4">
+<BackButton fallback="/discover/templates" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-soft bg-surface px-3 text-sm text-ink-soft hover:text-ink mb-3"><BackArrow size={16} /><span>{t('common.back')}</span></BackButton>
         <section className="template-intro mb-5 rounded-xl glass p-4 sm:p-5 shadow-sm">
           <p className="mb-2 text-sm font-bold text-ink-soft">{t('play.templateHelp')}</p>
           <h1 className="play-title mb-4 text-3xl font-black md:text-4xl break-words">{template.title}</h1>

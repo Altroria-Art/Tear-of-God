@@ -7,9 +7,10 @@ import { buildTierRows } from '../lib/tiers';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { fetchDiscoverPulse, fetchRankings, voteRanking } from '../lib/api';
+import { fetchRankings, fetchSocialState, voteRanking } from '../lib/api';
+import useLiveRefresh from '../lib/useLiveRefresh';
 import { trackEvent } from '../lib/analytics';
-import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, ListOrdered, BarChart3, Check, RotateCcw, Plus, Search } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Copy, Share2, Download, Flame, Heart, Users, ListOrdered, BarChart3, Check, RotateCcw, Plus, Search, ArrowUpRight } from 'lucide-react';
 
 
 
@@ -30,8 +31,6 @@ import {
 } from '../lib/trendingSeen';
 import VirtualFeedContainer from '../components/feed/VirtualFeedContainer';
 import { createPendingGuard } from '../lib/pendingGuard';
-import HomePulseTopics from '../components/feed/HomePulseTopics';
-import HomeCommunityPulse from '../components/feed/HomeCommunityPulse';
 import GuestAuthPrompt from '../components/auth/GuestAuthPrompt';
 import { useTranslation } from 'react-i18next';
 
@@ -69,6 +68,13 @@ function FeedCardActionBar({ id, initialLikes = 0, initialDislikes = 0, initialC
   // resolve/reject แล้วกดใหม่ได้
   const voteGuardRef = useRef(null);
   if (!voteGuardRef.current) voteGuardRef.current = createPendingGuard();
+
+  useEffect(() => {
+    if (voteGuardRef.current.isPending(id)) return;
+    setUserVote(initialUserVote);
+    setLikes(initialLikes);
+    setDislikes(initialDislikes);
+  }, [id, initialUserVote, initialLikes, initialDislikes]);
 
   // state machine เดียวรับทั้ง like/dislike: ส่ง "สถานะปลายทาง" ไปหา API เสมอ ไม่ใช่ action
   // M4-C1: acquire ก่อน optimistic mutation ใดๆ — คลิกที่ถูก block จะไม่มีทั้ง request,
@@ -217,7 +223,7 @@ function HomeTierCard({ post, onRequireAuth, onVoteChange, featured = false }) {
   );
 
   return (
-    <article className={`social-card bg-surface border border-line-soft rounded-[20px] p-4 sm:p-6 shadow-sm ${featured ? 'feed-card--featured' : ''}`}>
+    <article data-social-ranking={post.id} className={`social-card bg-surface border border-line-soft rounded-[20px] p-4 sm:p-6 shadow-sm ${featured ? 'feed-card--featured' : ''}`}>
       {/* Header Profile & Use Template Button */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-4">
         <div className="flex min-w-0 items-start gap-3 sm:items-center">
@@ -408,27 +414,7 @@ function HomeTierCard({ post, onRequireAuth, onVoteChange, featured = false }) {
   );
 }
 
-function useMediaQuery(query) {
-  const [matches, setMatches] = useState(() => (
-    typeof window !== 'undefined' ? window.matchMedia(query).matches : false
-  ));
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const media = window.matchMedia(query);
-    const onChange = (e) => setMatches(e.matches);
-    setMatches(media.matches);
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, [query]);
-
-  return matches;
-}
-
-// Marks a ranking as "seen" only when its card is actually visible to the user
-// (>= 50% of the card inside the viewport for ~700ms). The feed may fetch 12
-// cards while the user only looked at 3; the other 9 must not count as seen.
-// Parent (HomeFeed) persists the result — this component only reports.
 function SeenCardObserver({ postId, onSeen, children }) {
   const nodeRef = useRef(null);
   useEffect(() => {
@@ -472,7 +458,6 @@ export default function HomeFeed() {
   const navigate = useNavigate();
   const { currentUser } = useUser();
   const { t } = useTranslation();
-  const showDesktopDiscovery = useMediaQuery('(min-width: 768px)');
   const toast = useToast();
   const [posts, setPosts] = useState([]);
   const postsRef = useRef(posts);
@@ -491,19 +476,6 @@ export default function HomeFeed() {
   const [guestPrompt, setGuestPrompt] = useState({ open: false, next: '/' });
   const [showTabNav, setShowTabNav] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [discoverPulse, setDiscoverPulse] = useState(null);
-  const discoverPulseRequestRef = useRef(null);
-
-  useEffect(() => {
-    if (!showDesktopDiscovery) return undefined;
-    let cancelled = false;
-    if (!discoverPulseRequestRef.current) discoverPulseRequestRef.current = fetchDiscoverPulse('now');
-    discoverPulseRequestRef.current.then(result => {
-      if (!cancelled) setDiscoverPulse(result?.success && Array.isArray(result.topics) ? result : null);
-    });
-    return () => { cancelled = true; };
-  }, [showDesktopDiscovery]);
-
   // Cache each feed+viewer separately, including pages loaded by infinite scroll.
   const cacheKey = `${activeTab}:${currentUser?.id ?? 'anon'}`;
 
@@ -883,6 +855,33 @@ export default function HomeFeed() {
   // effect ที่ depend [loadMore] ไม่รีรัน เลยไม่เคย attach observer เข้ากับ node จริง)
 
   const displayData = postsKey === cacheKey ? posts : [];
+  useLiveRefresh({
+    resourceKey: cacheKey,
+    enabled: displayData.length > 0 && !feedLocked,
+    interval: 15000,
+    matches: change => ['/api/comments', '/api/admin/comments', '/api/votes', '/api/rankings'].includes(change.path),
+    load: async signal => {
+      const cards = [...document.querySelectorAll('[data-social-ranking]')];
+      const visibleIds = cards.filter(card => {
+        const bounds = card.getBoundingClientRect();
+        return bounds.bottom >= -window.innerHeight && bounds.top <= window.innerHeight * 2;
+      }).map(card => card.dataset.socialRanking);
+      const ids = (visibleIds.length ? visibleIds : postsRef.current.slice(0, PAGE_SIZE).map(post => post.id)).slice(0, 40);
+      const result = await fetchSocialState(ids, { signal });
+      return { ...result, requestedIds: ids };
+    },
+    apply: result => {
+      const snapshots = new Map((result.data || []).map(row => [row.id, row]));
+      const requested = new Set(result.requestedIds);
+      const update = rows => rows.filter(post => !requested.has(post.id) || snapshots.has(post.id)).map(post => {
+        const row = snapshots.get(post.id);
+        return row ? { ...post, user_vote: row.user_vote ?? null,
+          stats: { ...post.stats, likes: row.likes ?? 0, dislikes: row.dislikes ?? 0, comments: row.comments ?? 0 } } : post;
+      });
+      setPosts(update);
+      for (const cached of Object.values(feedCacheRef.current)) cached.posts = update(cached.posts);
+    },
+  });
   const handleVoteChange = useCallback((id, vote) => {
     const update = post => post.id === id ? { ...post, user_vote: vote.user_vote, stats: { ...post.stats, likes: vote.likes, dislikes: vote.dislikes } } : post;
     setPosts(previous => previous.map(update));
@@ -901,7 +900,7 @@ export default function HomeFeed() {
 
   return (
     <div className="min-h-screen font-sans">
-      <div className="mx-auto max-w-[1120px] px-4 pt-5">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-5">
         <PlayHeader variant="home" eyebrow={t('play.homeEyebrow')}
           title={<><span>{t('play.homeTitleLead')}</span><span><em>{t('play.homeTitleAccent')}</em></span></>}
           description={t('play.homeDescription')} visual={<HomeShowcase />}>
@@ -911,6 +910,10 @@ export default function HomeFeed() {
             <Link to="/create" className="home-secondary-action">{t('play.newTopicAction')}</Link>
           </div>
         </PlayHeader>
+      </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-2 pb-3 flex flex-wrap items-end justify-between gap-2">
+        <div><h2 className="text-xl font-extrabold text-ink">{t('play.feedHeading')}</h2><p className="text-sm text-muted mt-1">{t('play.feedHelp')}</p></div>
+        <Link to="/discover" className="inline-flex items-center gap-1 text-sm font-bold text-ink min-h-11">{t('nav.discover')} <ArrowUpRight size={14} /></Link>
       </div>
       {/* Floating Tab Navigation Capsule with Auto-hide on Scroll */}
       <div
@@ -947,10 +950,9 @@ export default function HomeFeed() {
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-[1120px] items-start justify-center gap-8 px-4 pt-3 pb-12">
-        <main className="home-feed-main w-full min-w-0 max-w-[760px]">
+      <div className="home-content-grid mx-auto max-w-7xl px-4 sm:px-6 pt-3 pb-12">
+        <main className="home-feed-main w-full min-w-0 max-w-[760px] lg:max-w-none">
         <div className="space-y-6">
-          {!!discoverPulse?.topics?.length && <HomePulseTopics topics={discoverPulse.topics} />}
           {activeTab === 'for_you' && !currentUser && (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-line-soft bg-surface/80 p-3.5 text-xs text-muted shadow-xs">
               <div className="flex items-center gap-2.5">
@@ -1131,9 +1133,6 @@ export default function HomeFeed() {
           )}
         </div>
       </main>
-      {discoverPulse && <aside className="sticky top-[96px] hidden w-[280px] shrink-0 xl:block empty:hidden">
-        <HomeCommunityPulse pulse={discoverPulse} />
-      </aside>}
     </div>
       <GuestAuthPrompt
         open={guestPrompt.open}

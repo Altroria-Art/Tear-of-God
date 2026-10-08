@@ -46,7 +46,6 @@
 │   ├── lib/             Core utilities (api client, auth, format, tiers, colors, university, share, export)
 │   ├── context/         React contexts (UserContext, ThemeContext)
 │   ├── locales/         i18n translations (en.json, th.json)
-│   └── data/            Legacy mock data (largely unused)
 ├── schema.sql           Full database schema (14 tables)
 ├── migrations/          D1 migration files
 ├── scripts/             Utility scripts (score backfill, seed generation, k6 reports)

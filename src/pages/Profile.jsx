@@ -1,11 +1,14 @@
+import BackButton from '../components/ui/BackButton';
+import { ArrowLeft as BackArrow } from 'lucide-react';
 import { parseHashtags } from '../lib/hashtags';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { returnPath } from '../lib/navigation';
-import { ThumbsUp, MessageSquare, Crown, Pin, Fingerprint, Award, BarChart3, LayoutGrid, Swords } from 'lucide-react';
+import { ThumbsUp, MessageSquare, Crown, Pin, Award, LayoutGrid, Swords, Bookmark, Plus } from 'lucide-react';
 import BadgeGallery from '../components/user/BadgeGallery';
+import SavedTopics from '../components/template/SavedTopics';
 import { useUser } from '../context/UserContext';
-import { fetchRankings, fetchRanking, updateProfile, equipBadge, fetchUserProfile, fetchSimilarUsers, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
+import { fetchRankings, fetchRanking, updateProfile, equipBadge, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import { normalizeImageUrl } from '../lib/images';
@@ -28,19 +31,19 @@ function MiniTierItem({ item, t }) {
 
   return (
     <div
-      className="flex items-center gap-2 min-w-0 w-full text-xs text-ink"
+      className="flex flex-col items-center justify-center w-9 h-9 shrink-0 overflow-hidden rounded-md border border-line-soft bg-surface p-1 text-[9px] font-semibold text-ink text-center"
       title={itemName}
     >
       {itemImg && !imgError ? (
         <img
           src={itemImg}
           alt=""
-          className="w-8 h-8 shrink-0 object-cover rounded-md pointer-events-none"
+          className="w-full h-full object-cover rounded-sm pointer-events-none"
           loading="lazy"
           onError={() => setImgError(true)}
         />
       ) : null}
-      <span className="profile-preview-item-name min-w-0 break-words leading-normal">{itemName}</span>
+      {(!itemImg || imgError) && <span className="profile-preview-item-name w-full min-w-0 break-words line-clamp-2 leading-tight">{itemName}</span>}
     </div>
   );
 }
@@ -61,7 +64,7 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
     >
       {/* Top Visual Thumbnail Area — pt-13 reserves a CONSTANT slot for the pinned + type
           badges so tier rows never shift whether the list is pinned or not */}
-      <div className="min-h-48 relative bg-canvas/40 pt-13 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 border-b border-line-soft/50">
+      <div className="relative bg-canvas/40 pt-13 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 border-b border-line-soft/50">
         {/* Pinned badge — own absolute layer at top-left, never pushes the other badges */}
         {isPinned && (
           <span className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 bg-brand text-canvas text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-xs shrink-0">
@@ -122,9 +125,9 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
                 label={row.tier}
                 color={row.color}
                 index={row.index}
-                className="w-14 min-h-14 sm:w-12 sm:min-h-12 rounded-lg text-xs font-black shrink-0 shadow-xs"
+                className="w-9 min-h-9 rounded-lg text-[10px] font-black shrink-0 shadow-xs"
               />
-              <div className="flex flex-col items-start gap-1 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
                 {row.items.slice(0, 2).map((ri, iIdx) => (
                   <MiniTierItem key={ri.id ?? iIdx} item={ri} t={t} />
                 ))}
@@ -141,7 +144,7 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
 
       {/* Bottom Metadata & Stats */}
       <div className="p-2.5 sm:p-3 flex flex-col justify-between flex-1 gap-2 min-w-0">
-        <div className="space-y-1.5 min-w-0">
+        <div className="profile-ranking-caption space-y-1.5 min-w-0">
           <h4
             className="font-bold text-sm text-ink line-clamp-2 leading-snug group-hover:text-brand transition-colors"
             title={post.title}
@@ -178,21 +181,6 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
       </div>
     </article>
   );
-}
-
-function ProfileSidebar({ children }) {
-  const ref = useRef(null);
-  const [fits, setFits] = useState(false);
-  useEffect(() => {
-    const element = ref.current;
-    const update = () => setFits(window.innerWidth >= 1024 && element.getBoundingClientRect().height <= window.innerHeight - 112);
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    window.addEventListener('resize', update);
-    update();
-    return () => { observer.disconnect(); window.removeEventListener('resize', update); };
-  }, []);
-  return <div ref={ref} className="profile-sidebar min-w-0" data-sticky={fits ? 'true' : 'false'}>{children}</div>;
 }
 
 export default function Profile() {
@@ -247,7 +235,7 @@ export default function Profile() {
 
   // 📍 ปีที่เข้าศึกษา (รหัสรุ่น) สร้างจากวันที่ปัจจุบัน: 38 (=พ.ศ.2538) ถึงสองหลักปี พ.ศ. ปัจจุบัน
   // เดินเพิ่มเองทุกต้นปี ไม่ต้องแก้ไฟล์ — ดู src/lib/university.js
-  const admissionYears = useMemo(() => getAdmissionYears(), []);
+  const admissionYears = useMemo(() => getAdmissionYears().reverse(), []);
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
@@ -257,10 +245,16 @@ export default function Profile() {
   const [followListData, setFollowListData] = useState([]);
   const [isFollowListLoading, setIsFollowListLoading] = useState(false);
   const [pinBusyId, setPinBusyId] = useState(null);
-  const [isTasteDetailsOpen, setIsTasteDetailsOpen] = useState(false);
   const [isBadgesOpen, setIsBadgesOpen] = useState(false);
   const [isEquippingBadge, setIsEquippingBadge] = useState(false);
-  const [postTab, setPostTab] = useState('all'); // 'all' | 'pinned' | 'duels'
+  const requestedTab = new URLSearchParams(location.search).get('tab');
+  const postTab = ['pinned', 'duels', 'saved'].includes(requestedTab) ? requestedTab : 'all';
+  const setPostTab = (tab) => {
+    const params = new URLSearchParams(location.search);
+    if (tab === 'all') params.delete('tab');
+    else params.set('tab', tab);
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true, state: location.state });
+  };
   const [duels, setDuels] = useState([]);
   const [duelTotal, setDuelTotal] = useState(0);
   const [duelPage, setDuelPage] = useState(1);
@@ -280,32 +274,6 @@ export default function Profile() {
     });
     return () => { cancelled = true; };
   }, [postTab, profileUserId, duelPage]);
-
-  // Taste Details modal content (similar users + viewer match) loads on explicit
-  // open only — never on mount. Core profile request no longer computes it.
-  // fetchSimilarUsers caches per viewer+profile for 60s and dedups in-flight
-  // identical URLs, so reopen/remount costs 0-1 requests. On failure the modal
-  // simply shows no similar section (same as the empty state) — core intact.
-  useEffect(() => {
-    if (!isTasteDetailsOpen || !profileUserId) return;
-    let cancelled = false;
-    fetchSimilarUsers(profileUserId, currentUser?.id).then((res) => {
-      if (cancelled) return;
-      if (res?.success !== false && res?.data) {
-        setProfileUser((prev) => prev
-          ? {
-              ...prev,
-              taste_identity: {
-                ...(prev.taste_identity || {}),
-                similar_users: res.data.similar_users ?? [],
-                taste_match: res.data.taste_match ?? null,
-              },
-            }
-          : prev);
-      }
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [isTasteDetailsOpen, profileUserId, currentUser?.id]);
 
   const handleOpenFollowList = async (type) => {
     const requestId = ++followRequestRef.current;
@@ -346,7 +314,6 @@ export default function Profile() {
     setFollowPending(false);
     followPendingRef.current = false;
     setFollowListModal(null);
-    setPostTab('all');
     setDuels([]);
     setDuelTotal(0);
     setDuelPage(1);
@@ -444,14 +411,13 @@ export default function Profile() {
           if (isEducationSetup && isOwnProfile && isEditOpen) navigate(returnPath(location.search), { replace: true });
         }
         setFollowListModal(null);
-        setIsTasteDetailsOpen(false);
       }
     };
-    if (isEditOpen || followListModal || isTasteDetailsOpen) {
+    if (isEditOpen || followListModal) {
       window.addEventListener('keydown', handleEsc);
     }
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [isEditOpen, followListModal, isTasteDetailsOpen, isEducationSetup, isOwnProfile, location.search, navigate]);
+  }, [isEditOpen, followListModal, isEducationSetup, isOwnProfile, location.search, navigate]);
 
   const handleToggleFollow = async () => {
     if (followPendingRef.current) return;
@@ -755,13 +721,18 @@ export default function Profile() {
   const displayUser = isOwnProfile
     ? { ...(profileUser || {}), ...(currentUser || {}) }
     : profileUser;
-  // "Oct 2024" จาก created_at ที่ได้จาก API — parse ผ่าน formatDbDate() เสมอ (ดู src/lib/format.js)
-  const joinedLabel = formatDbDate(displayUser?.created_at, i18n.language === 'th' ? 'th-TH' : 'en-US', { month: 'short', year: 'numeric' }) ?? '—';
+  // Parse the UTC database date before formatting the full join date.
+  const joinedLabel = formatDbDate(displayUser?.created_at, i18n.language === 'th' ? 'th-TH' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }) ?? '—';
   const totalLikes = displayUser?.likes_received ?? posts.reduce((n, p) => n + (p.stats?.likes || 0), 0);
+  const educationFields = [
+    ['University', displayUser?.university],
+    ['Faculty', displayUser?.faculty],
+    ['Major', displayUser?.major],
+    ['Admission Year', displayUser?.year],
+  ].map(([label, value]) => [label, String(value ?? '').trim()]);
   const tasteIdentity = displayUser?.taste_identity || {};
   const pinnedRankings = Array.isArray(tasteIdentity.pinned_rankings) ? tasteIdentity.pinned_rankings : [];
   const hashtagDistribution = Array.isArray(tasteIdentity.hashtag_distribution) ? tasteIdentity.hashtag_distribution : [];
-  const topItems = Array.isArray(tasteIdentity.top_items) ? tasteIdentity.top_items : [];
   const badges = Array.isArray(tasteIdentity.badges) ? tasteIdentity.badges : [];
   // A4: สถานะ badge ทั้ง 10 (ปลด/ล็อก + progress) จากตัวเลขที่มีอยู่แล้ว — ไม่เพิ่ม request
   const badgeValue = (id) => badges.find((b) => b.id === id)?.value ?? null;
@@ -774,8 +745,6 @@ export default function Profile() {
     unlockedBadges: badges,
     unlockedIds: badges.map((b) => b.id),
   });
-  const tasteMatch = tasteIdentity.taste_match;
-  const similarUsers = Array.isArray(tasteIdentity.similar_users) ? tasteIdentity.similar_users : [];
 
   const pinnedSet = new Set(pinnedRankings.map((item) => item.ranking_id || item.id));
   const isPinnedPost = (postId) => pinnedSet.has(postId);
@@ -796,11 +765,11 @@ export default function Profile() {
   return (
     <div className="text-ink antialiased min-h-screen flex flex-col font-sans">
       <main className="profile-v2 social-profile flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8 max-w-7xl">
-        <div className="profile-layout grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+<BackButton fallback="/" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-soft bg-surface px-3 text-sm text-ink-soft hover:text-ink mb-3"><BackArrow size={16} /><span>{t('common.back')}</span></BackButton>
+        <div className="profile-layout grid gap-6">
 
-            <ProfileSidebar>
-            <div className="profile-identity social-card p-4 sm:p-5 text-ink">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3 relative">
+            <header className="profile-header relative text-ink">
+              <div className="profile-header-avatar relative shrink-0">
                 <div className="passport-avatar w-full h-full rounded-full overflow-hidden bg-surface">
                   <Avatar name={displayUser?.username} src={displayUser?.avatar_url} size="lg" style={{ width: '100%', height: '100%' }} />
                 </div>
@@ -811,7 +780,8 @@ export default function Profile() {
                 )}
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-bold text-ink mb-1 break-words">{displayUser?.username}</h1>
+              <div className="profile-header-info min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-ink break-words">{displayUser?.username}</h1>
               {displayUser?.equipped_badge_id && (() => {
                 const meta = displayUser.equipped_badge_meta || displayUser.equipped_badge;
                 const rawTag = meta?.hashtag;
@@ -821,7 +791,7 @@ export default function Profile() {
                 const fullLabel = tag ? `${badgeTitle} · ${tag}` : badgeTitle;
 
                 return (
-                  <div className="flex mb-2 px-2 max-w-full">
+                  <div className="profile-equipped-badge flex max-w-full">
                     <div
                       title={fullLabel}
                       className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-semibold max-w-full shadow-2xs"
@@ -834,88 +804,38 @@ export default function Profile() {
               })()}
               {/* 📍 bio จาก DB จริงแล้ว (migrations/0003_profile_bio.sql) — โชว์ได้ทั้งโปรไฟล์ตัวเองและคนอื่น */}
               {displayUser?.bio ? (
-                <p className="profile-bio text-sm text-ink-soft mb-3 leading-relaxed">{displayUser.bio}</p>
+                <p className="profile-bio text-sm text-ink-soft leading-relaxed whitespace-pre-wrap">{displayUser.bio}</p>
               ) : null}
 
+              <div className="profile-header-actions flex flex-wrap items-center gap-3">
+              {isOwnProfile && <button onClick={() => setIsEditOpen(true)} className="profile-edit-button play-button min-h-11 text-sm cursor-pointer">{t('profile.editProfile')}</button>}
+              <button type="button" onClick={() => setIsBadgesOpen(true)} className="profile-badge-button inline-flex min-h-11 items-center gap-2 rounded-full border border-line-soft bg-surface px-3 text-sm font-bold text-ink-soft" aria-label={`${badges.length} / ${badgeStates.length} ${t('profile.badges')}`}><Award size={18} /><span>{t('profile.badges')}</span></button>
               {!isOwnProfile && (
                 <button
                   onClick={handleToggleFollow}
                   disabled={followPending}
                   aria-pressed={isFollowing}
-                  className={`profile-follow min-h-11 mb-1 ${isFollowing ? 'opinion-secondary' : 'play-button'}`}
+                  className={`profile-follow min-h-11 self-start ${isFollowing ? 'opinion-secondary' : 'play-button'}`}
                 >
                   {isFollowing ? t('profile.unfollow') : t('profile.follow')}
                 </button>
               )}
-              {isOwnProfile && (
-                <button
-                  onClick={() => setIsEditOpen(true)}
-                  className="opinion-secondary min-h-11 text-sm cursor-pointer"
-                >
-                  {t('profile.editProfile')}
-                </button>
-              )}
-
-              <div className="flex flex-wrap gap-4 text-sm text-muted mt-2">
+              </div>
+              <div className="profile-header-counts flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
                 <button type="button" className="min-h-11 cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> {t('profile.followers')}</button>
                 <button type="button" className="min-h-11 cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> {t('profile.following')}</button>
+                <span className="inline-flex min-h-11 items-center gap-1"><strong className="text-ink">{totalLikes}</strong> {t('profile.totalLikes')}</span>
               </div>
-              {(displayUser?.university || displayUser?.faculty || displayUser?.major || displayUser?.year) && (
-                <details className="profile-education border-t border-line-soft pt-3 mt-3 text-sm text-ink-soft">
-                  <summary className="min-h-11 cursor-pointer font-semibold text-ink">
-                    {t('profile.educationContext')}
-                    <span className="block text-xs font-normal text-muted mt-1">
-                      {[displayUser.university, displayUser.faculty, displayUser.major, displayUser.year].filter(Boolean).join(' · ')}
-                    </span>
-                  </summary>
-                  <div className="space-y-2 mt-2">
-                  {displayUser?.university && <p><strong className="text-ink">{t('profile.university')}</strong> {displayUser.university}</p>}
-                  {displayUser?.faculty && <p><strong className="text-ink">{t('profile.faculty')}</strong> {displayUser.faculty}</p>}
-                  {displayUser?.major && <p><strong className="text-ink">{t('profile.major')}</strong> {displayUser.major}</p>}
-                  {displayUser?.year && <p><strong className="text-ink">{t('profile.admissionYear')}</strong> {displayUser.year}</p>}
+              {
+                <section aria-label={t('profile.educationContext')} className="profile-education text-xs text-left text-ink-soft">
+                  <div className="space-y-1.5">
+                  {educationFields.map(([label, value]) => <p key={label}><strong className="text-ink">{label}:</strong> {value}</p>)}
                   </div>
-                </details>
-              )}
-            {/* Social identity stays independent of the rankings feed. */}
-            <div className="profile-taste-summary border-t border-line-soft pt-4 mt-3">
-              <div className="flex flex-wrap gap-2 items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5 text-ink text-base font-bold">
-                  <Fingerprint size={12} className="text-brand" />
-                  <h2>{t('profile.tasteIdentity')}</h2>
-                </div>
-                <button type="button" onClick={() => setIsBadgesOpen(true)} className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-3 min-h-[44px] rounded-xl hover:bg-amber-500/20 transition-colors">
-                    <Award size={14} />
-                    <span>{badges.length} / {badgeStates.length} {t('profile.badges')}</span>
-                  </button>
-              </div>
-
-              <p className="text-sm text-muted mb-3">{t('profile.tasteSummaryHelp')}</p>
-              {hashtagDistribution.length === 0 ? (
-                <p className="text-xs text-muted">{t(isOwnProfile ? 'profile.noTasteData' : 'profile.noTasteDataOther')}</p>
-              ) : (
-                <div className="flex gap-2 flex-wrap mb-2">
-                  {hashtagDistribution.slice(0, 3).map((item) => (
-                    <span key={item.hashtag} className="text-xs font-semibold text-ink bg-surface px-2 py-0.5 rounded border border-line-soft/50 shadow-xs">
-                      #{item.hashtag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {topItems.length > 0 && <div className="mt-3 mb-3"><p className="text-xs text-muted">{t('profile.favoriteItems')}</p><ul className="mt-1 flex flex-wrap gap-2 text-sm">{topItems.slice(0,3).map(item => <li key={item.id || item.name} className="rounded-lg border border-line-soft px-2 py-1 break-words">{item.name}</li>)}</ul></div>}
-              <button
-                type="button"
-                onClick={() => setIsTasteDetailsOpen(true)}
-                className="w-full flex items-center min-h-[44px] border-t border-line-soft/60 text-[11px] font-bold text-brand text-left hover:underline"
-              >
-                {t('profile.viewTasteDetails')} →
-              </button>
+                </section>
+              }
+              <p className="profile-header-joined text-xs text-muted">{t('profile.joined')} {joinedLabel}</p>
             </div>
-
-
-              <p className="text-xs text-muted">{t('profile.joined')} {joinedLabel}{totalLikes > 0 && <> · {totalLikes} {t('profile.totalLikes')}</>}</p>
-            </div>
-            </ProfileSidebar>
+            </header>
           <Modal open={isBadgesOpen} onClose={() => setIsBadgesOpen(false)} title={t('profile.badges')} maxWidth="max-w-2xl">
             <p className="text-sm text-muted mb-4">{t('profile.badgesFor', { name: displayUser?.username })}</p>
             <BadgeGallery
@@ -930,111 +850,6 @@ export default function Profile() {
           </Modal>
 
           <div className="profile-community-content min-w-0 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold">{t('profile.allPosts')}</h2>
-              {isOwnProfile && <div className="flex flex-wrap gap-2"><Link to="/discover?view=saved" className="opinion-secondary">{t('discover.savedTemplates')}</Link><Link to="/create" className="opinion-secondary">{t('nav.create')}</Link></div>}
-            </div>
-            {/* Full Taste Identity opens on demand from the compact card under the profile. */}
-            {isTasteDetailsOpen && (
-              <Modal open={isTasteDetailsOpen} onClose={() => setIsTasteDetailsOpen(false)} title={t('profile.tasteIdentity')} maxWidth="max-w-4xl">
-                <div className="space-y-5">
-                  <div className="flex items-center gap-2 text-xs text-muted -mt-1">
-                    <Fingerprint size={16} className="text-brand" />
-                    <span>{t('profile.tasteIdentityHelp')}</span>
-                    <BarChart3 size={16} className="ml-auto shrink-0" />
-                  </div>
-
-              {hashtagDistribution.length === 0 && topItems.length === 0 ? (
-                <p className="text-sm text-muted bg-surface rounded-xl px-4 py-5 text-center">{t(isOwnProfile ? 'profile.noTasteData' : 'profile.noTasteDataOther')}</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.hashtags')}</h4>
-                    <div className="space-y-3">
-                      {hashtagDistribution.map((item) => (
-                        <div key={item.hashtag}>
-                          <div className="flex items-center justify-between text-xs mb-1">
-                            <span className="font-semibold text-ink capitalize">#{item.hashtag}</span>
-                            <span className="text-muted">{item.percentage}%</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.favoriteItems')}</h4>
-                    {topItems.length === 0 ? (
-                      <p className="text-sm text-muted">{t('profile.noFavoriteItems')}</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {topItems.slice(0, 6).map((item) => (
-                          <span key={item.id || item.name} className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 border border-brand/20 px-3 py-1.5 text-xs font-semibold text-ink">
-                            {item.name}
-                            {item.count > 1 && <span className="text-muted">×{item.count}</span>}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {tasteMatch && (
-                <div className="rounded-xl border border-brand/25 bg-brand/5 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-brand">{t('profile.tasteMatch')}</p>
-                    <p className="text-sm text-ink mt-1">{t('profile.tasteMatchYou', { score: tasteMatch.score })}</p>
-                  </div>
-                  <div className="text-right text-xs text-muted">
-                    {tasteMatch.shared_hashtags?.length > 0 && <p>#{tasteMatch.shared_hashtags.slice(0, 3).join(' #')}</p>}
-                  </div>
-                </div>
-              )}
-
-              {similarUsers.length > 0 && (
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.tasteNeighbors')}</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {similarUsers.map((user) => (
-                      <button
-                        key={user.id}
-                        type="button"
-                        onClick={() => {
-                          setIsTasteDetailsOpen(false);
-                          navigate(`/profile/${user.id}`);
-                        }}
-                        className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2 text-left hover:border-highlight transition-colors"
-                      >
-                        <div className="w-8 h-8 rounded-full overflow-hidden bg-canvas shrink-0">
-                          {user.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" /> : <span className="w-full h-full flex items-center justify-center text-xs font-bold text-brand">{user.username?.charAt(0)?.toUpperCase() || 'U'}</span>}
-                        </div>
-                        <span className="min-w-0">
-                          <span className="block text-xs font-bold text-ink truncate">{user.username}</span>
-                          <span className="block text-[10px] text-muted">{t('profile.similarPercent', { score: user.score })}</span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-ink-soft mb-3">{t('profile.badges')}</h4>
-                {badgeStates.filter((b) => b.unlocked).length > 0 ? (
-                  <BadgeGallery
-                    badges={badgeStates.filter((b) => b.unlocked)}
-                    equippedBadgeId={displayUser?.equipped_badge_id}
-                    equippedBadgeMeta={displayUser?.equipped_badge_meta || displayUser?.equipped_badge}
-                  />
-                ) : (
-                  <p className="text-sm text-muted">{t('profile.noBadgesUnlocked')}</p>
-                )}
-              </div>
-                </div>
-              </Modal>
-            )}
-
             {/* TikTok-style Posts Section Header / Tabs */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft pb-3">
               <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -1083,14 +898,25 @@ export default function Profile() {
                     <span className="text-xs px-2 py-0.5 rounded-full bg-surface text-muted">{duelTotal}</span>
                   )}
                 </button>
+                {isOwnProfile && (
+                  <button
+                    type="button"
+                    onClick={() => setPostTab('saved')}
+                    aria-pressed={postTab === 'saved'}
+                    className={`inline-flex min-h-11 items-center gap-2 pb-1 text-sm font-bold border-b-2 transition-colors ${postTab === 'saved' ? 'border-brand text-ink' : 'border-transparent text-muted hover:text-ink'}`}
+                  >
+                    <Bookmark size={15} />
+                    <span>{t('discover.savedTemplates')}</span>
+                  </button>
+                )}
               </div>
               {isOwnProfile && (
-                <span className="text-xs text-muted">
-                  {t('profile.pinnedCount', { count: pinnedRankings.length, max: 3 })}
-                </span>
+                <div className="flex items-center gap-3"><span className="text-xs text-muted">{t('profile.pinnedCount', { count: pinnedRankings.length, max: 3 })}</span><Link to="/create" className="play-button create-action"><span className="create-action-icon" aria-hidden="true"><Plus size={17} strokeWidth={2.5} /></span><span>{t('nav.create')}</span></Link></div>
               )}
             </div>
-            {postTab === 'duels' ? (
+            {postTab === 'saved' && isOwnProfile ? (
+              <SavedTopics key={currentUser.id} userId={currentUser.id} />
+            ) : postTab === 'duels' ? (
               isDuelsLoading ? (
                 <div className="text-center text-sm text-muted py-12 glass rounded-2xl animate-pulse">
                   {t('common.loading')}
@@ -1156,7 +982,7 @@ export default function Profile() {
                 }
               </div>
             ) : (
-              <div className="profile-ranking-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+              <div className="profile-ranking-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                 {visiblePosts.map((post) => (
                   <MiniTierTile
                     key={post.id}

@@ -5,7 +5,7 @@ import { invalidateSpotlightsCache } from '../lib/spotlight-cache.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
-  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
 
   const url = new URL(request.url);
   const rankingId = url.searchParams.get('ranking_id');
@@ -27,7 +27,11 @@ export async function onRequest({ request, env, data: auth }) {
         LIMIT 200
       `).bind(rankingId).all();
 
-      return jsonResponse({ success: true, data: results });
+      const stats = await db.prepare(`SELECT likes_count AS likes, dislikes_count AS dislikes,
+        comments_count AS comments,
+        (SELECT vote_type FROM votes WHERE ranking_id = ?1 AND user_id = ?2) AS user_vote
+        FROM rankings WHERE id = ?1`).bind(rankingId, auth.user?.id || null).first();
+      return jsonResponse({ success: true, data: results, stats });
     }
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
@@ -79,7 +83,8 @@ export async function onRequest({ request, env, data: auth }) {
         WHERE c.id = ?
       `).bind(commentId).all();
 
-      return jsonResponse({ success: true, data: results[0] }, 201);
+      const stats = await db.prepare('SELECT comments_count FROM rankings WHERE id = ?').bind(ranking_id).first();
+      return jsonResponse({ success: true, data: results[0], comments_count: stats?.comments_count || 0 }, 201);
     }
 
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);

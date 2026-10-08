@@ -62,16 +62,19 @@ Used the Codex browser against the locally built Cloudflare Pages Functions/D1 s
 
 ## Screenshots
 
-![Home EN, light, 1280px](../artifacts/ux-foundation/home-1280.jpg)
+Home EN, light, 1280px
 
-![Home TH, dark, 390px](../artifacts/ux-foundation/home-th-dark-390.jpg)
+Home TH, dark, 390px
 
-![Guest editor, 390px](../artifacts/ux-foundation/rank-390.jpg)
+Guest editor, 390px
 
-![Topic actions, 1280px](../artifacts/ux-foundation/topic-1280.jpg)
+Topic actions, 1280px
 
-![Post with board next steps, 1280px](../artifacts/ux-foundation/post-1280.jpg)
+Post with board next steps, 1280px
 
 ## Deliberately outside this change
 
 No production deploy or production D1 writes; no migration, schema, API field/route rename, community aggregation change, backend rewrite, Profile/Admin redesign, new dependency or palette overhaul. Duel remains available. Unrelated historical Profile/Admin terminology is left for its own pass. Drafts remain device-local, and restoring still requires the topic's item/tier signature to match.
+
+
+> Screenshot captures and local visual-audit artifacts were removed before publishing this repository. The implementation findings above are retained.
