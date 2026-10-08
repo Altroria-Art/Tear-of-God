@@ -1,0 +1,245 @@
+[
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 568,
+    "populatedTopics": 0,
+    "scrollWidth": 305,
+    "topicCards": 6,
+    "width": 320
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 568,
+    "populatedTopics": 1,
+    "scrollWidth": 305,
+    "topicCards": 0,
+    "width": 320
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 568,
+    "populatedTopics": 0,
+    "scrollWidth": 305,
+    "topicCards": 0,
+    "width": 320
+  },
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 740,
+    "populatedTopics": 0,
+    "scrollWidth": 345,
+    "topicCards": 6,
+    "width": 360
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 740,
+    "populatedTopics": 1,
+    "scrollWidth": 345,
+    "topicCards": 0,
+    "width": 360
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 740,
+    "populatedTopics": 0,
+    "scrollWidth": 345,
+    "topicCards": 0,
+    "width": 360
+  },
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 844,
+    "populatedTopics": 0,
+    "scrollWidth": 375,
+    "topicCards": 6,
+    "width": 390
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 844,
+    "populatedTopics": 1,
+    "scrollWidth": 375,
+    "topicCards": 0,
+    "width": 390
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 844,
+    "populatedTopics": 0,
+    "scrollWidth": 375,
+    "topicCards": 0,
+    "width": 390
+  },
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 932,
+    "populatedTopics": 0,
+    "scrollWidth": 415,
+    "topicCards": 6,
+    "width": 430
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 932,
+    "populatedTopics": 1,
+    "scrollWidth": 430,
+    "topicCards": 0,
+    "width": 430
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 932,
+    "populatedTopics": 0,
+    "scrollWidth": 430,
+    "topicCards": 0,
+    "width": 430
+  },
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 1024,
+    "populatedTopics": 0,
+    "scrollWidth": 753,
+    "topicCards": 6,
+    "width": 768
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 1024,
+    "populatedTopics": 1,
+    "scrollWidth": 768,
+    "topicCards": 0,
+    "width": 768
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 1024,
+    "populatedTopics": 0,
+    "scrollWidth": 768,
+    "topicCards": 0,
+    "width": 768
+  },
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 1180,
+    "populatedTopics": 0,
+    "scrollWidth": 805,
+    "topicCards": 6,
+    "width": 820
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 1180,
+    "populatedTopics": 1,
+    "scrollWidth": 820,
+    "topicCards": 0,
+    "width": 820
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 1180,
+    "populatedTopics": 0,
+    "scrollWidth": 820,
+    "topicCards": 0,
+    "width": 820
+  },
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 768,
+    "populatedTopics": 0,
+    "scrollWidth": 1009,
+    "topicCards": 6,
+    "width": 1024
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 768,
+    "populatedTopics": 1,
+    "scrollWidth": 1024,
+    "topicCards": 0,
+    "width": 1024
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 768,
+    "populatedTopics": 0,
+    "scrollWidth": 1009,
+    "topicCards": 0,
+    "width": 1024
+  },
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 900,
+    "populatedTopics": 0,
+    "scrollWidth": 1265,
+    "topicCards": 6,
+    "width": 1280
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 900,
+    "populatedTopics": 1,
+    "scrollWidth": 1280,
+    "topicCards": 0,
+    "width": 1280
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 900,
+    "populatedTopics": 0,
+    "scrollWidth": 1280,
+    "topicCards": 0,
+    "width": 1280
+  },
+  {
+    "state": "Now",
+    "allTopicsLinks": 1,
+    "height": 900,
+    "populatedTopics": 0,
+    "scrollWidth": 1425,
+    "topicCards": 6,
+    "width": 1440
+  },
+  {
+    "state": "This week",
+    "allTopicsLinks": 1,
+    "height": 900,
+    "populatedTopics": 1,
+    "scrollWidth": 1440,
+    "topicCards": 0,
+    "width": 1440
+  },
+  {
+    "state": "Last week",
+    "allTopicsLinks": 1,
+    "height": 900,
+    "populatedTopics": 0,
+    "scrollWidth": 1440,
+    "topicCards": 0,
+    "width": 1440
+  }
+]

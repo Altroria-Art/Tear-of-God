@@ -758,9 +758,6 @@ html[lang="th"] .pulse-hero h1 { line-height: 1.2; }
 .social-profile .profile-taste-summary h2 { font-size:1rem; }
 .social-profile .profile-taste-summary > div:first-child { flex-wrap:wrap; gap:.5rem; }
 .social-profile :is(.profile-taste-summary li,summary,p) { overflow-wrap:anywhere; }
-@media (min-width:640px) {
-  .profile-identity { display:grid; grid-template-columns:80px minmax(0,1fr); column-gap:1.25rem; }
-  .profile-identity > :first-child { grid-column:1; grid-row:1 / span 7; margin-bottom:0; }
-  .profile-identity > :not(:first-child) { grid-column:2; }
-  .profile-identity > button { justify-self:start; }
+@media (min-width:1024px) {
+  .profile-sidebar[data-sticky=true] { position:sticky; top:96px; }
 }

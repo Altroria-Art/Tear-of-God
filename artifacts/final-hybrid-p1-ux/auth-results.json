@@ -1,0 +1,362 @@
+[
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 305,
+    "width": 320,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 305,
+    "width": 320,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 305,
+    "width": 320,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 305,
+    "width": 320,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 345,
+    "width": 360,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 345,
+    "width": 360,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 345,
+    "width": 360,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 345,
+    "width": 360,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 375,
+    "width": 390,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 375,
+    "width": 390,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 375,
+    "width": 390,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 375,
+    "width": 390,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 415,
+    "width": 430,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 415,
+    "width": 430,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 415,
+    "width": 430,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 415,
+    "width": 430,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 753,
+    "width": 768,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 753,
+    "width": 768,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 753,
+    "width": 768,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 753,
+    "width": 768,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 805,
+    "width": 820,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 805,
+    "width": 820,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 805,
+    "width": 820,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 805,
+    "width": 820,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1009,
+    "width": 1024,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1009,
+    "width": 1024,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1009,
+    "width": 1024,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1009,
+    "width": 1024,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1265,
+    "width": 1280,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1265,
+    "width": 1280,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1265,
+    "width": 1280,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1265,
+    "width": 1280,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1425,
+    "width": 1440,
+    "mode": "login",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1425,
+    "width": 1440,
+    "mode": "register",
+    "round": 0,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1425,
+    "width": 1440,
+    "mode": "login",
+    "round": 1,
+    "emailDOMRedacted": true
+  },
+  {
+    "confirmCleared": true,
+    "masked": true,
+    "passwordCleared": true,
+    "scrollWidth": 1425,
+    "width": 1440,
+    "mode": "register",
+    "round": 1,
+    "emailDOMRedacted": true
+  }
+]

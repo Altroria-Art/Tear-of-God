@@ -65,7 +65,7 @@
   },
   "guestGate": {
     "title": "Log in to continue",
-    "description": "Guests can explore, search, and view details. To rank, vote, comment, or save, please log in or create an account.",
+    "description": "Start ranking without an account. Log in to publish, save topics to your account, vote, or join conversations.",
     "login": "Log in",
     "signup": "Create account",
     "continueBrowsing": "Keep browsing"
@@ -179,7 +179,7 @@
     "badgeJoin": "Join Us",
     "badgeWelcome": "Welcome Back",
     "quickTimeSubtitle": "Takes less than a minute",
-    "loginSubtitle": "Log in to start ranking and sharing tier lists",
+    "loginSubtitle": "Log in to publish your rankings, keep them in your account, and join conversations.",
     "topSTierCommunity": "Top S-Tier in the community",
     "latestRankingActivity": "Latest ranking just created in the system",
     "tagTrending": "Trending Now",
@@ -759,6 +759,7 @@
     "fallbackToday": "Quiet in the last six hours — showing today's activity.",
     "fallbackWeek": "Quiet today — showing activity from this week.",
     "sampleNote": "Counts are from a bounded sample of recent activity.",
+    "popularToTry": "Popular topics to try",
     "quietTitle": "Quiet in the community for this window.",
     "quietDescription": "Explore topics while the next conversation gets started.",
     "loading": "Loading community activity",

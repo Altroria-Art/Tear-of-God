@@ -28,22 +28,19 @@ function MiniTierItem({ item, t }) {
 
   return (
     <div
-      className="relative flex aspect-square h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg bg-surface border border-line-soft/80 shadow-2xs overflow-hidden select-none p-0.5 text-center"
+      className="flex items-center gap-2 min-w-0 w-full text-xs text-ink"
       title={itemName}
     >
       {itemImg && !imgError ? (
         <img
           src={itemImg}
-          alt={itemName}
-          className="w-full h-full object-cover rounded-md pointer-events-none"
+          alt=""
+          className="w-8 h-8 shrink-0 object-cover rounded-md pointer-events-none"
           loading="lazy"
           onError={() => setImgError(true)}
         />
-      ) : (
-        <span className="w-full line-clamp-2 text-[8px] sm:text-[9px] font-bold leading-[1.1] text-ink text-center break-words px-0.5">
-          {itemName}
-        </span>
-      )}
+      ) : null}
+      <span className="profile-preview-item-name min-w-0 break-words leading-normal">{itemName}</span>
     </div>
   );
 }
@@ -64,7 +61,7 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
     >
       {/* Top Visual Thumbnail Area — pt-13 reserves a CONSTANT slot for the pinned + type
           badges so tier rows never shift whether the list is pinned or not */}
-      <div className="h-36 sm:h-40 relative bg-canvas/40 pt-13 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 overflow-hidden border-b border-line-soft/50">
+      <div className="min-h-48 relative bg-canvas/40 pt-13 pb-2 px-2 sm:px-2.5 flex flex-col justify-center gap-1.5 border-b border-line-soft/50">
         {/* Pinned badge — own absolute layer at top-left, never pushes the other badges */}
         {isPinned && (
           <span className="absolute top-2 left-2 z-20 inline-flex items-center gap-1 bg-brand text-canvas text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-xs shrink-0">
@@ -125,15 +122,15 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
                 label={row.tier}
                 color={row.color}
                 index={row.index}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg text-xs font-black shrink-0 shadow-xs"
+                className="w-14 min-h-14 sm:w-12 sm:min-h-12 rounded-lg text-xs font-black shrink-0 shadow-xs"
               />
-              <div className="flex items-center gap-1.5 overflow-hidden flex-1 min-w-0">
-                {row.items.slice(0, 3).map((ri, iIdx) => (
+              <div className="flex flex-col items-start gap-1 flex-1 min-w-0">
+                {row.items.slice(0, 2).map((ri, iIdx) => (
                   <MiniTierItem key={ri.id ?? iIdx} item={ri} t={t} />
                 ))}
-                {row.items.length > 3 && (
+                {row.items.length > 2 && (
                   <span className="text-[9px] font-bold text-muted shrink-0 px-1">
-                    +{row.items.length - 3}
+                    +{row.items.length - 2}
                   </span>
                 )}
               </div>
@@ -146,7 +143,7 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
       <div className="p-2.5 sm:p-3 flex flex-col justify-between flex-1 gap-2 min-w-0">
         <div className="space-y-1.5 min-w-0">
           <h4
-            className="font-bold text-xs sm:text-sm text-ink line-clamp-2 leading-snug group-hover:text-brand transition-colors"
+            className="font-bold text-sm text-ink line-clamp-2 leading-snug group-hover:text-brand transition-colors"
             title={post.title}
           >
             {post.title}
@@ -181,6 +178,21 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
       </div>
     </article>
   );
+}
+
+function ProfileSidebar({ children }) {
+  const ref = useRef(null);
+  const [fits, setFits] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    const update = () => setFits(window.innerWidth >= 1024 && element.getBoundingClientRect().height <= window.innerHeight - 112);
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    window.addEventListener('resize', update);
+    update();
+    return () => { observer.disconnect(); window.removeEventListener('resize', update); };
+  }, []);
+  return <div ref={ref} className="profile-sidebar min-w-0" data-sticky={fits ? 'true' : 'false'}>{children}</div>;
 }
 
 export default function Profile() {
@@ -784,8 +796,9 @@ export default function Profile() {
   return (
     <div className="text-ink antialiased min-h-screen flex flex-col font-sans">
       <main className="profile-v2 social-profile flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-8 max-w-7xl">
-        <div className="flex flex-col gap-5">
+        <div className="profile-layout grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
 
+            <ProfileSidebar>
             <div className="profile-identity social-card p-4 sm:p-5 text-ink">
               <div className="w-16 h-16 sm:w-20 sm:h-20 mb-3 relative">
                 <div className="passport-avatar w-full h-full rounded-full overflow-hidden bg-surface">
@@ -847,8 +860,62 @@ export default function Profile() {
                 <button type="button" className="min-h-11 cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('followers')}><strong>{followersCount}</strong> {t('profile.followers')}</button>
                 <button type="button" className="min-h-11 cursor-pointer hover:underline hover:text-ink" onClick={() => handleOpenFollowList('following')}><strong>{followingCount}</strong> {t('profile.following')}</button>
               </div>
+              {(displayUser?.university || displayUser?.faculty || displayUser?.major || displayUser?.year) && (
+                <details className="profile-education border-t border-line-soft pt-3 mt-3 text-sm text-ink-soft">
+                  <summary className="min-h-11 cursor-pointer font-semibold text-ink">
+                    {t('profile.educationContext')}
+                    <span className="block text-xs font-normal text-muted mt-1">
+                      {[displayUser.university, displayUser.faculty, displayUser.major, displayUser.year].filter(Boolean).join(' · ')}
+                    </span>
+                  </summary>
+                  <div className="space-y-2 mt-2">
+                  {displayUser?.university && <p><strong className="text-ink">{t('profile.university')}</strong> {displayUser.university}</p>}
+                  {displayUser?.faculty && <p><strong className="text-ink">{t('profile.faculty')}</strong> {displayUser.faculty}</p>}
+                  {displayUser?.major && <p><strong className="text-ink">{t('profile.major')}</strong> {displayUser.major}</p>}
+                  {displayUser?.year && <p><strong className="text-ink">{t('profile.admissionYear')}</strong> {displayUser.year}</p>}
+                  </div>
+                </details>
+              )}
+            {/* Social identity stays independent of the rankings feed. */}
+            <div className="profile-taste-summary border-t border-line-soft pt-4 mt-3">
+              <div className="flex flex-wrap gap-2 items-center justify-between mb-1">
+                <div className="flex items-center gap-1.5 text-ink text-base font-bold">
+                  <Fingerprint size={12} className="text-brand" />
+                  <h2>{t('profile.tasteIdentity')}</h2>
+                </div>
+                <button type="button" onClick={() => setIsBadgesOpen(true)} className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-3 min-h-[44px] rounded-xl hover:bg-amber-500/20 transition-colors">
+                    <Award size={14} />
+                    <span>{badges.length} / {badgeStates.length} {t('profile.badges')}</span>
+                  </button>
+              </div>
+
+              <p className="text-sm text-muted mb-3">{t('profile.tasteSummaryHelp')}</p>
+              {hashtagDistribution.length === 0 ? (
+                <p className="text-xs text-muted">{t(isOwnProfile ? 'profile.noTasteData' : 'profile.noTasteDataOther')}</p>
+              ) : (
+                <div className="flex gap-2 flex-wrap mb-2">
+                  {hashtagDistribution.slice(0, 3).map((item) => (
+                    <span key={item.hashtag} className="text-xs font-semibold text-ink bg-surface px-2 py-0.5 rounded border border-line-soft/50 shadow-xs">
+                      #{item.hashtag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {topItems.length > 0 && <div className="mt-3 mb-3"><p className="text-xs text-muted">{t('profile.favoriteItems')}</p><ul className="mt-1 flex flex-wrap gap-2 text-sm">{topItems.slice(0,3).map(item => <li key={item.id || item.name} className="rounded-lg border border-line-soft px-2 py-1 break-words">{item.name}</li>)}</ul></div>}
+              <button
+                type="button"
+                onClick={() => setIsTasteDetailsOpen(true)}
+                className="w-full flex items-center min-h-[44px] border-t border-line-soft/60 text-[11px] font-bold text-brand text-left hover:underline"
+              >
+                {t('profile.viewTasteDetails')} →
+              </button>
+            </div>
+
+
               <p className="text-xs text-muted">{t('profile.joined')} {joinedLabel}{totalLikes > 0 && <> · {totalLikes} {t('profile.totalLikes')}</>}</p>
             </div>
+            </ProfileSidebar>
           <Modal open={isBadgesOpen} onClose={() => setIsBadgesOpen(false)} title={t('profile.badges')} maxWidth="max-w-2xl">
             <p className="text-sm text-muted mb-4">{t('profile.badgesFor', { name: displayUser?.username })}</p>
             <BadgeGallery
@@ -1089,7 +1156,7 @@ export default function Profile() {
                 }
               </div>
             ) : (
-              <div className="profile-ranking-grid grid grid-cols-1 min-[375px]:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div className="profile-ranking-grid grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                 {visiblePosts.map((post) => (
                   <MiniTierTile
                     key={post.id}
@@ -1116,50 +1183,7 @@ export default function Profile() {
               </button>
             )}
 
-            {/* MOBILE COMPACT TASTE SNAPSHOT */}
-            <div className="profile-taste-summary social-card p-4">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5 text-ink text-base font-bold">
-                  <Fingerprint size={12} className="text-brand" />
-                  <h2>{t('profile.tasteIdentity')}</h2>
-                </div>
-                <button type="button" onClick={() => setIsBadgesOpen(true)} className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-3 min-h-[44px] rounded-xl hover:bg-amber-500/20 transition-colors">
-                    <Award size={14} />
-                    <span>{badges.length} / {badgeStates.length} {t('profile.badges')}</span>
-                  </button>
-              </div>
 
-              <p className="text-sm text-muted mb-3">{t('profile.tasteSummaryHelp')}</p>
-              {hashtagDistribution.length === 0 ? (
-                <p className="text-xs text-muted">{t(isOwnProfile ? 'profile.noTasteData' : 'profile.noTasteDataOther')}</p>
-              ) : (
-                <div className="flex gap-2 flex-wrap mb-2">
-                  {hashtagDistribution.slice(0, 3).map((item) => (
-                    <span key={item.hashtag} className="text-[10px] font-semibold text-ink bg-surface px-2 py-0.5 rounded border border-line-soft/50 shadow-xs">
-                      #{item.hashtag} <span className="text-muted font-normal ml-0.5">{item.percentage}%</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {topItems.length > 0 && <div className="mt-3 mb-3"><p className="text-xs text-muted">{t('profile.favoriteItems')}</p><ul className="mt-1 flex flex-wrap gap-2 text-sm">{topItems.slice(0,3).map(item => <li key={item.id || item.name} className="rounded-lg border border-line-soft px-2 py-1 break-words">{item.name}</li>)}</ul></div>}
-              <button
-                type="button"
-                onClick={() => setIsTasteDetailsOpen(true)}
-                className="w-full flex items-center min-h-[44px] border-t border-line-soft/60 text-[11px] font-bold text-brand text-left hover:underline"
-              >
-                {t('profile.viewTasteDetails')} →
-              </button>
-            </div>
-
-              {(displayUser?.university || displayUser?.faculty || displayUser?.major || displayUser?.year) && (
-                <details className="social-card p-4 text-sm text-ink-soft"><summary className="min-h-11 cursor-pointer font-semibold text-ink">{t('profile.educationContext')}</summary><div className="space-y-2 mt-2">
-                  {displayUser?.university && <p><strong className="text-ink">{t('profile.university')}</strong> {displayUser.university}</p>}
-                  {displayUser?.faculty && <p><strong className="text-ink">{t('profile.faculty')}</strong> {displayUser.faculty}</p>}
-                  {displayUser?.major && <p><strong className="text-ink">{t('profile.major')}</strong> {displayUser.major}</p>}
-                  {displayUser?.year && <p><strong className="text-ink">{t('profile.admissionYear')}</strong> {displayUser.year}</p>}
-                </div></details>
-              )}
 
 
           </div>

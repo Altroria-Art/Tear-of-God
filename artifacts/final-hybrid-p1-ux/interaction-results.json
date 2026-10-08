@@ -1,0 +1,30 @@
+{
+  "desktop100": {
+    "cardsAfterNext": 100,
+    "sidebarTop": 96,
+    "navbarBottom": 69,
+    "scrollY": 4737
+  },
+  "mobile100": {
+    "cardsAfterNext": 100,
+    "educationBefore": true,
+    "tasteBefore": true,
+    "sticky": false
+  },
+  "educationExpanded1280": {
+    "sidebarHeight": 880.125,
+    "height": 900,
+    "sticky": false
+  },
+  "realLocal": {
+    "ownRankings": 3,
+    "otherRankings": 7,
+    "quietPopularTopics": 6
+  },
+  "emailRetention": {
+    "method": "Visual screenshot verification because browser DOM redacts credential values",
+    "dummy": "ux-test@example.invalid",
+    "independentUsername": true
+  },
+  "noFormsSubmitted": true
+}
