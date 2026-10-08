@@ -1,5 +1,6 @@
 import i18n from '../i18n';
 import { createTemplateViewSessionGuard } from './templateViewSession';
+import { beginDataChange } from './liveRefresh';
 
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
 const API_URL = '';
@@ -8,9 +9,15 @@ let sessionEpoch = 0;
 
 async function apiFetch(url, { expireSession = !url.startsWith('/api/auth'), ...options } = {}) {
   const epoch = sessionEpoch;
-  const response = await fetch(url, { credentials: 'same-origin', ...options });
-  if (epoch === sessionEpoch && response.status === 401 && expireSession) window.dispatchEvent(new Event('tog-session-expired'));
-  return response;
+  const method = (options.method || 'GET').toUpperCase();
+  const finish = ['GET', 'HEAD', 'OPTIONS'].includes(method) ? () => {} : beginDataChange(url.split('?')[0], options.body);
+  try {
+    const response = await fetch(url, { credentials: 'same-origin', ...options });
+    if (epoch === sessionEpoch && response.status === 401 && expireSession) window.dispatchEvent(new Event('tog-session-expired'));
+    return response;
+  } finally {
+    finish();
+  }
 }
 
 // 📍 In-flight GET dedup — ดู docs/row-read-optimization-plan.md §4/§8: จาก trace จริงพบว่า
@@ -369,9 +376,9 @@ export async function toggleTopicFollow(topicType, topicKey, isFollowing) {
   }
 }
 
-export async function fetchNotifications(limit = 20) {
+export async function fetchNotifications(limit = 20, options = {}) {
   try {
-    return await getJSON(`${API_URL}/api/notifications?limit=${encodeURIComponent(limit)}`);
+    return await getJSON(`${API_URL}/api/notifications?limit=${encodeURIComponent(limit)}`, { cache: 'no-store', ...options });
   } catch (error) {
     console.error('fetchNotifications error:', error);
     return { success: false, data: [], unreadCount: 0, error: i18n.t('errors.fetchFailed') };
@@ -500,9 +507,18 @@ export async function deleteComment(id, isTemplateComment = false) {
   }
 }
 
-export async function fetchComments(rankingId) {
+export async function fetchSocialState(rankingIds, options = {}) {
   try {
-    return await getJSON(`${API_URL}/api/comments?ranking_id=${rankingId}`);
+    const ids = [...new Set(rankingIds)].slice(0, 40);
+    return await getJSON(`/api/social-state?ranking_ids=${encodeURIComponent(ids.join(','))}`, { cache: 'no-store', ...options });
+  } catch {
+    return { success: false, error: i18n.t('errors.fetchFailed') };
+  }
+}
+
+export async function fetchComments(rankingId, options = {}) {
+  try {
+    return await getJSON(`${API_URL}/api/comments?ranking_id=${encodeURIComponent(rankingId)}`, { cache: 'no-store', ...options });
   } catch {
     return { data: [], error: i18n.t('errors.commentFetchFailed') };
   }
@@ -624,12 +640,12 @@ export async function recordTemplateView(templateId, userId) {
 // ==========================================
 
 // อ่านสถานะโหวตของผู้ใช้ + จำนวนรวมของ Community Average นี้ (ใช้ตอนเปิดหน้าเพื่อตั้งค่าเริ่มต้นการ์ด)
-export async function fetchTemplateReaction({ templateId, userId: _userId } = {}) {
+export async function fetchTemplateReaction({ templateId, userId: _userId, signal } = {}) {
   try {
     if (!templateId) return { success: true, userVote: null, likes: 0, dislikes: 0 };
     const params = new URLSearchParams();
     params.append('template_id', templateId);
-    return await getJSON(`${API_URL}/api/template-votes?${params.toString()}`);
+    return await getJSON(`${API_URL}/api/template-votes?${params.toString()}`, { cache: 'no-store', signal });
   } catch (error) {
     console.error("fetchTemplateReaction error:", error);
     return { success: false, userVote: null, likes: 0, dislikes: 0 };
@@ -651,9 +667,9 @@ export async function voteTemplate({ templateId, userId: _userId, voteType }) {
 }
 
 // ดึงรายการคอมเมนต์ของ Community Average
-export async function fetchTemplateComments(templateId) {
+export async function fetchTemplateComments(templateId, options = {}) {
   try {
-    return await getJSON(`${API_URL}/api/template-comments?template_id=${templateId}`);
+    return await getJSON(`${API_URL}/api/template-comments?template_id=${encodeURIComponent(templateId)}`, { cache: 'no-store', ...options });
   } catch {
     return { data: [], error: i18n.t('errors.commentFetchFailed') };
   }
@@ -971,12 +987,24 @@ export async function forgotPassword(email) {
 }
 
 // 📍 รีเซ็ตรหัสผ่านด้วย Token
-export async function resetPassword({ token, password }) {
+export async function verifyResetCode({ email, code }) {
+  try {
+    const response = await apiFetch(`${API_URL}/api/auth`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify_reset_code', email, code })
+    });
+    return await response.json();
+  } catch {
+    return { success: false, error: i18n.t('errors.serverUnreachable') };
+  }
+}
+
+export async function resetPassword({ token, email, code, password }) {
   try {
     const response = await apiFetch(`${API_URL}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reset_password', token, password })
+      body: JSON.stringify({ action: 'reset_password', token, email, code, password })
     });
     return await response.json();
   } catch {

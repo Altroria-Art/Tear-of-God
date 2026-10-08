@@ -10,6 +10,13 @@ const fail = (error, status = 400, extra = {}) => reply({ success: false, error,
 const validPassword = value => typeof value === 'string' && value.length >= 8 && value.length <= 256;
 const normalizeEmail = value => typeof value === 'string' ? value.trim().toLowerCase() : '';
 
+function resetCode() {
+  // Rejection sampling keeps all six-digit values equally likely, including leading zeroes.
+  const values = new Uint32Array(1);
+  do { crypto.getRandomValues(values); } while (values[0] >= 4294000000);
+  return String(values[0] % 1000000).padStart(6, '0');
+}
+
 function formatProfileResponse(profile) {
   if (!profile) return profile;
   const equippedMeta = parseEquippedBadgeMeta(profile.equipped_badge_meta);
@@ -53,15 +60,16 @@ export async function onRequest({ request, env, data: auth }) {
       google_sync: { limit: 20, windowSeconds: 900 },
       forgot_password: { limit: 3, windowSeconds: 3600 },
       reset_password: { limit: 5, windowSeconds: 900 },
+      verify_reset_code: { limit: 5, windowSeconds: 900 },
     };
     const authPolicy = authPolicies[action];
     if (authPolicy) {
       const identity = action === 'google_sync'
         ? clientAddress(request)
         : action === 'reset_password'
-          ? (typeof payload.token === 'string' ? payload.token : clientAddress(request))
+          ? (email || (typeof payload.token === 'string' ? payload.token : clientAddress(request)))
           : (email || clientAddress(request));
-      const rate = await allowAuthAttempt(request, db, identity, { scope: action, ...authPolicy });
+      const rate = await allowAuthAttempt(request, db, identity, { scope: action === 'verify_reset_code' ? 'reset_password' : action, ...authPolicy });
       if (!rate.allowed) return rateLimitResponse(rate, 'ลองใหม่ภายหลัง / Please try again later');
     }
     if (action === 'register') {
@@ -124,9 +132,9 @@ export async function onRequest({ request, env, data: auth }) {
       
       const user = await findByEmail(db, email);
       if (user) {
-        const token = randomToken();
-        const tokenHash = await digest(token);
-        const expiresAt = new Date(Date.now() + 3600000).toISOString();
+        const code = resetCode();
+        const tokenHash = await digest(`reset-code:${email}:${code}`);
+        const expiresAt = new Date(Date.now() + 600000).toISOString();
         
         await db.batch([
           db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(user.id),
@@ -134,7 +142,6 @@ export async function onRequest({ request, env, data: auth }) {
             .bind('pr_' + crypto.randomUUID(), user.id, tokenHash, expiresAt)
         ]);
 
-        const resetUrl = `${env.APP_URL || 'https://tear-of-god.pages.dev'}/reset-password?token=${token}`;
         
         if (!isPreview && env.BREVO_API_KEY) {
           let emailSent = false;
@@ -158,9 +165,9 @@ export async function onRequest({ request, env, data: auth }) {
                   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2>รีเซ็ตรหัสผ่านบัญชี Tear of God</h2>
                     <p>เราได้รับคำขอให้ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ</p>
-                    <p>กรุณาคลิกปุ่มด้านล่างเพื่อตั้งรหัสผ่านใหม่:</p>
-                    <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #4f46e5; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 16px 0;">ตั้งรหัสผ่านใหม่</a>
-                    <p style="color: #666; font-size: 14px;">ลิงก์นี้มีอายุการใช้งานตามที่ระบบกำหนด (1 ชั่วโมง)</p>
+                    <p>กรอกรหัสยืนยันนี้ในหน้ารีเซ็ตรหัสผ่าน:</p>
+                    <p style="font-size: 32px; letter-spacing: 8px; font-weight: bold; margin: 24px 0;">${code}</p>
+                    <p style="color: #666; font-size: 14px;">รหัสนี้ใช้ได้ครั้งเดียวและหมดอายุใน 10 นาที อย่าเปิดเผยรหัสนี้ให้ผู้อื่น</p>
                     <p style="color: #666; font-size: 14px;">หากคุณไม่ได้เป็นผู้ร้องขอให้เปลี่ยนรหัสผ่าน โปรดเพิกเฉยต่ออีเมลฉบับนี้</p>
                   </div>
                 `
@@ -185,29 +192,43 @@ export async function onRequest({ request, env, data: auth }) {
           }
         }
       }
-      return reply({ success: true, message: 'หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งลิงก์สำหรับตั้งรหัสผ่านใหม่แล้ว' });
+      return reply({ success: true, message: 'หากอีเมลนี้มีอยู่ในระบบ เราได้ส่งรหัสยืนยัน 6 หลักแล้ว' });
+    }
+    if (action === 'verify_reset_code') {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || typeof payload.code !== 'string' || !/^\d{6}$/.test(payload.code)) {
+        return fail('กรอกอีเมลและรหัสยืนยัน 6 หลัก / Enter your email and six-digit code');
+      }
+      const codeHash = await digest(`reset-code:${email}:${payload.code}`);
+      const token = randomToken();
+      // Exchange the code atomically. Only the winning request receives a reset grant.
+      const verified = await db.prepare(`UPDATE password_resets SET token_hash = ? WHERE token_hash = ?
+        AND julianday(expires_at) > julianday('now')`).bind(await digest(token), codeHash).run();
+      if (!verified.meta.changes) return fail('รหัสไม่ถูกต้อง หมดอายุ หรือใช้แล้ว กรุณาขอรหัสใหม่ / Invalid, expired or used code');
+      return reply({ success: true, token });
     }
     if (action === 'reset_password') {
-      const { token, password: newPassword } = payload;
+      const { token, code, password: newPassword } = payload;
+      const legacyToken = typeof token === 'string' && /^[a-f0-9]{64}$/.test(token);
+      const validCode = typeof code === 'string' && /^\d{6}$/.test(code) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
       
-      if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) {
+      if (!legacyToken && !validCode) {
         return fail('ข้อมูลไม่ถูกต้อง');
       }
       if (!validPassword(newPassword)) {
         return fail('รหัสผ่านต้องมี 8–256 ตัวอักษร');
       }
 
-      const tokenHash = await digest(token);
+      const tokenHash = await digest(legacyToken ? token : `reset-code:${email}:${code}`);
       const pr = await db.prepare(`SELECT user_id,
         CASE WHEN julianday(expires_at) > julianday('now') THEN 0 ELSE 1 END AS expired
         FROM password_resets WHERE token_hash = ?`).bind(tokenHash).first();
       
       if (!pr) {
-        return fail('ลิงก์ไม่ถูกต้องหรือถูกใช้งานไปแล้ว');
+        return fail('รหัสยืนยันไม่ถูกต้องหรือถูกใช้งานไปแล้ว / Invalid or used reset code');
       }
       if (pr.expired) {
         await db.prepare('DELETE FROM password_resets WHERE token_hash = ?').bind(tokenHash).run();
-        return fail('ลิงก์หมดอายุแล้ว กรุณาขอลิงก์ใหม่');
+        return fail('รหัสยืนยันหมดอายุแล้ว กรุณาขอรหัสใหม่ / Reset code expired');
       }
 
       const hashedNew = await hashPassword(newPassword);

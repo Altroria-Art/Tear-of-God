@@ -40,7 +40,7 @@ export default function ForgotPassword() {
         <h2 className="mt-5 text-3xl font-black text-ink">{t('auth.resetLinkSentTitle')}</h2>
         <p className="mt-3 break-all font-bold text-ink-soft">{email}</p>
         <p className="mt-3 text-sm leading-6 text-muted">{t('auth.resetLinkSentDesc')} {t('auth.spamFolderNotice')}</p>
-        <Link className="club-primary mt-7 flex min-h-12 items-center justify-center gap-2" to="/login"><ArrowLeft size={18} />{t('auth.backToLogin')}</Link>
+        <Link className="club-primary mt-7 flex min-h-12 items-center justify-center gap-2" to="/reset-password" state={{ email: email.trim().toLowerCase() }}>{t('auth.enterResetCode')}</Link>
         <button type="button" onClick={() => { setSuccess(false); setErrorMsg(''); }} className="mt-4 min-h-11 w-full text-sm font-bold text-ink-soft underline underline-offset-4">{t('auth.didNotReceiveEmail')}</button>
       </> : <>
         <span className="club-serial">01 / {t('auth.recovery')}</span>

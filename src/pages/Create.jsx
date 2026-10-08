@@ -1,3 +1,5 @@
+import BackButton from '../components/ui/BackButton';
+import { ArrowLeft as BackArrow } from 'lucide-react';
 import TearMascot from '../components/ui/TearMascot';
 import DropZone from '../components/tier/DropZone';
 import PlayHeader from '../components/ui/PlayHeader';
@@ -428,6 +430,7 @@ const CreateTierList = () => {
 
   return (
     <div className="create-page min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
+<BackButton fallback="/" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-soft bg-surface px-3 text-sm text-ink-soft hover:text-ink mb-3"><BackArrow size={16} /><span>{t('common.back')}</span></BackButton>
 
 {/* POPUP SETTINGS MODAL */}
       <Modal open={!!activeSettingsTier} onClose={closeSettings} title={t('create.chooseLabelBg')} variant="editor">

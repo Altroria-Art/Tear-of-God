@@ -1,3 +1,5 @@
+import BackButton from '../components/ui/BackButton';
+import { ArrowLeft as BackArrow } from 'lucide-react';
 import TierLoader from '../components/ui/TierLoader';
 import DropZone from '../components/tier/DropZone';
 import { getInsertIndexFromZone, groupEditorItems } from '../lib/editorBoard';
@@ -338,6 +340,7 @@ const RankTierList = () => {
   return (
     <div className="rank-page min-h-screen font-sans text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-5 sm:pb-32 flex-1 flex flex-col gap-3">
+<BackButton fallback={templateId ? `/template/${encodeURIComponent(templateId)}` : "/discover/templates"} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-soft bg-surface px-3 text-sm text-ink-soft hover:text-ink mb-3"><BackArrow size={16} /><span>{t('common.back')}</span></BackButton>
         <header className="rank-intro">
           <h1 className="text-xl sm:text-2xl font-black">{t(isDuel ? 'play.duelTitle' : 'play.rankTitle')}</h1>
           <p className="mt-1 text-sm text-ink-soft">{t('play.rankDescription')}</p>

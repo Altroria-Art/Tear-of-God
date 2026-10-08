@@ -1,6 +1,7 @@
+import BackButton from '../components/ui/BackButton';
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Download, BarChart3, Users } from 'lucide-react'
+import { Download, Users } from 'lucide-react'
 import { buildCommunityRows, compareCommunityRanking } from '../lib/communityComparison'
 import ActionButton from '../components/feed/ActionButton'
 import TierRow from '../components/feed/TierRow'
@@ -27,6 +28,7 @@ import {
 import { formatCount, timeAgo } from '../lib/format'
 import { shareUrl } from '../lib/share'
 import { createPendingGuard } from '../lib/pendingGuard'
+import useLiveRefresh from '../lib/useLiveRefresh'
 import { useTranslation } from 'react-i18next'
 
 // หน้าแสดง Community Average ของเทมเพลต — เลียนแบบหน้า post ของ ranking ปกติ (PostDetail)
@@ -42,7 +44,7 @@ function CommunityAverageContent() {
   const { currentUser } = useUser()
   const currentUserId = currentUser?.id
   const toast = useToast()
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [modal, setModal] = useState(null) // 'share' | 'export' | null
   const [chartModal, setChartModal] = useState(false)
   const [periodDays, setPeriodDays] = useState(0)
@@ -68,40 +70,42 @@ function CommunityAverageContent() {
     async function load() {
       setIsLoading(true)
       setLoadError('')
-      const [tplRes, reactRes] = await Promise.all([
-        fetchTemplate(templateId, { period: periodDays ? { days: periodDays } : null }),
-        currentUserId ? fetchTemplateReaction({ templateId, userId: currentUserId }) : Promise.resolve(null)
-      ])
+      const tplRes = await fetchTemplate(templateId, { period: periodDays ? { days: periodDays } : null })
       if (cancelled) return
       if (tplRes.data) {
         setTemplate(tplRes.data)
-        setCommentCount(tplRes.data.stats?.comments || 0)
       }
       setLoadError(tplRes.error || '')
-      setReaction({ userVote: reactRes?.userVote ?? null, likes: reactRes?.likes ?? tplRes.data?.stats?.likes ?? 0, dislikes: reactRes?.dislikes ?? tplRes.data?.stats?.dislikes ?? 0 })
       setIsLoading(false)
     }
     load()
     return () => { cancelled = true }
   }, [templateId, currentUserId, periodDays])
 
-  // ดึงคอมเมนต์ของ Community Average นี้
-  useEffect(() => {
-    if (!templateId) return
-    let cancelled = false
-    const unknownUser = t('common.unknownUser')
-    fetchTemplateComments(templateId).then((res) => {
-      if (cancelled) return
-      setComments((res.data || []).map((c) => ({
+  useLiveRefresh({
+    resourceKey: templateId + ':' + (currentUserId || 'guest'),
+    load: async signal => {
+      const [commentResult, reactionResult] = await Promise.all([
+        fetchTemplateComments(templateId, { signal }),
+        fetchTemplateReaction({ templateId, signal }),
+      ]);
+      return { ...commentResult, reactionResult };
+    },
+    matches: change => ['/api/template-comments', '/api/admin/comments', '/api/template-votes'].includes(change.path)
+      && (!change.templateId || change.templateId === templateId),
+    apply: result => {
+      setComments((result.data || []).map(c => ({
         id: c.id,
-        author: { id: c.user_id, name: c.username || unknownUser, avatarUrl: c.avatar_url },
-        createdAt: c.created_at,
-        body: c.content,
-        parentId: c.parent_id
-      })))
-    })
-    return () => { cancelled = true }
-  }, [templateId, i18n.language, t])
+        author: { id: c.user_id, name: c.username || t('common.unknownUser'), avatarUrl: c.avatar_url },
+        createdAt: c.created_at, body: c.content, parentId: c.parent_id,
+      })));
+      setCommentCount(result.comments_count ?? result.data.length);
+      if (result.reactionResult.success !== false) {
+        const snapshot = result.reactionResult;
+        setReaction({ userVote: snapshot.userVote ?? null, likes: snapshot.likes, dislikes: snapshot.dislikes });
+      }
+    },
+  });
 
   // ดึง ranking ล่าสุดของผู้ใช้บนเทมเพลตนี้ — ใช้เทียบ "ของฉัน vs ชุมชน"
   // (mine=1: server ใช้ session user เอง ไม่เชื่อ author_id จาก client; คืนแค่
@@ -207,8 +211,8 @@ function CommunityAverageContent() {
         body: body.trim(),
         parentId: parentId || null
       }
-      setComments((c) => [newComment, ...c])
-      setCommentCount((n) => n + 1)
+      setComments(c => c.some(comment => comment.id === newComment.id) ? c : [newComment, ...c])
+      setCommentCount(n => res.comments_count ?? n + 1)
       return true
     } else {
       toast.error(t('post.commentFailed', { msg: res.error || t('common.error') }))
@@ -248,13 +252,14 @@ function CommunityAverageContent() {
   const chartItems = avgTiers.flatMap(row => row.items.map(item => ({ id: item.id, name: item.name, avg: item.avg, votes: item.votes })))
   const totalPlacements = chartItems.reduce((n, item) => n + item.votes, 0)
   const myComparison = compareCommunityRanking(avgTiers, myRanking)
+  const differences = myComparison.filter(item => item.gap !== 0)
 
   return (
-    <main className="community-social mx-auto max-w-5xl px-4 sm:px-6 py-5">
+    <main className="community-social mx-auto max-w-6xl px-4 sm:px-6 py-5">
       <header className="mb-5">
-        <Link to={`/template/${encodeURIComponent(templateId)}`} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-ink">
-          <ArrowLeftIcon className="h-4 w-4" />{t('template.viewTemplate')}
-        </Link>
+        <BackButton fallback={`/template/${encodeURIComponent(templateId)}`} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-ink">
+          <ArrowLeftIcon className="h-4 w-4" />{t('common.back')}
+        </BackButton>
         <p className="text-xs font-bold text-highlight">{t('play.communityTitle')}</p>
         <h1 className="mt-1 text-2xl sm:text-3xl font-black text-ink break-words">{template.title}</h1>
         <p className="mt-2 text-sm text-ink-soft">{t('social.aggregateContext')}</p>
@@ -272,30 +277,9 @@ function CommunityAverageContent() {
         </div>
       </header>
 
-      <section aria-labelledby="your-community-heading" className="community-comparison rounded-2xl border border-line-soft bg-surface p-4 sm:p-5">
-        <h2 id="your-community-heading" className="text-lg font-bold text-ink">{t('stats.vsCommunity')}</h2>
-        {myRankingStatus === 'loading' || isLoading ? <p role="status" className="mt-2 text-sm text-muted">{t('common.loading')}</p>
-          : loadError || myRankingStatus === 'error' ? <p role="alert" className="mt-2 text-sm text-muted">{t('social.comparisonUnavailable')}</p>
-          : !myRanking ? <>
-            <p className="mt-2 text-sm text-ink-soft">{t('social.compareHint')}</p>
-            <Link to={`/rank?template=${encodeURIComponent(templateId)}`} className="play-button mt-3">{t('social.rankToCompare')}</Link>
-          </> : <>
-            <p className="mt-2 text-xs text-muted">{t('social.comparisonContext')}</p>
-            {myComparison.length ? <ul className="mt-3 divide-y divide-line-soft">
-              {myComparison.slice(0,5).map(item => <li key={item.id} className="py-3">
-                <p className="text-sm font-semibold text-ink break-words">{t(item.gap === 0 ? 'social.same' : item.gap < 0 ? 'social.higher' : 'social.lower', { name: item.name, count: Math.abs(item.gap) })}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span>{t('social.yours')}</span><TierLabel label={item.myTier} color={item.myColor} className="min-h-7 rounded px-2 text-xs font-bold" />
-                  <span>{t('template.communityAverage')}</span><TierLabel label={item.commTier} color={item.commColor} className="min-h-7 rounded px-2 text-xs font-bold" />
-                </div>
-              </li>)}
-            </ul> : <p className="mt-3 text-sm text-muted">{t('social.noComparableItems')}</p>}
-            {myComparison.length > 5 && <p className="mt-2 text-xs text-muted">{t('social.topDifferences', { count: 5, total: myComparison.length })}</p>}
-            <Link to={`/post/${encodeURIComponent(myRanking.id)}`} className="opinion-secondary mt-3">{t('social.viewYours')}</Link>
-          </>}
-      </section>
-
-      <article className="community-result mt-5 rounded-2xl border border-line-soft bg-surface p-4 sm:p-5" aria-busy={isLoading}>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+      <div className="min-w-0 space-y-8">
+      <article className="community-result rounded-2xl border border-line-soft bg-surface p-4 sm:p-5" aria-busy={isLoading}>
         <h2 className="text-lg font-bold text-ink">{t('social.communityBoard')}</h2>
         {!isLoading && !loadError && <p className="mt-1 text-xs text-muted">{t('social.periodItems', { count: itemCount })} · {t('template.updated', { time: updatedAt ? timeAgo(updatedAt) : '—' })}</p>}
         {isLoading ? <p role="status" className="py-4 text-sm text-muted">{t('common.loading')}</p>
@@ -319,20 +303,45 @@ function CommunityAverageContent() {
         </div>
       </article>
 
+      <section aria-labelledby="community-stats-heading">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 id="community-stats-heading" className="text-xl font-bold text-ink">{t('stats.title')}</h2>
+          <button type="button" onClick={() => setChartModal(true)} className="opinion-secondary gap-2"><Download size={14} />{t('common.export')}</button>
+        </div>
+        {isLoading ? <p role="status">{t('common.loading')}</p> : loadError ? <p role="alert">{loadError}</p> : itemCount === 0 ? <p>{t('social.noPeriodData')}</p> : <div className="max-h-[560px] overflow-y-auto rounded-2xl border border-line-soft"><CommunityAvgStatsChart title={template.title + ' · ' + t('stats.title')} subtitle={t('stats.subtitle', { totalItems: itemCount, totalVotes: totalPlacements })} items={chartItems} maxScore={tiersDef.length} topN={chartItems.length} /></div>}
+      </section>
+      <section aria-labelledby="your-community-heading" className="community-comparison community-data-section pt-6">
+        <h2 id="your-community-heading" className="text-lg font-bold text-ink">{t('stats.vsCommunity')}</h2>
+        {myRankingStatus === 'loading' || isLoading ? <p role="status" className="mt-2 text-sm text-muted">{t('common.loading')}</p>
+          : loadError || myRankingStatus === 'error' ? <p role="alert" className="mt-2 text-sm text-muted">{t('social.comparisonUnavailable')}</p>
+          : !myRanking ? <>
+            <p className="mt-2 text-sm text-ink-soft">{t('social.compareHint')}</p>
+            <Link to={`/rank?template=${encodeURIComponent(templateId)}`} className="play-button mt-3">{t('social.rankToCompare')}</Link>
+          </> : <>
+            <p className="mt-2 text-xs text-muted">{t('stats.matched', { match: myComparison.filter(item => item.gap === 0).length, total: myComparison.length })}</p>
+            {myComparison.length ? <ul className="mt-3 divide-y divide-line-soft">
+              {differences.slice(0,5).map(item => <li key={item.id} className="community-compare-row flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <p className="text-sm font-semibold text-ink break-words">{item.name}</p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <TierLabel label={item.myTier} color={item.myColor} className="min-h-7 rounded px-2 text-xs font-bold" />
+                  <span aria-hidden="true" className={item.gap < 0 ? 'text-vote-down' : 'text-vote-up'}>{item.gap < 0 ? '↗' : '↘'}</span><TierLabel label={item.commTier} color={item.commColor} className="min-h-7 rounded px-2 text-xs font-bold" /><span className={item.gap < 0 ? 'font-bold text-vote-down' : 'font-bold text-vote-up'}>{t(item.gap < 0 ? 'stats.higher' : 'stats.lower', { n: Math.abs(item.gap) })}</span>
+                </div>
+              </li>)}
+            </ul> : <p className="mt-3 text-sm text-muted">{t('social.noComparableItems')}</p>}
+            {differences.length > 5 && <p className="mt-2 text-xs text-muted">{t('social.topDifferences', { count: 5, total: differences.length })}</p>}
+            <Link to={`/post/${encodeURIComponent(myRanking.id)}`} className="opinion-secondary mt-3">{t('social.viewYours')}</Link>
+          </>}
+      </section>
       <CommentSection comments={comments} onSubmit={handleAddComment} onReportComment={handleReportComment} onDeleteComment={handleDeleteComment} inputRef={commentInputRef} prompt={t('social.discussionPrompt')} />
 
-      <details className="community-details mt-5 rounded-2xl border border-line-soft bg-surface p-4 sm:p-5">
-        <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-bold text-ink"><BarChart3 size={16} />{t('social.details')}</summary>
-        {isLoading ? <p className="mt-3 text-sm text-muted">{t('common.loading')}</p> : loadError ? <p className="mt-3 text-sm text-muted">{loadError}</p> : <>
-          <p className="mt-2 text-xs text-muted">{t('stats.subtitle', { totalItems: itemCount, totalVotes: totalPlacements })}</p>
-          <p className="mt-2 text-xs text-muted">{t('social.scoreExplanation', { count: tiersDef.length })}</p>
-          <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm">
-            <thead><tr className="border-b border-line-soft text-xs text-muted"><th scope="col" className="py-2 pr-2">{t('stats.item')}</th><th scope="col" className="py-2 px-2">{t('stats.avg')}</th><th scope="col" className="py-2 pl-2">{t('stats.votes')}</th></tr></thead>
-            <tbody>{chartItems.map(item => <tr key={item.id} className="border-b border-line-soft"><th scope="row" className="py-3 pr-2 font-medium break-words">{item.name}</th><td className="px-2">{item.avg}</td><td className="pl-2">{formatCount(item.votes)}</td></tr>)}</tbody>
-          </table></div>
-          <button type="button" onClick={() => setChartModal(true)} className="opinion-secondary mt-3 gap-2"><Download size={14} />{t('common.export')}</button>
-        </>}
-      </details>
+      </div>
+      <aside className="community-about-strip p-4 lg:sticky lg:top-24">
+        <h2 className="font-bold text-ink">{template.title}</h2>
+        {template.description && <p className="mt-2 text-sm text-muted whitespace-pre-wrap">{template.description}</p>}
+        <p className="mt-3 text-xs text-muted">{t('social.allTimeRankings', { count: Number(template.stats?.uses) || 0 })}</p>
+        <Link to={`/template/${encodeURIComponent(templateId)}`} className="play-button mt-4">{t('template.viewTemplate')}</Link>
+      </aside>
+      </div>
 
           <ShareExportModal
             open={modal !== null}

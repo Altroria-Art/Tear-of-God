@@ -21,11 +21,11 @@ assert.equal(shouldPollTick({ userId: null, visible: true, now: 999999, lastRefr
 assert.equal(shouldPollTick({ userId: '', visible: true, now: 999999, lastRefreshAt: 0 }), false);
 console.log('CASE 1 passed: logged-out polling triggers are dead');
 
-// CASE 3 — visible tab keeps the ~5-minute cadence (interval itself unchanged).
-assert.equal(POLL_INTERVAL_MS, 300000, 'polling interval must stay 5 minutes');
+// CASE 3 — visible tab keeps the ten-second cadence.
+assert.equal(POLL_INTERVAL_MS, 10000, 'notifications should arrive within ten seconds');
 {
   let last = 0;
-  for (const tick of [300000, 600000, 900000]) {
+  for (const tick of [10000, 20000, 30000]) {
     assert.equal(
       shouldPollTick({ userId: 'u1', visible: true, now: tick, lastRefreshAt: last }),
       true,
@@ -34,12 +34,12 @@ assert.equal(POLL_INTERVAL_MS, 300000, 'polling interval must stay 5 minutes');
     last = tick; // component stamps lastRefreshAt on every refresh
   }
   assert.equal(
-    shouldPollTick({ userId: 'u1', visible: true, now: 900000 + 59000, lastRefreshAt: 900000 }),
+    shouldPollTick({ userId: 'u1', visible: true, now: 30000 + 999, lastRefreshAt: 30000 }),
     false,
     'off-cadence tick must not fire',
   );
 }
-console.log('CASE 3 passed: visible 15-minute cadence preserved');
+console.log('CASE 3 passed: visible ten-second cadence');
 
 // CASE 4 — hidden tab: interval ticks never fetch.
 for (const now of [300000, 3600000, 86400000]) {
@@ -51,13 +51,13 @@ for (const now of [300000, 3600000, 86400000]) {
 }
 console.log('CASE 4 passed: hidden tab fires zero notification requests');
 
-// CASE 5/6 — hidden -> visible: refresh iff stale under the unchanged 60s guard.
-assert.equal(VISIBILITY_STALE_MS, 60000, 'visibility freshness guard must stay 60s');
-assert.equal(shouldRefreshOnVisible({ now: 61000, lastRefreshAt: 0 }), true);
-assert.equal(shouldRefreshOnVisible({ now: 60000, lastRefreshAt: 0 }), true);
-assert.equal(shouldRefreshOnVisible({ now: 59999, lastRefreshAt: 0 }), false);
-assert.equal(shouldRefreshOnVisible({ now: 30000, lastRefreshAt: 0 }), false);
-console.log('CASE 5/6 passed: visible-again refresh honors the 60s guard');
+// CASE 5/6 — hidden -> visible: refresh iff stale under the one-second collision guard.
+assert.equal(VISIBILITY_STALE_MS, 1000);
+assert.equal(shouldRefreshOnVisible({ now: 1001, lastRefreshAt: 0 }), true);
+assert.equal(shouldRefreshOnVisible({ now: 1000, lastRefreshAt: 0 }), true);
+assert.equal(shouldRefreshOnVisible({ now: 999, lastRefreshAt: 0 }), false);
+assert.equal(shouldRefreshOnVisible({ now: 500, lastRefreshAt: 0 }), false);
+console.log('CASE 5/6 passed: visible-again refresh honors the collision guard');
 
 // CASE 7/8 — concurrent triggers share one request.
 {
@@ -90,8 +90,8 @@ console.log('CASE 5/6 passed: visible-again refresh honors the 60s guard');
 
 // CASE 9/10 — menu-open reuse window: fresh skips, stale fetches.
 {
-  assert.ok(MENU_REUSE_WINDOW_MS <= 15000 && MENU_REUSE_WINDOW_MS < VISIBILITY_STALE_MS);
-  assert.equal(shouldReuseFreshFetch({ now: 105000, lastSuccessAt: 100000 }), true);
+  assert.ok(MENU_REUSE_WINDOW_MS <= 15000 && MENU_REUSE_WINDOW_MS <= VISIBILITY_STALE_MS);
+  assert.equal(shouldReuseFreshFetch({ now: 100500, lastSuccessAt: 100000 }), true);
   assert.equal(shouldReuseFreshFetch({ now: 100000 + MENU_REUSE_WINDOW_MS - 1, lastSuccessAt: 100000 }), true);
   assert.equal(shouldReuseFreshFetch({ now: 100000 + MENU_REUSE_WINDOW_MS, lastSuccessAt: 100000 }), false);
   assert.equal(shouldReuseFreshFetch({ now: 200000, lastSuccessAt: 100000 }), false);
@@ -184,7 +184,7 @@ console.log('CASE 5/6 passed: visible-again refresh honors the 60s guard');
   const navbarSource = await readFile(new URL('../../src/components/layout/Navbar.jsx', import.meta.url), 'utf8');
   assert.ok(navbarSource.includes('{currentUser && <NotificationMenu'), 'menu mounts only when logged in');
   const componentSource = await readFile(new URL('../../src/components/layout/NotificationMenu.jsx', import.meta.url), 'utf8');
-  assert.ok(componentSource.includes('if (!userId) return undefined;'), 'effect stays dead without a user');
+  assert.ok(componentSource.includes('enabled: !!userId'), 'effect stays dead without a user');
   console.log('CASE 2 passed: login mounts (initial fetch), logout unmounts (polling ends)');
 }
 

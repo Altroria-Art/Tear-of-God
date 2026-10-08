@@ -1,6 +1,7 @@
+import BackButton from '../components/ui/BackButton';
 import TierLoader from '../components/ui/TierLoader';
 import { useState, useEffect, useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Filter } from 'lucide-react';
 import { fetchHashtags } from '../lib/api';
 import HashtagPill from '../components/discover/HashtagPill';
@@ -97,12 +98,11 @@ export default function PopularHashtags() {
       <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link
-              to="/discover"
+            <BackButton fallback="/discover"
               className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"
             >
               <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
+            </BackButton>
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-ink">{t('discover.popularHashtags')}</h1>
               <p className="text-sm text-muted">{total.toLocaleString()} {t('common.hashtags')}</p>

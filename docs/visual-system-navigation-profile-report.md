@@ -92,7 +92,7 @@ Taste summary อธิบายว่าเป็นหัวข้อและ
 | 1280×800 | ผ่าน | ผ่าน | Desktop |
 | 1440×900 | ผ่าน | ผ่าน | Desktop |
 
-Create/Rank ใช้ editor navigation ตามข้อ 6 ผลวัดขนาดจริงตรงกับ viewport ที่ร้องขอและไม่พบ positive horizontal overflow ใน matrix ดู [ข้อมูลตรวจจริง](../artifacts/visual-system-navigation-profile/responsive-audit.json)
+Create/Rank ใช้ editor navigation ตามข้อ 6 ผลวัดขนาดจริงตรงกับ viewport ที่ร้องขอและไม่พบ positive horizontal overflow ใน matrix ดู ข้อมูลตรวจจริง (local capture removed)
 
 ตรวจเพิ่มภาษาไทย Home/Profile/own Profile/Community ที่ 320, 390, 820 ทั้งสอง theme, guest nav ที่ 320/390/768/820/1024 และ Dark ที่ 390/820/1024, guest Saved entry, Ctrl+K และ query ภาษาไทย, Discover ทั้ง quiet และ populated Last week, Profile editor, Duel tab, education disclosure, ชื่อยาวที่สุดในข้อมูล local และ empty Profile
 
@@ -135,24 +135,24 @@ Auth/Discover ใช้ Miniflare D1 ชั่วคราวแยกจาก�
 
 ## 14. Screenshots ก่อน / หลัง
 
-เก็บก่อนแก้ครบ 10 หน้าที่ 1280 ทั้งสอง theme ภาพหลังมี desktop/mobile, own Profile, tablet, ภาษาไทย, guest และ edge states ใน [evidence directory](../artifacts/visual-system-navigation-profile/)
+เก็บก่อนแก้ครบ 10 หน้าที่ 1280 ทั้งสอง theme ภาพหลังมี desktop/mobile, own Profile, tablet, ภาษาไทย, guest และ edge states ใน evidence directory (local capture removed)
 
 | หน้า (Light 1280) | ก่อน | หลัง |
 | --- | --- | --- |
-| Home | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-home-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-home-1280.jpg) |
-| Discover | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-discover-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-discover-1280.jpg) |
-| All Topics | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-topics-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-topics-1280.jpg) |
-| Topic Detail | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-topic-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-topic-1280.jpg) |
-| Rank | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-rank-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-rank-1280.jpg) |
-| Create | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-create-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-create-1280.jpg) |
-| Post | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-post-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-post-1280.jpg) |
-| Community | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-community-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-community-1280.jpg) |
-| Profile | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-profile-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-profile-1280.jpg) |
-| Login | [ก่อน](../artifacts/visual-system-navigation-profile/before-light-login-1280.jpg) | [หลัง](../artifacts/visual-system-navigation-profile/after-light-login-1280.jpg) |
+| Home | ก่อน (local capture removed) | หลัง (local capture removed) |
+| Discover | ก่อน (local capture removed) | หลัง (local capture removed) |
+| All Topics | ก่อน (local capture removed) | หลัง (local capture removed) |
+| Topic Detail | ก่อน (local capture removed) | หลัง (local capture removed) |
+| Rank | ก่อน (local capture removed) | หลัง (local capture removed) |
+| Create | ก่อน (local capture removed) | หลัง (local capture removed) |
+| Post | ก่อน (local capture removed) | หลัง (local capture removed) |
+| Community | ก่อน (local capture removed) | หลัง (local capture removed) |
+| Profile | ก่อน (local capture removed) | หลัง (local capture removed) |
+| Login | ก่อน (local capture removed) | หลัง (local capture removed) |
 
-Mobile Profile: [ก่อน](../artifacts/visual-system-navigation-profile/before-light-profile-390.jpg) / [หลัง](../artifacts/visual-system-navigation-profile/after-light-profile-390.jpg); [own ก่อน](../artifacts/visual-system-navigation-profile/before-light-own-profile-390.jpg) / [own หลัง](../artifacts/visual-system-navigation-profile/after-light-own-profile-390.jpg)
+Mobile Profile: ก่อน (local capture removed) / หลัง (local capture removed); own ก่อน (local capture removed) / own หลัง (local capture removed)
 
-เพิ่มเติม: [tablet](../artifacts/visual-system-navigation-profile/after-light-own-profile-820.jpg), [Thai](../artifacts/visual-system-navigation-profile/after-light-th-own-profile-390.jpg), [Dark Profile](../artifacts/visual-system-navigation-profile/after-dark-profile-390.jpg), [empty](../artifacts/visual-system-navigation-profile/after-light-empty-profile-content-320.jpg), [long name](../artifacts/visual-system-navigation-profile/after-dark-long-name-profile-320.jpg), [populated Discover](../artifacts/visual-system-navigation-profile/after-dark-discover-last-week-390.jpg), [guest](../artifacts/visual-system-navigation-profile/after-guest-home-820.jpg)
+เพิ่มเติม: tablet (local capture removed), Thai (local capture removed), Dark Profile (local capture removed), empty (local capture removed), long name (local capture removed), populated Discover (local capture removed), guest (local capture removed)
 
 ก่อน audit ส่วนใหญ่เป็น guest; หลัง audit รวม session ที่ login แล้ว จึงมี account/notification controls และ Community comparison ของบัญชีที่ใช้ตรวจ
 
@@ -161,3 +161,6 @@ Mobile Profile: [ก่อน](../artifacts/visual-system-navigation-profile/bef
 ไม่มี schema/migration, manual database mutation, auth backend, Community/ranking/recommendation algorithm, notification behavior, Duel logic, Profile API rewrite, Admin redesign, UI framework หรือ font ใหม่ ไม่ deploy production และไม่ merge PR
 
 คง editor workflow/sticky publish controls, item preview clamp, custom tier colors, timestamps, pagination, bookmark และ existing account operations ส่วน decoration เล็ก ๆ ของ mascot/brand ยังอยู่เพื่อรักษา personality ของเว็บ
+
+
+> Screenshot captures and local visual-audit artifacts were removed before publishing this repository. The implementation findings above are retained.

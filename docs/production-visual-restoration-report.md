@@ -50,11 +50,11 @@ Mobile/tablet: identity → Education disclosure พร้อม summary → Tas
 
 | PR #146 ก่อน | หลังคืน Production visual |
 | --- | --- |
-| ![Profile before](../artifacts/production-visual-restoration/profile-pr146-before-1280.jpg) | ![Profile restored](../artifacts/production-visual-restoration/local-profile-1280.jpg) |
+| Profile before | Profile restored |
 
 54 browser cases ใช้ 3 / 20 / 100 / 0 rankings, ชื่อไทยยาว และ identity ไม่มี Education/Taste data ทุกขนาดหน้าจอ ผ่าน DOM order, overflow และ sticky height checks สำหรับ 100 rankings ตรวจแรก 50 ใบ และกด Next แล้วได้ครบ 100 โดย Education/Taste ยังอยู่ก่อน feed
 
-[Profile geometry](../artifacts/production-visual-restoration/profile-results.json) · [100 rankings](../artifacts/production-visual-restoration/profile-pagination-result.json) · [Education expanded](../artifacts/production-visual-restoration/profile-education-expanded-390.jpg) · [Taste dialog](../artifacts/production-visual-restoration/profile-taste-dialog-390.jpg)
+Profile geometry (local capture removed) · 100 rankings (local capture removed) · Education expanded (local capture removed) · Taste dialog (local capture removed)
 
 ## 5. Auth state result
 
@@ -64,7 +64,7 @@ Browser ตรวจ 36 transitions ที่ 9 widths: password ทั้งส
 
 Guest browser flow: Topic → Rank mine → assign item → reload แสดง draft restored และ `1 / 2 ranked` → Publish ไป `/login?next=%2Frank%3Ftemplate%3Dtopic0` ไม่ส่ง signup/login form หรือสร้าง ranking
 
-[Auth results](../artifacts/production-visual-restoration/auth-results.json) · [Register 1280](../artifacts/production-visual-restoration/local-register-1280.jpg) · [Guest draft](../artifacts/production-visual-restoration/guest-rank-draft-390.jpg) · [Publish login gate](../artifacts/production-visual-restoration/guest-publish-login-390.jpg)
+Auth results (local capture removed) · Register 1280 (local capture removed) · Guest draft (local capture removed) · Publish login gate (local capture removed)
 
 ## 6. Production vs local screenshots
 
@@ -72,23 +72,23 @@ Guest browser flow: Topic → Rank mine → assign item → reload แสดง 
 
 ผล visual review: charcoal/lime/violet, tactile buttons, stickers, demo board, cyan Quick Add และ Profile sidebar ทำให้รู้สึกเป็น product เดียวกับ Production อย่างชัดเจน ความต่างที่ยังเห็นเป็น hierarchy/workspace ที่ตั้งใจเก็บ และข้อมูล fixture ต่างจาก live data ไม่ใช่ pixel-exact restoration
 
-Full Production captures มีข้อมูลบัญชีจริง จึงเก็บเฉพาะในเครื่องที่ `.wrangler/production-visual-reference/` (ignored) ไม่รวมใน commit เปิด gallery เทียบสองคอลัมน์ได้ที่ **`.wrangler/production-visual-reference/compare.html`** ทุกคู่ตรวจ innerWidth/innerHeight จริงแล้ว ดู [comparison viewport evidence](../artifacts/production-visual-restoration/comparison-viewports.json) ภาพที่เผยแพร่ด้านล่างทั้งหมดเป็น synthetic fixture
+Full Production captures มีข้อมูลบัญชีจริง จึงเก็บเฉพาะในเครื่องที่ `.wrangler/production-visual-reference/` (ignored) ไม่รวมใน commit เปิด gallery เทียบสองคอลัมน์ได้ที่ **`.wrangler/production-visual-reference/compare.html`** ทุกคู่ตรวจ innerWidth/innerHeight จริงแล้ว ดู comparison viewport evidence (local capture removed) ภาพที่เผยแพร่ด้านล่างทั้งหมดเป็น synthetic fixture
 
 | หน้า | Local 1280 | Local 390 |
 | --- | --- | --- |
-| Home | [ภาพ](../artifacts/production-visual-restoration/local-home-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-home-390.jpg) |
-| Discover | [ภาพ](../artifacts/production-visual-restoration/local-discover-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-discover-390.jpg) |
-| Create | [ภาพ](../artifacts/production-visual-restoration/local-create-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-create-390.jpg) |
-| Topic | [ภาพ](../artifacts/production-visual-restoration/local-topic-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-topic-390.jpg) |
-| Post | [ภาพ](../artifacts/production-visual-restoration/local-post-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-post-390.jpg) |
-| Rank | [ภาพ](../artifacts/production-visual-restoration/local-rank-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-rank-390.jpg) |
-| Community | [ภาพ](../artifacts/production-visual-restoration/local-community-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-community-390.jpg) |
-| Profile | [ภาพ](../artifacts/production-visual-restoration/local-profile-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-profile-390.jpg) |
-| Login | [ภาพ](../artifacts/production-visual-restoration/local-login-1280.jpg) | [ภาพ](../artifacts/production-visual-restoration/local-login-390.jpg) |
+| Home | ภาพ (local capture removed) | ภาพ (local capture removed) |
+| Discover | ภาพ (local capture removed) | ภาพ (local capture removed) |
+| Create | ภาพ (local capture removed) | ภาพ (local capture removed) |
+| Topic | ภาพ (local capture removed) | ภาพ (local capture removed) |
+| Post | ภาพ (local capture removed) | ภาพ (local capture removed) |
+| Rank | ภาพ (local capture removed) | ภาพ (local capture removed) |
+| Community | ภาพ (local capture removed) | ภาพ (local capture removed) |
+| Profile | ภาพ (local capture removed) | ภาพ (local capture removed) |
+| Login | ภาพ (local capture removed) | ภาพ (local capture removed) |
 
-![Restored Home](../artifacts/production-visual-restoration/local-home-1280.jpg)
+Restored Home
 
-![Restored Login](../artifacts/production-visual-restoration/local-login-1280.jpg)
+Restored Login
 
 ## 7. Tests / build / lint
 
@@ -100,7 +100,7 @@ Regression **16 ชุดผ่าน** (เรียก `node tests/local/<name
 
 `editor-detail-regression`, `auth-regression`, `community-item-identity`, `community-social-loop`, `discover-pulse`, `template-card-preview-shapes`, `template-card-preview-comprehensive`, `page-meta-regression`, `profile-pagination-regression`, `profile-card-hashtags`, `profile-links-audit`, `primary-navigation-regression`, `profile-pinned-presentation`, `auth-mode-reset-regression`, `profile-placement-scalability-regression`, `discover-quiet-fallback-regression`
 
-[Regression results](../artifacts/production-visual-restoration/regression-results.json) · `git diff --check` ผ่าน
+Regression results (local capture removed) · `git diff --check` ผ่าน
 
 Auth backend regression ใช้ isolated local Miniflare D1 และไม่ส่ง email Browser ใช้ production build + read-only in-memory fixture server ที่ reject mutations ทั้งหมด ไม่มี production D1/R2 binding การตรวจนี้ไม่ได้อ้างว่าเป็นการ submit ranking หรือ Google sign-in E2E บน Production
 
@@ -110,10 +110,13 @@ Widths **320, 360, 390, 768, 820, 1024, 1280, 1440, 1920**; height 900px
 
 Final build: 9 หน้า × 9 widths × EN light / TH light / TH dark / EN dark = **324 checks** ไม่พบ horizontal overflow รอ page content แสดงก่อนวัด ไม่มี loading-only screenshots ในชุด final หลัก
 
-[EN light geometry](../artifacts/production-visual-restoration/responsive-results.json) · [Locale/theme geometry](../artifacts/production-visual-restoration/locale-theme-results.json) · [Guest navigation](../artifacts/production-visual-restoration/navigation-results.json)
+EN light geometry (local capture removed) · Locale/theme geometry (local capture removed) · Guest navigation (local capture removed)
 
-Discover เพิ่ม 27 กรณี: quiet มี 6 popular-topic cards, populated แสดง topic ที่มี activity โดยไม่มี quiet fallback และ fallback fetch failure ยังมี Explore links ไม่แสดงข้อมูล fabricated [ผลตรวจ](../artifacts/production-visual-restoration/discover-results.json)
+Discover เพิ่ม 27 กรณี: quiet มี 6 popular-topic cards, populated แสดง topic ที่มี activity โดยไม่มี quiet fallback และ fallback fetch failure ยังมี Explore links ไม่แสดงข้อมูล fabricated ผลตรวจ (local capture removed)
 
-ตรวจภาพ Thai/dark ที่ Home/Profile/Login บน 390 และทุกหน้าที่ desktop dark แล้ว Controls/editor layouts ยังใช้งานได้ [Thai Home](../artifacts/production-visual-restoration/local-home-390-th.jpg) · [Thai dark Login](../artifacts/production-visual-restoration/local-login-390-th-dark.jpg) · [Dark Create](../artifacts/production-visual-restoration/local-create-1280-dark.jpg)
+ตรวจภาพ Thai/dark ที่ Home/Profile/Login บน 390 และทุกหน้าที่ desktop dark แล้ว Controls/editor layouts ยังใช้งานได้ Thai Home (local capture removed) · Thai dark Login (local capture removed) · Dark Create (local capture removed)
 
 งานนี้เปิด PR ใหม่เพื่อ review เท่านั้น ไม่ merge และไม่ deploy; ไม่เปลี่ยนสถานะ PR #146 ซึ่งตรวจล่าสุดบน GitHub พบว่า CLOSED และ mergedAt เป็น null
+
+
+> Screenshot captures and local visual-audit artifacts were removed before publishing this repository. The implementation findings above are retained.

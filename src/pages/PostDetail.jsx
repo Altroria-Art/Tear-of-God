@@ -1,3 +1,4 @@
+import BackButton from '../components/ui/BackButton';
 import TopicRankActions from '../components/template/TopicRankActions';
 import { useState, useEffect, useRef } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
@@ -17,7 +18,8 @@ import UserFollowButton from '../components/user/UserFollowButton'
 import Modal from '../components/ui/Modal'
 
 // 📍 นำเข้า createComment มาใช้งาน
-import { fetchRanking, createComment, deleteComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking, deleteAdminRanking } from '../lib/api'
+import { fetchRanking, fetchComments, createComment, deleteComment, voteRanking, fetchTemplate, reportPost, reportComment, deleteRanking, deleteAdminRanking } from '../lib/api'
+import useLiveRefresh from '../lib/useLiveRefresh'
 import { buildTierRows } from '../lib/tiers'
 import { createPendingGuard } from '../lib/pendingGuard'
 import { formatDbDate } from '../lib/format'
@@ -120,6 +122,28 @@ function PostDetailContent() {
     return () => { cancelled = true }
   }, [postId, currentUser?.id, t])
 
+  useLiveRefresh({
+    resourceKey: `${postId}:${currentUser?.id || 'guest'}`,
+    enabled: !!post,
+    load: signal => fetchComments(postId, { signal }),
+    matches: change => ['/api/comments', '/api/admin/comments', '/api/votes', '/api/rankings'].includes(change.path)
+      && (!change.rankingId || change.rankingId === postId),
+    apply: result => {
+      setComments((result.data || []).map(c => ({
+        id: c.id,
+        author: { id: c.user_id, name: c.username || t('common.unknownUser'), avatarUrl: c.avatar_url },
+        createdAt: c.created_at, body: c.content, parentId: c.parent_id,
+      })));
+      if (result.stats) {
+        setUserVote(result.stats.user_vote ?? null);
+        setPost(previous => previous ? { ...previous, stats: {
+          ...previous.stats, likes: result.stats.likes ?? 0,
+          dislikes: result.stats.dislikes ?? 0, comments: result.stats.comments ?? 0,
+        } } : previous);
+      }
+    },
+  });
+
   // แยก effect ต่างหากจาก loadPost — loadPost มี currentUser เป็น dep แล้ว
   // ถ้ารวมกันจะยิง fetchTemplate ซ้ำทุกครั้งที่สถานะล็อกอินเปลี่ยน
   useEffect(() => {
@@ -197,14 +221,14 @@ function PostDetailContent() {
     }
     if (!body || !body.trim()) return;
 
-    const { data, error } = await createComment({
+    const { data, error, comments_count: count } = await createComment({
       ranking_id: postId,
       user_id: currentUser.id,
       content: body.trim(),
       parentId
     });
 
-    if (!error) {
+    if (data && !error) {
       const newComment = {
         id: data?.id || `comm_${Date.now()}`,
         author: {
@@ -216,10 +240,10 @@ function PostDetailContent() {
         body: body.trim(),
         parentId: parentId || null
       }
-      setComments(prev => [newComment, ...prev]);
+      setComments(prev => prev.some(comment => comment.id === newComment.id) ? prev : [newComment, ...prev]);
       setPost(prev => ({
         ...prev,
-        stats: { ...prev.stats, comments: prev.stats.comments + 1 }
+        stats: { ...prev.stats, comments: count ?? prev.stats.comments + 1 }
       }))
       return true;
     } else {
@@ -340,9 +364,9 @@ function PostDetailContent() {
     <main className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
-          <Link to="/" aria-label={t('common.backHome')} className="inline-flex h-11 w-11 items-center justify-center border border-line-soft text-ink-soft transition-colors hover:bg-surface">
+          <BackButton fallback="/" className="inline-flex h-11 w-11 items-center justify-center border border-line-soft text-ink-soft transition-colors hover:bg-surface">
             <ArrowLeftIcon className="h-5 w-5" />
-          </Link>
+          </BackButton>
 
           <article className="post-ranking-v2 mt-3 p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -460,7 +484,7 @@ function PostDetailContent() {
               </div>
             )}
 
-            <div ref={tableRef} className="post-board mt-5 min-w-0 max-w-full space-y-2 p-2">
+            <div ref={tableRef} className="post-board mt-5 min-w-0 max-w-full space-y-1.5">
               {tiers.map(({ tier, color, index, items }) => (
                 <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
               ))}

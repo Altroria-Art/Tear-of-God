@@ -1,6 +1,7 @@
+import BackButton from '../components/ui/BackButton';
 import TierLoader from '../components/ui/TierLoader';
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { fetchTemplates } from '../lib/api';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
@@ -70,15 +71,14 @@ export default function PopularTemplates() {
 
   return (
     <div className="text-ink font-sans min-h-screen flex flex-col">
-      <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
+      <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 py-12">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <Link
-              to="/discover"
+            <BackButton fallback="/discover"
               className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"
             >
               <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
+            </BackButton>
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-ink">{t('discover.popularTemplates')}</h1>
               <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
@@ -97,9 +97,9 @@ export default function PopularTemplates() {
         ) : templates.length === 0 ? (
           <p className="text-muted text-center py-10">{t('discover.emptyTemplates')}</p>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {templates.map((template) => (
-              <TemplateCard key={template.id} template={template} onUse={handleUseTemplate} />
+              <TemplateCard compact key={template.id} template={template} onUse={handleUseTemplate} />
             ))}
           </div>
         )}

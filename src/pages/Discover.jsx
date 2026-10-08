@@ -1,84 +1,22 @@
-import { useEffect, useState } from 'react';
+import HomeCommunityPulse from '../components/feed/HomeCommunityPulse';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, Bookmark, MessageCircle, Search, X, Info } from 'lucide-react';
+import { ArrowRight, Bookmark, X, ChevronDown, CircleHelp, Flame, Sparkles, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '../context/UserContext';
 import { useBookmarks } from '../context/BookmarkContext';
 import { trackEvent } from '../lib/analytics';
-import { fetchDiscoverPulse, fetchTemplates } from '../lib/api';
+import { fetchDiscoverPulse, fetchTemplates, fetchTemplate, fetchHashtags } from '../lib/api';
 import { loginPath } from '../lib/navigation';
 import TemplateCard from '../components/template/TemplateCard';
 import Pagination from '../components/ui/Pagination';
 import TearMascot from '../components/ui/TearMascot';
-import RipMark from '../components/ui/RipMark';
-import { selectDiscoverSections } from '../lib/discoverSections';
 
 const WINDOWS = ['now', 'today', 'week', 'last_week'];
 
-const getFallbackKey = (fallbackFrom, effective) => {
-  if (fallbackFrom === 'now' && effective === 'today') return 'pulse.fallbackNowToday';
-  if (fallbackFrom === 'now' && effective === 'week') return 'pulse.fallbackNowWeek';
-  if (fallbackFrom === 'today' && effective === 'week') return 'pulse.fallbackTodayWeek';
-  return 'pulse.fallbackNotice';
-};
-
+const TABS = [{ key: 'popular', Icon: Flame }, { key: 'new', Icon: Sparkles }, { key: 'active', Icon: MessageCircle }];
 function TemplateCardSkeleton() {
-  return <div className="social-card h-72 animate-pulse border border-line-soft bg-surface" aria-hidden="true" />;
-}
-
-function PulseSignals({ item, t, showRankings = true }) {
-  return <span className="pulse-signals">
-    {showRankings && item.ranking_count > 0 && <span>{t('pulse.rankingsCount', { count: item.ranking_count })}</span>}
-    {item.comments > 0 && <span>{t('pulse.commentsCount', { count: item.comments })}</span>}
-    {item.reactions > 0 && <span>{t('pulse.reactionsCount', { count: item.reactions })}</span>}
-    {!item.ranking_count && !item.comments && !item.reactions && <span>{t('pulse.recentActivity')}</span>}
-  </span>;
-}
-
-function SectionTitle({ title, action }) {
-  return <div className="pulse-section-head">
-    <h2>{title}</h2>
-    {action}
-  </div>;
-}
-
-function TopicCard({ topic, t }) {
-  return <Link to={topic.href} className="pulse-topic">
-    <strong className="pulse-topic-title">{topic.label}</strong>
-    {topic.preview_rankings?.[0]?.title && <span className="pulse-topic-preview">{topic.preview_rankings[0].title}</span>}
-    <span className="pulse-topic-footer"><PulseSignals item={topic} t={t} /><ArrowRight size={19} aria-hidden="true" /></span>
-  </Link>;
-}
-
-function RankingCard({ ranking, t }) {
-  return <Link to={`/post/${encodeURIComponent(ranking.id)}`} className="pulse-ranking-card">
-    <span className="club-serial text-muted">{ranking.new_ranking ? t('pulse.newRanking') : t('pulse.recentActivity')}</span>
-    <strong>{ranking.title}</strong>
-    {ranking.template_title && ranking.template_title.trim() !== ranking.title?.trim() && <span className="pulse-card-context">{ranking.template_title}</span>}
-    <span className="pulse-card-bottom"><PulseSignals item={ranking} t={t} showRankings={false} /><ArrowRight size={17} aria-hidden="true" /></span>
-  </Link>;
-}
-
-function DiscussionCard({ ranking, t }) {
-  return <Link to={`/post/${encodeURIComponent(ranking.id)}`} className="pulse-discussion-card">
-    <span className="pulse-discussion-mark"><MessageCircle size={20} aria-hidden="true" /></span>
-    <span className="min-w-0"><span className="club-serial text-muted">{ranking.author_name ? `@${ranking.author_name}` : ranking.template_title || t('pulse.community')}</span>
-      <strong>{ranking.title}</strong><span className="pulse-card-context">{t('pulse.commentsCount', { count: ranking.comments })}</span></span>
-    <ArrowRight className="shrink-0" size={18} aria-hidden="true" />
-  </Link>;
-}
-
-function ActiveTemplate({ template, t }) {
-  return <Link to={`/template/${encodeURIComponent(template.id)}`} className="pulse-template-card">
-    <span className="club-serial text-muted">{t('pulse.templateInPlay')}</span>
-    <strong>{template.title}</strong>
-    {template.creator_name && <span className="pulse-card-context">@{template.creator_name}</span>}
-    {!!template.preview_items?.length && <span className="pulse-template-preview" aria-label={t('pulse.itemPreview')}>
-      {template.preview_items.map((item, index) => <span key={`${item.name}-${index}`}>{item.name}</span>)}
-    </span>}
-    {template.preview_ranking?.title && <span className="pulse-card-context">{t('pulse.latestTake')}: {template.preview_ranking.title}</span>}
-    <span className="pulse-card-bottom"><PulseSignals item={template} t={t} /><ArrowRight size={17} aria-hidden="true" /></span>
-  </Link>;
+  return <div className="discover-topic-card aspect-square animate-pulse border border-line-soft bg-surface" aria-hidden="true" />;
 }
 
 export default function Discover() {
@@ -91,6 +29,7 @@ export default function Discover() {
   const saved = params.get('view') === 'saved';
   const page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
   const requestedWindow = WINDOWS.includes(params.get('window')) ? params.get('window') : 'now';
+  const tab = TABS.some(item => item.key === params.get('tab')) ? params.get('tab') : params.has('window') ? 'active' : 'popular';
   const browsingResults = !!q || saved;
   const [templates, setTemplates] = useState([]);
   const [total, setTotal] = useState(0);
@@ -100,21 +39,49 @@ export default function Discover() {
   const [pulseLoading, setPulseLoading] = useState(true);
   const [pulseError, setPulseError] = useState('');
   const [retry, setRetry] = useState(0);
-  const [quietTopics, setQuietTopics] = useState([]);
-  const [quietTopicsLoading, setQuietTopicsLoading] = useState(false);
-  const isQuiet = !browsingResults && !pulseLoading && !pulseError && !!pulse && !pulse.active_rankings;
+  const [topicResult, setTopicResult] = useState({ tab: '', data: [], loading: true, error: '' });
+  const [tags, setTags] = useState([]);
+  const topicCache = useRef(new Map());
 
   useEffect(() => {
-    if (!isQuiet) { setQuietTopics([]); return undefined; }
+    if (browsingResults) return undefined;
     let cancelled = false;
-    setQuietTopicsLoading(true);
-    fetchTemplates({ sort: 'popular', limit: 6, page: 1 }).then(result => {
-      if (cancelled) return;
-      setQuietTopics(result.error ? [] : result.data || []);
-      setQuietTopicsLoading(false);
+    fetchHashtags({ sort: 'popular', limit: 6, page: 1 }).then(result => {
+      if (!cancelled) setTags(result.error ? [] : result.data || []);
     });
     return () => { cancelled = true; };
-  }, [isQuiet, retry]);
+  }, [browsingResults, retry]);
+
+  useEffect(() => {
+    if (browsingResults || tab === 'active') return undefined;
+    let cancelled = false;
+    setTopicResult({ tab, data: [], loading: true, error: '' });
+    fetchTemplates({ sort: tab === 'new' ? 'recent' : 'popular', limit: 8, page: 1 }).then(result => {
+      if (cancelled) return;
+      const data = result.error ? [] : result.data || [];
+      data.forEach(topic => topicCache.current.set(topic.id, topic));
+      setTopicResult({ tab, data, loading: false, error: result.error || '' });
+    });
+    return () => { cancelled = true; };
+  }, [browsingResults, tab, retry]);
+
+  useEffect(() => {
+    if (browsingResults || tab !== 'active' || pulseLoading) return undefined;
+    let cancelled = false;
+    setTopicResult({ tab, data: [], loading: true, error: '' });
+    // Preserve Pulse activity order, with full topic metadata for the shared cards.
+    Promise.all((pulse?.templates || []).map(async topic => {
+      const cached = topicCache.current.get(topic.id);
+      if (cached) return { data: cached };
+      const result = await fetchTemplate(topic.id, { light: true });
+      return result.data ? { data: { ...result.data, use_count: result.data.stats?.uses || 0 } } : result;
+    })).then(results => {
+      if (cancelled) return;
+      setTopicResult({ tab, data: results.filter(result => result.data).map(result => result.data), loading: false,
+        error: pulseError || results.find(result => result.error)?.error || '' });
+    });
+    return () => { cancelled = true; };
+  }, [browsingResults, tab, pulse, pulseLoading, pulseError, retry]);
 
   useEffect(() => {
     if (!browsingResults) return undefined;
@@ -188,32 +155,28 @@ export default function Discover() {
     setParams(next);
   };
   const templateGrid = <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-    {templates.map(template => <TemplateCard key={template.id} template={template} onUse={useTemplate} inSavedView={saved} />)}
+    {templates.map(template => <TemplateCard compact key={template.id} template={template} onUse={useTemplate} inSavedView={saved} />)}
   </div>;
 
-  const sections = selectDiscoverSections(pulse || {});
+  const topicsLoading = topicResult.tab !== tab || topicResult.loading || (tab === 'active' && pulseLoading);
+  const topics = topicResult.tab === tab ? topicResult.data : [];
+  const gridClass = 'discover-browse-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4';
+  const conversations = [...(pulse?.discussions || []), ...(pulse?.rankings || [])]
+    .filter((item, index, items) => item.id && items.findIndex(other => other.id === item.id) === index).slice(0, 4);
+  const changeTab = nextTab => {
+    const next = new URLSearchParams(params); next.set('tab', nextTab); next.delete('page'); setParams(next);
+  };
 
-  return <main className="discover-v2 discover-pulse discover-social mx-auto max-w-7xl px-4 py-5 text-ink sm:px-6 sm:py-6">
-    {!browsingResults && <header className="discover-editorial-header mb-4">
-      <p className="club-serial mb-2">TEAR OF GOD / {t('pulse.community')}</p>
-      <h1>{t('discover.title')}</h1>
-      <RipMark className="w-20 h-3 text-pop-violet mt-1" />
-      <p className="mt-2 text-sm text-ink-soft">{t('social.discoverIntro')}</p>
+  return <main className="discover-v2 discover-pulse discover-simple mx-auto max-w-7xl px-4 py-5 text-ink sm:px-6 sm:py-8">
+    {!browsingResults && <header className="discover-intro">
+      <div><p className="discover-kicker">{t('discover.title')}</p><h1>{t('discover.browseTitle')}</h1><p className="discover-intro-help">{t('discover.browseHelp')}</p></div>
+      <details className="discover-how-to"><summary><CircleHelp size={17} />{t('discover.howToPlay')}<ChevronDown size={14} /></summary>
+        <ol>{['choose', 'rank', 'compare'].map((step, index) => <li key={step}><span>{index + 1}</span>{t('discover.steps.' + step)}</li>)}</ol>
+      </details>
     </header>}
     {browsingResults && <Link to="/discover/templates" className="opinion-secondary mb-3 gap-2">{t('pulse.allTemplates')} <ArrowRight size={16} /></Link>}
-    {browsingResults && <div className="pulse-results-intro"><Link to="/discover" className="club-serial">← {t('pulse.backToPulse')}</Link>
+    {browsingResults && <div className="pulse-results-intro"><Link to="/discover" className="club-serial">← {t('discover.title')}</Link>
       <h1>{t(saved ? 'discover.savedTemplates' : 'pulse.searchHeading')}</h1></div>}
-
-    <form role="search" className="pulse-search" onSubmit={event => {
-      event.preventDefault();
-      const query = String(new FormData(event.currentTarget).get('query') || '').trim();
-      const next = new URLSearchParams(params);
-      if (query) next.set('q', query); else next.delete('q');
-      next.delete('page'); setParams(next);
-    }}>
-      <Search size={18} aria-hidden="true" /><input key={q} name="query" type="search" defaultValue={q} aria-label={t('discover.search')} placeholder={t('nav.searchPlaceholder')} />
-      <button type="submit" className="pulse-search-button">{t('play.searchAction')}</button>
-    </form>
 
     {browsingResults ? <>
       <div className="pulse-results-head"><div><h2 role="status">{q ? t('discover.searchResults', { q, count: total }) : saved && !currentUser ? t('discover.savedTemplates') : t('discover.savedCount', { count: total })}</h2>
@@ -229,58 +192,35 @@ export default function Discover() {
         const next = new URLSearchParams(params); next.set('page', String(nextPage)); setParams(next);
       }} />
     </> : <>
-      <section className="pulse-lead-section" aria-labelledby="pulse-heading">
-        <div className="pulse-section-head pulse-section-head--lead"><h2 id="pulse-heading">{t('pulse.leadHeading')}</h2>
-          {pulse?.active_rankings > 0 && !pulseLoading && <span className="pulse-displayed-period">{t('pulse.displayedPeriod', { period: t(`pulse.windows.${pulse.window}`) })}</span>}</div>
-        <div className="pulse-tabs" role="group" aria-label={t('pulse.timeWindow')} style={{ '--pulse-tab-index': WINDOWS.indexOf(requestedWindow) }}>
-          {WINDOWS.map(window => <button key={window} type="button" aria-pressed={requestedWindow === window}
-            className={requestedWindow === window ? 'is-active' : ''}
-            onClick={() => { const next = new URLSearchParams(params); next.set('window', window); setParams(next); }}>
-            {t(`pulse.windows.${window}`)}</button>)}
-        </div>
-        {pulse?.fallback_from && pulse.active_rankings > 0 && !pulseLoading && (
-          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-line-soft bg-surface-glass p-3.5 text-sm font-medium text-ink shadow-xs transition-opacity duration-300 motion-safe:animate-in motion-safe:fade-in motion-reduce:transition-none" role="status">
-            <Info size={16} className="text-brand shrink-0" aria-hidden="true" />
-            <p>{t(getFallbackKey(pulse.fallback_from, pulse.window))}</p>
+      {pulseLoading ? <div className="discover-pulse-placeholder animate-pulse" aria-label={t('pulse.loading')} />
+        : !pulseError && pulse ? <HomeCommunityPulse pulse={pulse} compact /> : null}
+      <section aria-label={t('discover.browseTopics')} className="discover-browser">
+        <div className="discover-browse-toolbar">
+          <div className="discover-browse-tabs" role="group" aria-label={t('discover.browseTopics')}>
+            {TABS.map(({ key, Icon }) => <button key={key} type="button" aria-pressed={tab === key} onClick={() => changeTab(key)}><Icon size={17} aria-hidden="true" />{t(`discover.browseTabs.${key}`)}</button>)}
           </div>
-        )}
-        {pulse?.sampled && !pulseLoading && <p className="pulse-sample-note">{t('pulse.snapshotNote')}</p>}
-        {pulseError ? <div className="pulse-empty" role="alert"><p>{pulseError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
-          : pulseLoading ? <div className="pulse-topic-grid" aria-label={t('pulse.loading')}>{Array.from({ length: 3 }, (_, index) => <div key={index} className="pulse-topic pulse-topic--skeleton animate-pulse" />)}</div>
-            : pulse?.active_rankings ? (sections.topics.length ? <div key={pulse.window} className="pulse-topic-grid pulse-content-enter">{sections.topics.map(topic => <TopicCard key={topic.key} topic={topic} t={t} />)}</div> : null)
-              : <div className="py-4"><strong>{t('pulse.quietTitle')}</strong><p className="mt-1 text-sm text-muted">{t('pulse.quietDescription')}</p></div>}
-        {isQuiet && <section className="discover-quiet-topics mt-4" aria-labelledby="quiet-topics-heading">
-          <h3 id="quiet-topics-heading" className="text-lg font-bold mb-4">{t('pulse.popularToTry')}</h3>
-          {quietTopicsLoading ? <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4" aria-busy="true">{Array.from({ length: 6 }, (_, index) => <TemplateCardSkeleton key={index} />)}</div>
-            : quietTopics.length ? <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">{quietTopics.map(template => <TemplateCard key={template.id} template={template} onUse={useTemplate} />)}</div>
-              : <p className="text-sm text-muted">{t('pulse.quietDescription')}</p>}
-        </section>}
-      </section>
-
-      {!!sections.discussions.length && !pulseLoading && <section className="pulse-section">
-        <SectionTitle number="03" eyebrow={t('pulse.discussionEyebrow')} title={t('pulse.discussionHeading')} />
-        <div className="pulse-discussion-list">{sections.discussions.map(ranking => <DiscussionCard key={ranking.id} ranking={ranking} t={t} />)}</div>
-      </section>}
-      {!!sections.rankings.length && !pulseLoading && <section className="pulse-section">
-        <SectionTitle number="02" eyebrow={t('pulse.activityEyebrow')} title={t('pulse.activeHeading')} />
-        <div className="pulse-ranking-grid">{sections.rankings.map(ranking => <RankingCard key={ranking.id} ranking={ranking} t={t} />)}</div>
-      </section>}
-      {!!sections.hashtags.length && !pulseLoading && <section className="pulse-section">
-        <SectionTitle number="04" eyebrow={t('pulse.topicsEyebrow')} title={t('pulse.hashtagHeading')}
-          action={<Link className="pulse-section-link" to="/discover/hashtags">{t('discover.viewAll')} <ArrowRight size={16} /></Link>} />
-        <div className="pulse-hashtags">{sections.hashtags.map(tag => <Link key={tag.key} to={tag.href} className="pulse-hashtag">
-          <strong>{tag.label}</strong><span>{t('pulse.activityCount', { count: tag.activity_count })}</span></Link>)}</div>
-      </section>}
-      {!!sections.templates.length && !pulseLoading && <section className="pulse-section">
-        <SectionTitle number="05" eyebrow={t('pulse.templatesEyebrow')} title={t('pulse.templatesHeading')}
-          action={<Link className="pulse-section-link" to="/discover/templates">{t('discover.viewAll')} <ArrowRight size={16} /></Link>} />
-        <div className="pulse-template-grid">{sections.templates.map(template => <ActiveTemplate key={template.id} template={template} t={t} />)}</div>
-      </section>}
-      <section className="pulse-explore pulse-section">
-        <SectionTitle number="06" eyebrow={t('pulse.exploreEyebrow')} title={t('pulse.exploreHeading')} />
-        <div><Link to="/discover/templates">{t('pulse.allTemplates')} <ArrowRight size={16} /></Link>
-          <Link to="/discover/hashtags">{t('pulse.allHashtags')} <ArrowRight size={16} /></Link>
-          <Link to="/discover?view=saved">{t('discover.savedTemplates')} <ArrowRight size={16} /></Link></div>
+          {tab === 'active' ? <label className="discover-period"><span>{t('pulse.timeWindow')}</span><select value={requestedWindow} onChange={event => {
+            const next = new URLSearchParams(params); next.set('window', event.target.value); setParams(next);
+          }}>{WINDOWS.map(window => <option key={window} value={window}>{t(`pulse.windows.${window}`)}</option>)}</select></label>
+            : <Link className="discover-all-link" to={`/discover/templates?sort=${tab === 'new' ? 'recent' : 'popular'}`}>{t('discover.viewAll')}<ArrowRight size={15} /></Link>}
+        </div>
+        <div className="discover-interest-row" aria-label={t('discover.interests')}>
+          <span>{t('discover.interests')}</span>
+          {tags.map(tag => <Link key={tag.tag} to={`/discover/hashtag/${encodeURIComponent(tag.tag.replace(/^#/, ''))}`}>#{tag.tag.replace(/^#/, '')}</Link>)}
+          <Link className="discover-interest-more" to="/discover/hashtags">{t('discover.moreInterests')}<ArrowRight size={14} /></Link>
+        </div>
+        <p className="discover-grid-description">{t(`discover.browseDescriptions.${tab}`)}</p>
+        {tab === 'active' && pulse?.fallback_from && !pulseLoading && <p className="discover-activity-note" role="status">{t('pulse.displayedPeriod', { period: t(`pulse.windows.${pulse.window}`) })}</p>}
+        {topicsLoading ? <div className={gridClass} aria-busy="true" aria-label={t('discover.loadingTemplates')}>{Array.from({ length: tab === 'active' ? 4 : 8 }, (_, index) => <TemplateCardSkeleton key={index} />)}</div>
+          : <>
+            {!!topics.length && <div className={gridClass}>{topics.map(template => <TemplateCard compact key={template.id} template={template} onUse={useTemplate} />)}</div>}
+            {topicResult.error && <div className="discover-inline-error" role="alert"><p>{topicResult.error}</p><button type="button" className="pulse-text-action" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>}
+            {!topics.length && !topicResult.error && <div className="pulse-empty"><p>{t(tab === 'active' ? 'pulse.quietDescription' : 'discover.emptyTemplates')}</p></div>}
+          </>}
+        {tab === 'active' && conversations.length > 0 && !pulseLoading && <details className="discover-conversations"><summary>{t('discover.recentConversations')}<ChevronDown size={16} /></summary>
+          <div>{conversations.map(item => <Link key={item.id} to={`/post/${encodeURIComponent(item.id)}`}><strong>{item.title}</strong><span>{item.comments ? t('homeDiscovery.comments', { count: item.comments }) : t('homeDiscovery.newRanking')}<ArrowRight size={15} /></span></Link>)}</div>
+        </details>}
+        <footer className="discover-browse-footer"><p>{t('discover.makeTopicHelp')}</p><Link to="/create">{t('discover.startTopic')}<ArrowRight size={16} /></Link><Link to="/discover?view=saved"><Bookmark size={16} />{t('discover.savedTemplates')}</Link></footer>
       </section>
     </>}
   </main>;

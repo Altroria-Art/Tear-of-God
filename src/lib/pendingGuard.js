@@ -7,6 +7,9 @@
 export function createPendingGuard() {
   const pending = new Set();
   return {
+    isPending(key = 'default') {
+      return pending.has(key);
+    },
     // คืน true = ได้สิทธิ์ยิง request; false = มี request ของ key นี้ค้างอยู่ ให้ข้าม
     acquire(key = 'default') {
       if (pending.has(key)) return false;

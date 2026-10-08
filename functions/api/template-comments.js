@@ -6,7 +6,7 @@ import { deleteComment } from '../lib/comment-delete.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
-  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
 
   const url = new URL(request.url);
   const templateId = url.searchParams.get('template_id');
@@ -27,7 +27,8 @@ export async function onRequest({ request, env, data: auth }) {
         LIMIT 200
       `).bind(templateId).all();
 
-      return jsonResponse({ success: true, data: results });
+      const count = await db.prepare('SELECT COUNT(*) AS count FROM template_comments WHERE template_id = ?').bind(templateId).first();
+      return jsonResponse({ success: true, data: results, comments_count: count?.count || 0 });
     }
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่
@@ -62,7 +63,8 @@ export async function onRequest({ request, env, data: auth }) {
         WHERE c.id = ?
       `).bind(commentId).all();
 
-      return jsonResponse({ success: true, data: results[0] }, 201);
+      const count = await db.prepare('SELECT COUNT(*) AS count FROM template_comments WHERE template_id = ?').bind(template_id).first();
+      return jsonResponse({ success: true, data: results[0], comments_count: count?.count || 0 }, 201);
     }
 
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);

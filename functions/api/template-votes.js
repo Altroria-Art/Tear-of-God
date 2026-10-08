@@ -6,7 +6,7 @@ import { assertId, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, rea
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
-  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+  const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
 
   const fetchCounts = async (templateId, userId) => {
     // นับสดจากตารางเสมอ (ไม่พึ่ง counter ที่ drift ได้) — คล้ายวิธีคำนวณ views/uses ของ templates.js
