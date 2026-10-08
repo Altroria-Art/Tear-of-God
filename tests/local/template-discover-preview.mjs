@@ -393,4 +393,29 @@ await testTemplateWithTiersAndNullItemTiers();
 // Creator on TemplateCard must always be templates.creator_id -> profiles across all 4 paths
 await testTemplateCreatorIntegrityAcrossApiPaths();
 
+// A canonical ID is not a display name. List previews and detail must resolve
+// the same item, while legacy name-only rows still work without an items row.
+{
+  const { mf, db } = await createLocalD1();
+  try {
+    await seedProfile(db, 'id-preview-creator');
+    await db.prepare('INSERT INTO templates (id, creator_id, title, tiers) VALUES (?, ?, ?, ?)')
+      .bind('id-preview-template', 'id-preview-creator', 'ID-backed preview', JSON.stringify(tiers)).run();
+    await db.prepare('INSERT INTO items (id, name, image_url) VALUES (?, ?, ?)')
+      .bind('canonical-item-id', 'ชื่อที่ควรแสดง', '/item-placeholder.svg').run();
+    await db.batch([
+      db.prepare('INSERT INTO template_items (id, template_id, item_id, tier, position) VALUES (?, ?, ?, ?, ?)')
+        .bind('canonical-placement', 'id-preview-template', 'canonical-item-id', 'S', 0),
+      db.prepare('INSERT INTO template_items (id, template_id, item_id, tier, position) VALUES (?, ?, ?, ?, ?)')
+        .bind('legacy-placement', 'id-preview-template', 'Legacy item name', 'A', 1),
+    ]);
+    const card = (await discoverList(db, 'id-preview-creator')).find(row => row.id === 'id-preview-template');
+    assert.equal(card.template_items[0].item.name, 'ชื่อที่ควรแสดง');
+    assert.equal(card.template_items[0].item.image_url, '/item-placeholder.svg');
+    assert.equal(card.template_items[1].item.name, 'Legacy item name');
+    assert.equal(card.template_items.length, 2);
+    console.log('ok - Discover resolves ID-backed item metadata and retains legacy names');
+  } finally { await mf.dispose(); }
+}
+
 console.log('All Template Discover preview and creator checks passed against local Miniflare D1.');

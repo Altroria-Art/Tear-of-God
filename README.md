@@ -9,18 +9,15 @@
 - Drag-and-drop tier list editor with auto-scroll and in-tier reorder
 - Community Average — aggregated rankings per template with time-period filtering
 - Home feed with Trending, For You, and Following tabs
-- Following Activity Feed — see followed users' new rankings, likes, and template participation
-- Follow topics — follow hashtags, categories, and templates to tune the For You feed
-- Daily Pick and Weekly Debate prompts that refresh on Bangkok calendar cycles
-- Live today feed hub — Hot in 24 hours, Just ranked, Under debate, and Divided opinions
-- Discover section — trending templates, categories, hashtags
+- Follow hashtags and templates to tune the For You feed
+- Discover — Popular, New and Active topic tabs, hashtag interests, search and saved topics; compact Community Pulse links to current conversations
 - Like/dislike voting on posts and Community Average
-- Comments on posts and Community Average
+- Comments on posts and Community Average, with live refresh every 10 seconds while visible/online; visible Home card counters refresh every 15 seconds
 - Follow other users
 - In-app notifications for replies, template usage, followed creators/topics' new rankings, trending posts, Community Average changes, and daily like digests
 - Rich social link previews for posts, templates, and Community Average; downloadable share cards in landscape, square, and story formats with QR/CTA
 - First-party product funnel and returning-user analytics in the admin dashboard
-- User profiles with University of Phayao faculty/major info, Taste Identity (hashtag distribution, favorite S-tier items, badges, similar users), and up to three pinned rankings
+- User profiles with a horizontal identity header, faculty/major/admission labels, full join date, badges, up to three pinned rankings, Duels and own saved topics; a responsive ranking grid and pagination
 - Admin panel — dashboard, user/ranking/template/report management
 - Share and export tier lists as PNG
 - Dark/light theme toggle
@@ -41,15 +38,16 @@
 ```
 ├── functions/api/       Cloudflare Pages Functions (backend endpoints + admin/)
 ├── src/
-│   ├── pages/           Page components (14 user pages + 5 admin pages)
+│   ├── pages/           User and admin page components
 │   ├── components/      Reusable UI (admin/, discover/, feed/, layout/, post/, template/, tier/, ui/)
 │   ├── lib/             Core utilities (api client, auth, format, tiers, colors, university, share, export)
-│   ├── context/         React contexts (UserContext, ThemeContext)
+│   ├── context/         User, theme and bookmark state
 │   ├── locales/         i18n translations (en.json, th.json)
-├── schema.sql           Full database schema (14 tables)
-├── migrations/          D1 migration files
-├── scripts/             Utility scripts (score backfill, seed generation, k6 reports)
-├── tests/               k6 load test scenarios and reports
+├── schema.sql           Fresh/local database schema
+├── migrations/          Historical migrations before the active baseline
+├── migrations-active/   Current baseline and incremental migrations
+├── scripts/             Maintenance and k6 report tools
+├── tests/               Standalone regressions, fixtures, k6 scenarios and output
 └── docs/                Internal planning documents
 ```
 
@@ -71,6 +69,11 @@ npm run dev:full       # build + wrangler pages dev dist
 ```
 
 ## Database
+
+Browser acceptance for Discover, Profile pagination/pins and two-account comments
+runs against a separate Local D1 state using Chromium directly. See
+[Local Browser QA](docs/local-browser-qa.md) for setup and
+[the latest results](docs/browser-qa-2026-10-09.md) for coverage and limitations.
 
 Classification now uses `hashtags` only. `rankings` and `templates` no longer
 have a `category` column in the fresh schema. Existing databases need the staged
@@ -106,14 +109,18 @@ All endpoints live under `functions/api/`. Each file exports `onRequest` (or met
 | `/api/users` | GET | Public user profile + Taste Identity summary |
 | `/api/profile-pins` | POST | Pin/unpin one of the current user's rankings (maximum 3) |
 | `/api/follows` | GET, POST | Followers/following, follow/unfollow |
-| `/api/topic-follows` | GET, POST | Follow/unfollow hashtags, categories, and templates; read follower counts |
+| `/api/topic-follows` | GET, POST | Follow/unfollow hashtags and templates; legacy category input is a hashtag alias |
 | `/api/votes` | POST | Like/dislike ranking |
-| `/api/comments` | GET, POST | Comments on rankings |
+| `/api/comments` | GET, POST, DELETE | Ranking comments, canonical counters and self/admin deletion |
 | `/api/template-votes` | GET, POST | Like/dislike Community Average |
-| `/api/template-comments` | GET, POST | Comments on Community Average |
+| `/api/template-comments` | GET, POST, DELETE | Community comments, canonical count and self/admin deletion |
 | `/api/template-participants` | GET | Users who created rankings from a template |
 | `/api/hashtags` | GET | Aggregated hashtags from templates + rankings |
-| `/api/categories` | GET | Top categories |
+| `/api/categories` | GET | Compatibility alias of `/api/hashtags` |
+| `/api/discover-pulse` | GET | Bounded recent community activity by time window |
+| `/api/social-state` | GET | Current counters and viewer vote for up to 40 rankings |
+| `/api/activity` | GET | Following activity API retained for compatibility; current UI does not call it |
+| `/api/spotlights` | GET | Legacy Spotlight API retained with its regression coverage; current UI does not call it |
 | `/api/upload` | POST | Image upload to R2 (JPEG/PNG/WebP/GIF, max 5MB) |
 | `/api/report` | POST | Report template or ranking for inappropriate content |
 
@@ -151,7 +158,7 @@ Mutation traffic requires an explicit opt-in and is accepted only for a loopback
 k6 run -e BASE_URL=http://localhost:8788 -e ALLOW_MUTATIONS=true tests/scenarios/load.js
 ```
 
-HTML reports in `tests/reports/`. Helper script `scripts/generate-k6-summary.mjs` produces summary reports from raw k6 JSON output.
+HTML reports in `tests/reports/` are generated output, not committed application files. `scripts/generate-k6-summary.mjs` reads the embedded compressed event stream in `{smoke,load,stress,spike,soak}.html` and creates `summary.html`. Run those k6 scenarios first; the generator needs all five source reports.
 
 Local auth and k6 safety regressions run without a production connection:
 
@@ -162,7 +169,7 @@ node tests/local/k6-auth-safety.mjs
 
 ## Architecture Notes
 
-- **Auth model** — `/api/_middleware.js` verifies a 7-day HttpOnly cookie against hashed sessions in D1. Mutations use the session owner, and admin endpoints verify the current database role. New passwords use salted PBKDF2-SHA-256; legacy unsalted SHA-256 hashes upgrade on successful login. Forgot/reset password uses one-hour, single-use hashed tokens and Brevo for transactional email when configured; a successful reset revokes old sessions. Firebase public config is shared in `src/lib/firebaseConfig.js`; Google tokens are verified by Firebase on the server. Production D1 schema state must be verified separately before deployment.
+- **Auth model** — `/api/_middleware.js` verifies a 7-day HttpOnly cookie against hashed sessions in D1. Mutations use the session owner, and admin endpoints verify the current database role. New passwords use salted PBKDF2-SHA-256; legacy unsalted SHA-256 hashes upgrade on successful login. Password recovery sends a six-digit code valid for 10 minutes through Brevo when configured. Verification atomically exchanges it for a reset grant with the same expiry; reset is single-use and revokes old sessions. Firebase public config is shared in `src/lib/firebaseConfig.js`; Google tokens are verified by Firebase on the server. Production D1 schema state must be verified separately before deployment.
 - **Ranking publish integrity** — Creating a new template with its first ranking, or publishing from an existing template, submits all template/ranking/item/score/counter writes in one D1 transaction through a single `db.batch()` call.
 - **Pages SPA routing** — Static deep links rely on Cloudflare Pages' SPA fallback when no top-level `404.html` exists. `/api/*` remains handled by Pages Functions, and static assets are served directly; no catch-all `_redirects` rule is required.
 - **Home feed** — "Trending" ranks posts by freshness and engagement; "For You" uses template, hashtag, and explicit topic-follow signals (a followed topic can surface a matching post on its own) with a session-stable seeded mix; "Following" shows the newest posts from followed accounts. Guests can scroll Trending, while every feed interaction opens a login/sign-up prompt and all non-auth deep links redirect through login with a safe return path.

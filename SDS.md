@@ -26,7 +26,7 @@
 ### 1.3 Definitions
 | คำศัพท์ | ความหมาย |
 |---|---|
-| **Template** | ชุด item pool + metadata (ชื่อ, หมวดหมู่, คำอธิบาย) ที่ผู้สร้างคนแรกกำหนดไว้ ใช้เป็นต้นแบบให้คนอื่น remix ได้ |
+| **Template** | ชุด item pool + metadata (ชื่อ, hashtags, คำอธิบาย) ที่ผู้สร้างคนแรกกำหนดไว้ ใช้เป็นต้นแบบให้คนอื่น remix ได้ |
 | **Ranking** (Tier List) | การจัดอันดับ item ของ Template หนึ่ง ๆ โดยผู้ใช้คนใดคนหนึ่ง (อาจเป็นผู้สร้าง Template เองหรือคน remix) |
 | **Remix** | การที่ผู้ใช้หยิบ Template ของคนอื่นมาสร้าง Ranking ในแบบของตัวเอง |
 | **Tier Label** | ชื่อระดับการจัดอันดับที่ผู้สร้าง Template กำหนดเองได้ (ค่าเริ่มต้น S/A/B/C/D, ใส่ชื่อภาษาไทยได้) เก็บเป็นข้อมูลใน `templates.tiers` (JSON) — ไม่ใช่ชุดตายตัว 5 ค่า |
@@ -56,13 +56,14 @@ Responsive web application รันบน browser สมัยใหม่ (Chr
 
 | Route | หน้าที่ |
 |---|---|
-| `/api/auth` | restore session / register / login / logout / forgot_password / reset_password / google_sync / update_profile |
-| `/api/rankings` | GET feed (แบ่งหน้า + filter category/hashtag/author/user/template/sort/feed_type) · POST สร้าง/ลบ ranking |
+| `/api/auth` | restore session / register / login / logout / forgot_password / verify_reset_code / reset_password / google_sync / update_profile |
+| `/api/rankings` | GET feed (แบ่งหน้า + filter hashtag/author/user/template/sort/feed_type; category เดิมเป็น alias ของ hashtag) · POST สร้าง/ลบ ranking |
 | `/api/votes`, `/api/comments` | like/dislike + คอมเมนต์ของ ranking |
 | `/api/templates` | GET (template + item pool + community average ตามช่วง popularity ผ่าน `days`/`from`/`to`) · POST (บันทึก view แบบ dedup สำหรับผู้ใช้ที่ล็อกอิน) |
 | `/api/template-votes`, `/api/template-comments` | like/dislike + คอมเมนต์ของ Community Average (ผูก template_id) |
 | `/api/users`, `/api/follows` | โปรไฟล์สาธารณะ + ระบบติดตาม |
-| `/api/categories`, `/api/hashtags` | หมวดหมู่ + hashtag สำหรับ Discover |
+| `/api/hashtags`, `/api/categories` | catalog hashtag; categories เป็น compatibility alias ของ hashtags |
+| `/api/discover-pulse`, `/api/social-state` | กิจกรรมล่าสุดสำหรับ Discover และค่าคอมเมนต์/โหวตปัจจุบันสำหรับ live refresh |
 | `/api/report` | รายงาน template/โพสต์เข้าหลังบ้าน |
 | `/api/upload` | อัปโหลดอวาตาร์/รูป item ไป R2 (`env.STORAGE.put`) |
 | `/api/admin/*` | หลังบ้าน: stats / users / rankings / templates / reports (ทุก handler ทำ role check ผ่าน `_check.js`) |
@@ -82,14 +83,14 @@ Responsive web application รันบน browser สมัยใหม่ (Chr
 | FR-3 | Edit Profile | เปลี่ยนชื่อผู้ใช้และรูปโปรไฟล์ | User | 4.1.2 |
 | FR-4 | View My Templates & Rankings | ดูรายการ Template ที่สร้าง และ Ranking ที่เคยเข้าร่วม | User | 4.1.2 |
 | FR-5 | Browse Home Feed | เลื่อนดูฟีดแบบ Infinite Scroll พร้อม Trending Topics | Guest, User | 4.1.3 |
-| FR-6 | Create Tier List | ตั้งชื่อ/หมวดหมู่/คำอธิบาย, เพิ่ม item ผ่าน Quick Add (text-to-item) แล้วจัดลง tier (ค่าเริ่มต้น S/A/B/C/D หรือกำหนดเอง) | User | 4.1.4 |
+| FR-6 | Create Tier List | ตั้งชื่อ/แฮชแท็ก/คำอธิบาย, เพิ่ม item ผ่าน Quick Add (text-to-item) แล้วจัดลง tier (ค่าเริ่มต้น S/A/B/C/D หรือกำหนดเอง) | User | 4.1.4 |
 | FR-7 | Remix Template | นำ Template ผู้อื่นมาจัด Ranking ใหม่, เพิ่ม item ใหม่ได้, **แก้ tier label ไม่ได้** | User | 4.1.5 |
 | FR-8 | View Statistics | ดูสถิติภาพรวมของ Template และของ Ranking ย่อย พร้อมจำนวนผู้ใช้ที่ใช้ Template นั้น | User | 4.1.6 |
 | FR-9 | Like / Comment / Share | กดถูกใจ, คอมเมนต์, และคัดลอกลิงก์แชร์ Ranking | User | 4.1.7 |
 | FR-10 | Admin Login | ล็อกอินเข้าระบบหลังบ้านแยกจากผู้ใช้ทั่วไป | Admin | 4.2.1 |
 | FR-11 | Content Moderation | ตรวจสอบข้อมูลภาพรวม, ลบ/แก้ไข Ranking และลบคอมเมนต์ที่ผิดกฎ | Admin | 4.2.2 |
 | FR-12 | Ban User | ระงับบัญชีผู้ใช้งาน | Admin | 4.2.2 |
-| FR-13 | Personalized Feed | ปรับลำดับเนื้อหาในฟีดตามหมวดหมู่ที่ผู้ใช้กดถูกใจบ่อย | User | 4.3.1 |
+| FR-13 | Personalized Feed | ปรับลำดับเนื้อหาในฟีดตาม hashtag และหัวข้อที่ผู้ใช้ติดตาม/มีปฏิสัมพันธ์ | User | 4.3.1 |
 
 ---
 
@@ -142,11 +143,11 @@ flowchart TB
 | Module | หน้าที่ | Screens ที่เกี่ยวข้อง |
 |---|---|---|
 | `auth/` | สมัคร/ล็อกอิน (email+password ผ่าน `functions/api/auth.js`) / Google Sign-In ผ่าน Firebase | Login |
-| `feed/` | Home Feed, category tabs, infinite scroll, personalization | Home (For You/Trending/Anime/Movie/Food/Sport) |
-| `create/` | ฟอร์มสร้าง Template + Ranking Canvas | Create Tier List |
-| `discover/` | เรียกดู Template ตามหมวดหมู่, popular templates | Discover |
-| `ranking-detail/` | หน้ารายละเอียด Ranking, Community Rankings, Rank this Template | Template/Ranking detail |
-| `profile/` | ดู/แก้ไขโปรไฟล์, Templates Created, Participated Tier Lists | Profile, Edit Profile modal |
+| `feed/` | ranking cards, infinite scroll, live counters และ Community Pulse | Home (Trending/For You/Following), Discover |
+| `tier/`, `pages/Create.jsx`, `pages/RankTierList.jsx` | ฟอร์มสร้างและ Ranking Canvas | Create Tier List, Rank Template |
+| `discover/`, `template/`, `topic/` | เลือก/ค้นหา template และ hashtag | Discover, catalogs, saved topics |
+| `post/`, `template/` | รายละเอียด Ranking, Template และ Community Average | Post/Template/Community detail |
+| `user/`, `pages/Profile.jsx` | identity header, badges, rankings, duels และ saved topics ของเจ้าของบัญชี | Profile, Edit Profile modal |
 | `admin/` | Protected route จัดการเนื้อหา/ผู้ใช้ | (ไม่มี wireframe แนบ — ดู Section 9) |
 
 ### 5.3 Technology Stack
@@ -218,7 +219,6 @@ erDiagram
         text creator_id FK
         string title
         string description
-        string category
         string hashtags
         text tiers "JSON: [{label,color}]"
         int use_count "legacy seed only"
@@ -243,7 +243,6 @@ erDiagram
         text template_id
         string title
         string description
-        string category
         string hashtags
         int likes_count
         int dislikes_count
@@ -313,7 +312,7 @@ erDiagram
 ### 6.2 Table Descriptions
 - **profiles** — ตารางผู้ใช้หลักของระบบเอง (ไม่ได้ต่อยอดจาก Supabase `auth.users` อีกต่อไป) รหัสผ่านใหม่เก็บเป็น salted PBKDF2-SHA-256 ผ่าน Workers Web Crypto; legacy SHA-256 hash จะ upgrade หลัง login สำเร็จ คอลัมน์ `role` (`user`/`admin`) ใช้แยกสิทธิ์ฝั่ง backend ตาม FR-11–13; ส่วน `university/faculty/major/year/bio` เป็นข้อมูลโปรไฟล์เสริม
 - **auth_sessions / auth_attempts / auth_identities** — เก็บ digest ของ opaque session token พร้อม expiry, rate-limit counters ของ auth และการผูก Firebase Google identity ตามลำดับ; raw session token อยู่เฉพาะใน HttpOnly cookie
-- **password_resets** — เก็บ digest ของ reset token อายุหนึ่งชั่วโมง Token ใช้ได้ครั้งเดียว และการตั้งรหัสผ่านใหม่สำเร็จจะลบ reset tokens กับ sessions เดิมของ user
+- **password_resets** — เก็บ digest ของรหัสยืนยัน 6 หลักที่ผูกกับ email อายุ 10 นาที; verify_reset_code แลกเป็น reset grant แบบ atomic โดยไม่ขยาย expiry เดิม รหัส/grant ใช้ได้ครั้งเดียว และการตั้งรหัสผ่านใหม่สำเร็จจะลบ reset records กับ sessions เดิมของ user
 - **follows** — ตารางติดตาม แบบ composite PK `(follower_id, following_id)` กันซ้ำ; มี index ทั้งสองทิศทาง (`idx_follows_follower`, `idx_follows_following`) สำหรับหน้าโปรไฟล์/นับ follower
 - **templates** — item pool ต้นแบบ; `tiers` เป็น JSON เก็บชุด `{label, color}` ของแต่ละ Template (กำหนดเองได้ รวมภาษาไทย — ไม่ใช่ค่าคงที่ S/A/B/C/D); `hashtags` เป็น CSV; `use_count`/`view_count` ถูก **ไม่ใช่เลขที่เชื่อถือได้** — ตอนอ่านโค้ดจะคำนวณ `live_uses`/`live_views` ใหม่ด้วย `COUNT(*)` จาก `rankings`/`template_views` (ดู `functions/api/templates.js`)
 - **template_items** — bridge table ระหว่าง `templates` กับ `items` กลาง พร้อม `tier`/`position` กำกับว่า item นั้นอยู่แถวไหนใน pool เริ่มต้นของ template (ต่างจากดราฟต์แรกที่ให้ `template_items.label`/`image_url` ของตัวเอง) — item ตัวเดียวกันใช้ซ้ำข้าม template ได้โดยไม่ต้อง insert ซ้ำใน `items`
@@ -344,13 +343,13 @@ erDiagram
 | Screen | Purpose | Key Elements |
 |---|---|---|
 | Login | เข้าสู่ระบบ/สมัครสมาชิก | Email/Password field, "Continue with Google", link ไปหน้าสมัคร |
-| Home Feed | ฟีดหลัก แยกตาม tab (For You / Trending / Movies / Anime / Food / Sports) | Card ต่อ 1 ranking: avatar, username, category tag, tier rows (สี S=แดง, A=ส้ม, B=เหลือง, C=เขียว, D=ฟ้า), like/comment count, ปุ่ม "Use Template" |
+| Home Feed | ฟีดหลักแยก Trending / For You / Following | Card ต่อ ranking: avatar, username, hashtags, tier rows ที่ใช้ label/color จากข้อมูล, like/comment count, ปุ่มจัดอันดับจาก template |
 | Create Tier List | สร้าง Template + Ranking แบบ Tier List | ฟอร์ม (Template Name, Category, Description), Quick Add Items (textarea + Generate Cards), Ranking Canvas แถวสีตาม Tier, Unranked Items Pool |
 | Ranking Detail | ดู/แก้ไข ranking หนึ่งรายการ | ชื่อ ranking (แก้ได้), Save Ranking, Share, ปุ่ม Shuffle Items / Sort A-Z |
-| Discover | ค้นหา Template ตามหมวดหมู่ | Category grid (Anime/Movie/Food/Sport), Popular Templates cards พร้อมจำนวนผู้ใช้ |
+| Discover | เลือกหัวข้อผ่าน Popular / New / Active หรือค้นหา/รายการบันทึก | Community Pulse แบบย่อ, hashtag interests และการ์ด 1:1 สูงสุด 4 คอลัมน์ พร้อมผู้จัด จำนวนการจัดอันดับ ปุ่มจัดอันดับ บันทึก และแชร์ |
 | Community Rankings (จาก Discover) | ดูภาพรวมผลโหวตของชุมชนต่อ Template | Sort dropdown (เช่น Most Liked), toggle "Community Average" |
-| Profile | ดูผลงานของตัวเอง | Tab "Templates Created" / "Participated Tier Lists", ปุ่ม Edit Profile |
-| Edit Profile (modal) | แก้ไขข้อมูลส่วนตัว | Username, Bio, Save Changes |
+| Profile | ดูผลงานและข้อมูลของเจ้าของโปรไฟล์ | identity header แนวนอน, followers/following/likes, University/Faculty/Major/Admission Year และวันเข้าร่วมเต็ม, Rankings/Pinned/Duels และ Saved เฉพาะเจ้าของ, grid 1/2/3/4 คอลัมน์และ pagination ครั้งละ 50 |
+| Edit Profile (modal) | แก้ไขข้อมูลส่วนตัว | Username, Bio, Avatar, ข้อมูลคณะ/สาขา/ปีเข้า และ Save Changes |
 
 ### 7.2 Key UI Components
 - **Ranking Canvas** — reusable component ใช้ทั้งตอนสร้างและตอน remix, รับ prop เป็น tier labels (ค่าเริ่มต้น S/A/B/C/D หรือที่ Template กำหนด) และ item list
@@ -380,7 +379,7 @@ sequenceDiagram
     participant D1 as Cloudflare D1
 
     U->>FE: เปิดหน้า "Create Tier List"
-    FE->>U: แสดงฟอร์ม (name, category, description, mode)
+    FE->>U: แสดงฟอร์ม (name, hashtags, description, mode)
     U->>FE: กรอก Quick Add Items (comma-separated)
     FE->>FE: parse text เป็น item cards
     U->>FE: ลาก item ลง tier S/A/B/C/D
@@ -427,7 +426,7 @@ Proposal ไม่ได้ลงรายละเอียดระดับ i
 
 1. **[เดิม] BaaS ไม่มี custom backend** — decision นี้ล้าสมัยแล้ว ทีมเปลี่ยนมาเขียน custom backend เองเป็น Cloudflare Pages Functions (`functions/api/`) บน D1 แทน BaaS ตรงๆ ตาม Supabase; เหตุผลไม่ได้บันทึกไว้ในเอกสาร แต่ผลคือได้ควบคุม business logic เต็มที่และไม่ผูกกับ RLS policy ของผู้ให้บริการรายเดียว
 2. **Remix เพิ่ม item เข้า shared pool** — item ใหม่ที่เพิ่มระหว่าง remix ถูก insert เข้า `items` (item กลาง) แล้วผูกเพิ่มใน `template_items` ของ template เดิม (ไม่ใช่แยกเฉพาะ ranking ของคนนั้น) เพื่อให้คน remix คนถัดไปเห็น item ครบและสถิติสะสมถูกต้อง — ของเดิมใน `items` ไม่ถูกแก้ ลบ หรือย้ายออกจาก template เดิม แก้ได้แค่ "เพิ่ม"
-3. **Personalized feed แบบ query-time** — เริ่มจาก aggregate query (`COUNT` votes group by category ของ user ใน N วันล่าสุด) แทนการสร้างตารางสะสมคะแนนแยก เพื่อความง่ายในสโคปนักศึกษา ค่อย migrate เป็น materialized view ถ้าข้อมูลโตขึ้นจริง (NFR-5)
+3. **Personalized feed แบบ query-time** — ใช้ hashtags และ topic follows แทน category; candidate pool/cache และดัชนีช่วยจำกัด reads โดยไม่ทำ query หมวดหมู่เดิม ดู `functions/lib/home-feed.js` และ `docs/home-feed-quota-2026-09-28.md` สำหรับ implementation/ผลวัดตามเวอร์ชัน (NFR-5)
 4. **Admin เป็น protected route ใน SPA เดียวกัน** — ✅ implement แล้ว ไม่ใช่แอปแยก ใช้ role-based guard ผ่าน `profiles.role` (มีจริงแล้วใน `schema.sql`) — ทุก `functions/api/admin/*` handler ตรวจ role จาก DB ผ่าน `_check.js` ทุก request (ผู้ใช้ปกติได้ 403)
 5. **ตัดโหมด Top 10 ออกจาก Scope** — ทีมตัดสินใจตัดโหมด Top 10 ออก เพื่อโฟกัสที่การจัดอันดับ Tier List แบบยืดหยุ่น (Custom Tiers) และการวิเคราะห์ Community Average ได้อย่างสมบูรณ์และชัดเจนที่สุด
 6. **Template / Community Average — ✅ implement แล้ว** (เดิม §9 ข้อนี้เขียนตอนยังเป็น mock data):

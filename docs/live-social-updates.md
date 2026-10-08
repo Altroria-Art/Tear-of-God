@@ -13,3 +13,5 @@ Comments previously loaded only on page entry, and notification polling ran ever
 This is polling, not server push; another device's changes appear on the next poll. Hidden tabs do not initiate periodic requests. Own successful actions retain their immediate local updates.
 
 Validation: `npm run lint`, `npm run build`, `node tests/local/live-refresh.mjs`, `node tests/local/social-updates.mjs`, and the notification polling/read/delete and comment self-delete regression checks.
+
+The 9 October follow-up combines comment counter/activity updates in one statement and reads the canonical count with the newly-created comment. `verified-session-mutations.mjs` verifies the same response/security contract with seven statements for the original comment fixture, retaining its eight-statement budget; the reply case also stays within eight.

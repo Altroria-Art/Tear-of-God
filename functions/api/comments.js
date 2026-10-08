@@ -58,8 +58,7 @@ export async function onRequest({ request, env, data: auth }) {
       const commentId = crypto.randomUUID();
       const statements = [
         db.prepare('INSERT INTO comments (id, ranking_id, user_id, content, parent_id) VALUES (?1, ?2, ?3, ?4, ?5)').bind(commentId, ranking_id, user_id, content, parent_id),
-        db.prepare('UPDATE rankings SET comments_count = comments_count + 1 WHERE id = ?').bind(ranking_id),
-        db.prepare('UPDATE rankings SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?').bind(ranking_id)
+        db.prepare('UPDATE rankings SET comments_count = comments_count + 1, last_activity_at = CURRENT_TIMESTAMP WHERE id = ?').bind(ranking_id)
       ];
       const recipients = new Set();
       if (ranking.user_id && ranking.user_id !== user_id) recipients.add(ranking.user_id);
@@ -77,14 +76,15 @@ export async function onRequest({ request, env, data: auth }) {
 
       // ดึงข้อมูลที่เพิ่งสร้างส่งกลับไปให้หน้าเว็บแสดงผลทันที
       const { results } = await db.prepare(`
-        SELECT c.*, p.username, p.avatar_url 
+        SELECT c.*, p.username, p.avatar_url, r.comments_count
         FROM comments c
         LEFT JOIN profiles p ON c.user_id = p.id
+        JOIN rankings r ON r.id = c.ranking_id
         WHERE c.id = ?
       `).bind(commentId).all();
 
-      const stats = await db.prepare('SELECT comments_count FROM rankings WHERE id = ?').bind(ranking_id).first();
-      return jsonResponse({ success: true, data: results[0], comments_count: stats?.comments_count || 0 }, 201);
+      const { comments_count, ...comment } = results[0];
+      return jsonResponse({ success: true, data: comment, comments_count }, 201);
     }
 
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);

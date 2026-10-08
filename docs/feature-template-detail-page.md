@@ -1,4 +1,5 @@
 # Feature: Template Detail Page
+> Historical implementation record. The legacy synthetic seed generator and its demo catalog were retired from the checkout on 9 October 2026. References to those files below describe the earlier implementation; do not run the old generation instructions. Current maintenance guidance is in `docs/synthetic-data-cleanup.md`.
 
 > อ่านไฟล์นี้ก่อนลงมือทุกครั้งที่มีคนสั่งงานเกี่ยวกับหน้า **Template Detail** (`/template/:templateId`) —
 > ไม่ว่าจะเป็นการแก้บั๊ก เพิ่มฟีเจอร์ย่อย หรือปรับดีไซน์ในหน้านี้

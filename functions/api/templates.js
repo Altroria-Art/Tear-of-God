@@ -151,7 +151,10 @@ async function queryTemplates(context) {
         // Bound each topic preview to 12 ordered items so lower tier rows can
         // appear without loading the complete item set for every card.
         const { results: allItems } = await db.prepare(
-          `SELECT * FROM template_items WHERE template_id IN (${placeholders}) AND position < 12 ORDER BY template_id, position ASC`
+          `SELECT ti.*, i.name AS item_name, i.image_url AS item_image
+           FROM template_items ti LEFT JOIN items i ON i.id = ti.item_id
+           WHERE ti.template_id IN (${placeholders}) AND ti.position < 12
+           ORDER BY ti.template_id, ti.position ASC`
         ).bind(...templateIds).all();
         const { results: counts = [] } = await db.prepare(
           `SELECT template_id, tier, COUNT(*) AS count FROM template_items WHERE template_id IN (${placeholders}) GROUP BY template_id, tier`
@@ -165,7 +168,9 @@ async function queryTemplates(context) {
           if (!itemsMap[ti.template_id]) itemsMap[ti.template_id] = [];
           itemsMap[ti.template_id].push({
             ...ti,
-            item: { id: ti.item_id, name: ti.item_id, image_url: null }
+            // Older Create payloads store the name directly in item_id. Keep
+            // that fallback; ID-backed items use the canonical item metadata.
+            item: { id: ti.item_id, name: ti.item_name || ti.item_id, image_url: ti.item_image || null }
           });
         });
         const unassignedIds = templates.filter(t => !(itemsMap[t.id] || []).some(item => item.tier)).map(t => t.id);
