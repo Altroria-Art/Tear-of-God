@@ -41,3 +41,19 @@ Harness ยอมรับเฉพาะ loopback และ path `.wrangler/bro
 ผลล่าสุดอยู่ใน `.wrangler/browser-qa-2026-10-09/result.json` และ screenshots ในโฟลเดอร์เดียวกัน (ทั้งหมด gitignored). เมื่อ fail จะเขียน `failure.json`, `failure-dom.txt`, `failure.png`. ผล pass ไม่ได้หมายความว่า Safari/Firefox, มือถือจริง, migrations จากฐานข้อมูลเก่า หรือทุกหน้าของแอปผ่าน; รอบนี้ใช้ Chrome headless และ fresh local schema.
 
 ดู [รายงานผลวันที่ 9 ตุลาคม 2026](browser-qa-2026-10-09.md).
+
+## Trending refresh
+
+`tests/local/trending-refresh-browser.mjs` ตรวจ UI จริงกับ Local D1 แยก: การ์ดสูงเกินสองเท่าของ viewport, ลบการ์ดที่อ่านแล้วเมื่อ refresh, กดรัว 20 ครั้งแล้วมี request ทีละหนึ่งพร้อมคิวต่อหนึ่งครั้ง, F5 ยังจำโพสต์ที่อ่าน, error แล้ว retry ทันที, สลับแท็บระหว่างโหลด และอ่านครบแล้วไม่วนโพสต์เก่ากลับมา ตรวจ runtime errors และจำนวน request ที่ทำงานพร้อมกันด้วย
+
+สร้าง **state ใหม่ที่ยังไม่มี rankings** สำหรับแต่ละรอบ เพราะ harness เพิ่ม 60 โพสต์ synthetic แล้วตรวจกรณีอ่านครบทั้งหมด ใช้ขั้นตอน build/schema/server ด้านบนโดยเปลี่ยน persist path เป็น `.wrangler/browser-qa-trending-2026-10-09-r3/state` และ port เป็น `8802` แล้วรัน:
+
+```powershell
+$env:BROWSER_QA_URL = 'http://127.0.0.1:8802'
+$env:BROWSER_QA_STATE = '.wrangler/browser-qa-trending-2026-10-09-r3/state'
+node tests/local/trending-refresh-browser.mjs
+```
+
+ผลและภาพอยู่ใน parent ของ state ซึ่ง gitignored. การแก้นี้เอา cooldown ของปุ่ม 1.5 วินาทีออกและรวมคลิกระหว่างโหลดเป็นหนึ่งคิว; ประวัติโพสต์ที่อ่านยังใช้ cooldown เดิม 6 ชั่วโมง. การตรวจ Local ไม่ใช่การยืนยันว่า Cloudflare Production มีโค้ดนี้แล้ว
+
+ผลรอบวันที่ 9 ตุลาคม 2026: 7/7 scenarios ผ่านใน Chromium โดยมี Trending request พร้อมกันสูงสุด 1 และไม่มี runtime error. พบและแก้ `lastRefreshToastRef` ที่ถูกใช้โดยไม่ได้ประกาศด้วย. Build และ lint ผ่าน (4 warnings เดิม); regression ของ visibility/refresh, all-seen, seen persistence และ cursor/cache ผ่าน

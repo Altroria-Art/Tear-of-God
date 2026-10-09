@@ -44,12 +44,13 @@ assert.match(
   'allSeen card must render title, subtitle, refresh button, and create CTA'
 );
 
-// Ensure refresh throttling is bypassed when feed is empty
+// Completed requests can refresh immediately; in-flight clicks are coalesced.
 assert.match(
   homeFeedSource,
-  /activeTab === 'trending' && currentPosts\.length > 0 && Date\.now\(\) - lastRefreshRef\.current < 1500/,
-  'refreshFeed must not block refresh when feed has 0 posts'
+  /if \(inFlightRef\.current \|\| loadingRef\.current\) \{\s*queuedRefreshRef\.current = cacheKey;/,
+  'refreshFeed must remember a click during loading'
 );
+assert.doesNotMatch(homeFeedSource, /lastRefreshRef/, 'no wall-clock cooldown suppresses a completed refresh');
 
 console.log('✔ Scenario 2 passed: HomeFeed preserves tabs and the allSeen empty card!');
 

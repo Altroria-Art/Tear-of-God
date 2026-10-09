@@ -28,6 +28,7 @@ import {
   fetchUnseenTrendingPage,
   trendingSeenExclude,
   trendingSeenFallback,
+  isTrendingCardVisible,
 } from '../lib/trendingSeen';
 import VirtualFeedContainer from '../components/feed/VirtualFeedContainer';
 import { createPendingGuard } from '../lib/pendingGuard';
@@ -435,13 +436,13 @@ function SeenCardObserver({ postId, onSeen, children }) {
     };
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        const nextVisible = entry.isIntersecting && entry.intersectionRatio >= 0.5;
+        const nextVisible = isTrendingCardVisible(entry);
         if (nextVisible !== visible) {
           visible = nextVisible;
           updateTimer();
         }
       }
-    }, { threshold: [0, 0.5] });
+    }, { threshold: Array.from({ length: 21 }, (_, index) => index / 20) });
     observer.observe(nodeRef.current);
     document.addEventListener('visibilitychange', updateTimer);
     return () => {
@@ -476,6 +477,7 @@ export default function HomeFeed() {
   const [guestPrompt, setGuestPrompt] = useState({ open: false, next: '/' });
   const [showTabNav, setShowTabNav] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   // Cache each feed+viewer separately, including pages loaded by infinite scroll.
   const cacheKey = `${activeTab}:${currentUser?.id ?? 'anon'}`;
 
@@ -581,13 +583,46 @@ export default function HomeFeed() {
   }, [markTrendingSeen]);
 
   const requestGenerationRef = useRef(0);
-  const lastRefreshRef = useRef(0);
+  const lastRefreshToastRef = useRef(0);
+  const queuedRefreshRef = useRef(null);
+  const refreshTimerRef = useRef(null);
+  const refreshFeedRef = useRef(null);
+  const activeRefreshKeyRef = useRef(cacheKey);
+  activeRefreshKeyRef.current = cacheKey;
+  const flushQueuedRefresh = useCallback(() => {
+    const key = queuedRefreshRef.current;
+    queuedRefreshRef.current = null;
+    if (key !== activeRefreshKeyRef.current) return;
+    clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = setTimeout(() => refreshFeedRef.current?.(), 0);
+  }, []);
+  useEffect(() => {
+    queuedRefreshRef.current = null;
+    clearTimeout(refreshTimerRef.current);
+    return () => { clearTimeout(refreshTimerRef.current); queuedRefreshRef.current = null; };
+  }, [cacheKey]);
   const refreshFeed = useCallback(() => {
-    if (inFlightRef.current || loadingRef.current || feedLocked) return;
+    if (feedLocked) return;
+    if (activeTab === 'trending') {
+      const viewport = { width: window.innerWidth, height: window.innerHeight };
+      const ids = [...document.querySelectorAll('[data-social-ranking]')].filter(card => {
+        const rect = card.getBoundingClientRect();
+        return isTrendingCardVisible({ isIntersecting: true, boundingClientRect: rect, rootBounds: viewport,
+          intersectionRect: { width: Math.max(0, Math.min(rect.right, viewport.width) - Math.max(rect.left, 0)),
+            height: Math.max(0, Math.min(rect.bottom, viewport.height) - Math.max(rect.top, 0)) } });
+      }).map(card => card.dataset.socialRanking);
+      // An explicit refresh means moving on from the cards currently in view,
+      // even if clicked before the passive 701ms seen timer completes.
+      markTrendingSeen(ids);
+    }
+    if (inFlightRef.current || loadingRef.current) {
+      queuedRefreshRef.current = cacheKey;
+      return;
+    }
+    queuedRefreshRef.current = null;
     const currentPosts = postsRef.current;
-    if (activeTab === 'trending' && currentPosts.length > 0 && Date.now() - lastRefreshRef.current < 1500) return;
-    lastRefreshRef.current = Date.now();
     loadingRef.current = true;
+    setIsRefreshing(true);
     if (activeTab !== 'trending') {
       setIsLoading(true);
       const currentIds = currentPosts.map(post => post.id).filter(Boolean);
@@ -598,9 +633,10 @@ export default function HomeFeed() {
     isManualRefreshRef.current = true;
     requestGenerationRef.current += 1;
     pageRef.current = 1;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
     setRefreshTrigger(prev => prev + 1);
-  }, [activeTab, cacheKey, feedLocked]);
+  }, [activeTab, cacheKey, feedLocked, markTrendingSeen]);
+  refreshFeedRef.current = refreshFeed;
 
   // รองรับการกดรีเฟรชจาก Navbar (คลิก Home หรือ Logo) หรือ Mobile Bottom Nav
   useEffect(() => {
@@ -620,6 +656,7 @@ export default function HomeFeed() {
     loadingRef.current = false;
     inFlightRef.current = false;
     setIsLoadingMore(false);
+    setIsRefreshing(false);
     if (feedLocked) {
       setPosts([]);
       setHasMore(false);
@@ -645,6 +682,8 @@ export default function HomeFeed() {
       if (inFlightRef.current) return;
       const isManual = isManualRefreshRef.current;
       isManualRefreshRef.current = false;
+      setIsRefreshing(isManual);
+      setTrendingError(null);
       if (activeTab !== 'trending' || !isManual) {
         setIsLoading(true);
         setTrendingError(null);
@@ -713,11 +752,12 @@ export default function HomeFeed() {
         }
 
         const currentPosts = postsRef.current;
-        // Non-resetting refresh for Trending: prepend brand new rankings without wiping feed
+        // Keep unread cards, but never bring previously viewed cards back on refresh.
         if (activeTab === 'trending' && isManual && currentPosts.length > 0) {
-          const currentIdSet = new Set(currentPosts.map(p => p.id));
+          const unreadPosts = filterUnseenTrending(currentPosts, trendingSeenRef.current);
+          const currentIdSet = new Set(unreadPosts.map(p => p.id));
           const brandNew = (data || []).filter(p => !currentIdSet.has(p.id));
-          const updatedPosts = brandNew.length > 0 ? [...brandNew, ...currentPosts] : currentPosts;
+          const updatedPosts = [...brandNew, ...unreadPosts];
           pageRef.current = result.page || 1;
           setPosts(updatedPosts);
           setPostsKey(cacheKey);
@@ -769,12 +809,14 @@ export default function HomeFeed() {
           inFlightRef.current = false;
           setIsLoading(false);
           loadingRef.current = false;
+          setIsRefreshing(false);
+          flushQueuedRefresh();
         }
       }
     }
     loadFirstPage();
     return () => { cancelled = true; requestGenerationRef.current += 1; };
-  }, [currentUser?.id, activeTab, cacheKey, feedType, feedLocked, refreshTrigger, trendingExclude, trendingFallback, ensureTrendingSeenLoaded]);
+  }, [currentUser?.id, activeTab, cacheKey, feedType, feedLocked, refreshTrigger, trendingExclude, trendingFallback, ensureTrendingSeenLoaded, flushQueuedRefresh]);
 
   // ไม่มี total จาก API สำหรับฟีดทั่วไป (เฉพาะ template_id เท่านั้นที่ API คำนวณ total ให้ —
   // ดู functions/api/rankings.js) เลยเช็คจบฟีดจากจำนวนที่ได้กลับมาน้อยกว่า PAGE_SIZE แทน
@@ -844,9 +886,10 @@ export default function HomeFeed() {
         inFlightRef.current = false;
         setIsLoadingMore(false);
         loadingRef.current = false;
+        flushQueuedRefresh();
       }
     }
-  }, [hasMore, currentUser?.id, cacheKey, feedLocked, activeTab, ensureTrendingSeenLoaded, trendingFallback]);
+  }, [hasMore, currentUser?.id, cacheKey, feedLocked, activeTab, ensureTrendingSeenLoaded, trendingFallback, flushQueuedRefresh]);
 
   // callback ref แทน useRef+useEffect — React เรียก callback นี้เองทันทีที่ DOM node
   // ของ sentinel ถูกสร้าง/ถอดออกจริงๆ (ตอน commit) ไม่ต้องเดาว่า effect จะ rerun
@@ -929,6 +972,7 @@ export default function HomeFeed() {
               key={id}
               type="button"
               aria-pressed={activeTab === id}
+              aria-busy={activeTab === id && isRefreshing}
               onClick={() => {
                 if (activeTab === id) {
                   refreshFeed();
@@ -943,7 +987,9 @@ export default function HomeFeed() {
                   : 'text-muted hover:text-ink hover:bg-surface-glass scale-95'
               }`}
             >
-              <Icon size={14} aria-hidden="true" />
+              {activeTab === id && isRefreshing
+                ? <RotateCcw size={14} aria-hidden="true" className="animate-spin" />
+                : <Icon size={14} aria-hidden="true" />}
               {t(labelKey)}
             </button>
           ))}

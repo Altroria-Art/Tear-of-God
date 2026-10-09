@@ -45,7 +45,7 @@ export async function serveAppWithMeta(context, metadata = {}) {
   const title = cleanText(metadata.title, 'Tear of God', 90);
   const pageTitle = title === 'Tear of God' ? title : `${title} | Tear of God`;
   const description = cleanText(metadata.description, DEFAULT_DESCRIPTION, 180);
-  const imageUrl = metadata.image || `${requestUrl.origin}/og-default.png`;
+  const imageUrl = metadata.image || `${requestUrl.origin}/og-default.png?v=20261009-brand`;
   const type = metadata.type || 'website';
 
   let html = await assetResponse.text();

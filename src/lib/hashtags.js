@@ -1,3 +1,6 @@
+// Shared suggestions for the campus-focused Create and Rank editors.
+export const CAMPUS_HASHTAG_SUGGESTIONS = ['#มพ', '#ชีวิตมหาลัย', '#คณะ', '#หอพัก', '#ของกินมพ', '#รีวิววิชา'];
+
 // Parse hashtags from various stored formats (CSV, JSON string, space-separated, array)
 // into an array of clean, unique hashtags formatted with '#' prefix: ['#SERIES', '#FANTASY']
 export function parseHashtags(value) {

@@ -225,7 +225,7 @@ const Navbar = () => {
             {isMobileMenuOpen ? <X size={22} strokeWidth={2.75} /> : <Menu size={22} strokeWidth={2.75} />}
           </button>
           <Link to="/" onClick={handleHomeClick} className="brand-wordmark gap-2 inline-flex min-h-11 items-center whitespace-nowrap text-base min-[375px]:text-lg sm:text-[22px] font-black text-brand tracking-tight hover:text-highlight transition-colors">
-            <span className="brand-mark hidden min-[375px]:inline-grid" aria-hidden="true">t</span>Tear of God
+            <img src="/favicon.svg?v=20261009-brand" alt="" width="36" height="36" className="brand-mark hidden min-[375px]:block" aria-hidden="true" />Tear of God
           </Link>
         </div>
 

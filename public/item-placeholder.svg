@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" width="150" height="150" role="img" aria-label="Item placeholder">
-  <rect width="150" height="150" fill="#e8e8ea"/>
-  <rect x="0.5" y="0.5" width="149" height="149" fill="none" stroke="#c9c9ce"/>
-  <path d="M18 112 L55 72 L76 97 L94 80 L132 112 Z" fill="#b9b9c0"/>
-  <circle cx="100" cy="48" r="12" fill="#b9b9c0"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 150" role="img" aria-label="Unpictured tier list item">
+  <rect width="150" height="150" rx="24" fill="#f4f0e5"/>
+  <g transform="rotate(-10 75 75)"><rect x="43" y="25" width="70" height="88" rx="12" fill="#b89afb" stroke="#201d24" stroke-width="2"/></g>
+  <g transform="rotate(6 75 75)"><rect x="31" y="39" width="78" height="91" rx="12" fill="#fffdf6" stroke="#201d24" stroke-width="2"/>
+    <rect x="41" y="50" width="58" height="28" rx="6" fill="#d8ff45"/>
+    <path d="M51 94H88M51 106H74" stroke="#201d24" stroke-width="5" stroke-linecap="round"/>
+  </g><path d="M118 16L122 27L133 31L122 35L118 46L114 35L103 31L114 27Z" fill="#201d24"/>
 </svg>
