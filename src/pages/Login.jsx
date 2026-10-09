@@ -19,8 +19,10 @@ export default function Login() {
   const toast = useToast();
   const { t } = useTranslation();
   const [isRegister, setIsRegister] = useState(() => new URLSearchParams(location.search).get('mode') === 'signup');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -28,9 +30,15 @@ export default function Login() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [authError, setAuthError] = useState('');
+  const email = isRegister ? registerEmail : loginEmail;
+  const password = isRegister ? registerPassword : loginPassword;
   const changeMode = (register) => {
     if (isLoading) return;
-    setPassword('');
+    setLoginEmail('');
+    setRegisterEmail('');
+    setUsername('');
+    setLoginPassword('');
+    setRegisterPassword('');
     setConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
@@ -60,7 +68,8 @@ export default function Login() {
         setIsLoading(true);
         const { data, error: loginError } = await loginUser({ email, password });
         setIsLoading(false);
-        setPassword('');
+        setLoginPassword('');
+        setRegisterPassword('');
         setConfirmPassword('');
         setUsername('');
         changeMode(false);
@@ -104,15 +113,11 @@ export default function Login() {
 
   return (
     <main className="auth-v2 min-h-[calc(100dvh-68px)] flex items-center justify-center p-4 sm:p-8">
-      {/* 
-        MAIN AUTH CARD 
-        Mobile: relative, stack layout
-        Desktop: relative, fixed height for sliding panel
-      */}
-      <div className={`auth-card social-card relative w-full max-w-[1000px] overflow-hidden flex flex-col lg:block mx-auto transition-[min-height] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none ${isRegister ? 'auth-card--register lg:min-h-[650px]' : 'auth-card--login lg:min-h-[540px]'}`}>
+      <div className="auth-book-wrap w-full max-w-[1000px] mx-auto">
+      <div className={`auth-card auth-book relative flex flex-col ${isRegister ? 'auth-card--register' : 'auth-card--login'}`}>
         
         {/* MOBILE VISUAL HEADER (Below md) */}
-        <div className="lg:hidden flex flex-col items-center justify-center text-center p-4 bg-ink text-canvas">
+        <div className="auth-book-mobile-head lg:hidden flex flex-col items-center justify-center text-center p-4 bg-ink text-canvas">
           <h2 className="text-2xl font-display font-black text-canvas uppercase tracking-tight leading-none mb-2">
             {isRegister ? t('auth.joinTheClub') : t('auth.memberAccess')}
           </h2>
@@ -122,14 +127,10 @@ export default function Login() {
           </p>
         </div>
 
-        {/* LOGIN FORM PANE */}
+        <div className="auth-book-pages">
+        {/* Both pages reserve the same space, including the inactive form. */}
         <div 
-          className={`
-            w-full lg:absolute lg:top-0 lg:left-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-6 lg:p-8
-            transition-[opacity,translate] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-            ${!isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:translate-x-[20%] lg:pointer-events-none'}
-            motion-reduce:transition-opacity motion-reduce:translate-x-0
-          `}
+          className={`auth-book-form auth-book-form--login flex flex-col justify-center p-6 lg:p-8 ${isRegister ? 'auth-book-form--inactive' : ''}`}
           inert={isRegister ? true : undefined}
           aria-hidden={isRegister ? "true" : undefined}
         >
@@ -145,7 +146,7 @@ export default function Login() {
             {authError && <p role="alert" className="text-sm text-hot-red">{authError}</p>}
             <div>
               <label htmlFor="login-email" className="club-label">{t('auth.email')}</label>
-              <input id="login-email" className="club-field" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} />
+              <input id="login-email" name="login-email" className="club-field" type="email" autoComplete="section-login username" value={loginEmail} onChange={event => setLoginEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} />
             </div>
             <div>
               <div className="flex items-center justify-between">
@@ -153,7 +154,7 @@ export default function Login() {
                 <Link className="text-xs font-bold text-highlight hover:underline" to="/forgot-password">{t('auth.forgotPassword')}</Link>
               </div>
               <div className="relative">
-                <input id="login-password" className="club-field pr-12" type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} />
+                <input id="login-password" name="login-password" className="club-field pr-12" type={showPassword ? 'text' : 'password'} autoComplete="section-login current-password" value={loginPassword} onChange={event => setLoginPassword(event.target.value)} />
                 <button type="button" aria-label={t('auth.showPassword')} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 grid min-h-11 w-11 place-items-center text-muted">
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -175,12 +176,7 @@ export default function Login() {
 
         {/* SIGNUP FORM PANE */}
         <div 
-          className={`
-            w-full lg:absolute lg:top-0 lg:right-0 lg:w-1/2 lg:h-full flex-col justify-center p-6 sm:p-6 lg:p-8
-            transition-[opacity,translate] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-            ${isRegister ? 'flex opacity-100 z-10 translate-x-0' : 'hidden lg:flex lg:opacity-0 lg:z-0 lg:-translate-x-[20%] lg:pointer-events-none'}
-            motion-reduce:transition-opacity motion-reduce:translate-x-0
-          `}
+          className={`auth-book-form auth-book-form--signup flex flex-col justify-center p-6 lg:p-8 ${!isRegister ? 'auth-book-form--inactive' : ''}`}
           inert={!isRegister ? true : undefined}
           aria-hidden={!isRegister ? "true" : undefined}
         >
@@ -196,16 +192,16 @@ export default function Login() {
             {authError && <p role="alert" className="text-sm text-hot-red">{authError}</p>}
             <div>
               <label htmlFor="register-username" className="club-label">{t('auth.username')}</label>
-              <input id="register-username" className="club-field" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} placeholder={t('auth.usernamePlaceholder')} />
+              <input id="register-username" name="register-username" className="club-field" autoComplete="section-signup username" value={username} onChange={event => setUsername(event.target.value)} placeholder={t('auth.usernamePlaceholder')} />
             </div>
             <div>
               <label htmlFor="register-email" className="club-label">{t('auth.email')}</label>
-              <input id="register-email" className="club-field" type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} />
+              <input id="register-email" name="register-email" className="club-field" type="email" autoComplete="section-signup email" value={registerEmail} onChange={event => setRegisterEmail(event.target.value)} placeholder={t('auth.emailPlaceholder')} />
             </div>
             <div>
               <label htmlFor="register-password" className="club-label">{t('auth.password')}</label>
               <div className="relative">
-                <input id="register-password" className="club-field pr-12" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} />
+                <input id="register-password" name="register-password" className="club-field pr-12" type={showPassword ? 'text' : 'password'} autoComplete="section-signup new-password" value={registerPassword} onChange={event => setRegisterPassword(event.target.value)} />
                 <button type="button" aria-label={t('auth.showPassword')} onClick={() => setShowPassword(value => !value)} className="absolute inset-y-0 right-0 grid min-h-11 w-11 place-items-center text-muted">
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -214,7 +210,7 @@ export default function Login() {
             <div>
               <label htmlFor="register-confirm-password" className="club-label">{t('auth.confirmPassword')}</label>
               <div className="relative">
-                <input id="register-confirm-password" className="club-field pr-12" type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} />
+                <input id="register-confirm-password" name="register-confirm-password" className="club-field pr-12" type={showConfirmPassword ? 'text' : 'password'} autoComplete="section-signup new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} />
                 <button type="button" aria-label={t('auth.showPassword')} onClick={() => setShowConfirmPassword(value => !value)} className="absolute inset-y-0 right-0 grid min-h-11 w-11 place-items-center text-muted">
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -233,9 +229,10 @@ export default function Login() {
             </button>
           </div>
         </div>
+        </div>
 
         {/* MOBILE MODE SWITCHER (Below md) */}
-        <div className="lg:hidden p-5 border-t-2 border-line-soft bg-surface text-center">
+        <div className="auth-book-mobile-switch lg:hidden p-5 border-t-2 border-line-soft bg-surface text-center">
           <p className="text-sm text-ink-soft mb-2">
             {isRegister ? t('auth.alreadyRanking') : t('auth.newHere', 'New to Tear of God?')}
           </p>
@@ -248,9 +245,10 @@ export default function Login() {
           </button>
         </div>
 
-        {/* DESKTOP VISUAL SLIDING PANEL */}
+        {/* A two-sided page turns around the book's center spine. */}
         <AuthVisualPanel isRegister={isRegister} onSwitchMode={changeMode} />
         
+      </div>
       </div>
     </main>
   );

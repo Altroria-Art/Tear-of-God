@@ -343,6 +343,7 @@ const RankTierList = () => {
         <header className="rank-intro">
           <h1 className="text-xl sm:text-2xl font-black">{t(isDuel ? 'play.duelTitle' : 'play.rankTitle')}</h1>
           <p className="mt-1 text-sm text-ink-soft">{t('play.rankDescription')}</p>
+          <p className="mt-1 text-xs text-muted md:hidden">{t('editor.touchDragHint')}</p>
           {!currentUser && <p className="mt-1 text-xs text-muted">{t('rank.guestHint')}</p>}
         </header>
         {templateCooldown?.active && (
@@ -391,8 +392,8 @@ const RankTierList = () => {
             />
           </div>
 
-          <details className="editor-metadata">
-          <summary className="min-h-11 cursor-pointer py-2 font-bold text-sm text-ink-soft">{t('editor.details')} · {selectedHashtags.length} {t('common.tags')}</summary>
+          <section className="editor-metadata">
+          <h2 className="min-h-11 py-2 font-bold text-sm text-ink-soft">{t('editor.details')} · {selectedHashtags.length} {t('common.tags')}</h2>
           <div>
             <textarea
               value={description}
@@ -469,7 +470,7 @@ const RankTierList = () => {
             )}
           </div>
 
-          </details>
+          </section>
           {/* Draft status & error */}
           {draftStatus && (
             <div className="pt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted">
@@ -514,7 +515,7 @@ const RankTierList = () => {
           </div>
 
           <div className="relative">
-            <DropZone className="min-h-[96px] grid grid-rows-1 grid-flow-col auto-cols-max gap-3 overflow-x-auto snap-x hide-scrollbar pb-3 md:flex md:flex-wrap md:auto-cols-auto md:grid-rows-none"
+            <DropZone className="rank-pool-grid min-h-[96px] grid grid-rows-1 grid-flow-col auto-cols-max gap-3 overflow-x-auto snap-x hide-scrollbar pb-3 md:flex md:flex-wrap md:auto-cols-auto md:grid-rows-none"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, null)}
             >

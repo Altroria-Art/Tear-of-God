@@ -5,6 +5,7 @@ import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminTemplates, deleteAdminTemplate, fetchTemplate } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import DeleteConfirmation from '../../components/ui/DeleteConfirmation';
 import HashtagCell from '../../components/admin/HashtagCell';
 import TierLabel from '../../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +22,7 @@ export default function Templates() {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [debouncedQ, setDebouncedQ] = useState('');
 
   // 📍 in-admin detail modal
@@ -50,7 +52,7 @@ export default function Templates() {
   }, [debouncedQ, load]);
 
   const handleDelete = async (template) => {
-    if (!window.confirm(t('admin.confirmDeleteTemplate', { title: template.title }))) return;
+    if (busy) return false;
     setBusy(template.id);
     const res = await deleteAdminTemplate({ userId: currentUser?.id, targetId: template.id });
     setBusy(null);
@@ -61,6 +63,7 @@ export default function Templates() {
     } else {
       toast.error(res.error || t('admin.deleteTemplateFailed', { msg: '' }));
     }
+    return res.success;
   };
 
   // 📍 เปิด modal ดูรายละเอียดเทมเพลต — fetch แบบเต็ม
@@ -79,6 +82,12 @@ export default function Templates() {
 
   return (
     <div>
+      <DeleteConfirmation
+        open={!!deleteTarget}
+        message={t('admin.confirmDeleteTemplate', { title: deleteTarget?.title })}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDelete(deleteTarget)}
+      />
       <h1 className="text-2xl font-black text-ink mb-1">{t('admin.manageTemplates')}</h1>
       <p className="text-sm text-muted mb-6">{t('admin.manageTemplatesHelp')}</p>
 
@@ -155,7 +164,7 @@ export default function Templates() {
                         {t('admin.view')}
                       </button>
                       <button
-                        onClick={() => handleDelete(template)}
+                        onClick={() => setDeleteTarget(template)}
                         disabled={busy === template.id}
                         className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
                       >

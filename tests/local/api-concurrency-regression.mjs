@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -15,7 +16,7 @@ const mf = new Miniflare(convertV4MiniflareOptions({
   compatibilityDate: '2026-01-01', d1Databases: ['DB'],
 }));
 const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
-const splitSql = sql => sql.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n').split(';').map(sql => sql.trim()).filter(Boolean);
+const splitSql = sql => sql.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n').split(SQL_SCRIPT_SEPARATOR).map(sql => sql.trim()).filter(Boolean);
 async function call(db, handler, path, userId, body) {
   const response = await handler({
     request: new Request(`https://audit.test/api/${path}`, body === undefined ? {} : {

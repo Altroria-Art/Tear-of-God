@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { normalizeImageUrl } from '../../lib/images';
+import useTouchItemDrag from '../../lib/useTouchItemDrag';
 
 export default function EditorItem({ item, position, count, onMove, onShift, onDelete, onDragStart, onDragEnd }) {
   const { t } = useTranslation();
   const [dragging, setDragging] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const cardRef = useRef(null);
+  useTouchItemDrag(cardRef, Boolean(onDragStart), setDragging);
 
   useEffect(() => {
     setImgError(false);
@@ -32,6 +35,7 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
 
   return (
     <div
+      ref={cardRef}
       data-item-id={item.id}
       draggable={Boolean(onDragStart)}
       onDragStart={handleDragStart}

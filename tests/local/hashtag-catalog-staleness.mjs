@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 // Regression: hashtag catalog freshness after template deletion.
 //
 // GET /api/hashtags is derived live from templates.hashtags (no hashtag table),
@@ -23,7 +24,7 @@ const schemaStatements = schema
   .split(/\r?\n/)
   .filter((line) => !line.trimStart().startsWith('--'))
   .join('\n')
-  .split(';')
+  .split(SQL_SCRIPT_SEPARATOR)
   .map((statement) => statement.trim())
   .filter(Boolean);
 

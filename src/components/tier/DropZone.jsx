@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 
-/** Native drag feedback, shared by both editors. Touch/keyboard use AssignTierModal. */
+/** Shared native/touch drag feedback. Short taps and keyboard use the picker. */
 export default function DropZone({ children, className = '', onDragOver, onDrop, topTier = false }) {
   const [over, setOver] = useState(false);
   const [landed, setLanded] = useState(false);
   const markerRef = useRef(null);
   const frameRef = useRef(0);
+  const zoneRef = useRef(null);
+  const dropRef = useRef(onDrop);
+  useEffect(() => { dropRef.current = onDrop; }, [onDrop]);
   useEffect(() => {
     const clear = () => setOver(false);
     window.addEventListener('dragend', clear);
     window.addEventListener('drop', clear);
-    return () => { window.removeEventListener('dragend', clear); window.removeEventListener('drop', clear); cancelAnimationFrame(frameRef.current); };
+    window.addEventListener('editor-touch-drag-end', clear);
+    return () => { window.removeEventListener('dragend', clear); window.removeEventListener('drop', clear); window.removeEventListener('editor-touch-drag-end', clear); cancelAnimationFrame(frameRef.current); };
   }, []);
   const positionMarker = (zone, clientX, clientY) => {
     cancelAnimationFrame(frameRef.current);
@@ -27,7 +31,25 @@ export default function DropZone({ children, className = '', onDragOver, onDrop,
       marker.style.opacity = '1';
     });
   };
+  useEffect(() => {
+    const zone = zoneRef.current;
+    const touchDrag = event => {
+      const { phase, itemId, clientX, clientY } = event.detail;
+      if (phase === 'over') { setOver(true); positionMarker(zone, clientX, clientY); }
+      else {
+        setOver(false); cancelAnimationFrame(frameRef.current);
+        if (markerRef.current) markerRef.current.style.opacity = '0';
+        if (phase === 'drop') {
+          setLanded(true);
+          dropRef.current?.({ currentTarget: zone, clientX, clientY, preventDefault() {}, dataTransfer: { getData: key => key === 'itemId' ? itemId : '' } });
+        }
+      }
+    };
+    zone.addEventListener('editor-touch-drag', touchDrag);
+    return () => zone.removeEventListener('editor-touch-drag', touchDrag);
+  }, []);
   return <div
+    ref={zoneRef}
     className={`drop-zone ${className} ${over ? 'is-over' : ''} ${landed ? 'is-landed' : ''} ${topTier ? 'is-top-tier' : ''}`}
     onDragOver={event => { onDragOver?.(event); if (!over) setOver(true); positionMarker(event.currentTarget, event.clientX, event.clientY); }}
     onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) { setOver(false); cancelAnimationFrame(frameRef.current); } }}

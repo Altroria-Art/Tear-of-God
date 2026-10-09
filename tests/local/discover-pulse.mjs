@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -15,7 +16,7 @@ try {
   const db = await mf.getD1Database('DB');
   const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
   await db.batch(schema.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n')
-    .split(';').map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
+    .split(SQL_SCRIPT_SEPARATOR).map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
   // Rehearse the additive migration against the previous index layout.
   await db.prepare('DROP INDEX idx_votes_ranking_created').run();
   await db.prepare('DROP INDEX idx_comments_ranking_created').run();
@@ -23,10 +24,10 @@ try {
   await db.prepare('CREATE INDEX idx_comments_ranking_id ON comments(ranking_id)').run();
   const migration = await readFile(new URL('../../migrations-active/0026_discover_pulse_activity_indexes.sql', import.meta.url), 'utf8');
   await db.batch(migration.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n')
-    .split(';').map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
+    .split(SQL_SCRIPT_SEPARATOR).map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
   const activityMigration = await readFile(new URL('../../migrations-active/0027_discover_pulse_activity_window_index.sql', import.meta.url), 'utf8');
   await db.batch(activityMigration.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n')
-    .split(';').map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
+    .split(SQL_SCRIPT_SEPARATOR).map(sql => sql.trim()).filter(Boolean).map(sql => db.prepare(sql)));
   const commentIndexes = (await db.prepare("PRAGMA index_list('comments')").all()).results.map(row => row.name);
   const voteIndexes = (await db.prepare("PRAGMA index_list('votes')").all()).results.map(row => row.name);
   assert(commentIndexes.includes('idx_comments_ranking_created') && !commentIndexes.includes('idx_comments_ranking_id'));

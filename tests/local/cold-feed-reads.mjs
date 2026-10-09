@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -5,7 +6,7 @@ import { onRequest } from '../../functions/api/rankings.js';
 import { feedCommunityStats } from '../../functions/lib/community-cache.js';
 import { seedLatestContributions } from './helpers/contributions.mjs';
 
-const split = sql => sql.split(/\r?\n/).filter(l=>!l.trimStart().startsWith('--')).join('\n').split(';').map(s=>s.trim()).filter(Boolean);
+const split = sql => sql.split(/\r?\n/).filter(l=>!l.trimStart().startsWith('--')).join('\n').split(SQL_SCRIPT_SEPARATOR).map(s=>s.trim()).filter(Boolean);
 // Original eligibility predicate, with the same bind order and feed handler.
 function legacyQuery(sql) {
   if (!sql.includes('/* for-you eligibility */')) return sql.replaceAll(', ri.rowid ASC','');

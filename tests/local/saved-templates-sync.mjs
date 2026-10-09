@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -10,7 +11,7 @@ const schemaStatements = schema
   .split(/\r?\n/)
   .filter((line) => !line.trimStart().startsWith('--'))
   .join('\n')
-  .split(';')
+  .split(SQL_SCRIPT_SEPARATOR)
   .map((statement) => statement.trim())
   .filter(Boolean);
 

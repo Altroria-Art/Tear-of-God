@@ -298,7 +298,7 @@ try {
       await delay(100);
     }
     const controls = await evaluate(`(() => {
-      const details = document.querySelector('.editor-metadata'); details.open = true;
+      const details = document.querySelector('.editor-metadata');
       const input = details.querySelector('input');
       const button = details.querySelector('button[aria-label^="Remove"], button[aria-label^="ลบ"]');
       return { language: document.documentElement.lang, placeholder: input.placeholder, removeName: button?.getAttribute('aria-label'), text: details.textContent };

@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 // Regression: ลบ ranking แล้ว template กลายเป็น orphan เมื่อเจ้าของ template
 // ลบ ranking ตัวสุดท้ายของตัวเองออก → ต้องลบ template พร้อม dependencies ทุก table
 // ผ่าน shared helper templateDeleteStatements (ชุดเดียวกับ /api/template-delete)
@@ -13,7 +14,7 @@ const schemaStatements = schema
   .split(/\r?\n/)
   .filter((line) => !line.trimStart().startsWith('--'))
   .join('\n')
-  .split(';')
+  .split(SQL_SCRIPT_SEPARATOR)
   .map((statement) => statement.trim())
   .filter(Boolean);
 
@@ -35,7 +36,6 @@ const templateChildTables = [
   'ranking_items',
   'votes',
   'comments',
-  'reports',
   'rankings',
   'templates',
   'notifications',
@@ -135,7 +135,16 @@ async function testOwnerDeletesLastRanking() {
     for (const table of templateChildTables) {
       assert.equal(await count(db, table), 0, `orphan cleanup must empty ${table}`);
     }
-    console.log('A: owner deleted last ranking → ranking + template + all dependencies removed');
+    const archived = await db.prepare('SELECT target_kind, target_key, content_title, status, target_removed_at, template_id, ranking_id FROM reports').first();
+    assert.equal(await count(db, 'reports'), 1, 'Moderation evidence survives orphan cleanup');
+    assert.equal(archived.target_kind, 'post');
+    assert.equal(archived.target_key, rankingId);
+    assert.equal(archived.content_title, 'Orphan ranking');
+    assert.equal(archived.status, 'resolved');
+    assert(archived.target_removed_at);
+    assert.equal(archived.template_id, null);
+    assert.equal(archived.ranking_id, null);
+    console.log('A: orphan cleanup removes content dependencies while retaining the report and original title');
   } finally {
     await mf.dispose();
   }

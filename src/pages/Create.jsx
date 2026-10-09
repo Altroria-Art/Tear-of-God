@@ -540,7 +540,8 @@ const CreateTierList = () => {
                   </button>
                 </div>
               </div>
-              <div className="create-unranked-scroll overflow-x-auto overflow-y-hidden pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 lg:pb-0 lg:mb-0">
+              {items.length > 0 && <p className="text-xs text-muted mb-3 md:hidden">{t('editor.touchDragHint')}</p>}
+              <div data-drop-zone-container className="create-unranked-scroll overflow-x-auto overflow-y-hidden pb-4 mb-2 -mx-4 px-4 sm:mx-0 sm:px-0 lg:pb-0 lg:mb-0">
                 <DropZone className="bg-surface-glass border border-line-soft min-h-24 rounded-xl p-3 flex flex-nowrap lg:flex-wrap w-max lg:w-full items-center gap-3" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, null)}>
                 {itemGroups.unranked.length === 0 ? (
                   <span className="text-muted text-sm italic font-medium w-full text-center my-5 pointer-events-none">{t('create.noItems')}</span>

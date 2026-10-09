@@ -4,7 +4,8 @@
 //
 // ครอบทุก table ที่อ้าง template:
 // - template_items / template_views / template_reactions / template_comments /
-//   template_bookmarks / reports(template_id) / ranking_item_scores(template_id)
+//   template_bookmarks / ranking_item_scores(template_id)
+// Reports retain their snapshots; deletion triggers close them and FKs detach the targets.
 // - topic_follows ที่ติดตาม template นี้ (topic_type='template', topic_key=template id)
 //   เป็น plain text ไม่มี FK — ถ้าไม่ลบตรงนี้จะเป็น orphan (ดู PHASE 0 audit §2)
 // - rankings ของ template นี้พร้อมลูกทั้งหมด (ranking_items/votes/comments)
@@ -17,7 +18,6 @@ export function templateDeleteStatements(db, templateId) {
     db.prepare('DELETE FROM template_reactions WHERE template_id = ?').bind(templateId),
     db.prepare('DELETE FROM template_comments WHERE template_id = ?').bind(templateId),
     db.prepare('DELETE FROM template_bookmarks WHERE template_id = ?').bind(templateId),
-    db.prepare('DELETE FROM reports WHERE template_id = ?').bind(templateId),
     db.prepare('DELETE FROM ranking_item_scores WHERE template_id = ?').bind(templateId),
     db.prepare('DELETE FROM template_user_contributions WHERE template_id = ?').bind(templateId),
     db.prepare('DELETE FROM topic_follows WHERE topic_type = ? AND topic_key = ?').bind('template', templateId),

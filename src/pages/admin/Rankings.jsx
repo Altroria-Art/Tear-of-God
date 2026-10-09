@@ -5,6 +5,7 @@ import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminRankings, deleteAdminRanking, fetchRanking } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import DeleteConfirmation from '../../components/ui/DeleteConfirmation';
 import HashtagCell from '../../components/admin/HashtagCell';
 import TierLabel from '../../components/tier/TierLabel';
 import Avatar from '../../components/ui/Avatar';
@@ -24,6 +25,7 @@ export default function Rankings() {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [debouncedQ, setDebouncedQ] = useState('');
 
   // 📍 in-admin post detail modal
@@ -66,7 +68,7 @@ export default function Rankings() {
   }, [debouncedQ, currentUser?.id, toast, t]);
 
   const handleDelete = async (r) => {
-    if (!window.confirm(t('admin.confirmDeletePost', { title: r.title }))) return;
+    if (busy) return false;
     setBusy(r.id);
     const res = await deleteAdminRanking({ userId: currentUser?.id, targetId: r.id });
     setBusy(null);
@@ -77,6 +79,7 @@ export default function Rankings() {
     } else {
       toast.error(res.error || t('admin.deletePostFailed', { msg: '' }));
     }
+    return res.success;
   };
 
   // 📍 เปิด modal ดูรายละเอียดและรูปภาพของโพสต์
@@ -106,6 +109,12 @@ export default function Rankings() {
 
   return (
     <div>
+      <DeleteConfirmation
+        open={!!deleteTarget}
+        message={t('admin.confirmDeletePost', { title: deleteTarget?.title })}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDelete(deleteTarget)}
+      />
       <h1 className="text-2xl font-black text-ink mb-1">{t('admin.managePosts')}</h1>
       <p className="text-sm text-muted mb-6">{t('admin.managePostsHelp')}</p>
 
@@ -198,7 +207,7 @@ export default function Rankings() {
                         {t('admin.view')}
                       </button>
                       <button
-                        onClick={() => handleDelete(r)}
+                        onClick={() => setDeleteTarget(r)}
                         disabled={busy === r.id}
                         className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
                       >

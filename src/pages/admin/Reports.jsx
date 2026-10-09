@@ -4,17 +4,19 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { Trash2, Flag, ExternalLink } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
-import { fetchAdminReports, setReportStatus, deleteAdminComment, deleteAdminRanking, deleteAdminTemplate } from '../../lib/api';
+import { fetchAdminReports, setReportStatus, deleteReportedContent } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
-import { parseDbDate, timeAgo } from '../../lib/format';
+import DeleteConfirmation from '../../components/ui/DeleteConfirmation';
+import { timeAgo } from '../../lib/format';
+import Modal from '../../components/ui/Modal';
 import { useTranslation } from 'react-i18next';
 
 const PAGE_LIMIT = 20;
-const REOPEN_WINDOW_MS = 24 * 60 * 60 * 1000;
 const STATUS_FILTERS = [
   { value: 'pending', labelKey: 'admin.statusPending' },
   { value: 'resolved', labelKey: 'admin.statusResolved' },
 ];
+const ACTION_KEYS = { pending: 'admin.reportActionPending', kept: 'admin.reportActionKept', deleted: 'admin.reportActionDeleted', removed: 'admin.reportActionRemoved', reopened: 'admin.reportActionReopened', legacy: 'admin.reportActionLegacy' };
 
 const STATUS_META = {
   pending: { labelKey: 'admin.statusPending', cls: 'text-status-warning bg-status-warning/10' },
@@ -34,6 +36,8 @@ export default function Reports() {
   const [status, setStatus] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [reportDetail, setReportDetail] = useState(null);
 
   const load = useCallback(async (filter, pageNum) => {
     setLoading(true);
@@ -74,7 +78,8 @@ export default function Reports() {
     } else {
       // Same-tab transition: keep the row, just reflect the new state locally.
       const closedAt = confirmedStatus === 'pending' ? null : new Date().toISOString().slice(0, 19).replace('T', ' ');
-      setReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: confirmedStatus, closed_at: closedAt } : x)));
+      setReports((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...res.data, status: confirmedStatus, closed_at: closedAt } : x)));
+      load(status, page);
     }
     if (confirmedStatus !== 'pending' && r.status === 'pending') setPendingCount((c) => Math.max(0, c - 1));
     if (confirmedStatus === 'pending' && r.status !== 'pending') setPendingCount((c) => c + 1);
@@ -82,48 +87,52 @@ export default function Reports() {
   };
 
   const handleDeleteContent = async (r) => {
-    if (!window.confirm(t('admin.confirmDeleteReportContent'))) return;
+    if (busy) return false;
     setBusy(r.id);
 
-    // ลบ target ที่ report อ้างถึง — reuse admin delete APIs เดิมตาม kind
-    // (backend enforce admin เองทุก endpoint) Deleting the content also removes
-    // the report row itself via FK cascade / explicit report cleanup, so the row
-    // is dropped from the list instead of being marked resolved.
-    let res;
-    if (r.kind === 'comment' || r.kind === 'template_comment') {
-      res = await deleteAdminComment(r.kind === 'comment' ? r.comment_id : r.template_comment_id, r.kind === 'template_comment');
-    } else if (r.kind === 'post' && r.ranking_id) {
-      res = await deleteAdminRanking({ userId: currentUser?.id, targetId: r.ranking_id });
-    } else if (r.kind === 'template' && r.template_id) {
-      res = await deleteAdminTemplate({ userId: currentUser?.id, targetId: r.template_id });
-    }
+    const res = await deleteReportedContent(r.id);
 
     setBusy(null);
     if (res?.success) {
       toast.success(t('admin.deleteContentSuccess'));
-      setReports((prev) => prev.filter((x) => x.id !== r.id));
-      setTotal((prev) => Math.max(0, prev - 1));
+      // Retained reports move to Resolved; refresh also catches other reports
+      // resolved by the same target or a cascading deletion.
+      load(status, page);
       if (r.status === 'pending') setPendingCount((c) => Math.max(0, c - 1));
       refreshPending?.();
     } else {
       toast.error(res?.error || t('admin.deleteContentFailed'));
     }
-  };
-
-  // Remaining time until a closed report is auto-deleted (0 when the window passed).
-  const autoDeleteLabel = (closedAt) => {
-    const closed = parseDbDate(closedAt);
-    if (!closed) return null;
-    const remaining = closed.getTime() + REOPEN_WINDOW_MS - Date.now();
-    if (remaining <= 0) return null;
-    const totalMinutes = Math.ceil(remaining / 60000);
-    return t('admin.autoDeleteIn', { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 });
+    return res?.success;
   };
 
   const totalPages = Math.ceil(total / PAGE_LIMIT);
 
   return (
     <div>
+      <DeleteConfirmation
+        open={!!deleteTarget}
+        message={t('admin.confirmDeleteReportContent')}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDeleteContent(deleteTarget)}
+      />
+      <Modal open={!!reportDetail} onClose={() => setReportDetail(null)} title={t('admin.reportDetails')} maxWidth="max-w-xl" variant="editor">
+        {reportDetail && <div className="space-y-5 text-sm text-ink-soft">
+          <section><h4 className="font-bold text-ink mb-2">{t('admin.reportSavedContent')}</h4>
+            <p className="text-xs text-muted mb-3">{t('admin.reportSnapshotHelp')}</p>
+            {reportDetail.snapshot?.title && <p className="font-bold text-ink break-words whitespace-pre-wrap mb-2">{reportDetail.snapshot.title}</p>}
+            {reportDetail.snapshot?.text != null ? <p className="break-words whitespace-pre-wrap">{reportDetail.snapshot.text}</p> : !reportDetail.snapshot?.title && <p>{t('admin.reportSnapshotUnavailable')}</p>}
+            {reportDetail.target_removed_at && <p className="mt-3 text-status-error font-bold">{t('admin.reportActionDeleted')}</p>}
+          </section>
+          <section><h4 className="font-bold text-ink mb-2">{t('admin.reason')}</h4><p className="break-words whitespace-pre-wrap">{reportDetail.reason}</p></section>
+          <section><h4 className="font-bold text-ink mb-2">{t('admin.reportHistory')}</h4><ol className="space-y-3">
+            {(reportDetail.history || []).map((event, index) => <li key={index} className="border-l-2 border-line pl-3">
+              <p className="font-bold text-ink">{t(ACTION_KEYS[event.action] || 'admin.reportActionLegacy')}</p>
+              <p className="text-xs text-muted">{event.actor_name || t('admin.reportSystem')} · {timeAgo(event.created_at)}</p>
+            </li>)}
+          </ol></section>
+        </div>}
+      </Modal>
       <div className="flex items-center gap-3 mb-1">
         <h1 className="text-2xl font-black text-ink">{t('admin.manageReports')}</h1>
         {pendingCount > 0 && (
@@ -202,6 +211,7 @@ export default function Reports() {
                     labelCls = 'bg-surface-glass text-muted';
                   }
 
+                  if (r.target_removed_at) targetUrl = null;
                   return (
                     <tr key={r.id} className="border-b border-line-soft last:border-0 hover:bg-surface-glass">
                       <td className="px-4 py-2.5 align-middle">
@@ -258,6 +268,8 @@ export default function Reports() {
                         <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap ${meta.cls}`}>
                           {t(meta.labelKey)}
                         </span>
+                        <p className="text-xs text-muted mt-1">{t(ACTION_KEYS[r.moderation_action] || 'admin.reportActionLegacy')}</p>
+                        {r.moderator?.username && <p className="text-xs text-muted mt-1">{r.moderator.username}</p>}
                       </td>
                       <td className="px-4 py-2.5 text-right align-middle">
                         <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -271,7 +283,7 @@ export default function Reports() {
                                 {t('admin.keepContent')}
                               </button>
                               <button
-                                onClick={() => handleDeleteContent(r)}
+                                onClick={() => setDeleteTarget(r)}
                                 disabled={busy === r.id}
                                 className="text-xs font-bold text-red-500 hover:bg-red-500/10 rounded-lg px-2 py-1 disabled:opacity-50 whitespace-nowrap"
                               >
@@ -279,7 +291,7 @@ export default function Reports() {
                                 {t('admin.deleteContent')}
                               </button>
                             </>
-                          ) : (
+                          ) : !r.target_removed_at && (
                             <button
                               onClick={() => handleStatus(r, 'pending')}
                               disabled={busy === r.id}
@@ -288,10 +300,8 @@ export default function Reports() {
                               {t('admin.reopen')}
                             </button>
                           )}
+                          <button type="button" onClick={() => setReportDetail(r)} className="text-xs font-bold text-ink-soft hover:bg-tag rounded-lg px-2 py-1 whitespace-nowrap">{t('admin.reportDetails')}</button>
                         </div>
-                        {r.status !== 'pending' && autoDeleteLabel(r.closed_at) && (
-                          <div className="text-[11px] text-muted mt-1 whitespace-nowrap">{autoDeleteLabel(r.closed_at)}</div>
-                        )}
                       </td>
                     </tr>
                   );
