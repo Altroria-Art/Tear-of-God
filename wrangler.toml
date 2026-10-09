@@ -31,7 +31,7 @@ APP_URL = "http://localhost:8788"
 [[env.preview.d1_databases]]
 binding = "tear_of_god_db"
 database_name = "tear-of-god-preview"
-database_id = "b9b30fbb-8d5f-4d74-8834-7e1207161737"
+database_id = "7e770de5-77ed-4e4a-927c-74b0708039bf"
 
 [[env.preview.r2_buckets]]
 binding = "STORAGE"
