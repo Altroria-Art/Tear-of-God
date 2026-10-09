@@ -1122,7 +1122,7 @@ export default function HomeFeed() {
 
           {isLoadingMore && (
             <p className="text-center text-xs font-medium text-muted animate-pulse py-4">
-              {t('common.loadMore')}
+              {t('common.loadingMore')}
             </p>
           )}
 

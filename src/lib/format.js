@@ -53,7 +53,8 @@ export function formatDbDate(value, locale, options) {
 
 function ago(n, unit) {
   const label = i18n.t(`format.${unit}`) || unit;
-  return `${n} ${label}${n === 1 ? '' : (i18n.language === 'en' ? 's' : '')} ${i18n.t('format.ago', 'ago')}`;
+  const separator = i18n.language === 'th' ? '' : ' ';
+  return `${n} ${label}${n === 1 ? '' : (i18n.language === 'en' ? 's' : '')}${separator}${i18n.t('format.ago', 'ago')}`;
 }
 
 export function timeAgo(dateString) {
@@ -94,27 +95,27 @@ export function timeAgo(dateString) {
   return `${dateFormatted} • ${relative}`;
 }
 
-/** Compact relative time for tight/mobile UIs — number + short unit, same for th/en. */
+/** Compact relative time in the selected interface language. */
 export function shortTimeAgo(dateString) {
   const date = parseDbDate(dateString);
-  if (!date) return 'now';
+  if (!date) return i18n.t('format.shortNow');
 
   // Clamp negatives exactly like timeAgo() does.
   const seconds = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000));
 
-  if (seconds < 45) return 'now';
-  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 45) return i18n.t('format.shortNow');
+  if (seconds < 60) return i18n.t('format.shortSecond', { count: seconds });
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return i18n.t('format.shortMinute', { count: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h`;
+  if (hours < 24) return i18n.t('format.shortHour', { count: hours });
   const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d`;
+  if (days < 7) return i18n.t('format.shortDay', { count: days });
   const weeks = Math.round(days / 7);
-  if (weeks < 5) return `${weeks}w`;
+  if (weeks < 5) return i18n.t('format.shortWeek', { count: weeks });
   const months = Math.round(days / 30);
-  if (months < 12) return `${months}mo`;
-  return `${Math.round(days / 365)}y`;
+  if (months < 12) return i18n.t('format.shortMonth', { count: months });
+  return i18n.t('format.shortYear', { count: Math.round(days / 365) });
 }
 
 /**

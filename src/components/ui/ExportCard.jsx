@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useMemo, useState } from 'react';
 import { formatHashtags } from '../../lib/hashtags';
 import { normalizeImageUrl } from '../../lib/images';
@@ -50,11 +51,12 @@ export default function ExportCard({
   theme = 'light',
   shareLink = null,
   shareFormat = 'landscape',
-  shareCta = 'Rank it and compare your taste',
-  shareQrHint = 'Scan to open this list',
+  shareCta = null,
+  shareQrHint = null,
   typeBadge = null,
   footerText = null,
 }) {
+  const { t } = useTranslation();
   const layout = FORMAT_LAYOUT[shareFormat] || FORMAT_LAYOUT.landscape;
   const isDark = theme === 'dark';
   const isShareCard = Boolean(shareLink);
@@ -106,7 +108,7 @@ export default function ExportCard({
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}
               >
-                {authorName || 'Unknown User'}
+                {authorName || t('common.unknownUser')}
               </p>
               {postedAt && (
                 <p style={{ fontSize: layout.subSize, fontWeight: 500, color: textMuted, marginTop: 2 }}>{postedAt}</p>
@@ -167,7 +169,7 @@ export default function ExportCard({
             textAlign: centerHeadings ? 'center' : 'left',
           }}
         >
-          {totalItems} items ranked
+          {t('shareExport.itemsRanked', { count: totalItems })}
         </p>
       </header>
 
@@ -204,7 +206,7 @@ export default function ExportCard({
             >
               {row.items.length === 0 ? (
                 <span style={{ fontSize: layout.itemTextSize, fontStyle: 'italic', fontWeight: 500, color: textMuted, padding: '0 8px' }}>
-                  ไม่มีรายการในระดับนี้
+                  {t('feed.noItems')}
                 </span>
               ) : (
                 row.items.map((item, idx) => (
@@ -232,8 +234,8 @@ export default function ExportCard({
           }}
         >
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: textMain, lineHeight: 1.3 }}>{shareCta}</p>
-            <p style={{ fontSize: 11, fontWeight: 600, color: textMuted, marginTop: 6 }}>{shareQrHint}</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: textMain, lineHeight: 1.3 }}>{shareCta || t('shareExport.shareCardCta')}</p>
+            <p style={{ fontSize: 11, fontWeight: 600, color: textMuted, marginTop: 6 }}>{shareQrHint || t('shareExport.qrHint')}</p>
           </div>
           <ShareQr value={shareLink} size={layout.qrSize} />
         </div>
@@ -248,8 +250,8 @@ export default function ExportCard({
           fontSize: layout.footerSize, fontWeight: 500, color: textMuted,
         }}
       >
-        <span>{footerText || 'Tear of God Ranking'}</span>
-        <span style={{ fontWeight: 600 }}>tearofgod.pages.dev</span>
+        <span>{footerText || t('shareExport.rankingFooter')}</span>
+        <span style={{ fontWeight: 600 }}>tear-of-god.pages.dev</span>
       </footer>
     </div>
   );

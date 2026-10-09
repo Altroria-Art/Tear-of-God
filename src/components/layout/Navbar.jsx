@@ -318,7 +318,7 @@ const Navbar = () => {
                   className="w-11 h-11 bg-surface rounded-full flex items-center justify-center text-ink-soft hover:bg-surface-glass hover:text-brand transition-colors cursor-pointer overflow-hidden shadow-sm border border-line-soft"
                 >
                   {currentUser?.avatar_url ? (
-                    <img src={currentUser.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    <img src={currentUser.avatar_url} alt={t('common.avatarAlt')} className="w-full h-full object-cover" />
                   ) : (
                     <User size={18} strokeWidth={2.5} />
                   )}

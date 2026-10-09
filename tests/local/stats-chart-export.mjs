@@ -179,8 +179,8 @@ try {
       assert.ok(html.includes('★ 4.9'), `[${format} / ${theme}] score rendered`);
 
       // 5. Watermark exists
-      assert.ok(html.includes('Tear of God Statistics'), `[${format} / ${theme}] watermark rendered`);
-      assert.ok(html.includes('tearofgod.pages.dev'), `[${format} / ${theme}] domain rendered`);
+      assert.ok(html.includes('shareExport.statsFooter'), `[${format} / ${theme}] localized watermark rendered`);
+      assert.ok(html.includes('tear-of-god.pages.dev'), `[${format} / ${theme}] domain rendered`);
 
       // 6. Theme colors
       if (theme === 'dark') {

@@ -843,7 +843,7 @@ html[lang="th"] .play-header--home .play-title { line-height:1.25; letter-spacin
 .reset-code-orbit { position:absolute; left:calc(50% - 72px); top:calc(50% - 72px); width:144px; height:144px; border:1px dashed color-mix(in srgb,var(--color-hero-ink) 35%,transparent); border-radius:50%; opacity:0; transition:opacity .4s; }
 .reset-code-orbit span { position:absolute; width:6px; height:6px; border-radius:50%; background:var(--color-hero-ink); top:calc(50% - 3px); left:calc(50% - 3px); }
 .reset-code-stage--checking .reset-code-slot { transform:translate(var(--orbit-x),var(--orbit-y)) rotate(12deg); }
-.reset-code-stage--checking .reset-code-slots { animation:reset-orbit-spin 2.8s linear .55s infinite; }
+.reset-code-stage--checking .reset-code-slots { animation:reset-orbit-spin 5.6s linear .55s infinite; }
 .reset-code-stage--checking .reset-code-orbit { opacity:1; }
 .reset-code-stage--verified .reset-code-slot { transform:translate(0,0) scale(.3); opacity:0; }
 .reset-code-confirm { position:absolute; top:calc(50% - 30px); left:calc(50% - 30px); width:60px; height:60px; border-radius:1rem; border:2px solid var(--color-status-success); display:grid; place-items:center; color:var(--color-status-success); box-shadow:0 0 0 4px color-mix(in srgb,var(--color-status-success) 15%,transparent); animation:reset-confirm-pop .4s ease-out; }

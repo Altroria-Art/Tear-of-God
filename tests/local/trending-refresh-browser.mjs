@@ -83,7 +83,7 @@ try {
   delayed = false; checks.push('Switching feeds discards old result and queued refresh');
   await page.send('Fetch.disable');
   await page.evaluate(`localStorage.setItem('tog:trending-seen:guest',JSON.stringify(${JSON.stringify(ids)}.map(id=>({id,seenAt:Date.now()}))))`);
-  const moreButton = `[...document.querySelectorAll('main button')].find(e=>e.textContent.trim()==='Loading more...')`;
+  const moreButton = `[...document.querySelectorAll('main button')].find(e=>e.textContent.trim()==='Load more')`;
   await page.goto(base); await page.until(`document.body.textContent.includes("You're all caught up") || !!${moreButton}`, 'Exhausted Trending loaded', 20000);
   for (let i = 0; i < 4; i++) {
     await delay(300);

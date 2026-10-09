@@ -160,15 +160,16 @@ export async function onRequest({ request, env, data: auth }) {
                   email: env.BREVO_FROM_EMAIL || 'pview5678fc@gmail.com'
                 },
                 to: [{ email: user.email }],
-                subject: 'รีเซ็ตรหัสผ่าน Tear of God',
+                subject: 'Tear of God · Password reset / ตั้งรหัสผ่านใหม่',
                 htmlContent: `
                   <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2>รีเซ็ตรหัสผ่านบัญชี Tear of God</h2>
-                    <p>เราได้รับคำขอให้ตั้งรหัสผ่านใหม่สำหรับบัญชีของคุณ</p>
-                    <p>กรอกรหัสยืนยันนี้ในหน้ารีเซ็ตรหัสผ่าน:</p>
+                    <h2>ตั้งรหัสผ่านใหม่ / Reset your password</h2>
+                    <p>มีคำขอตั้งรหัสผ่านใหม่สำหรับบัญชี Tear of God ของคุณ</p>
+                    <p>A password reset was requested for your Tear of God account.</p>
+                    <p>ใส่รหัส 6 หลักนี้ในหน้าตั้งรหัสผ่านใหม่ / Enter this 6-digit code on the password reset page:</p>
                     <p style="font-size: 32px; letter-spacing: 8px; font-weight: bold; margin: 24px 0;">${code}</p>
-                    <p style="color: #666; font-size: 14px;">รหัสนี้ใช้ได้ครั้งเดียวและหมดอายุใน 10 นาที อย่าเปิดเผยรหัสนี้ให้ผู้อื่น</p>
-                    <p style="color: #666; font-size: 14px;">หากคุณไม่ได้เป็นผู้ร้องขอให้เปลี่ยนรหัสผ่าน โปรดเพิกเฉยต่ออีเมลฉบับนี้</p>
+                    <p style="color: #666; font-size: 14px;">รหัสใช้ได้ครั้งเดียวและหมดอายุใน 10 นาที อย่าส่งรหัสให้คนอื่น<br>This code works once and expires in 10 minutes. Don’t share it with anyone.</p>
+                    <p style="color: #666; font-size: 14px;">ถ้าคุณไม่ได้ขอเปลี่ยนรหัสผ่าน ให้ข้ามอีเมลนี้ได้เลย<br>If you didn’t request this, you can ignore this email.</p>
                   </div>
                 `
               })
