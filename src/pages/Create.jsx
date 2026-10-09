@@ -8,6 +8,7 @@ import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
+import { CAMPUS_HASHTAG_SUGGESTIONS as DEFAULT_HASHTAGS } from '../lib/hashtags';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Settings, X, ChevronLeft, Zap, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -27,8 +28,6 @@ const DEFAULT_TIERS = [
   { id: 't4', label: 'C', color: '#4ade80' },
   { id: 't5', label: 'D', color: '#60a5fa' },
 ];
-
-const DEFAULT_HASHTAGS = ['#Gaming', '#Anime', '#Movie', '#Food', '#Sports', '#Music'];
 
 // 📍 [ใหม่]: Autosave draft — เก็บงานที่พิมพ์/จัดค้างไว้ใน localStorage เพื่อกู้คืนหลังรีเฟรช
 const DRAFT_KEY = 'tog-create-draft';

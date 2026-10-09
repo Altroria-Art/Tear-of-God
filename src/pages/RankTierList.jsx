@@ -7,6 +7,7 @@ import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
 import { loginPath } from '../lib/navigation';
+import { CAMPUS_HASHTAG_SUGGESTIONS as STANDARD_HASHTAGS } from '../lib/hashtags';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Shuffle, ArrowDownAZ, Hash, Swords, Clock } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -29,8 +30,6 @@ const DEFAULT_TIERS = [
   { id: 't5', label: 'D', color: '#60a5fa' },
 ];
 
-
-const STANDARD_HASHTAGS = ['#Gaming', '#Anime', '#Movie', '#Food', '#Sports', '#Music'];
 
 const RankTierList = () => {
   const navigate = useNavigate();

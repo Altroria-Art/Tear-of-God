@@ -10,6 +10,15 @@ export const TRENDING_SEEN_MAX_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 export const TRENDING_SEEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const TRENDING_SEEN_EXCLUDE_MAX = 100;
 
+// A tall ranking cannot occupy half its own height on a smaller screen.
+// Measure against the smaller of the card and viewport instead.
+export function isTrendingCardVisible({ isIntersecting, boundingClientRect: card, intersectionRect: visible, rootBounds: viewport }) {
+  if (!isIntersecting || !card || !visible || !viewport) return false;
+  const height = Math.min(card.height, viewport.height);
+  const width = Math.min(card.width, viewport.width);
+  return height > 0 && width > 0 && visible.height >= height / 2 && visible.width >= width / 2;
+}
+
 const SQLITE_DATETIME = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?)$/;
 export function parseDate(value) {
   if (value == null) return null;

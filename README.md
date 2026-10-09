@@ -33,6 +33,10 @@
 - Storage: Cloudflare R2 (avatar/image uploads, binding `STORAGE`)
 - Auth: email/password (salted PBKDF2 in D1) + Google Sign-In (Firebase token verified server-side); HttpOnly cookie sessions
 
+## Brand assets
+
+Brand assets in `public/` share the app's theme palette. Run `node scripts/render-brand-assets.mjs` to regenerate the favicon/navbar mark, item placeholder and 1200×630 social preview using installed Chromium (set `CHROME_PATH` on other systems). The generator is the editable artwork source; its PNG output is a product asset, not a QA screenshot.
+
 ## Project Structure
 
 ```
