@@ -339,7 +339,7 @@ export default function ShareExportModal({
                   exportTheme === 'light' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-muted hover:text-ink'
                 }`}
               >
-                <Sun size={14} /> Light
+                <Sun size={14} /> {t('common.lightTheme')}
               </button>
               <button
                 type="button"
@@ -349,7 +349,7 @@ export default function ShareExportModal({
                   exportTheme === 'dark' ? 'bg-gray-800 text-white shadow-sm border border-gray-700' : 'text-muted hover:text-ink'
                 }`}
               >
-                <Moon size={14} /> Dark
+                <Moon size={14} /> {t('common.darkTheme')}
               </button>
             </div>
           </div>

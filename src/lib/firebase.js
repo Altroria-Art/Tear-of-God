@@ -4,6 +4,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 // Your web app's Firebase configuration
 import { firebaseConfig } from './firebaseConfig';
+import i18n from '../i18n';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -30,6 +31,9 @@ export const signInWithGoogle = async () => {
     };
   } catch (err) {
     console.error(err);
-    return { data: null, error: err.message };
+    const key = err.code === 'auth/popup-blocked' ? 'apiMessages.popupBlocked'
+      : err.code === 'auth/popup-closed-by-user' ? 'apiMessages.popupClosed'
+        : err.code === 'auth/network-request-failed' ? 'errors.serverUnreachable' : 'apiMessages.googleFailed';
+    return { data: null, error: i18n.t(key) };
   }
 };

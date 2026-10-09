@@ -1040,7 +1040,7 @@ export default function Profile() {
                     </div>
                   ) : null}
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    <img src={avatarUrl} alt={t('common.avatarAlt')} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center font-bold text-xl text-brand">
                       {displayName?.charAt(0)?.toUpperCase() || 'U'}

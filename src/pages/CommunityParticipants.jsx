@@ -311,6 +311,7 @@ function CommunityParticipantsContent() {
       }
 
       const { wb, filename } = buildCommunityExcelWorkbook(XLSX, {
+        t,
         template,
         participantOptions,
         participantFilter,

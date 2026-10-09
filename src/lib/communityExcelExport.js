@@ -236,7 +236,9 @@ export function buildCommunityItemStats(rankings = [], tiersDef = []) {
  * สร้างข้อความอธิบายความโดดเด่น/ลักษณะเฉพาะตัวของผู้ใช้ (Standout Summary)
  * จาก deterministic rules โดยไม่ใช้คำเชิงตัดสินคุณค่า (ไม่ใช้ best/worst/better/bad)
  */
-export function generateStandoutSummary({ similarity, highestItem, lowestItem }) {
+const defaultTranslate = (_key, options = {}) => String(options.defaultValue || '').replace(/{{(\w+)}}/g, (_match, key) => options[key] ?? '');
+
+export function generateStandoutSummary({ similarity, highestItem, lowestItem, t = defaultTranslate }) {
   if (typeof similarity !== 'number') return '-'
 
   const hasHigh = Boolean(highestItem && highestItem.diff >= 0.75)
@@ -244,35 +246,35 @@ export function generateStandoutSummary({ similarity, highestItem, lowestItem })
 
   if (similarity >= 85) {
     if (hasHigh) {
-      return `Very close to Community Average; slight preference for "${highestItem.name}"`
+      return t('excel.closeHigher', { defaultValue: `Very close to Community Average; slight preference for "${highestItem.name}"`, high: highestItem?.name, low: lowestItem?.name })
     }
-    return 'Very close to Community Average'
+    return t('excel.close', { defaultValue: 'Very close to Community Average', high: highestItem?.name, low: lowestItem?.name })
   }
 
   if (similarity <= 50) {
     if (hasHigh && hasLow) {
-      return `Highly distinctive ranking; strong preference for "${highestItem.name}", rates "${lowestItem.name}" below community`
+      return t('excel.differentBoth', { defaultValue: `Highly distinctive ranking; strong preference for "${highestItem.name}", rates "${lowestItem.name}" below community`, high: highestItem?.name, low: lowestItem?.name })
     }
     if (hasHigh) {
-      return `Highly distinctive ranking; strong preference for "${highestItem.name}"`
+      return t('excel.differentHigher', { defaultValue: `Highly distinctive ranking; strong preference for "${highestItem.name}"`, high: highestItem?.name, low: lowestItem?.name })
     }
     if (hasLow) {
-      return `Highly distinctive ranking; much less favorable toward "${lowestItem.name}"`
+      return t('excel.differentLower', { defaultValue: `Highly distinctive ranking; much less favorable toward "${lowestItem.name}"`, high: highestItem?.name, low: lowestItem?.name })
     }
-    return 'Highly distinctive ranking'
+    return t('excel.distinct', { defaultValue: 'Highly distinctive ranking', high: highestItem?.name, low: lowestItem?.name })
   }
 
   // 51 - 84%
   if (hasHigh && hasLow) {
-    return `Strong preference for "${highestItem.name}"; rates "${lowestItem.name}" below community`
+    return t('excel.both', { defaultValue: `Strong preference for "${highestItem.name}"; rates "${lowestItem.name}" below community`, high: highestItem?.name, low: lowestItem?.name })
   }
   if (hasHigh) {
-    return `Strong preference for "${highestItem.name}"`
+    return t('excel.higher', { defaultValue: `Strong preference for "${highestItem.name}"`, high: highestItem?.name, low: lowestItem?.name })
   }
   if (hasLow) {
-    return `Much less favorable toward "${lowestItem.name}"`
+    return t('excel.lower', { defaultValue: `Much less favorable toward "${lowestItem.name}"`, high: highestItem?.name, low: lowestItem?.name })
   }
-  return 'Moderate alignment with Community Average'
+  return t('excel.moderate', { defaultValue: 'Moderate alignment with Community Average', high: highestItem?.name, low: lowestItem?.name })
 }
 
 /**
@@ -283,6 +285,7 @@ export function calculateCommunityTasteAnalysis({
   participants = [],
   filteredRankings,
   tiersDef = [],
+  t = defaultTranslate,
 }) {
   const effectiveTiers = (tiersDef && tiersDef.length > 0) ? tiersDef : (template?.tiers || [])
   const rankingPool = filteredRankings ?? participants
@@ -352,23 +355,24 @@ export function calculateCommunityTasteAnalysis({
       similarity,
       highestItem,
       lowestItem,
+      t,
     })
 
     const mostDiffStr = mostDifferentItem
-      ? `${mostDifferentItem.name} (${mostDifferentItem.userTier} vs Avg ${mostDifferentItem.commTier})`
+      ? `${mostDifferentItem.name} (${mostDifferentItem.userTier} ${t('excel.versusAverage', { defaultValue: 'vs Avg' })} ${mostDifferentItem.commTier})`
       : '-'
 
     const strongPrefStr = highestItem
-      ? `${highestItem.name} (+${Math.round(highestItem.diff * 10) / 10} tier)`
+      ? `${highestItem.name} (+${Math.round(highestItem.diff * 10) / 10} ${t('excel.tierUnit', { defaultValue: 'tier' })})`
       : '-'
 
     const lowerPrefStr = lowestItem
-      ? `${lowestItem.name} (${Math.round(lowestItem.diff * 10) / 10} tier)`
+      ? `${lowestItem.name} (${Math.round(lowestItem.diff * 10) / 10} ${t('excel.tierUnit', { defaultValue: 'tier' })})`
       : '-'
 
     return {
       user_id: participant.user_id || participant.id || participant.username,
-      username: participant.username || participant.display_name || participant.name || 'Unknown',
+      username: participant.username || participant.display_name || participant.name || t('excel.unknown', { defaultValue: "Unknown" }),
       faculty: participant.faculty || '-',
       major: participant.major || '-',
       year: participant.year ? String(participant.year) : '-',
@@ -466,7 +470,7 @@ export function calculateCommunityTasteAnalysis({
 /**
  * สร้าง Worksheet สำหรับการวิเคราะห์รสชาติ (Participant Analysis)
  */
-export function buildAnalysisWorksheet(XLSX, analysisData, templateTitle = '-') {
+export function buildAnalysisWorksheet(XLSX, analysisData, templateTitle = '-', t = defaultTranslate) {
   const {
     totalParticipants,
     mostSimilarUser,
@@ -488,53 +492,53 @@ export function buildAnalysisWorksheet(XLSX, analysisData, templateTitle = '-') 
   const aoa = []
 
   // Row 0-1 Title & Template
-  aoa.push(['Community Taste Analysis'])
-  aoa.push(['Template', templateTitle])
+  aoa.push([t('excel.analysis', { defaultValue: "Community Taste Analysis" })])
+  aoa.push([t('excel.topic', { defaultValue: "Template" }), templateTitle])
   aoa.push([])
 
   // Section A: Summary (Rows 3-8)
-  aoa.push(['--- Summary ---'])
-  aoa.push(['Total Participants', totalParticipants])
+  aoa.push([t('excel.summary', { defaultValue: "--- Summary ---" })])
+  aoa.push([t('excel.total', { defaultValue: "Total Participants" }), totalParticipants])
   aoa.push([
-    'Most Similar to Community',
+    t('excel.closest', { defaultValue: "Most Similar to Community" }),
     mostSimilarUser ? `${mostSimilarUser.username} (${mostSimilarUser.similarity}%)` : '-',
   ])
   aoa.push([
-    'Most Distinctive from Community',
+    t('excel.different', { defaultValue: "Most Distinctive from Community" }),
     mostDistinctiveUser ? `${mostDistinctiveUser.username} (${mostDistinctiveUser.similarity}%)` : '-',
   ])
-  const closestPairLabel = isPairwiseLimited ? 'Closest Pair (among analyzed 50)' : 'Closest Pair'
+  const closestPairLabel = isPairwiseLimited ? t('excel.closestPair50', { defaultValue: "Closest Pair (among analyzed 50)" }) : t('excel.closestPair', { defaultValue: "Closest Pair" })
   const mostDiffPairLabel = isPairwiseLimited
-    ? 'Most Different Pair (among analyzed 50)'
-    : 'Most Different Pair'
+    ? t('excel.differentPair50', { defaultValue: "Most Different Pair (among analyzed 50)" })
+    : t('excel.differentPair', { defaultValue: "Most Different Pair" })
 
   aoa.push([
     closestPairLabel,
     closestPair
       ? `${closestPair.userA} ↔ ${closestPair.userB} (${closestPair.similarity}%)`
-      : 'N/A (Requires at least 2 participants)',
+      : t('excel.needTwo', { defaultValue: "N/A (Requires at least 2 participants)" }),
   ])
   aoa.push([
     mostDiffPairLabel,
     mostDifferentPair
       ? `${mostDifferentPair.userA} ↔ ${mostDifferentPair.userB} (${mostDifferentPair.similarity}%)`
-      : 'N/A (Requires at least 2 participants)',
+      : t('excel.needTwo', { defaultValue: "N/A (Requires at least 2 participants)" }),
   ])
   aoa.push([])
 
   // Section B: Participant Analysis Table
   const participantHeaderRowIdx = aoa.length + 1
-  aoa.push(['--- Participant Analysis ---'])
+  aoa.push([t('excel.peopleAnalysis', { defaultValue: "--- Participant Analysis ---" })])
   aoa.push([
-    'User',
-    'Faculty',
-    'Major',
-    'Academic Year',
-    'Similarity to Community',
-    'Most Different Item',
-    'Strong Preference',
-    'Lower Preference',
-    'Standout Summary',
+    t('excel.user', { defaultValue: "User" }),
+    t('excel.faculty', { defaultValue: "Faculty" }),
+    t('excel.major', { defaultValue: "Major" }),
+    t('excel.year', { defaultValue: "Academic Year" }),
+    t('excel.similarityCommunity', { defaultValue: "Similarity to Community" }),
+    t('excel.differentItem', { defaultValue: "Most Different Item" }),
+    t('excel.strongPref', { defaultValue: "Strong Preference" }),
+    t('excel.lowerPref', { defaultValue: "Lower Preference" }),
+    t('excel.standout', { defaultValue: "Standout Summary" }),
   ])
 
   const participantDataStartIdx = aoa.length
@@ -561,14 +565,14 @@ export function buildAnalysisWorksheet(XLSX, analysisData, templateTitle = '-') 
   if (totalParticipants >= 2 && pairwiseResults.length > 0) {
     aoa.push([])
     const sectionTitle = isPairwiseLimited
-      ? '--- Pairwise Comparison (Limited to 50 participants) ---'
-      : '--- Pairwise Comparison ---'
+      ? t('excel.pairwise50', { defaultValue: "--- Pairwise Comparison (Limited to 50 participants) ---" })
+      : t('excel.pairwise', { defaultValue: "--- Pairwise Comparison ---" })
     aoa.push([sectionTitle])
     if (isPairwiseLimited) {
-      aoa.push(['Note: Pairwise comparison is limited to 50 participants to ensure smooth export performance.'])
+      aoa.push([t('excel.pairwiseNote', { defaultValue: "Note: Pairwise comparison is limited to 50 participants to ensure smooth export performance." })])
     }
     pairwiseHeaderRowIdx = aoa.length
-    aoa.push(['User A', 'User B', 'Similarity'])
+    aoa.push([t('excel.userA', { defaultValue: "User A" }), t('excel.userB', { defaultValue: "User B" }), t('excel.similarity', { defaultValue: "Similarity" })])
     pairwiseDataStartIdx = aoa.length
     pairwiseResults.forEach(pair => {
       aoa.push([pair.userA, pair.userB, `${pair.similarity}%`])
@@ -674,12 +678,13 @@ export function buildCommunityExcelWorkbook(XLSX, {
   displayTiers = [],
   filteredRankings,
   participants = [],
+  t = defaultTranslate,
 }) {
   const isAllMode = String(participantFilter).toLowerCase() === 'all'
   const templateTitle = template?.title || template?.name || template?.id || '-'
-  const facultyDisplay = facultyFilter || 'All'
-  const majorDisplay = majorFilter || 'All'
-  const yearDisplay = yearFilter ? String(yearFilter) : 'All'
+  const facultyDisplay = facultyFilter || t('excel.all', { defaultValue: "All" })
+  const majorDisplay = majorFilter || t('excel.all', { defaultValue: "All" })
+  const yearDisplay = yearFilter ? String(yearFilter) : t('excel.all', { defaultValue: "All" })
   const fullTiersDef = (template?.tiers && template.tiers.length > 0) ? template.tiers : displayTiers
 
   const thinBorder = {
@@ -725,7 +730,7 @@ export function buildCommunityExcelWorkbook(XLSX, {
     // กรณีไม่มีข้อมูล ให้มี 1 block แสดง empty state
     const effectiveParticipants = targetParticipants.length > 0 ? targetParticipants : [
       {
-        username: 'All',
+        username: t('excel.all', { defaultValue: "All" }),
         faculty: facultyDisplay,
         major: majorDisplay,
         year: yearDisplay,
@@ -739,29 +744,29 @@ export function buildCommunityExcelWorkbook(XLSX, {
 
     effectiveParticipants.forEach((p, k) => {
       const startCol = k * 3
-      const username = p.username || p.display_name || p.name || 'Unknown'
+      const username = p.username || p.display_name || p.name || t('excel.unknown', { defaultValue: "Unknown" })
       const faculty = p.faculty || facultyDisplay
       const major = p.major || majorDisplay
       const year = p.year ? String(p.year) : yearDisplay
 
       // แถว 0-4 Metadata ของผู้ใช้แต่ละคน
-      aoaRows[0][startCol] = 'Template'
+      aoaRows[0][startCol] = t('excel.topic', { defaultValue: "Template" })
       aoaRows[0][startCol + 1] = templateTitle
       aoaRows[0][startCol + 2] = ''
 
-      aoaRows[1][startCol] = 'Participant'
+      aoaRows[1][startCol] = t('excel.person', { defaultValue: "Participant" })
       aoaRows[1][startCol + 1] = username
       aoaRows[1][startCol + 2] = ''
 
-      aoaRows[2][startCol] = 'Faculty'
+      aoaRows[2][startCol] = t('excel.faculty', { defaultValue: "Faculty" })
       aoaRows[2][startCol + 1] = faculty
       aoaRows[2][startCol + 2] = ''
 
-      aoaRows[3][startCol] = 'Major'
+      aoaRows[3][startCol] = t('excel.major', { defaultValue: "Major" })
       aoaRows[3][startCol + 1] = major
       aoaRows[3][startCol + 2] = ''
 
-      aoaRows[4][startCol] = 'Academic Year'
+      aoaRows[4][startCol] = t('excel.year', { defaultValue: "Academic Year" })
       aoaRows[4][startCol + 1] = year
       aoaRows[4][startCol + 2] = ''
 
@@ -771,8 +776,8 @@ export function buildCommunityExcelWorkbook(XLSX, {
       aoaRows[5][startCol + 2] = ''
 
       // แถว 6 Header ตาราง: Tier | Items
-      aoaRows[6][startCol] = 'Tier'
-      aoaRows[6][startCol + 1] = 'Items'
+      aoaRows[6][startCol] = t('excel.tier', { defaultValue: "Tier" })
+      aoaRows[6][startCol + 1] = t('excel.items', { defaultValue: "Items" })
       aoaRows[6][startCol + 2] = ''
 
       // แถว 7+ Tier Data rows
@@ -838,7 +843,7 @@ export function buildCommunityExcelWorkbook(XLSX, {
       })
     })
 
-    XLSX.utils.book_append_sheet(wb, ws, 'All Participants')
+    XLSX.utils.book_append_sheet(wb, ws, t('excel.allSheet', { defaultValue: "All Participants" }))
 
     // ─────────────────────────────────────────────────────────────
     // แทรก Sheet 2: Participant Analysis
@@ -849,14 +854,15 @@ export function buildCommunityExcelWorkbook(XLSX, {
         participants: targetParticipants,
         filteredRankings: matching,
         tiersDef: fullTiersDef,
+        t,
       })
-      const wsAnalysis = buildAnalysisWorksheet(XLSX, analysisData, templateTitle)
-      XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Participant Analysis')
+      const wsAnalysis = buildAnalysisWorksheet(XLSX, analysisData, templateTitle, t)
+      XLSX.utils.book_append_sheet(wb, wsAnalysis, t('excel.analysisSheet', { defaultValue: "Participant Analysis" }))
     }
 
     const filename = getExportFilename({
       template,
-      participantName: 'All',
+      participantName: t('excel.all', { defaultValue: "All" }),
       faculty: facultyDisplay,
       major: majorDisplay,
       year: yearDisplay,
@@ -868,10 +874,10 @@ export function buildCommunityExcelWorkbook(XLSX, {
   // ─────────────────────────────────────────────────────────────
   // โหมด Avg หรือ เลือกผู้ใช้คนเดียว (1 block ที่คอลัมน์ A & B)
   // ─────────────────────────────────────────────────────────────
-  let participantDisplay = 'Avg'
+  let participantDisplay = t('excel.avg', { defaultValue: "Avg" })
   if (participantFilter) {
     const found = participantOptions.find(p => p.user_id === participantFilter)
-    participantDisplay = found?.username || found?.display_name || found?.name || 'Unknown'
+    participantDisplay = found?.username || found?.display_name || found?.name || t('excel.unknown', { defaultValue: "Unknown" })
   }
 
   // Metadata แถว 0-4
@@ -879,13 +885,13 @@ export function buildCommunityExcelWorkbook(XLSX, {
   // แถว 6 Table Header: Tier | Items
   // แถว 7+ Tier Data rows
   const aoaRows = [
-    ['Template', templateTitle],
-    ['Participant', participantDisplay],
-    ['Faculty', facultyDisplay],
-    ['Major', majorDisplay],
-    ['Academic Year', yearDisplay],
+    [t('excel.topic', { defaultValue: "Template" }), templateTitle],
+    [t('excel.person', { defaultValue: "Participant" }), participantDisplay],
+    [t('excel.faculty', { defaultValue: "Faculty" }), facultyDisplay],
+    [t('excel.major', { defaultValue: "Major" }), majorDisplay],
+    [t('excel.year', { defaultValue: "Academic Year" }), yearDisplay],
     [],
-    ['Tier', 'Items'],
+    [t('excel.tier', { defaultValue: "Tier" }), t('excel.items', { defaultValue: "Items" })],
     ...displayTiers.map(tier => [
       tier.label,
       Array.isArray(tier.items)
@@ -940,7 +946,7 @@ export function buildCommunityExcelWorkbook(XLSX, {
     ws[itemsCell].s = { border: thinBorder }
   })
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Community Average')
+  XLSX.utils.book_append_sheet(wb, ws, t('excel.averageSheet', { defaultValue: "Community Average" }))
 
   // ─────────────────────────────────────────────────────────────
   // แทรก Sheet 2: Participant Analysis ในกรณีที่มีข้อมูล participant
@@ -963,9 +969,10 @@ export function buildCommunityExcelWorkbook(XLSX, {
         participants: targetParticipants,
         filteredRankings: candidateRankings,
         tiersDef: fullTiersDef,
+        t,
       })
-      const wsAnalysis = buildAnalysisWorksheet(XLSX, analysisData, templateTitle)
-      XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Participant Analysis')
+      const wsAnalysis = buildAnalysisWorksheet(XLSX, analysisData, templateTitle, t)
+      XLSX.utils.book_append_sheet(wb, wsAnalysis, t('excel.analysisSheet', { defaultValue: "Participant Analysis" }))
     }
   }
 

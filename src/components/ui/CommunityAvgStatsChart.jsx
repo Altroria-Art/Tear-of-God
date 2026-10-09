@@ -270,8 +270,8 @@ export default function CommunityAvgStatsChart({
             flexShrink: 0,
           }}
         >
-          <span>Tear of God Statistics</span>
-          <span style={{ fontWeight: 600 }}>tearofgod.pages.dev</span>
+          <span>{t('shareExport.statsFooter')}</span>
+          <span style={{ fontWeight: 600 }}>tear-of-god.pages.dev</span>
         </footer>
       </div>
     );

@@ -89,12 +89,15 @@ export async function chromium({ port = 9341 } = {}) {
     },
     async close() {
       // Browser owns only the unique temporary profile made by this helper.
+      const exited = chrome.exitCode !== null ? Promise.resolve() : new Promise(resolve => chrome.once('exit', resolve));
       try { await root.send('Browser.close'); } catch { chrome.kill(); }
       for (const ws of connections) ws.close();
-      await delay(250);
+      // Windows keeps profile files locked until Chromium finishes shutting down.
+      await Promise.race([exited, delay(5000)]);
+      if (chrome.exitCode === null) { chrome.kill(); await Promise.race([exited, delay(3000)]); }
       assert.equal(path.dirname(directory), path.resolve(os.tmpdir()));
       assert(path.basename(directory).startsWith('tog-browser-qa-'));
-      fs.rmSync(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+      fs.rmSync(directory, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 });
     },
   };
 }

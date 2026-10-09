@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import ExportCard from '../ui/ExportCard';
 
 /**
@@ -16,10 +17,11 @@ export default function CommunityAvgExportPreview({
   theme = 'light',
   shareLink = null,
   shareFormat = 'landscape',
-  shareCta = 'Rank it and compare your taste',
-  shareQrHint = 'Scan to open this list',
-  typeBadge = 'Community Average',
+  shareCta = null,
+  shareQrHint = null,
+  typeBadge = null,
 }) {
+  const { t } = useTranslation();
   const normalizedTiers = (tiers || []).map((t, idx) => ({
     tier: t.tier ?? t.label,
     color: t.color,
@@ -44,7 +46,7 @@ export default function CommunityAvgExportPreview({
       shareFormat={shareFormat}
       shareCta={shareCta}
       shareQrHint={shareQrHint}
-      typeBadge={typeBadge}
+      typeBadge={typeBadge || t('template.communityAverage')}
     />
   );
 }

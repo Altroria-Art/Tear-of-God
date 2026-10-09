@@ -1,6 +1,9 @@
 import i18n from '../i18n';
 import { createTemplateViewSessionGuard } from './templateViewSession';
 import { beginDataChange } from './liveRefresh';
+import { localizeApiResult } from './apiMessages';
+
+const readApiResponse = async response => localizeApiResult(await response.json(), response.status, i18n.t.bind(i18n));
 
 // ตั้งค่าเป็นค่าว่าง เพื่อให้ยิงไปที่เซิร์ฟเวอร์เดียวกัน
 const API_URL = '';
@@ -39,7 +42,7 @@ async function getJSON(url, options = {}) {
         json.success = false;
         json.error = json.error || res.statusText;
       }
-      return json;
+      return localizeApiResult(json, res.status, i18n.t.bind(i18n));
     })
     .finally(() => {
       if (!options.signal && inFlightGET.get(url) === promise) inFlightGET.delete(url);
@@ -94,7 +97,7 @@ export async function registerUser({ email, password, username }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'register', email, password, username })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { data: null, error: i18n.t('errors.serverUnreachable') };
   }
@@ -107,7 +110,7 @@ export async function loginUser({ email, password }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'login', email, password })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { data: null, error: i18n.t('errors.serverUnreachable') };
   }
@@ -120,7 +123,7 @@ export async function syncGoogleUser(userData) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'google_sync', idToken: userData.idToken })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { data: null, error: i18n.t('errors.syncFailed') };
   }
@@ -135,7 +138,7 @@ export async function updateProfile(_userId, profileData) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update_profile', ...profileData })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { data: null, error: i18n.t('errors.profileUpdateFailed') };
   }
@@ -154,7 +157,7 @@ export async function equipBadge(badgeId, badgeMeta = null) {
         equipped_badge_meta: badgeMeta ?? null,
       })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.profileUpdateFailed') };
   }
@@ -172,7 +175,7 @@ export async function uploadImage(file, userId) {
       method: 'POST',
       body: formData // ไม่ต้องตั้ง Content-Type เอง fetch จะจัดการ multipart form boundary ให้
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { error: i18n.t('errors.uploadFailed') };
   }
@@ -308,7 +311,7 @@ export async function setProfilePin(rankingId, pinned, position = 0) {
         position,
       }),
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { error: i18n.t('errors.actionFailed') };
   }
@@ -321,7 +324,7 @@ export async function toggleFollow(_followerId, followingId, isFollowing) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: isFollowing ? 'unfollow' : 'follow', following_id: followingId })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { error: i18n.t('errors.actionFailed') };
   }
@@ -368,7 +371,7 @@ export async function toggleTopicFollow(topicType, topicKey, isFollowing) {
         topic_key: topicKey,
       }),
     });
-    const result = await response.json();
+    const result = await readApiResponse(response);
     if (!response.ok) result.success = false;
     return result;
   } catch {
@@ -403,7 +406,7 @@ export async function markNotificationRead(id) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(id ? { action: 'read', id } : { action: 'read_all' }),
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.actionFailed') };
   }
@@ -419,7 +422,7 @@ export async function deleteNotification(id) {
         id,
       }),
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return {
       success: false,
@@ -440,7 +443,7 @@ export async function createRanking(rankingData) {  try {
        return { data: null, error: i18n.t('errors.apiNotFound') };
     }
 
-    const result = await response.json();
+    const result = await readApiResponse(response);
     if (result.error || !response.ok) {
        return {
          data: null,
@@ -468,7 +471,7 @@ export async function deleteRanking(rankingId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: rankingId })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch (error) {
     console.error("deleteRanking error:", error);
     return { success: false, error: i18n.t('errors.serverUnreachable') };
@@ -486,7 +489,7 @@ export async function voteRanking({ rankingId, userId: _userId, voteType }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rankingId, voteType })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.serverUnreachable') };
   }
@@ -499,7 +502,7 @@ export async function deleteComment(id, isTemplateComment = false) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
-    const result = await response.json();
+    const result = await readApiResponse(response);
     if (!response.ok) return { success: false, error: result.error || i18n.t('errors.commentDeleteFailed') };
     return result;
   } catch {
@@ -531,7 +534,7 @@ export async function createComment({ ranking_id, user_id, content, parentId }) 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ranking_id, user_id, content, parent_id: parentId })
     });
-    const result = await response.json();
+    const result = await readApiResponse(response);
     return result;
   } catch {
     return { success: false, error: i18n.t('errors.commentFailed') };
@@ -621,7 +624,7 @@ export async function recordTemplateView(templateId, userId) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ template_id: templateId })
         });
-        return response.json();
+        return readApiResponse(response);
       },
     });
     // จำเลข views ล่าสุดที่เพิ่งได้จาก server ไว้ ให้ fetchTemplates() หน้า Discover เอาไป
@@ -660,7 +663,7 @@ export async function voteTemplate({ templateId, userId: _userId, voteType }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: templateId, voteType })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.serverUnreachable') };
   }
@@ -694,7 +697,7 @@ export async function createTemplateComment({ template_id, user_id, content, par
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id, user_id, content, parent_id: parentId })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.commentFailed') };
   }
@@ -748,7 +751,7 @@ export async function setUserRole({ userId: _userId, targetId, role }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_role', target_id: targetId, role })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.roleSetFailed') };
   }
@@ -762,7 +765,7 @@ export async function deleteAdminUser({ userId: _userId, targetId }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', target_id: targetId })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.userDeleteFailed') };
   }
@@ -790,7 +793,7 @@ export async function deleteAdminRanking({ userId: _userId, targetId }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', target_id: targetId })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.postDeleteFailed') };
   }
@@ -818,7 +821,7 @@ export async function deleteAdminTemplate({ userId: _userId, targetId }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', target_id: targetId })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.templateDeleteFailed') };
   }
@@ -832,7 +835,7 @@ export async function deleteTemplate(templateId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: templateId })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.templateDeleteFailed') };
   }
@@ -850,7 +853,7 @@ export async function reportTemplate({ templateId, reporterId: _reporterId, reas
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id: templateId, reason })
     });
-    return { status: response.status, ...(await response.json()) };
+    return { status: response.status, ...(await readApiResponse(response)) };
   } catch {
     return { success: false, error: i18n.t('errors.reportFailed') };
   }
@@ -864,7 +867,7 @@ export async function reportPost({ postId, reporterId: _reporterId, reason }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ranking_id: postId, reason })
     });
-    return { status: response.status, ...(await response.json()) };
+    return { status: response.status, ...(await readApiResponse(response)) };
   } catch {
     return { success: false, error: i18n.t('errors.reportFailed') };
   }
@@ -901,7 +904,7 @@ export async function setReportStatus({ userId: _userId, targetId, status }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'set_status', target_id: targetId, status })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.reportStatusFailed') };
   }
@@ -915,7 +918,7 @@ export async function deleteAdminReport({ userId: _userId, targetId }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', target_id: targetId })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.reportDeleteFailed') };
   }
@@ -934,7 +937,7 @@ export async function fetchBookmarkedTemplateIds(options = {}) {
 export async function saveTemplate(templateId, saved) {
   try {
     const response = await apiFetch("/api/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ template_id: templateId, saved }) });
-    return await response.json();
+    return await readApiResponse(response);
   } catch { return { success: false, error: i18n.t("errors.serverUnreachable") }; }
 }
 
@@ -950,7 +953,7 @@ export async function reportComment(commentId, isTemplateComment, reason) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    return { status: response.status, ...(await response.json()) };
+    return { status: response.status, ...(await readApiResponse(response)) };
   } catch {
     return { success: false, error: i18n.t('errors.reportFailed') };
   }
@@ -964,7 +967,7 @@ export async function deleteAdminComment(commentId, isTemplateComment) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'delete', target_id: commentId, is_template_comment: isTemplateComment })
     });
-    const result = await response.json();
+    const result = await readApiResponse(response);
     return result;
   } catch {
     return { success: false, error: i18n.t('errors.commentDeleteFailed') };
@@ -980,7 +983,7 @@ export async function forgotPassword(email) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'forgot_password', email })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.serverUnreachable') };
   }
@@ -993,7 +996,7 @@ export async function verifyResetCode({ email, code }) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'verify_reset_code', email, code })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.serverUnreachable') };
   }
@@ -1006,7 +1009,7 @@ export async function resetPassword({ token, email, code, password }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'reset_password', token, email, code, password })
     });
-    return await response.json();
+    return await readApiResponse(response);
   } catch {
     return { success: false, error: i18n.t('errors.serverUnreachable') };
   }
@@ -1023,7 +1026,7 @@ export async function submitDuel({ template_id, items, title, description }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ template_id, items, title, description }),
     });
-    const result = await response.json();
+    const result = await readApiResponse(response);
     return result;
   } catch {
     return { success: false, error: i18n.t('errors.serverUnreachable') };
