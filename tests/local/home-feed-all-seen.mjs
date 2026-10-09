@@ -11,12 +11,12 @@ const enJson = JSON.parse(await readFile(new URL('../../src/locales/en.json', im
 assert.equal(thJson.feed?.allSeen, 'ดูครบแล้ว', 'th.json feed.allSeen must match');
 assert.equal(thJson.feed?.allSeenSubtitle, 'ยังไม่มีอันดับใหม่ ลองกลับมาใหม่ภายหลัง', 'th.json feed.allSeenSubtitle must match');
 assert.equal(thJson.feed?.refresh, 'รีเฟรชฟีด', 'th.json feed.refresh must match');
-assert.equal(thJson.feed?.emptyCta, 'สร้าง Tier List เป็นคนแรกเลย!', 'th.json feed.emptyCta must match');
+assert.equal(thJson.feed?.emptyCta, 'ลองโพสต์อันดับแรก', 'Thai CTA matches the current plain-language copy');
 
 assert.equal(enJson.feed?.allSeen, "You're all caught up", 'en.json feed.allSeen must match');
 assert.equal(enJson.feed?.allSeenSubtitle, 'No new rankings right now. Check back later', 'en.json feed.allSeenSubtitle must match');
 assert.equal(enJson.feed?.refresh, 'Refresh feed', 'en.json feed.refresh must match');
-assert.equal(enJson.feed?.emptyCta, 'Create the first Tier List!', 'en.json feed.emptyCta must match');
+assert.equal(enJson.feed?.emptyCta, 'Post the first ranking', 'English CTA matches the current plain-language copy');
 console.log('✔ Scenario 1 passed: Localization keys for allSeen, allSeenSubtitle, refresh, and emptyCta are properly defined!');
 
 // 2. Verify HomeFeed source code guarantees

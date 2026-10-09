@@ -9,6 +9,7 @@ import BadgeGallery from '../components/user/BadgeGallery';
 import SavedTopics from '../components/template/SavedTopics';
 import { useUser } from '../context/UserContext';
 import { fetchRankings, fetchRanking, updateProfile, equipBadge, fetchUserProfile, toggleFollow, fetchFollowList, uploadImage, setProfilePin, fetchUserDuels } from '../lib/api';
+import { prepareAvatarUpload } from '../lib/avatarUpload';
 import { timeAgo, formatDbDate } from '../lib/format';
 import { buildTierRows } from '../lib/tiers';
 import { normalizeImageUrl } from '../lib/images';
@@ -626,7 +627,7 @@ export default function Profile() {
     }
 
     setIsUploading(true);
-    const { url, error } = await uploadImage(file, currentUser.id);
+    const { url, error } = await uploadImage(await prepareAvatarUpload(file), currentUser.id);
     if (error) {
       toast.error(error);
     } else if (url) {

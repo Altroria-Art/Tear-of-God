@@ -1,4 +1,5 @@
 import { serveAppWithMeta } from '../../lib/page-meta.js';
+import { templateUsageSql } from '../../lib/template-usage.js';
 
 export async function onRequestGet(context) {
   const id = String(context.params.id || '');
@@ -7,7 +8,7 @@ export async function onRequestGet(context) {
   try {
     const template = await context.env.tear_of_god_db.prepare(`
       SELECT t.title, t.description,
-        (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS ranking_count
+        ${templateUsageSql(context.env)} AS ranking_count
       FROM templates t
       WHERE t.id = ?
     `).bind(id).first();

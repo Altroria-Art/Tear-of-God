@@ -53,4 +53,23 @@ try {
   assert.deepEqual(elements(active.state.tree).filter(node => node.type === 'test-TemplateCard').map(node => node.props.template.id), ['b', 'a'], 'Keep Pulse order when responses complete out of order');
   assert(text(active.state.tree).includes('pulse.displayedPeriod'), 'Show the effective fallback period');
 } finally { await active.dispose(); }
+
+for (const scenario of ['mixed', 'deleted', 'outage']) {
+  const page = await mountPage('src/pages/Discover.jsx', {
+    fetchHashtags: async () => ({ data: [] }),
+    fetchDiscoverPulse: async () => ({ success: true, window: 'now', templates: scenario === 'mixed' ? [{ id: 'gone' }, { id: 'valid' }] : [{ id: 'gone' }] }),
+    fetchTemplates() { throw Error('Active must keep Pulse ordering without catalog fallback'); },
+    fetchTemplate: async id => id === 'valid' ? { data: { id, stats: { uses: 1 } } }
+      : { error: scenario === 'outage' ? 'temporary outage' : 'deleted topic', status: scenario === 'outage' ? 503 : 404 },
+  }, { params: new URLSearchParams('tab=active') });
+  try {
+    await page.flush();
+    const cards = elements(page.state.tree).filter(node => node.type === 'test-TemplateCard');
+    assert.deepEqual(cards.map(node => node.props.template.id), scenario === 'mixed' ? ['valid'] : []);
+    const alerts = elements(page.state.tree).filter(node => node.props.role === 'alert');
+    assert.equal(alerts.length, scenario === 'outage' ? 1 : 0, 'Skip deleted cached topics, preserve outage retry');
+    if (scenario === 'deleted') assert(text(page.state.tree).includes('pulse.quietDescription'));
+    if (scenario === 'outage') assert(text(page.state.tree).includes('temporary outage'));
+  } finally { await page.dispose(); }
+}
 console.log('Discover quiet catalog, tabs, loading/error/empty/retry, stale requests and activity ordering passed.');

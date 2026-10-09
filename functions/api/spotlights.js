@@ -5,6 +5,7 @@ import {
   spotlightsMetric,
 } from '../lib/pool-cache.js';
 import { getSpotlightsCacheKey } from '../lib/spotlight-cache.js';
+import { templateUsageSql } from '../lib/template-usage.js';
 
 const BANGKOK_OFFSET_MS = 7 * 60 * 60 * 1000;
 const CANDIDATE_LIMIT = 40;
@@ -225,7 +226,7 @@ export async function onRequestGet(context) {
       // matching the old SQL ORDER BY exactly.
       db.prepare(`
         SELECT t.*, p.username, p.avatar_url, p.role AS creator_role,
-          (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses,
+          ${templateUsageSql(env)} AS live_uses,
           (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views,
           (SELECT COUNT(*) FROM template_items ti WHERE ti.template_id = t.id) AS item_count
         FROM templates t

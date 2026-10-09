@@ -10,7 +10,7 @@ export default function useLiveRefresh({ resourceKey, enabled = true, ...options
     if (!enabled) return;
     const controller = startLiveRefresh({
       interval,
-      load: signal => latest.current.load(signal),
+      load: (signal, policy) => latest.current.load(signal, policy),
       apply: result => latest.current.apply(result),
       matches: detail => latest.current.matches?.(detail) ?? true,
       onSettled: () => latest.current.onSettled?.(),

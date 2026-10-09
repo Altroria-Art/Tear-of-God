@@ -31,7 +31,7 @@ APP_URL = "http://localhost:8788"
 [[env.preview.d1_databases]]
 binding = "tear_of_god_db"
 database_name = "tear-of-god-preview"
-database_id = "480b2436-77fd-4bc7-80d7-6847648ea0dc"
+database_id = "7621470e-290b-417d-bdcd-b413c0b5df61"
 
 [[env.preview.r2_buckets]]
 binding = "STORAGE"
@@ -39,8 +39,11 @@ bucket_name = "tear-of-god-preview"
 
 [env.preview.vars]
 APP_ENV = "preview"
-APP_URL = "https://release-20261010.tear-of-god.pages.dev"
+APP_URL = "https://release-quota-20261010.tear-of-god.pages.dev"
 PREVIEW_UPLOADS_ENABLED = "false"
+R2_PUBLIC_URL = "https://pub-53af0e10292245ceb772bae41cb358ed.r2.dev"
+NOTIFICATION_UNREAD_COUNTS = "true"
+TEMPLATE_USAGE_COUNTERS = "true"
 
 # --------------------------------------------------
 
@@ -61,3 +64,4 @@ bucket_name = "tear-of-god"
 APP_ENV = "production"
 APP_URL = "https://tear-of-god.pages.dev"
 NOTIFICATION_UNREAD_COUNTS = "true"
+TEMPLATE_USAGE_COUNTERS = "true"

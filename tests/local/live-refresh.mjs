@@ -26,6 +26,21 @@ function harness(load, apply, extra = {}) {
   };
 }
 
+// Shared public snapshots are only for periodic reads. Own/cross-tab writes,
+// retries and the initial load must bypass them, including slow read races.
+const policies=[];
+const policy=harness(async (_signal,options)=>{policies.push(options);return {success:true};},()=>{});
+await flush();
+assert.equal(policies.at(-1).fresh,true);
+await policy.tick(10000);
+assert.equal(policies.at(-1).fresh,false);
+policy.change('started');policy.change('settled');
+await flush();
+assert.equal(policies.at(-1).fresh,true);
+await policy.live.refresh(true);
+assert.equal(policies.at(-1).fresh,true);
+policy.live.stop();
+
 // Another user adds a comment while this visitor reads, without clicking.
 let server = { success: true, data: [], unreadCount: 0 };
 let calls = 0;
@@ -117,9 +132,56 @@ const recovery = harness(async () => {
   return { success: true, data: ['recovered'] };
 }, result => { screen = result; });
 await flush();
-await recovery.tick(10000);
+await recovery.tick(19999);
+assert.equal(attempts, 1, 'failed requests back off instead of hammering the API');
+await recovery.tick(1);
 assert.deepEqual(screen.data, ['recovered']);
 recovery.live.stop();
+
+// A foreground tab left alone stops after five minutes. User input resumes
+// immediately; bursts of focus and background invalidations cost no extra GET.
+let idleCalls = 0;
+const idle = harness(async () => { idleCalls++; return { success: true }; }, () => {});
+await flush();
+for (let i = 0; i < 29; i++) await idle.tick(10000);
+assert.equal(idleCalls, 30);
+await idle.tick(10000);
+await idle.tick(3600000);
+assert.equal(idleCalls, 30, 'idle tab has no hourly background requests');
+idle.change('settled');
+await flush();
+assert.equal(idleCalls, 30, 'cross-tab changes wait for an idle reader to return');
+idle.target.dispatchEvent(new Event('scroll'));
+await flush();
+assert.equal(idleCalls, 31, 'interaction resumes with one fresh snapshot');
+for (let i = 0; i < 10; i++) idle.target.dispatchEvent(new Event('focus'));
+await flush();
+assert.equal(idleCalls, 31, 'focus bursts reuse the current polling window');
+idle.live.stop();
+
+let badgeCalls = 0;
+const badge = harness(async () => { badgeCalls++; return { success: true }; }, () => {}, { interval: 30000 });
+await flush();
+for (let i = 0; i < 120; i++) await badge.tick(30000);
+assert.equal(badgeCalls, 10, 'idle hour: initial badge plus nine periodic requests, then stop');
+badge.target.dispatchEvent(new Event('keydown'));
+await flush();
+assert.equal(badgeCalls, 11, 'typing resumes an idle badge immediately');
+badge.live.stop();
+
+let outageCalls = 0;
+const outage = harness(async () => { outageCalls++; return { success: false, error: 'unavailable' }; }, () => {});
+await flush();
+await outage.tick(20000);
+await outage.tick(40000);
+assert.equal(outageCalls, 3);
+await outage.tick(59999);
+assert.equal(outageCalls, 3);
+await outage.tick(1);
+assert.equal(outageCalls, 4, 'retry delay caps at sixty seconds');
+await outage.live.refresh(true);
+assert.equal(outageCalls, 5, 'explicit retry remains immediate');
+outage.live.stop();
 
 // Cross-tab invalidation carries IDs only and still works in a background tab.
 let sent;

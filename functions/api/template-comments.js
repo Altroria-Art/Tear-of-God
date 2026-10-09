@@ -3,8 +3,11 @@
 // - POST /api/template-comments  body: { template_id, user_id, content } → สร้างคอมเมนต์
 import { INPUT_LIMITS, assertId, assertString, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 import { deleteComment } from '../lib/comment-delete.js';
+import { fetchTemplateReactionCounts } from '../lib/template-reactions.js';
+import { fetchCommentSnapshot } from '../lib/comment-snapshot.js';
 
-export async function onRequest({ request, env, data: auth }) {
+export async function onRequest(context) {
+  const { request, env, data: auth } = context;
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
 
@@ -18,17 +21,21 @@ export async function onRequest({ request, env, data: auth }) {
       if (!templateId) return jsonResponse({ success: false, error: 'Missing template_id' }, 400);
       assertId(templateId, 'template_id');
 
-      const { results } = await db.prepare(`
-        SELECT c.*, p.username, p.avatar_url
-        FROM template_comments c
-        LEFT JOIN profiles p ON c.user_id = p.id
-        WHERE c.template_id = ?
-        ORDER BY c.created_at DESC
-        LIMIT 200
-      `).bind(templateId).all();
-
-      const count = await db.prepare('SELECT COUNT(*) AS count FROM template_comments WHERE template_id = ?').bind(templateId).first();
-      return jsonResponse({ success: true, data: results, comments_count: count?.count || 0 });
+      const includeReactions = url.searchParams.get('include_reactions') === '1';
+      const sharedSnapshot = url.searchParams.get('shared_snapshot') === '1';
+      const snapshot = await fetchCommentSnapshot(context, templateId, { template: true, includeReactions: includeReactions && sharedSnapshot });
+      let reactionResult;
+      if (includeReactions) {
+        if (sharedSnapshot) {
+          const userVote = auth.user?.id ? await db.prepare(
+            'SELECT vote_type FROM template_reactions WHERE template_id = ? AND user_id = ?'
+          ).bind(templateId, auth.user.id).first() : null;
+          reactionResult = { success: true, ...snapshot.reactions, userVote: userVote?.vote_type ?? null };
+        } else {
+          reactionResult = { success: true, ...await fetchTemplateReactionCounts(db, templateId, auth.user?.id) };
+        }
+      }
+      return jsonResponse({ success: true, data: snapshot.data, comments_count: snapshot.comments_count, reactionResult });
     }
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่

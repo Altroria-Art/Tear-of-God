@@ -82,8 +82,8 @@ const thLocales = JSON.parse(
   fs.readFileSync(path.join(rootDir, 'src/locales/th.json'), 'utf-8')
 )
 
-assert.equal(enLocales.participants?.avg, 'Avg', 'en.json must have participants.avg = "Avg"')
-assert.equal(thLocales.participants?.avg, 'Avg', 'th.json must have participants.avg = "Avg"')
+assert.equal(enLocales.participants?.avg, 'Average', 'English average label uses the current clear copy')
+assert.equal(thLocales.participants?.avg, 'ค่าเฉลี่ย', 'Thai average label uses the current clear copy')
 
 console.log('✔ Locales verified')
 console.log('All tests passed successfully!')

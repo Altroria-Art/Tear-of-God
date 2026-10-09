@@ -4,6 +4,7 @@
 // (ดู functions/api/admin/_check.js)
 import { requireAdmin } from './_check.js';
 import { adminRequestErrorResponse } from './_request.js';
+import { templateUsageSql } from '../../lib/template-usage.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -67,7 +68,7 @@ export async function onRequest({ request, env, data: auth }) {
         `).all(),
         db.prepare(`
           SELECT t.id, t.title, t.hashtags,
-                 (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses,
+                 ${templateUsageSql(env)} AS live_uses,
                  (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views,
                  p.username as author_name
           FROM templates t

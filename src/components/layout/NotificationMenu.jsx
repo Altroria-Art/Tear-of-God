@@ -4,7 +4,7 @@ import { BarChart3, Bell, CheckCheck, Heart, LayoutTemplate, MessageCircle, Swor
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { deleteNotification, fetchNotifications, markNotificationRead } from '../../lib/api';
-import { POLL_INTERVAL_MS, shouldReuseFreshFetch } from '../../lib/notificationFeed';
+import { BADGE_POLL_INTERVAL_MS, POLL_INTERVAL_MS } from '../../lib/notificationFeed';
 import useLiveRefresh from '../../lib/useLiveRefresh';
 import { timeAgo } from '../../lib/format';
 
@@ -43,16 +43,14 @@ export default function NotificationMenu({ userId }) {
   const [isLoading, setIsLoading] = useState(true);
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
-  const lastSuccessAtRef = useRef(0);
   const refreshLive = useLiveRefresh({
     resourceKey: userId,
     enabled: !!userId,
-    interval: POLL_INTERVAL_MS,
-    load: signal => fetchNotifications(20, { signal }),
+    interval: isOpen ? POLL_INTERVAL_MS : BADGE_POLL_INTERVAL_MS,
+    load: signal => fetchNotifications(20, { signal, countOnly: !isOpen }),
     apply: result => {
-      setNotifications(result.data || []);
+      if (result.data) setNotifications(result.data);
       setUnreadCount(result.unreadCount || 0);
-      lastSuccessAtRef.current = Date.now();
     },
     onSettled: () => setIsLoading(false),
   });
@@ -83,16 +81,9 @@ export default function NotificationMenu({ userId }) {
     const nextOpen = !isOpen;
     setIsOpen(nextOpen);
     if (!nextOpen) return;
-    // A fetch that succeeded seconds ago (timer/visibility collision) need not
-    // run again: skip only inside the short reuse window, otherwise refresh.
-    // Failures never count as fresh, so an error is always followed by a retry.
-    if (
-      notifications.length > 0 &&
-      shouldReuseFreshFetch({ now: Date.now(), lastSuccessAt: lastSuccessAtRef.current })
-    ) {
-      return;
-    }
-    refresh({ quiet: notifications.length > 0 });
+    // Changing the interval restarts the resource with a full list GET.
+    // Do not also fetch here: that would still use the closed-bell loader.
+    setIsLoading(true);
   };
 
   const markAllRead = async () => {

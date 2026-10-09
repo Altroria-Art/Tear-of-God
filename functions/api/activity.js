@@ -18,8 +18,10 @@ export async function onRequest({ request, env, data: auth }) {
     const rawLimit = parseInt(url.searchParams.get('limit') || '20', 10);
     const limit = assertInteger(Number.isFinite(rawLimit) ? rawLimit : 20, 'limit', { min: 1, max: 50 });
 
+    // An event below the first `limit` events of its person/type cannot enter
+    // the combined top `limit`. Bound those indexed reads before joining details.
     const { results } = await env.tear_of_god_db.prepare(`
-      WITH followed AS (
+      WITH followed AS MATERIALIZED (
         SELECT following_id
         FROM follows
         WHERE follower_id = ?
@@ -31,9 +33,17 @@ export async function onRequest({ request, env, data: auth }) {
           r.id AS ranking_id,
           r.user_id AS actor_id,
           r.created_at AS occurred_at
-        FROM rankings r
-        JOIN followed f ON f.following_id = r.user_id
-        WHERE r.created_at >= datetime('now', '-90 days')
+        FROM followed f
+        JOIN json_each((
+          SELECT json_group_array(id) FROM (
+            SELECT id FROM rankings
+            WHERE user_id = f.following_id
+              AND created_at >= datetime('now', '-90 days')
+            ORDER BY datetime(created_at) DESC, id DESC
+            LIMIT ?2
+          )
+        )) selected
+        JOIN rankings r ON r.id = selected.value
 
         UNION ALL
 
@@ -42,15 +52,24 @@ export async function onRequest({ request, env, data: auth }) {
           r.id AS ranking_id,
           v.user_id AS actor_id,
           v.created_at AS occurred_at
-        FROM votes v
-        JOIN followed f ON f.following_id = v.user_id
+        FROM followed f
+        JOIN json_each((
+          SELECT json_group_array(id) FROM (
+            SELECT v.id FROM votes v
+            JOIN rankings r ON r.id = v.ranking_id
+            WHERE v.user_id = f.following_id
+              AND v.vote_type = 'like'
+              AND v.created_at >= datetime('now', '-90 days')
+            ORDER BY datetime(v.created_at) DESC, v.ranking_id DESC
+            LIMIT ?2
+          )
+        )) selected
+        JOIN votes v ON v.id = selected.value
         JOIN rankings r ON r.id = v.ranking_id
-        WHERE v.vote_type = 'like'
-          AND v.created_at >= datetime('now', '-90 days')
       ), recent AS MATERIALIZED (
         SELECT * FROM events
         ORDER BY datetime(occurred_at) DESC, ranking_id DESC, type ASC
-        LIMIT ?
+        LIMIT ?2
       )
       SELECT
         e.*,
@@ -64,7 +83,9 @@ export async function onRequest({ request, env, data: auth }) {
         target.username AS target_username,
         target.avatar_url AS target_avatar_url
       FROM recent e
-      JOIN rankings r ON r.id = e.ranking_id
+      -- Keep the bounded event list outermost; scanning all rankings here
+      -- otherwise defeats the earlier limit on databases without ANALYZE stats.
+      CROSS JOIN rankings r ON r.id = e.ranking_id
       LEFT JOIN templates t ON t.id = r.template_id
       LEFT JOIN profiles actor ON actor.id = e.actor_id
       LEFT JOIN profiles target ON target.id = r.user_id

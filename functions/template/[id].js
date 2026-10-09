@@ -1,4 +1,5 @@
 import { compactHashtags, fallbackDescription, serveAppWithMeta } from '../lib/page-meta.js';
+import { templateUsageSql } from '../lib/template-usage.js';
 
 export async function onRequestGet(context) {
   const id = String(context.params.id || '');
@@ -8,7 +9,7 @@ export async function onRequestGet(context) {
     const template = await context.env.tear_of_god_db.prepare(`
       SELECT t.title, t.description, t.hashtags, p.username,
         (SELECT COUNT(*) FROM template_items ti WHERE ti.template_id = t.id) AS item_count,
-        (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS use_count
+        ${templateUsageSql(context.env)} AS use_count
       FROM templates t
       LEFT JOIN profiles p ON p.id = t.creator_id
       WHERE t.id = ?

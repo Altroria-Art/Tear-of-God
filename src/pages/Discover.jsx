@@ -78,7 +78,8 @@ export default function Discover() {
     })).then(results => {
       if (cancelled) return;
       setTopicResult({ tab, data: results.filter(result => result.data).map(result => result.data), loading: false,
-        error: pulseError || results.find(result => result.error)?.error || '' });
+        // Pulse can outlive a deleted topic while its public cache expires.
+        error: pulseError || results.find(result => result.error && result.status !== 404)?.error || '' });
     });
     return () => { cancelled = true; };
   }, [browsingResults, tab, pulse, pulseLoading, pulseError, retry]);

@@ -2,6 +2,7 @@
 // ทุก action เริ่มด้วย requireAdmin(env, user_id) — ตรวจสิทธิ์จาก DB ก่อนจึงทำงาน
 // (ดู functions/api/admin/_check.js)
 import { requireAdmin } from './_check.js';
+import { templateUsageSql } from '../../lib/template-usage.js';
 import { assertAllowedFields } from '../../lib/request-guard.js';
 import { templateDeleteStatements } from '../../lib/templateDelete.js';
 import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
@@ -47,7 +48,7 @@ export async function onRequest({ request, env, data: auth }) {
 
       const { results: templates } = await db.prepare(`
         SELECT t.*, p.username, p.email,
-          (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses,
+          ${templateUsageSql(env)} AS live_uses,
           (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views
         FROM templates t
         LEFT JOIN profiles p ON t.creator_id = p.id

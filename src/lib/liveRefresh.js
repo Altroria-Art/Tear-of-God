@@ -1,3 +1,5 @@
+import { createPollActivity, watchPollActivity } from './pollActivity.js';
+
 export const DATA_CHANGE_EVENT = 'tog-data-change';
 const SOCIAL_PATHS = /^\/api\/(comments|template-comments|votes|template-votes|notifications|rankings|templates|follows|topic-follows|bookmarks|admin\/comments)$/;
 let channel;
@@ -50,30 +52,43 @@ export function startLiveRefresh({
   let revision = 0;
   let dirty = false;
   let lastStarted = -Infinity;
+  let failures = 0;
+  const activity = createPollActivity(now);
   const writes = new Set();
   const visible = () => doc.visibilityState === 'visible' && target.navigator?.onLine !== false;
   const schedule = () => {
     clearTimer(timer);
-    if (!stopped && visible()) timer = setTimer(() => refresh(true), interval);
+    if (!stopped && visible() && activity.active()) {
+      const delay = Math.min(interval * (2 ** failures), Math.max(interval, 60000));
+      timer = setTimer(() => {
+        if (activity.active()) refresh(true);
+      }, delay);
+    }
   };
-  function refresh(force = false) {
+  function refresh(force = false, fresh = false) {
     if (stopped || !visible()) return Promise.resolve();
     if (writes.size || pending) return pending || Promise.resolve();
-    if (!force && now() - lastStarted < 1000) return Promise.resolve();
+    if (!force && now() - lastStarted < interval) return Promise.resolve();
     clearTimer(timer);
+    const bypassSnapshot = fresh || dirty;
     dirty = false;
     lastStarted = now();
     const readingRevision = revision;
     controller = new AbortController();
-    pending = Promise.resolve().then(() => load(controller.signal)).then(result => {
-      if (!stopped && readingRevision === revision && result?.success !== false && !result?.error) apply(result);
+    pending = Promise.resolve().then(() => load(controller.signal, { fresh: bypassSnapshot })).then(result => {
+      if (result?.success === false || result?.error) failures = Math.min(failures + 1, 6);
+      else {
+        failures = 0;
+        if (!stopped && readingRevision === revision) apply(result);
+      }
     }).catch(() => {
-      // Keep the last good snapshot during an outage; the next tick retries.
+      failures = Math.min(failures + 1, 6);
+      // Keep the last good snapshot; back off while the service is unavailable.
     }).finally(() => {
       pending = null;
       if (stopped) return;
       onSettled();
-      if (dirty && !writes.size && visible()) refresh(true);
+      if (dirty && !writes.size && visible() && activity.active()) refresh(true);
       else schedule();
     });
     return pending;
@@ -83,24 +98,39 @@ export function startLiveRefresh({
     revision += 1;
     dirty = true;
     if (detail.phase === 'started') writes.add(detail.id);
-    else { writes.delete(detail.id); refresh(true); }
+    else {
+      writes.delete(detail.id);
+      failures = 0;
+      if (activity.active()) refresh(true);
+    }
   };
   const resume = () => {
     clearTimer(timer);
-    if (visible()) { refresh(dirty); schedule(); }
+    if (visible()) {
+      activity.touch();
+      failures = 0;
+      refresh(dirty);
+      schedule();
+    }
   };
+  const unwatchActivity = watchPollActivity(target, activity, resume);
   target.addEventListener(DATA_CHANGE_EVENT, change);
   target.addEventListener('focus', resume);
   target.addEventListener('online', resume);
   doc.addEventListener('visibilitychange', resume);
-  if (initial) refresh(true);
+  if (initial) refresh(true, true);
   else schedule();
   return {
-    refresh,
+    refresh(force = false) {
+      activity.touch();
+      failures = 0;
+      return refresh(force, true);
+    },
     stop() {
       stopped = true;
       clearTimer(timer);
       controller?.abort();
+      unwatchActivity();
       target.removeEventListener(DATA_CHANGE_EVENT, change);
       target.removeEventListener('focus', resume);
       target.removeEventListener('online', resume);

@@ -7,6 +7,9 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { chromium, delay } from './helpers/chromium.mjs';
+import { BADGE_POLL_INTERVAL_MS } from '../../src/lib/notificationFeed.js';
+
+const copy = JSON.parse(fs.readFileSync(new URL('../../src/locales/en.json',import.meta.url),'utf8'));
 
 const base = process.env.BROWSER_QA_URL;
 const state = process.env.BROWSER_QA_STATE;
@@ -152,9 +155,9 @@ try {
   checks.push('Discover New failure/retry clears previous cards');
   const empty = fault.next(list('popular'), {body:{success:true,data:[],total:0}});
   await page.click(tab('Popular')); await empty.taken();
-  await page.until(`document.querySelector('.pulse-empty')?.textContent.includes('No topics in the system yet') && ${cardCount}===0`,'Empty list communicates its state');
+  await page.until(`document.querySelector('.pulse-empty')?.textContent.includes(${JSON.stringify(copy.discover.emptyTemplates)}) && ${cardCount}===0`,'Empty list communicates its state');
   checks.push('Discover empty response shows an explanation without stale cards');
-  await page.click(tab('In conversation'));
+  await page.click(tab(copy.discover.browseTabs.active));
   await page.until(`new URLSearchParams(location.search).get('tab')==='active' && !!document.querySelector('.discover-period select') && !document.querySelector('.discover-browse-grid[aria-busy=true]')`, 'Active loads');
   for (const period of ['today', 'week', 'last_week', 'now']) {
     await page.evaluate(`(() => { const s=document.querySelector('.discover-period select'); s.value=${JSON.stringify(period)}; s.dispatchEvent(new Event('change',{bubbles:true})); })()`);
@@ -236,7 +239,7 @@ try {
   timings.commentToOtherAccountMs = await page.until(`document.body.textContent.includes(${JSON.stringify(commentText)})`, 'Other account gets live comment',16000);
   for (const current of [page,second]) await current.until(`${counter}===1`,'UI count becomes 1');
   assert.equal(await page.evaluate(`document.querySelector('textarea').value`),draftText,'Polling preserves an unsent draft');
-  await page.until(`!!document.querySelector('button[aria-label="Notifications"] span')`,'Notification badge updates with menu closed',16000);
+  await page.until(`!!document.querySelector('button[aria-label="Notifications"] span')`,'Notification badge updates with menu closed',BADGE_POLL_INTERVAL_MS+5000);
   const initial = await api(`/api/comments?ranking_id=${rankingId}`, {cookie:accounts[0].cookie});
   assert.equal(initial.data.stats.comments,1); assert.equal(initial.data.data.length,1);
   checks.push('Comments: B posts; A updates live; both UI/server counters 1; unsent draft preserved and badge updates');
@@ -285,7 +288,7 @@ try {
   await second.until(`!document.body.textContent.includes(${JSON.stringify(replyText)})`,'Other account receives reply deletion',16000);
   for (const current of [page,second]) await current.until(`${counter}===0`,'UI count drops to 0');
   for (const current of [page,second]) {
-    await current.goto(base+`/post/${rankingId}`); await current.until(`!!document.querySelector('textarea') && document.body.textContent.includes('Start the discussion')`,'Deleted comments stay absent after refresh');
+    await current.goto(base+`/post/${rankingId}`); await current.until(`!!document.querySelector('textarea') && document.body.textContent.includes(${JSON.stringify(copy.post.startDiscussion)})`,'Deleted comments stay absent after refresh');
     const saved = await current.evaluate(`fetch('/api/comments?ranking_id=${rankingId}').then(r=>r.json())`);
     assert.equal(saved.stats.comments,0); assert.equal(saved.data.length,0);
   }

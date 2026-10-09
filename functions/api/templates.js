@@ -1,6 +1,7 @@
 import { assertId, consumeMemoryRateLimit, internalErrorResponse, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
 import { checkTemplateCooldown } from '../lib/cooldown.js';
 import { publicResponseCache } from '../lib/public-response-cache.js';
+import { templateUsageSql } from '../lib/template-usage.js';
 
 function parseTiers(raw) {
   if (!raw) return null;
@@ -55,10 +56,9 @@ async function queryTemplates(context) {
   try {
     // ==========================================
     // โหมด list: GET /api/templates?hashtag=..&category=..&limit=..
-    // "uses" และ "views" นับสดจาก rankings/template_views ที่ผูก template นี้เสมอ —
-    // ไม่อ่าน templates.use_count/view_count ตรงๆ เพราะสองคอลัมน์นี้ไม่ตรงกับข้อมูลจริง
-    // (use_count คือเลข seed เก่า, view_count เป็นแค่ mirror ที่ drift ได้ ดู
-    // docs/discover-template-uses-views-fix-plan.md)
+    // Uses come from rankings, or the exact trigger-maintained 0029 counter
+    // after explicit activation. Views still come from template_views.
+    // Never read the legacy templates.use_count/view_count mirrors here.
     // ==========================================
     if (!templateId) {
       const suggest = url.searchParams.get('suggest') === '1';
@@ -91,7 +91,7 @@ async function queryTemplates(context) {
       if (suggest) {
         const suggestQuery = `
           SELECT t.id, t.title, t.hashtags,
-            (SELECT COUNT(*) FROM rankings r WHERE r.template_id = t.id) AS live_uses
+            ${templateUsageSql(env)} AS live_uses
           FROM templates t
           ${whereSql}
           ORDER BY live_uses DESC, t.created_at DESC, t.id DESC
@@ -125,7 +125,7 @@ async function queryTemplates(context) {
       const query = `
         SELECT t.*, p.username, p.avatar_url,
           EXISTS(SELECT 1 FROM template_bookmarks b WHERE b.template_id = t.id AND b.user_id = ?) AS is_saved,
-          (SELECT COUNT(*) FROM rankings r       WHERE r.template_id = t.id) AS live_uses,
+          ${templateUsageSql(env)} AS live_uses,
           (SELECT COUNT(*) FROM template_views v WHERE v.template_id = t.id) AS live_views
         FROM templates t
         LEFT JOIN profiles p ON t.creator_id = p.id
@@ -178,10 +178,10 @@ async function queryTemplates(context) {
           const slots = unassignedIds.map(() => '?').join(',');
           const latest = `SELECT t.id AS template_id, (SELECT r.id FROM rankings r WHERE r.template_id = t.id ORDER BY r.created_at DESC, r.id DESC LIMIT 1) AS ranking_id FROM templates t WHERE t.id IN (${slots})`;
           const { results: previewItems = [] } = await db.prepare(
-            `WITH latest AS (${latest}) SELECT l.template_id, ri.item_id, ri.tier, ri.position, COALESCE(i.name, ri.item_id) AS name, i.image_url FROM latest l JOIN ranking_items ri ON ri.ranking_id = l.ranking_id LEFT JOIN items i ON i.id = ri.item_id WHERE ri.position < 12 ORDER BY l.template_id, ri.position, ri.id`
+            `WITH latest AS MATERIALIZED (${latest}) SELECT l.template_id, ri.item_id, ri.tier, ri.position, COALESCE(i.name, ri.item_id) AS name, i.image_url FROM latest l JOIN ranking_items ri ON ri.ranking_id = l.ranking_id LEFT JOIN items i ON i.id = ri.item_id WHERE ri.position < 12 ORDER BY l.template_id, ri.position, ri.id`
           ).bind(...unassignedIds).all();
           const { results: previewCounts = [] } = await db.prepare(
-            `WITH latest AS (${latest}) SELECT l.template_id, ri.tier, COUNT(*) AS count FROM latest l JOIN ranking_items ri ON ri.ranking_id = l.ranking_id GROUP BY l.template_id, ri.tier`
+            `WITH latest AS MATERIALIZED (${latest}) SELECT l.template_id, ri.tier, COUNT(*) AS count FROM latest l JOIN ranking_items ri ON ri.ranking_id = l.ranking_id GROUP BY l.template_id, ri.tier`
           ).bind(...unassignedIds).all();
           for (const item of previewItems) {
             if (!rankingPreviews[item.template_id]) rankingPreviews[item.template_id] = { items: [], counts: [] };
@@ -279,7 +279,10 @@ async function queryTemplates(context) {
 
     // รวม COUNT(*) กับ MAX(created_at) เป็น query เดียว (เดิมแยก 2 statement คนละ query)
     const { results: statsRows } = await db.prepare(
-      `SELECT COUNT(*) as n, MAX(created_at) as latest FROM rankings WHERE template_id = ?`
+      env.TEMPLATE_USAGE_COUNTERS === 'true'
+        ? `SELECT COALESCE((SELECT ranking_count FROM template_usage_counts WHERE template_id = ?1), 0) AS n,
+            (SELECT created_at FROM rankings WHERE template_id = ?1 ORDER BY created_at DESC, id DESC LIMIT 1) AS latest`
+        : `SELECT COUNT(*) as n, MAX(created_at) as latest FROM rankings WHERE template_id = ?`
     ).bind(templateId).all();
     const useCount = statsRows[0]?.n || 0;
     const lastRanked = statsRows[0]?.latest || null;

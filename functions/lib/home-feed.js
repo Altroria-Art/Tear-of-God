@@ -3,6 +3,7 @@
 import { digest } from './session.js';
 import { RequestError } from './request-guard.js';
 import { emitCacheMetric, shouldSampleMetric, requestColo } from './pool-cache.js';
+import { templateUsageSql } from './template-usage.js';
 
 export const HOME_POOL_CAP = 48;
 export const HOME_PREVIEW_ITEMS = 12;
@@ -176,7 +177,8 @@ async function card(context, db, id, fresh = false) {
   const load = async () => {
     const r = await db.prepare(`SELECT r.id, r.title, r.hashtags, r.user_id, r.template_id,
       r.created_at, r.likes_count, r.dislikes_count, r.comments_count,
-      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title, t.use_count,
+      p.username, p.avatar_url, t.tiers, t.creator_id, t.title AS template_title,
+      ${context.env.TEMPLATE_USAGE_COUNTERS === 'true' ? templateUsageSql(context.env) : 't.use_count'} AS use_count,
       (SELECT json_group_array(json_object('id', preview.id, 'item_id', preview.item_id,
         'tier', preview.tier, 'position', preview.position, 'item', json_object('id', preview.item_id,
           'name', COALESCE(i.name, legacy.name, preview.item_id), 'image_url', COALESCE(i.image_url, legacy.image_url))))
@@ -193,7 +195,7 @@ async function card(context, db, id, fresh = false) {
     // indexed ranking IDs once per template/cache interval, never placements.
     // Enable the mirror only after explicitly reconciling migration 0025.
     let templateUses = r.use_count || 0;
-    if (r.template_id && context.env.HOME_PRECOMPUTED_TEMPLATE_COUNTS !== 'true') {
+    if (r.template_id && context.env.TEMPLATE_USAGE_COUNTERS !== 'true' && context.env.HOME_PRECOMPUTED_TEMPLATE_COUNTS !== 'true') {
       const count = async () => (await db.prepare('SELECT COUNT(*) AS uses FROM rankings WHERE template_id = ?').bind(r.template_id).first()).uses;
       templateUses = fresh ? await count() : await cached(context, ['template-uses',r.template_id], 300, count);
     }

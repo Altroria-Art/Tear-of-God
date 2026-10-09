@@ -1,7 +1,8 @@
-// Notification data refreshes every ten seconds in a visible tab.
+// An open bell refreshes every ten seconds; its closed badge every thirty.
 // Timer, focus, mutation, and cross-tab triggers are coordinated by liveRefresh.
 
 export const POLL_INTERVAL_MS = 10000;
+export const BADGE_POLL_INTERVAL_MS = 30000;
 export const VISIBILITY_STALE_MS = 1000;
 
 // Reuse only a fetch that just completed, so opening the bell stays fresh.

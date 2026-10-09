@@ -6,6 +6,7 @@ import { onRequest as comments } from '../../functions/api/comments.js';
 import { onRequest as templateComments } from '../../functions/api/template-comments.js';
 import { onRequest as notifications } from '../../functions/api/notifications.js';
 import { onRequest as votes } from '../../functions/api/votes.js';
+import { onRequest as templateVotes } from '../../functions/api/template-votes.js';
 import { onRequestGet as socialState } from '../../functions/api/social-state.js';
 
 const mf = new Miniflare(convertV4MiniflareOptions({ modules: true,
@@ -57,6 +58,16 @@ try {
   assert.equal(community.body.data[0].id, discussion.body.data.id);
   assert.equal(community.body.comments_count, 1);
   assert.equal(community.cache, 'private, no-store');
+  assert.equal(community.body.reactionResult, undefined, 'existing comments-only response remains compatible');
+  await call(templateVotes, 'template-votes', { template_id: 'topic', voteType: 'like' });
+  await call(templateVotes, 'template-votes', { template_id: 'topic', voteType: 'dislike' }, 'author');
+  for (const [user, vote] of [['reader', 'like'], ['author', 'dislike'], [null, null]]) {
+    const combined = await call(templateComments, 'template-comments?template_id=topic&include_reactions=1&user_id=reader', null, user);
+    assert.equal(combined.cache, 'private, no-store');
+    assert.deepEqual(combined.body.data, community.body.data);
+    assert.equal(combined.body.comments_count, 1);
+    assert.deepEqual(combined.body.reactionResult, { success: true, likes: 1, dislikes: 1, userVote: vote });
+  }
 
   const reply = await call(comments, 'comments', { ranking_id: 'post', parent_id: created.body.data.id, content: 'Reply from author' }, 'author');
   assert.equal(reply.body.comments_count, 2);

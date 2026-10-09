@@ -41,6 +41,7 @@ async function getJSON(url, options = {}) {
       if (!res.ok) {
         json.success = false;
         json.error = json.error || res.statusText;
+        json.status = res.status;
       }
       return localizeApiResult(json, res.status, i18n.t.bind(i18n));
     })
@@ -379,9 +380,10 @@ export async function toggleTopicFollow(topicType, topicKey, isFollowing) {
   }
 }
 
-export async function fetchNotifications(limit = 20, options = {}) {
+export async function fetchNotifications(limit = 20, { countOnly = false, ...options } = {}) {
   try {
-    return await getJSON(`${API_URL}/api/notifications?limit=${encodeURIComponent(limit)}`, { cache: 'no-store', ...options });
+    const query = countOnly ? 'count_only=1' : `limit=${encodeURIComponent(limit)}`;
+    return await getJSON(`${API_URL}/api/notifications?${query}`, { cache: 'no-store', ...options });
   } catch (error) {
     console.error('fetchNotifications error:', error);
     return { success: false, data: [], unreadCount: 0, error: i18n.t('errors.fetchFailed') };
@@ -519,9 +521,10 @@ export async function fetchSocialState(rankingIds, options = {}) {
   }
 }
 
-export async function fetchComments(rankingId, options = {}) {
+export async function fetchComments(rankingId, { sharedSnapshot = false, ...options } = {}) {
   try {
-    return await getJSON(`${API_URL}/api/comments?ranking_id=${encodeURIComponent(rankingId)}`, { cache: 'no-store', ...options });
+    const query = `ranking_id=${encodeURIComponent(rankingId)}${sharedSnapshot ? '&shared_snapshot=1' : ''}`;
+    return await getJSON(`${API_URL}/api/comments?${query}`, { cache: sharedSnapshot ? 'default' : 'no-store', ...options });
   } catch {
     return { data: [], error: i18n.t('errors.commentFetchFailed') };
   }
@@ -670,9 +673,10 @@ export async function voteTemplate({ templateId, userId: _userId, voteType }) {
 }
 
 // ดึงรายการคอมเมนต์ของ Community Average
-export async function fetchTemplateComments(templateId, options = {}) {
+export async function fetchTemplateComments(templateId, { includeReactions = false, sharedSnapshot = false, ...options } = {}) {
   try {
-    return await getJSON(`${API_URL}/api/template-comments?template_id=${encodeURIComponent(templateId)}`, { cache: 'no-store', ...options });
+    const query = `template_id=${encodeURIComponent(templateId)}${includeReactions ? '&include_reactions=1' : ''}${sharedSnapshot ? '&shared_snapshot=1' : ''}`;
+    return await getJSON(`${API_URL}/api/template-comments?${query}`, { cache: sharedSnapshot ? 'default' : 'no-store', ...options });
   } catch {
     return { data: [], error: i18n.t('errors.commentFetchFailed') };
   }

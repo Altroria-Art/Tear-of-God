@@ -13,6 +13,17 @@ export async function onRequest({ request, env, data: auth }) {
   try {
     if (request.method === 'GET') {
       const url = new URL(request.url);
+      const unreadQuery = () => db.prepare(env.NOTIFICATION_UNREAD_COUNTS === 'true' ? `
+        SELECT unread_count AS count FROM notification_unread_counts WHERE user_id = ?
+      ` : `
+        SELECT COUNT(*) AS count FROM notifications WHERE user_id = ? AND is_read = 0
+      `).bind(userId).first();
+      // The closed bell needs only its badge. Avoid list joins and cleanup on
+      // every tick; the scheduled worker and full list GET retain the 24h purge.
+      if (url.searchParams.get('count_only') === '1') {
+        const unreadRow = await unreadQuery();
+        return jsonResponse({ success: true, unreadCount: unreadRow?.count || 0 });
+      }
       const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20), 50);
       // Lazy per-user purge: read notifications are kept 24h from read_at, then
       // physically deleted from D1. Deletes only is_read=1 rows, so the exact
@@ -50,12 +61,7 @@ export async function onRequest({ request, env, data: auth }) {
         `).bind(userId, limit).all(),
         // Opt in only after the transactional counter migration. The default
         // remains compatible with existing databases; counters are never cached.
-        db.prepare(env.NOTIFICATION_UNREAD_COUNTS === 'true' ? `
-          SELECT unread_count AS count FROM notification_unread_counts WHERE user_id = ?
-        ` : `
-          SELECT COUNT(*) AS count FROM notifications
-          WHERE user_id = ? AND is_read = 0
-        `).bind(userId).first(),
+        unreadQuery(),
       ]);
 
       return jsonResponse({ success: true, data: results || [], unreadCount: unreadRow?.count || 0 });

@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { onRequest } from '../../functions/api/rankings.js';
 import { seedLatestContributions } from './helpers/contributions.mjs';
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 
 const mf = new Miniflare(convertV4MiniflareOptions({ modules: true, script: 'export default {fetch(){return new Response("test")}}', compatibilityDate: '2026-01-01', d1Databases: ['DB'] }));
 try {
@@ -13,7 +14,7 @@ try {
   const to = fixture.indexOf('  if (cpuMode)', from);
   assert(from >= 0 && to > from);
   const seed = fixture.slice(from, to).replace("new URL('../../schema.sql', import.meta.url)", "'schema.sql'");
-  await new Function('db', 'readFile', 'seedLatestContributions', `return (async()=>{${seed}})()`)(db, readFile, seedLatestContributions);
+  await new Function('db', 'readFile', 'seedLatestContributions', 'SQL_SCRIPT_SEPARATOR', `return (async()=>{${seed}})()`)(db, readFile, seedLatestContributions, SQL_SCRIPT_SEPARATOR);
   // Isolated Miniflare fixture only: measure deployment compatibility with the
   // existing production indexes while migration approval is pending.
   if (process.argv.includes('--without-home-indexes')) {

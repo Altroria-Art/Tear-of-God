@@ -2,8 +2,10 @@ import { INPUT_LIMITS, assertId, assertString, consumeMemoryRateLimit, isPlainOb
 import { maybeNotifyTrending } from '../lib/notifications.js';
 import { deleteComment } from '../lib/comment-delete.js';
 import { invalidateSpotlightsCache } from '../lib/spotlight-cache.js';
+import { fetchCommentSnapshot } from '../lib/comment-snapshot.js';
 
-export async function onRequest({ request, env, data: auth }) {
+export async function onRequest(context) {
+  const { request, env, data: auth } = context;
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
 
@@ -17,21 +19,13 @@ export async function onRequest({ request, env, data: auth }) {
       if (!rankingId) return jsonResponse({ success: false, error: 'Missing ranking_id' }, 400);
       assertId(rankingId, 'ranking_id');
 
-      // กัน unbounded growth (ดู docs/row-read-optimization-plan.md §4 hypothesis H4)
-      const { results } = await db.prepare(`
-        SELECT c.*, p.username, p.avatar_url
-        FROM comments c
-        LEFT JOIN profiles p ON c.user_id = p.id
-        WHERE c.ranking_id = ?
-        ORDER BY c.created_at DESC
-        LIMIT 200
-      `).bind(rankingId).all();
+      const snapshot = await fetchCommentSnapshot(context, rankingId);
 
       const stats = await db.prepare(`SELECT likes_count AS likes, dislikes_count AS dislikes,
         comments_count AS comments,
         (SELECT vote_type FROM votes WHERE ranking_id = ?1 AND user_id = ?2) AS user_vote
         FROM rankings WHERE id = ?1`).bind(rankingId, auth.user?.id || null).first();
-      return jsonResponse({ success: true, data: results, stats });
+      return jsonResponse({ success: true, data: snapshot.data, stats });
     }
 
     // 🟢 [POST] สร้างคอมเมนต์ใหม่

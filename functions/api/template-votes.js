@@ -3,23 +3,11 @@
 // - GET  /api/template-votes?template_id=..&user_id=..  → คืน user_vote + จำนวน like/dislike
 // - POST /api/template-votes  body: { template_id, user_id, voteType }  → โหวต/สลับ/ยกเลิก
 import { assertId, consumeMemoryRateLimit, isPlainObject, rateLimitResponse, readJsonBody, requestErrorResponse } from '../lib/request-guard.js';
+import { fetchTemplateReactionCounts } from '../lib/template-reactions.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
   const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' } });
-
-  const fetchCounts = async (templateId, userId) => {
-    // นับสดจากตารางเสมอ (ไม่พึ่ง counter ที่ drift ได้) — คล้ายวิธีคำนวณ views/uses ของ templates.js
-    const { results } = await db.prepare(
-      `SELECT
-         COALESCE(SUM(r.vote_type = 'like'), 0) AS likes,
-         COALESCE(SUM(r.vote_type = 'dislike'), 0) AS dislikes,
-         (SELECT vote_type FROM template_reactions WHERE template_id = ?1 AND user_id = ?2) AS user_vote
-       FROM template_reactions r WHERE r.template_id = ?1`
-    ).bind(templateId, userId).all();
-    const row = results[0] || {};
-    return { userVote: row.user_vote ?? null, likes: row.likes || 0, dislikes: row.dislikes || 0 };
-  };
 
   try {
     const url = new URL(request.url);
@@ -30,7 +18,7 @@ export async function onRequest({ request, env, data: auth }) {
       if (!templateId) return jsonResponse({ success: false, error: 'Missing template_id' }, 400);
       assertId(templateId, 'template_id');
       const userId = auth.user?.id || null;
-      const counts = await fetchCounts(templateId, userId);
+      const counts = await fetchTemplateReactionCounts(db, templateId, userId);
       return jsonResponse({ success: true, ...counts });
     }
 
@@ -64,7 +52,7 @@ export async function onRequest({ request, env, data: auth }) {
         ).bind(crypto.randomUUID(), template_id, user_id, voteType).run();
       }
 
-      const counts = await fetchCounts(template_id, user_id);
+      const counts = await fetchTemplateReactionCounts(db, template_id, user_id);
       return jsonResponse({ success: true, ...counts });
     }
 

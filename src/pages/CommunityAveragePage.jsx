@@ -17,7 +17,6 @@ import { useUser } from '../context/UserContext'
 import { useToast } from '../components/ui/Toast'
 import {
   fetchTemplate,
-  fetchTemplateReaction,
   voteTemplate,
   fetchTemplateComments,
   createTemplateComment,
@@ -57,7 +56,7 @@ function CommunityAverageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [comments, setComments] = useState([])
 
-  // like/dislike ของ Community Average — seed จาก templateReaction GET
+  // like/dislike seeded by the combined live comments/reactions GET.
   const [reaction, setReaction] = useState({ userVote: null, likes: 0, dislikes: 0 })
   // M4-C1: หน้านี้มี 1 template — guard กันกดซ้ำระหว่าง pending, resolve/reject แล้วกดใหม่ได้
   const voteGuardRef = useRef(null)
@@ -84,13 +83,7 @@ function CommunityAverageContent() {
 
   useLiveRefresh({
     resourceKey: templateId + ':' + (currentUserId || 'guest'),
-    load: async signal => {
-      const [commentResult, reactionResult] = await Promise.all([
-        fetchTemplateComments(templateId, { signal }),
-        fetchTemplateReaction({ templateId, signal }),
-      ]);
-      return { ...commentResult, reactionResult };
-    },
+    load: (signal, { fresh }) => fetchTemplateComments(templateId, { signal, includeReactions: true, sharedSnapshot: !fresh }),
     matches: change => ['/api/template-comments', '/api/admin/comments', '/api/template-votes'].includes(change.path)
       && (!change.templateId || change.templateId === templateId),
     apply: result => {

@@ -125,7 +125,7 @@ function PostDetailContent() {
   useLiveRefresh({
     resourceKey: `${postId}:${currentUser?.id || 'guest'}`,
     enabled: !!post,
-    load: signal => fetchComments(postId, { signal }),
+    load: (signal, { fresh }) => fetchComments(postId, { signal, sharedSnapshot: !fresh }),
     matches: change => ['/api/comments', '/api/admin/comments', '/api/votes', '/api/rankings'].includes(change.path)
       && (!change.rankingId || change.rankingId === postId),
     apply: result => {

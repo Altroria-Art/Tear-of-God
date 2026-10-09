@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 import {
   MENU_REUSE_WINDOW_MS,
+  BADGE_POLL_INTERVAL_MS,
   POLL_INTERVAL_MS,
   VISIBILITY_STALE_MS,
   createRequestDeduper,
@@ -23,6 +24,7 @@ console.log('CASE 1 passed: logged-out polling triggers are dead');
 
 // CASE 3 — visible tab keeps the ten-second cadence.
 assert.equal(POLL_INTERVAL_MS, 10000, 'notifications should arrive within ten seconds');
+assert.equal(BADGE_POLL_INTERVAL_MS, 30000, 'closed bell uses a lighter thirty-second badge check');
 {
   let last = 0;
   for (const tick of [10000, 20000, 30000]) {
