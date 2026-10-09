@@ -31,7 +31,7 @@ APP_URL = "http://localhost:8788"
 [[env.preview.d1_databases]]
 binding = "tear_of_god_db"
 database_name = "tear-of-god-preview"
-database_id = "7e770de5-77ed-4e4a-927c-74b0708039bf"
+database_id = "480b2436-77fd-4bc7-80d7-6847648ea0dc"
 
 [[env.preview.r2_buckets]]
 binding = "STORAGE"
@@ -39,7 +39,7 @@ bucket_name = "tear-of-god-preview"
 
 [env.preview.vars]
 APP_ENV = "preview"
-APP_URL = "https://audit-20261009.tear-of-god.pages.dev"
+APP_URL = "https://release-20261010.tear-of-god.pages.dev"
 PREVIEW_UPLOADS_ENABLED = "false"
 
 # --------------------------------------------------

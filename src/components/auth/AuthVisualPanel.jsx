@@ -7,25 +7,11 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
   const { t } = useTranslation();
 
   return (
-    <div className={`
-      hidden lg:flex flex-col items-center justify-center p-12
-      absolute top-0 left-1/2 w-1/2 h-full z-20 overflow-hidden
-      bg-hero-surface border-line-soft
-      transition-transform duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)]
-      ${isRegister ? '-translate-x-full border-r-2 border-r-hero-surface shadow-[5px_0_0_var(--color-pop-pink)]' : 'translate-x-0 border-l-2 border-l-hero-surface shadow-[-5px_0_0_var(--color-pop-pink)]'}
-      motion-reduce:transition-none
-    `}>
-      {/* Background decoration */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" aria-hidden="true" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+    <div className={`auth-book-leaf ${isRegister ? 'auth-book-leaf--turned' : ''}`}>
       
       {/* Login Mode Content (encourage signup) */}
       <div 
-        className={`
-          absolute inset-0 flex flex-col justify-center items-center p-12 text-center
-          transition-opacity duration-[400ms] ease-out
-          ${isRegister ? 'opacity-0 pointer-events-none delay-0' : 'opacity-100 delay-200'}
-          motion-reduce:transition-none
-        `} 
+        className="auth-book-face auth-book-face--front absolute inset-0 flex flex-col justify-center items-center p-12 text-center"
         aria-hidden={isRegister ? "true" : undefined}
         inert={isRegister ? true : undefined}
       >
@@ -79,12 +65,7 @@ export default function AuthVisualPanel({ isRegister, onSwitchMode }) {
 
       {/* Signup Mode Content (encourage login) */}
       <div 
-        className={`
-          absolute inset-0 flex flex-col justify-center items-center p-12 text-center
-          transition-opacity duration-[400ms] ease-out
-          ${!isRegister ? 'opacity-0 pointer-events-none delay-0' : 'opacity-100 delay-200'}
-          motion-reduce:transition-none
-        `} 
+        className="auth-book-face auth-book-face--back absolute inset-0 flex flex-col justify-center items-center p-12 text-center"
         aria-hidden={!isRegister ? "true" : undefined}
         inert={!isRegister ? true : undefined}
       >

@@ -6,6 +6,8 @@ import { resetPassword, verifyResetCode, forgotPassword } from '../lib/api';
 import ResetCodeInput from '../components/auth/ResetCodeInput';
 import RipMark from '../components/ui/RipMark';
 
+const MIN_CODE_CHECK_MS = 2000;
+
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -51,7 +53,10 @@ export default function ResetPassword() {
     }
     pending.current = true;
     setCodeStatus('checking'); setErrorMsg(''); setNotice('');
-    const res = await verifyResetCode({ email: email.trim().toLowerCase(), code: nextCode });
+    const [res] = await Promise.all([
+      verifyResetCode({ email: email.trim().toLowerCase(), code: nextCode }),
+      new Promise(resolve => setTimeout(resolve, MIN_CODE_CHECK_MS)),
+    ]);
     pending.current = false;
     if (res.success && res.token) { setToken(res.token); setCodeStatus('verified'); }
     else { setCodeStatus('error'); setErrorMsg(res.error || t('auth.errGenericRetry')); }

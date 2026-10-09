@@ -1,10 +1,11 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
 import { onRequestGet as templates } from '../../functions/api/templates.js';
 import { onRequest as admin } from '../../functions/api/admin/index.js';
 
-const statements = sql => sql.split(/\r?\n/).filter(l=>!l.trimStart().startsWith('--')).join('\n').split(';').map(s=>s.trim()).filter(Boolean);
+const statements = sql => sql.split(/\r?\n/).filter(l=>!l.trimStart().startsWith('--')).join('\n').split(SQL_SCRIPT_SEPARATOR).map(s=>s.trim()).filter(Boolean);
 const oldIndexes = [
   'CREATE INDEX IF NOT EXISTS idx_rankings_user_id ON rankings(user_id)',
   'CREATE INDEX IF NOT EXISTS idx_votes_ranking_id ON votes(ranking_id)',

@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -8,7 +9,7 @@ const mf = new Miniflare(convertV4MiniflareOptions({
   modules: true, script: 'export default { fetch() { return new Response("test"); } }',
   compatibilityDate: '2026-01-01', d1Databases: ['DB'],
 }));
-const splitSql = sql => sql.split(/\r?\n/).filter(l => !l.trimStart().startsWith('--')).join('\n').split(';').map(s => s.trim()).filter(Boolean);
+const splitSql = sql => sql.split(/\r?\n/).filter(l => !l.trimStart().startsWith('--')).join('\n').split(SQL_SCRIPT_SEPARATOR).map(s => s.trim()).filter(Boolean);
 try {
   const db = await mf.getD1Database('DB');
   const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');

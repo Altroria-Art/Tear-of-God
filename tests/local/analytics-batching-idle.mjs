@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -56,7 +57,7 @@ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:'export de
 try {
   const db=await mf.getD1Database('DB');
   const schema=await readFile(new URL('../../schema.sql',import.meta.url),'utf8');
-  await db.batch(schema.split(/\r?\n/).filter(l=>!l.trimStart().startsWith('--')).join('\n').split(';').map(s=>s.trim()).filter(Boolean).map(s=>db.prepare(s)));
+  await db.batch(schema.split(/\r?\n/).filter(l=>!l.trimStart().startsWith('--')).join('\n').split(SQL_SCRIPT_SEPARATOR).map(s=>s.trim()).filter(Boolean).map(s=>db.prepare(s)));
   await db.prepare("INSERT INTO profiles(id) VALUES ('viewer')").run();
   const event=(id)=>({event_id:id,session_id:'session',event_name:'feed_view',user_id:'forged'});
   const call=async body=>{

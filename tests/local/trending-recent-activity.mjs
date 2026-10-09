@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
@@ -12,7 +13,7 @@ const schemaStatements = schema
   .split(/\r?\n/)
   .filter((line) => !line.trimStart().startsWith('--'))
   .join('\n')
-  .split(';')
+  .split(SQL_SCRIPT_SEPARATOR)
   .map((statement) => statement.trim())
   .filter(Boolean);
 
@@ -343,7 +344,7 @@ try {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
     legacy.exec("INSERT INTO rankings (id, created_at) VALUES ('old1', '2026-01-01 00:00:00'), ('old2', '2026-02-01 00:00:00')");
-    for (const statement of migration.split(/\r?\n/).filter((l) => !l.trimStart().startsWith('--')).join('\n').split(';').map((s) => s.trim()).filter(Boolean)) {
+    for (const statement of migration.split(/\r?\n/).filter((l) => !l.trimStart().startsWith('--')).join('\n').split(SQL_SCRIPT_SEPARATOR).map((s) => s.trim()).filter(Boolean)) {
       legacy.exec(statement);
     }
     const columns = legacy.prepare('PRAGMA table_info(rankings)').all().map((c) => c.name);

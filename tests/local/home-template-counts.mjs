@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -6,7 +7,7 @@ import { onRequest as adminRankings } from '../../functions/api/admin/rankings.j
 const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:'export default {fetch(){return new Response("test")}}',compatibilityDate:'2026-01-01',d1Databases:['DB']}));
 try {
  const db=await mf.getD1Database('DB');
- const run=async text=>db.batch(text.split(/\r?\n/).filter(line=>!line.trimStart().startsWith('--')).join('\n').split(';').map(s=>s.trim()).filter(Boolean).map(sql=>db.prepare(sql)));
+ const run=async text=>db.batch(text.split(/\r?\n/).filter(line=>!line.trimStart().startsWith('--')).join('\n').split(SQL_SCRIPT_SEPARATOR).map(s=>s.trim()).filter(Boolean).map(sql=>db.prepare(sql)));
  await run(await readFile(new URL('../../schema.sql',import.meta.url),'utf8'));
  await db.prepare("INSERT INTO profiles(id,username,role) VALUES ('author','Author','user'),('admin','Admin','admin')").run();
  await db.prepare("INSERT INTO templates(id,creator_id,use_count) VALUES ('tpl','admin',999)").run();

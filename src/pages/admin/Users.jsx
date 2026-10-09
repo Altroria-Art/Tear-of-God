@@ -5,6 +5,7 @@ import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminUsers, setUserRole, deleteAdminUser } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import DeleteConfirmation from '../../components/ui/DeleteConfirmation';
 import Avatar from '../../components/ui/Avatar';
 import { useTranslation } from 'react-i18next';
 
@@ -23,6 +24,7 @@ export default function Users() {
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [debouncedQ, setDebouncedQ] = useState('');
 
   useEffect(() => {
@@ -91,7 +93,7 @@ export default function Users() {
   };
 
   const handleDelete = async (user) => {
-    if (!window.confirm(t('admin.confirmDeleteUser', { username: user.username }))) return;
+    if (busy) return false;
     setBusy(user.id);
     const res = await deleteAdminUser({ userId: currentUser?.id, targetId: user.id });
     setBusy(null);
@@ -103,6 +105,7 @@ export default function Users() {
     } else {
       toast.error(res.error || t('admin.deleteUserFailed', { msg: '' }));
     }
+    return res.success;
   };
 
   const totalPages = Math.ceil(total / PAGE_LIMIT);
@@ -182,7 +185,7 @@ export default function Users() {
                             {u.role === 'admin' ? t('admin.demote') : t('admin.promote')}
                           </button>
                           <button
-                            onClick={() => handleDelete(u)}
+                            onClick={() => setDeleteTarget(u)}
                             disabled={busy === u.id}
                             className="text-xs font-bold text-status-error hover:bg-status-error/10 rounded-lg px-2 py-1 disabled:opacity-50"
                           >
@@ -204,6 +207,12 @@ export default function Users() {
 
   return (
     <div>
+      <DeleteConfirmation
+        open={!!deleteTarget}
+        message={t('admin.confirmDeleteUser', { username: deleteTarget?.username })}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDelete(deleteTarget)}
+      />
       <h1 className="text-2xl font-black text-ink mb-1">{t('admin.manageUsers')}</h1>
       <p className="text-sm text-muted mb-6">{t('admin.manageUsersHelp')}</p>
 

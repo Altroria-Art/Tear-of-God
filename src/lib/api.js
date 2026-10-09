@@ -910,17 +910,17 @@ export async function setReportStatus({ userId: _userId, targetId, status }) {
   }
 }
 
-// 📍 ลบรายงาน
-export async function deleteAdminReport({ userId: _userId, targetId }) {
+// Delete reported content while retaining its report and moderation history.
+export async function deleteReportedContent(targetId) {
   try {
     const response = await apiFetch(`${API_URL}/api/admin/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete', target_id: targetId })
+      body: JSON.stringify({ action: 'delete_content', target_id: targetId })
     });
     return await readApiResponse(response);
   } catch {
-    return { success: false, error: i18n.t('errors.reportDeleteFailed') };
+    return { success: false, error: i18n.t('admin.deleteContentFailed') };
   }
 }
 

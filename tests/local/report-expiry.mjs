@@ -1,227 +1,111 @@
-// Report close/reopen/auto-expiry flow against a real Miniflare D1 seeded from
-// schema.sql. Covers: Keep Content (close stamps closed_at but keeps the row),
-// reopen within 24h reverts to pending + clears the timestamp, closed reports are
-// physically deleted from D1 24h after closing, pending rows are never purged,
-// the 24h boundary (just under kept / past deleted), and FK safety (purging a
-// report must not touch the content it references).
-
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
-
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import { onRequest as adminReports } from '../../functions/api/admin/reports.js';
+import { onRequest as reportEndpoint } from '../../functions/api/report.js';
+import { onRequest as deleteAdminUser } from '../../functions/api/admin/users.js';
+import { templateDeleteStatements } from '../../functions/lib/templateDelete.js';
 
-const schemaSql = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
-
-function sqlStatements(sql) {
-  return sql
-    .split(/\r?\n/)
-    .filter((line) => !line.trimStart().startsWith('--'))
-    .join('\n')
-    .split(';')
-    .map((statement) => statement.trim())
-    .filter(Boolean);
+// Permanent retention, original text, action history, migration and atomic moderation.
+const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
+const migration = await readFile(new URL('../../migrations/0019_report_retention.sql', import.meta.url), 'utf8');
+const oldCaches = globalThis.caches;
+globalThis.caches = { default: { delete: async () => true } };
+const oldTable = `CREATE TABLE IF NOT EXISTS reports (
+ id TEXT PRIMARY KEY, template_id TEXT REFERENCES templates(id) ON DELETE CASCADE,
+ ranking_id TEXT REFERENCES rankings(id) ON DELETE CASCADE,
+ comment_id TEXT REFERENCES comments(id) ON DELETE CASCADE,
+ template_comment_id TEXT REFERENCES template_comments(id) ON DELETE CASCADE,
+ reporter_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
+ reason TEXT, status TEXT DEFAULT 'pending', closed_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);`;
+const resources = [];
+const realNow = Date.now;
+let testClock = realNow();
+Date.now = () => testClock;
+async function world(legacy = false) {
+ // Each independent database fixture uses a separate report rate-limit window.
+ testClock += 3600001;
+ const mf = new Miniflare(convertV4MiniflareOptions({ modules: true, script: 'export default { fetch() { return new Response("retention test"); } }', compatibilityDate: '2026-01-01', d1Databases: ['DB'] }));
+ resources.push(mf);const db = await mf.getD1Database('DB');
+ const sql = legacy ? schema.split('-- Report snapshots and permanent moderation history.')[0].replace(/CREATE TABLE IF NOT EXISTS reports \([\s\S]*?\n\);/, oldTable) : schema;
+ await db.batch(sql.split(SQL_SCRIPT_SEPARATOR).map(s => db.prepare(s)));
+ await db.prepare("INSERT INTO profiles(id,username,role) VALUES ('admin','QA admin','admin'), ('owner','Owner','user'),('reporter','Reporter','user'),('reporter2','Other reporter','user')").run();
+ await db.prepare("INSERT INTO templates(id,creator_id,title,description,hashtags,tiers,use_count) VALUES ('topic','owner','Original topic','Original topic text','#UP','[]',1)").run();
+ await db.prepare("INSERT INTO rankings(id,user_id,template_id,title,description,hashtags,comments_count) VALUES ('post','owner','topic','Original post','Original post text','#UP',3)").run();
+ await db.prepare("INSERT INTO comments(id,ranking_id,user_id,content,parent_id) VALUES ('comment','post','owner','Original comment <script>test</script>',NULL),('reply','post','owner','Original reply','comment'),('nested','post','owner','Original nested reply','reply')").run();
+ await db.prepare("INSERT INTO template_comments(id,template_id,user_id,content) VALUES ('tc','topic','owner','Original topic comment')").run();
+ return db;
 }
-
-const schemaStatements = sqlStatements(schemaSql);
-
-async function createD1() {
-  const mf = new Miniflare(convertV4MiniflareOptions({
-    modules: true,
-    script: 'export default { fetch() { return new Response("local test"); } }',
-    compatibilityDate: '2026-01-01',
-    d1Databases: ['DB'],
-  }));
-  const db = await mf.getD1Database('DB');
-  await db.batch(schemaStatements.map((statement) => db.prepare(statement)));
-  return { mf, db };
+function request(body, get = '') { return new Request('https://retention.test/api/admin/reports' + get, body ? { method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body) } : {}); }
+async function call(db, body, get = '', user = 'admin') { const response = await adminReports({request:request(body,get),env:{tear_of_god_db:db},data:{user:{id:user}}});return {status:response.status,body:await response.json()}; }
+const row = (db,id) => db.prepare('SELECT * FROM reports WHERE id = ?').bind(id).first();
+const history = async (db,id) => (await db.prepare('SELECT action, status, actor_name FROM report_actions WHERE report_id = ? ORDER BY id').bind(id).all()).results;
+async function create(db, column, id, reporter = 'reporter') {
+ const response = await reportEndpoint({ request: request({[column]:id,reporter_id:'owner',reason:'Synthetic QA report'}), env:{tear_of_god_db:db},data:{user:{id:reporter}} });
+ assert.equal(response.status,201);return (await response.json()).data.id;
 }
-
-const ADMIN = `admin-${crypto.randomUUID()}`;
-
-function getRequest(url) {
-  return new Request(`https://local.test${url}`, { method: 'GET' });
-}
-
-function postRequest(payload) {
-  return new Request('https://local.test/api/admin/reports', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-}
-
-async function call(handler, request, db) {
-  return handler({ request, env: { tear_of_god_db: db }, data: { user: { id: ADMIN } } });
-}
-
-async function getList(db, params = 'status=all&page=1&limit=100') {
-  const response = await call(adminReports, getRequest(`/api/admin/reports?${params}`), db);
-  return { response, body: await response.json() };
-}
-
-async function mutate(db, payload) {
-  const response = await call(adminReports, postRequest(payload), db);
-  return { response, body: await response.json() };
-}
-
-async function assertReportGone(db, id) {
-  const row = await db.prepare('SELECT id FROM reports WHERE id = ?').bind(id).first();
-  assert.equal(row, null, `report ${id} should be gone from D1`);
-}
-
-async function getReport(db, id) {
-  return db.prepare('SELECT * FROM reports WHERE id = ?').bind(id).first();
-}
-
-async function seedWorld(db) {
-  await db.batch([
-    db.prepare(`INSERT INTO profiles (id, username, email, role) VALUES
-      (?, 'admin-test', 'admin@local.test', 'admin'),
-      ('member-1', 'member', 'member@local.test', 'user')`).bind(ADMIN),
-    db.prepare(`INSERT INTO templates (id, creator_id, title, description, hashtags, tiers, use_count, view_count)
-      VALUES ('tpl-1', 'member-1', 'Template', 'desc', '#t', '[]', 0, 0)`),
-    db.prepare(`INSERT INTO rankings (id, title, description, hashtags, user_id, template_id)
-      VALUES ('rk-1', 'Ranking', 'desc', '#t', 'member-1', 'tpl-1')`),
-    db.prepare("INSERT INTO comments (id, ranking_id, user_id, content) VALUES ('cmt-1', 'rk-1', 'member-1', 'comment body')"),
-    db.prepare("INSERT INTO template_comments (id, template_id, user_id, content) VALUES ('tc-1', 'tpl-1', 'member-1', 'template comment')"),
-    db.prepare(`INSERT INTO reports
-      (id, ranking_id, comment_id, reporter_id, reason, status, closed_at, created_at)
-      VALUES ('report-pending', 'rk-1', 'cmt-1', 'member-1', 'spam', 'pending', NULL, CURRENT_TIMESTAMP)`),
-    db.prepare(`INSERT INTO reports
-      (id, template_id, template_comment_id, reporter_id, reason, status, closed_at, created_at)
-      VALUES ('report-resolved-recent', 'tpl-1', 'tc-1', 'member-1', 'spam', 'resolved',
-        datetime('now', '-2 hours'), CURRENT_TIMESTAMP)`),
-    db.prepare(`INSERT INTO reports
-      (id, template_id, reporter_id, reason, status, closed_at, created_at)
-      VALUES ('report-resolved-under24', 'tpl-1', 'member-1', 'spam', 'resolved',
-        datetime('now', '-23 hours', '-59 minutes', '-59 seconds'), CURRENT_TIMESTAMP)`),
-    db.prepare(`INSERT INTO reports
-      (id, template_id, reporter_id, reason, status, closed_at, created_at)
-      VALUES ('report-resolved-expired', 'tpl-1', 'member-1', 'spam', 'resolved',
-        datetime('now', '-24 hours', '-2 seconds'), CURRENT_TIMESTAMP)`),
-    db.prepare(`INSERT INTO reports
-      (id, template_id, reporter_id, reason, status, closed_at, created_at)
-      VALUES ('report-resolved-veryold', 'tpl-1', 'member-1', 'spam', 'resolved',
-        datetime('now', '-25 hours'), CURRENT_TIMESTAMP)`),
-    db.prepare(`INSERT INTO reports
-      (id, ranking_id, reporter_id, reason, status, closed_at, created_at)
-      VALUES ('report-pending-leaky', 'rk-1', 'member-1', 'spam', 'pending',
-        datetime('now', '-25 hours'), CURRENT_TIMESTAMP)`),
-  ]);
-  return {
-    ranking: 'rk-1',
-    template: 'tpl-1',
-    comment: 'cmt-1',
-    templateComment: 'tc-1',
-  };
-}
-
-const { mf, db: realDb } = await createD1();
-// Freeze SQL time for both fixtures and handlers. The one-second boundary
-// must not depend on how long unrelated D1 assertions take on a busy machine.
-const fixedNow = "'2026-09-28 00:00:00'";
-const db = {
-  prepare(sql) {
-    return realDb.prepare(sql.replace(/\bCURRENT_TIMESTAMP\b/g, fixedNow).replace(/'now'/g, fixedNow));
-  },
-  batch: statements => realDb.batch(statements),
-};
 try {
-  await seedWorld(db);
-
-  // ---- 1) GET list: purge physically removes only closed, expired reports.
-  {
-    const { response, body } = await getList(db);
-    assert.equal(response.status, 200);
-    assert.equal(body.success, true);
-
-    const presentIds = new Set(body.data.map((r) => r.id));
-    assert.ok(presentIds.has('report-pending'), 'pending report must survive the purge');
-    assert.ok(presentIds.has('report-pending-leaky'), 'pending report must never be purged even with a leaked closed_at');
-    assert.ok(presentIds.has('report-resolved-recent'), 'recently closed report must be kept');
-    assert.ok(presentIds.has('report-resolved-under24'), 'report closed just under 24h must be kept');
-    assert.ok(!presentIds.has('report-resolved-expired'), 'report closed >24h ago must be purged from the list');
-    assert.ok(!presentIds.has('report-resolved-veryold'), 'report closed 25h ago must be purged from the list');
-
-    await assertReportGone(db, 'report-resolved-expired');
-    await assertReportGone(db, 'report-resolved-veryold');
-    assert.ok((await getReport(db, 'report-pending')) !== null);
-    assert.ok((await getReport(db, 'report-resolved-under24')) !== null);
-
-    // The returned rows carry closed_at so the UI can render the countdown.
-    const recent = body.data.find((r) => r.id === 'report-resolved-recent');
-    assert.ok(recent.closed_at, 'closed report must expose closed_at');
-
-    // FK safety: purging reports left every referenced content row intact.
-    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM rankings').first()).count, 1);
-    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM templates').first()).count, 1);
-    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM comments').first()).count, 1);
-    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM template_comments').first()).count, 1);
-  }
-
-  // ---- 2) Reopen within the window reverts to pending and clears closed_at.
-  {
-    assert.equal((await getReport(db, 'report-resolved-under24')).status, 'resolved');
-    const { response, body } = await mutate(db, { action: 'set_status', target_id: 'report-resolved-under24', status: 'pending' });
-    assert.equal(response.status, 200);
-    assert.equal(body.success, true);
-    assert.deepEqual(body.data, { id: 'report-resolved-under24', status: 'pending' });
-
-    const row = await getReport(db, 'report-resolved-under24');
-    assert.equal(row.status, 'pending');
-    assert.equal(row.closed_at, null, 'reopen must clear the 24h close timestamp');
-  }
-
-  // ---- 3) Reopen is idempotent on an already-pending report.
-  {
-    const { response, body } = await mutate(db, { action: 'set_status', target_id: 'report-pending', status: 'pending' });
-    assert.equal(response.status, 200);
-    assert.deepEqual(body.data, { id: 'report-pending', status: 'pending' });
-    assert.ok((await getReport(db, 'report-pending')) !== null);
-  }
-
-  // ---- 4) Reopen on a report whose window has passed is rejected + row gone.
-  {
-    const { response, body } = await mutate(db, { action: 'set_status', target_id: 'report-resolved-veryold', status: 'pending' });
-    assert.ok([404, 410].includes(response.status), `expected 404/410, got ${response.status}`);
-    assert.equal(body.success, false);
-    await assertReportGone(db, 'report-resolved-veryold');
-    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM templates').first()).count, 1, 'rejected reopen must not touch content');
-  }
-
-  // ---- 5) Closing (Keep Content) stamps closed_at and keeps the row + content.
-  {
-    const { response, body } = await mutate(db, { action: 'set_status', target_id: 'report-pending', status: 'resolved' });
-    assert.equal(response.status, 200);
-    assert.deepEqual(body.data, { id: 'report-pending', status: 'resolved' });
-
-    const row = await getReport(db, 'report-pending');
-    assert.equal(row.status, 'resolved');
-    assert.ok(row.closed_at, 'close must stamp the 24h window');
-    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM comments').first()).count, 1);
-  }
-
-  // ---- 6) Re-closing an already-closed report must not restart the window.
-  {
-    await db.prepare(`UPDATE reports SET closed_at = datetime('now', '-20 hours') WHERE id = ?`).bind('report-resolved-recent').run();
-    const before = await getReport(db, 'report-resolved-recent');
-    const { response } = await mutate(db, { action: 'set_status', target_id: 'report-resolved-recent', status: 'resolved' });
-    assert.equal(response.status, 200);
-    const after = await getReport(db, 'report-resolved-recent');
-    assert.equal(after.closed_at, before.closed_at, 're-close must keep the original closed_at');
-  }
-
-  // ---- 7) Manual delete action still works (kept for API compatibility).
-  {
-    const { response, body } = await mutate(db, { action: 'delete', target_id: 'report-resolved-recent' });
-    assert.equal(response.status, 200);
-    assert.deepEqual(body.data, { id: 'report-resolved-recent' });
-    await assertReportGone(db, 'report-resolved-recent');
-    assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM templates').first()).count, 1);
-  }
-
-  console.log('Report close/reopen/expiry checks passed');
-} finally {
-  await mf.dispose();
-}
+ const db = await world();
+ const id = await create(db,'comment_id','comment');
+ assert.equal((await row(db,id)).reporter_id,'reporter');
+ assert.equal((await row(db,id)).content_text,'Original comment <script>test</script>');
+ await db.prepare("UPDATE comments SET content='Edited after report' WHERE id='comment'").run();
+ assert.equal((await row(db,id)).content_text,'Original comment <script>test</script>','Original snapshot does not follow edits');
+ let result = await call(db,{action:'set_status',target_id:id,status:'resolved'});assert.equal(result.status,200);
+ assert.equal((await row(db,id)).moderation_action,'kept');assert.equal((await row(db,id)).moderated_by,'admin');
+ await db.prepare("UPDATE reports SET closed_at=datetime('now','-100 years') WHERE id=?").bind(id).run();
+ result=await call(db,null,'?status=resolved');assert.equal(result.body.total,1);assert.equal(result.body.data[0].snapshot.text,'Original comment <script>test</script>');
+ await call(db,null,'?count=pending');assert(await row(db,id),'GET never purges old records');
+ assert.equal((await call(db,{action:'set_status',target_id:id,status:'pending'})).status,200,'Reopen after any age');
+ assert.deepEqual((await history(db,id)).map(h=>h.action),['pending','kept','reopened']);
+ await call(db,{action:'set_status',target_id:id,status:'resolved'});
+ const count=(await history(db,id)).length;await call(db,{action:'set_status',target_id:id,status:'resolved'});assert.equal((await history(db,id)).length,count,'Repeated decision is idempotent');
+ const duplicate=await create(db,'comment_id','comment','reporter2');
+ const child=await create(db,'comment_id','nested','reporter2');
+ result=await call(db,{action:'delete_content',target_id:id});assert.equal(result.status,200);
+ assert.equal(await db.prepare("SELECT id FROM comments WHERE id='comment'").first(),null);
+ assert.equal((await db.prepare("SELECT comments_count FROM rankings WHERE id='post'").first()).comments_count,0);
+ for(const rid of [id,duplicate,child]){const kept=await row(db,rid);assert(kept);assert.equal(kept.status,'resolved');assert(kept.target_removed_at);assert.equal(kept.comment_id,null);}
+ assert.equal((await row(db,id)).moderation_action,'deleted');assert.equal((await row(db,child)).moderation_action,'removed');
+ assert.equal((await call(db,{action:'set_status',target_id:id,status:'pending'})).status,409,'Cannot reopen missing content');
+ const events=(await history(db,id)).length;await call(db,{action:'delete_content',target_id:id});assert.equal((await history(db,id)).length,events,'Repeated deletion has one decision');
+ assert.equal((await call(db,{action:'delete',target_id:id})).status,400,'Cannot erase report via old action');
+ assert.equal((await call(db,null,'?status=all','owner')).status,403,'Archive restricted to admins');
+ result=await call(db,null,'?status=resolved');assert.equal(result.body.total,3);assert(result.body.data.some(r=>r.id===id&&r.kind==='comment'&&r.history.some(h=>h.actor_name==='QA admin')));
+ // Target cascades, including account deletion, retain every reported kind.
+ const cascadeDb=await world();const all=[];
+ for(const [col,key] of [['template_id','topic'],['ranking_id','post'],['comment_id','comment'],['template_comment_id','tc']])all.push(await create(cascadeDb,col,key,'reporter2'));
+ await cascadeDb.batch(templateDeleteStatements(cascadeDb,'topic'));
+ assert.equal((await call(cascadeDb,null,'?status=resolved')).body.total,4);
+ for(const rid of all){const saved=await row(cascadeDb,rid);assert(saved.content_title||saved.content_text);assert(saved.target_removed_at);}
+ const response=await deleteAdminUser({request:request({action:'delete',target_id:'reporter2'}),env:{tear_of_god_db:cascadeDb},data:{user:{id:'admin'}}});assert.equal(response.status,200);
+ for(const rid of all)assert.equal((await row(cascadeDb,rid)).reporter_id,null);
+ // A failed transaction cannot mark content deleted or add a decision.
+ const atomic=await world();const atomicId=await create(atomic,'ranking_id','post','reporter2');
+ const broken={prepare:sql=>atomic.prepare(sql),batch:stmts=>atomic.batch([...stmts,atomic.prepare('INSERT INTO missing_qa_table VALUES (1)')])};
+ assert.equal((await call(broken,{action:'delete_content',target_id:atomicId})).status,500);
+ assert.equal((await row(atomic,atomicId)).status,'pending');assert.equal((await history(atomic,atomicId)).length,1);assert(await atomic.prepare("SELECT id FROM rankings WHERE id='post'").first());
+ const outcomes=await Promise.all([call(atomic,{action:'delete_content',target_id:atomicId}),call(atomic,{action:'set_status',target_id:atomicId,status:'resolved'})]);
+ assert(outcomes.every(r=>[200,409].includes(r.status)));assert.equal((await row(atomic,atomicId)).moderation_action,'deleted');
+ for(const [column,key,table] of [['template_id','topic','templates'],['template_comment_id','tc','template_comments']]){
+  const direct=await world();const directId=await create(direct,column,key);
+  assert.equal((await call(direct,{action:'delete_content',target_id:directId})).status,200);
+  assert.equal(await direct.prepare(`SELECT id FROM ${table} WHERE id = ?`).bind(key).first(),null);
+  assert.equal((await row(direct,directId)).moderation_action,'deleted');
+  assert.equal((await history(direct,directId)).at(-1).actor_name,'QA admin');
+ }
+ const concurrent=await world();const concurrentId=await create(concurrent,'ranking_id','post');
+ const repeated=await Promise.all([call(concurrent,{action:'delete_content',target_id:concurrentId}),call(concurrent,{action:'delete_content',target_id:concurrentId})]);
+ assert(repeated.every(r=>r.status===200));assert.equal((await history(concurrent,concurrentId)).filter(h=>h.action==='deleted').length,1);
+ assert.equal((await concurrent.prepare("SELECT use_count FROM templates WHERE id='topic'").first()).use_count,0);
+ // Existing schema migration preserves IDs and backfills surviving text only.
+ const legacy=await world(true);
+ await legacy.prepare("INSERT INTO reports(id,comment_id,reporter_id,reason,status,closed_at) VALUES ('old','comment','reporter','Old reason','resolved',datetime('now','-2 years'))").run();
+ await legacy.batch(migration.split(SQL_SCRIPT_SEPARATOR).map(s=>legacy.prepare(s)));
+ assert.equal((await row(legacy,'old')).moderation_action,'legacy');assert.equal((await row(legacy,'old')).content_text,'Original comment <script>test</script>');
+ await legacy.prepare("DELETE FROM comments WHERE id='comment'").run();assert(await row(legacy,'old'));assert.equal((await row(legacy,'old')).comment_id,null);
+ assert.deepEqual((await legacy.prepare('PRAGMA foreign_key_check').all()).results,[]);
+ console.log('PASS: permanent reports, immutable text, decisions/history, all target/account cascades, admin access, atomic rollback, concurrent moderation and migration 0019.');
+} finally { Date.now=realNow;globalThis.caches=oldCaches;await Promise.all(resources.map(mf=>mf.dispose())); }

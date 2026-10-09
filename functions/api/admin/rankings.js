@@ -4,7 +4,8 @@
 import { requireAdmin } from './_check.js';
 import { assertAllowedFields } from '../../lib/request-guard.js';
 import { adminMutationRateLimitResponse, adminRequestErrorResponse, readAdminMutation } from './_request.js';
-import { getDeleteReconcileStatement, evictCommunityCache } from '../../lib/cooldown.js';
+import { evictCommunityCache } from '../../lib/cooldown.js';
+import { rankingDeletePlan } from '../../lib/moderationDelete.js';
 
 export async function onRequest({ request, env, data: auth }) {
   const db = env.tear_of_god_db;
@@ -77,24 +78,9 @@ export async function onRequest({ request, env, data: auth }) {
       assertAllowedFields(payload, ['action', 'target_id']);
 
       if (action === 'delete') {
-        const ranking = await db.prepare('SELECT template_id, user_id FROM rankings WHERE id = ?').bind(targetId).first();
-        const batchStmts = [
-          db.prepare(`UPDATE templates SET use_count = MAX(0, COALESCE(use_count, 0) - 1)
-            WHERE id = (SELECT template_id FROM rankings WHERE id = ?)`).bind(targetId),
-          db.prepare('DELETE FROM ranking_items WHERE ranking_id = ?').bind(targetId),
-          db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(targetId),
-          db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(targetId),
-          db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id = ?').bind(targetId),
-          db.prepare('DELETE FROM rankings WHERE id = ?').bind(targetId)
-        ];
-        if (ranking?.template_id && ranking?.user_id) {
-          const reconcileStmt = await getDeleteReconcileStatement(db, ranking.template_id, ranking.user_id, targetId);
-          if (reconcileStmt) batchStmts.unshift(reconcileStmt);
-        }
-        await db.batch(batchStmts);
-        if (ranking?.template_id) {
-          await evictCommunityCache(request, ranking.template_id);
-        }
+        const plan = await rankingDeletePlan(db, targetId);
+        await db.batch(plan.statements);
+        if (plan.templateId) await evictCommunityCache(request, plan.templateId);
         return jsonResponse({ success: true, data: { id: targetId } });
       }
 

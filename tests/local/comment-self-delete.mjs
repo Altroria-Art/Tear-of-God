@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -16,7 +17,7 @@ try {
   const db = await mf.getD1Database('DB');
   const schema = await readFile(new URL('../../schema.sql', import.meta.url), 'utf8');
   const statements = schema.split(/\r?\n/).filter(line => !line.trimStart().startsWith('--')).join('\n')
-    .split(';').map(sql => sql.trim()).filter(Boolean);
+    .split(SQL_SCRIPT_SEPARATOR).map(sql => sql.trim()).filter(Boolean);
   await db.batch(statements.map(sql => db.prepare(sql)));
   for (const [id, token] of [['owner', 'a'.repeat(64)], ['other', 'b'.repeat(64)], ['admin', 'c'.repeat(64)]]) {
     await db.prepare('INSERT INTO profiles (id, username) VALUES (?, ?)').bind(id, id).run();

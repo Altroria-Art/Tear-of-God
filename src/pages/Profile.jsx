@@ -827,9 +827,9 @@ export default function Profile() {
                 <span className="inline-flex min-h-11 items-center gap-1"><strong className="text-ink">{totalLikes}</strong> {t('profile.totalLikes')}</span>
               </div>
               {
-                <section aria-label={t('profile.educationContext')} className="profile-education text-xs text-left text-ink-soft">
-                  <div className="space-y-1.5">
-                  {educationFields.map(([label, value]) => <p key={label}><strong className="text-ink">{label}:</strong> {value}</p>)}
+                <section aria-label={t('profile.educationContext')} className="profile-education text-base leading-relaxed text-left text-ink-soft">
+                  <div className="space-y-2.5">
+                  {educationFields.map(([label, value]) => <p key={label} className="break-words"><strong className="text-ink">{label}:</strong> {value}</p>)}
                   </div>
                 </section>
               }

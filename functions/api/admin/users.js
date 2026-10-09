@@ -121,7 +121,6 @@ export async function onRequest({ request, env, data: auth }) {
           db.prepare('DELETE FROM auth_identities WHERE user_id = ?').bind(targetId),
           db.prepare('DELETE FROM password_resets WHERE user_id = ?').bind(targetId),
           db.prepare('DELETE FROM template_bookmarks WHERE user_id = ?').bind(targetId),
-          db.prepare('DELETE FROM reports WHERE reporter_id = ?').bind(targetId),
           db.prepare('DELETE FROM template_reactions WHERE user_id = ?').bind(targetId),
           db.prepare('DELETE FROM template_comments WHERE user_id = ?').bind(targetId),
           db.prepare('DELETE FROM template_views WHERE user_id = ?').bind(targetId),

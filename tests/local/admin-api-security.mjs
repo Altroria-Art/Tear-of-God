@@ -30,6 +30,7 @@ class FakeStatement {
       return { role: this.db.roles.get(this.values[0]) || 'user' };
     }
     if (this.db.failReads) throw new Error(INTERNAL_DETAIL);
+    if (this.sql.includes('FROM reports WHERE id')) return { id: this.values[0], status: 'pending', moderation_action: 'pending', target_kind: 'comment', comment_id: 'comment-1', target_removed_at: null };
     if (this.sql.includes('SELECT ranking_id FROM comments')) return { ranking_id: 'ranking-1' };
     if (this.sql.includes('COUNT(*) as count FROM comments')) return { count: 0 };
     return null;
@@ -98,8 +99,8 @@ const validCases = [
   [adminUsers, { action: 'delete', target_id: 'user-2' }, { success: true, data: { id: 'user-2' } }],
   [adminRankings, { action: 'delete', target_id: 'ranking-1' }, { success: true, data: { id: 'ranking-1' } }],
   [adminTemplates, { action: 'delete', target_id: 'template-1' }, { success: true, data: { id: 'template-1' } }],
-  [adminReports, { action: 'set_status', target_id: 'report-1', status: 'resolved' }, { success: true, data: { id: 'report-1', status: 'resolved' } }],
-  [adminReports, { action: 'delete', target_id: 'report-2' }, { success: true, data: { id: 'report-2' } }],
+  [adminReports, { action: 'set_status', target_id: 'report-1', status: 'resolved' }, { success: true, data: { id: 'report-1', status: 'resolved', moderation_action: 'kept' } }],
+  [adminReports, { action: 'delete_content', target_id: 'report-2' }, { success: true, data: { id: 'report-2', status: 'resolved', moderation_action: 'deleted' } }],
   [adminComments, { action: 'delete', target_id: 'comment-1', is_template_comment: false }, { success: true }],
   [adminComments, { action: 'delete', target_id: 'comment-2', is_template_comment: true }, { success: true }],
 ];
@@ -142,6 +143,7 @@ const invalidCases = [
   [adminUsers, { action: 'set_role', target_id: 'user-1', role: 1 }, {}],
   [adminUsers, { action: 'delete', target_id: 'user-1', role: 'user' }, {}],
   [adminReports, { action: 'set_status', target_id: 'report-1', status: 'closed' }, {}],
+  [adminReports, { action: 'delete', target_id: 'report-1' }, {}],
   [adminComments, { action: 'delete', target_id: 'comment-1', is_template_comment: 'false' }, {}],
 ];
 

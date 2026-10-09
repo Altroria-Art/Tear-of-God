@@ -1,3 +1,4 @@
+import { SQL_SCRIPT_SEPARATOR } from './helpers/sql.mjs';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare';
@@ -8,7 +9,7 @@ const canonical = rows => rows.map(r=>JSON.stringify([r.template_id,r.item_id,r.
 try {
   const db=await mf.getD1Database('DB');
   const schema=await readFile(new URL('../../schema.sql',import.meta.url),'utf8');
-  await db.batch(schema.split(/\r?\n/).filter(l=>!l.trimStart().startsWith('--')).join('\n').split(';').map(s=>s.trim()).filter(Boolean).map(s=>db.prepare(s)));
+  await db.batch(schema.split(/\r?\n/).filter(l=>!l.trimStart().startsWith('--')).join('\n').split(SQL_SCRIPT_SEPARATOR).map(s=>s.trim()).filter(Boolean).map(s=>db.prepare(s)));
   await db.prepare("INSERT INTO profiles(id,username) VALUES ('author','Author')").run();
   await db.prepare("INSERT INTO templates(id,title,creator_id) VALUES ('t1','One','author'),('t2','Two','author'),('other','Unselected','author')").run();
   const queries={

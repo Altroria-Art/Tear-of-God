@@ -1273,7 +1273,6 @@ r.created_at DESC, r.id DESC`;
         db.prepare('DELETE FROM votes WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM comments WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM ranking_item_scores WHERE ranking_id = ?').bind(targetId),
-        db.prepare('DELETE FROM reports WHERE ranking_id = ?').bind(targetId),
         db.prepare('DELETE FROM rankings WHERE id = ?').bind(targetId),
       ];
 
