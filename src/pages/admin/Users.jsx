@@ -5,6 +5,7 @@ import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminUsers, setUserRole, deleteAdminUser } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import TableScroller from '../../components/ui/TableScroller';
 import DeleteConfirmation from '../../components/ui/DeleteConfirmation';
 import Avatar from '../../components/ui/Avatar';
 import { useTranslation } from 'react-i18next';
@@ -116,7 +117,7 @@ export default function Users() {
     
     return (
       <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden mb-8">
-        <div className="overflow-x-auto">
+        <TableScroller label={t('admin.users')}>
           <table className="w-full table-fixed min-w-[760px] text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft bg-surface-glass">
@@ -200,7 +201,7 @@ export default function Users() {
               })}
             </tbody>
           </table>
-        </div>
+        </TableScroller>
       </div>
     );
   };
@@ -229,6 +230,7 @@ export default function Users() {
         <div className="relative w-full sm:max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input
+            aria-label={t('admin.searchUsersPh')}
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}

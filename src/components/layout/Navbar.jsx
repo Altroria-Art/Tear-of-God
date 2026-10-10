@@ -332,7 +332,7 @@ const Navbar = () => {
 
               {/* Dropdown เมนู */}
               {isDropdownOpen && (
-                <div className="absolute right-0 top-12 w-40 glass rounded-xl py-2 z-50">
+                <div className="ui-popover absolute right-0 top-12 w-40 glass rounded-xl py-2 z-50">
                   <Link 
                     to="/profile" 
                     className="flex min-h-11 items-center px-4 py-2 text-sm text-ink hover:bg-surface-glass font-medium transition-colors"
@@ -373,7 +373,7 @@ const Navbar = () => {
 
       {/* Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
-        <div ref={mobileMenuRef} id="secondary-navigation" className="lg:hidden absolute top-full left-0 w-full max-h-[calc(100dvh-9rem)] overflow-y-auto bg-canvas border-t border-line-soft p-4 flex flex-col gap-4 shadow-xl z-50">
+        <div ref={mobileMenuRef} id="secondary-navigation" className="ui-popover lg:hidden absolute top-full left-0 w-full max-h-[calc(100dvh-9rem)] overflow-y-auto bg-canvas border-t border-line-soft p-4 flex flex-col gap-4 shadow-xl z-50">
           <div ref={mobileSearchRef} className="relative w-full">
             <form onSubmit={handleSearch}>
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />

@@ -44,6 +44,11 @@ try {
   const warm = await measure(templates, path);
   assert.deepEqual(warm.body, cold.body);
   assert.equal(warm.reads, 0);
+  const metadata = await measure(templates, path + '&fields=meta');
+  assert.equal(metadata.queries, 2, 'Full-board catalog skips obsolete item preview queries');
+  assert.ok(metadata.body.data.every(topic => !Object.hasOwn(topic, 'template_items') && !Object.hasOwn(topic, 'ranking_preview')));
+  assert.deepEqual(metadata.body.data.map(topic => topic.id), cold.body.data.map(topic => topic.id));
+  assert.equal((await measure(templates, path + '&fields=meta')).reads, 0);
   const personal = await measure(templates, path, 'viewer');
   assert.equal(personal.cacheControl, 'private, no-store');
   assert.deepEqual(personal.body.data.filter(t => t.is_saved).map(t => t.id), ['t1']);

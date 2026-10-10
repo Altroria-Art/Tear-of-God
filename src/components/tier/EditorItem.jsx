@@ -71,7 +71,7 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
           onClick={() => onShift(-1)}
           disabled={position === 0}
           aria-label={t('rank.moveLeft')}
-          className="w-11 h-11 grid place-items-center rounded-lg hover:bg-tag disabled:opacity-25"
+          className="w-11 h-11 shrink-0 grid place-items-center rounded-lg hover:bg-tag disabled:opacity-25"
         >
           <ChevronLeft size={15} />
         </button>
@@ -81,7 +81,7 @@ export default function EditorItem({ item, position, count, onMove, onShift, onD
           onClick={() => onShift(1)}
           disabled={position === count - 1}
           aria-label={t('rank.moveRight')}
-          className="w-11 h-11 grid place-items-center rounded-lg hover:bg-tag disabled:opacity-25"
+          className="w-11 h-11 shrink-0 grid place-items-center rounded-lg hover:bg-tag disabled:opacity-25"
         >
           <ChevronRight size={15} />
         </button>

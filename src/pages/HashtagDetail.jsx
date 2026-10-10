@@ -80,7 +80,7 @@ export default function HashtagDetail() {
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </BackButton>
-            <span className="max-w-full break-words bg-highlight text-canvas font-bold px-4 py-1.5 rounded-full">#{tag}</span>
+            <h1 className="max-w-full break-words bg-highlight text-canvas font-bold px-4 py-1.5 rounded-full">#{tag}</h1>
             <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
             <TopicFollowButton topicType="hashtag" topicKey={tag} />
           </div>

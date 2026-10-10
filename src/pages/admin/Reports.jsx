@@ -6,6 +6,7 @@ import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminReports, setReportStatus, deleteReportedContent } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import TableScroller from '../../components/ui/TableScroller';
 import DeleteConfirmation from '../../components/ui/DeleteConfirmation';
 import { timeAgo } from '../../lib/format';
 import Modal from '../../components/ui/Modal';
@@ -163,7 +164,7 @@ export default function Reports() {
         <div className="glass rounded-2xl py-8 text-center text-sm text-muted">{t('admin.noReports')}</div>
       ) : (
         <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+          <TableScroller label={t('admin.reports')}>
             <table className="w-full table-fixed min-w-[900px] text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
@@ -308,7 +309,7 @@ export default function Reports() {
                 })}
               </tbody>
             </table>
-          </div>
+          </TableScroller>
         </div>
       )}
 

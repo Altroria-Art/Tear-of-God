@@ -57,10 +57,6 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
   return (
     <article
       onClick={onSelect}
-      role="button"
-      aria-label={post.title}
-      tabIndex={0}
-      onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onSelect(); } }}
       className={`profile-ranking-tile group relative flex flex-col overflow-hidden border border-line-soft hover:border-brand/40 transition-colors cursor-pointer text-left select-none bg-surface/60 min-w-0`}
     >
       {/* Top Visual Thumbnail Area — pt-13 reserves a CONSTANT slot for the pinned + type
@@ -150,7 +146,7 @@ function MiniTierTile({ post, isPinned, isOwnProfile, pinBusy, onTogglePin, onSe
             className="font-bold text-sm text-ink line-clamp-2 leading-snug group-hover:text-brand transition-colors"
             title={post.title}
           >
-            {post.title}
+            <Link to={`/post/${encodeURIComponent(post.id)}`} onClick={event => event.stopPropagation()}>{post.title}</Link>
           </h4>
 
           {hashtags.length > 0 && (
@@ -700,8 +696,8 @@ export default function Profile() {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center">
-          <p className="text-lg font-bold text-ink">{t('profile.notFound')}</p>
-          <button onClick={() => navigate('/')} className="mt-2 text-sm font-bold text-brand hover:underline">
+          <h1 className="text-2xl font-black text-ink">{t('profile.notFound')}</h1>
+          <button onClick={() => navigate('/')} className="play-button mt-4">
             {t('common.backHome')}
           </button>
         </div>

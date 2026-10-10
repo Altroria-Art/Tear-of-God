@@ -78,7 +78,7 @@ export default function DuelResultPage() {
   if (error || !duel) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-4 text-center">
-        <p className="text-lg font-bold text-ink">{error || t('common.notFound')}</p>
+        <h1 className="text-2xl font-black text-ink">{error || t('common.notFound')}</h1>
         <BackButton fallback="/"
           className="inline-flex items-center gap-2 rounded-xl bg-surface px-4 py-2 text-sm font-bold text-ink hover:bg-surface-glass"
         >
@@ -232,11 +232,11 @@ export default function DuelResultPage() {
 
         {/* Template Context Banner */}
         <section className="duel-template-strip flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-3">
-          <div className="min-w-0">
+          <div className="min-w-0 w-full sm:flex-1">
             <span className="text-xs font-bold text-muted uppercase tracking-wider">
               {t('template.title')}
             </span>
-            <h2 className="text-lg font-bold text-ink truncate">{template.title}</h2>
+            <h2 className="text-lg font-bold text-ink [overflow-wrap:anywhere]">{template.title}</h2>
           </div>
           <Link
             to={`/template/${encodeURIComponent(template.id)}`}
@@ -250,7 +250,7 @@ export default function DuelResultPage() {
         {/* Item-by-Item Breakdown */}
         {comparison?.details && comparison.details.length > 0 && (
           <section className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-lg sm:text-xl font-bold text-ink">
                 {t('duel.breakdown')}
               </h3>
@@ -268,7 +268,7 @@ export default function DuelResultPage() {
               {comparison.details.map((item) => (
                 <div
                   key={item.itemId}
-                  className={`duel-breakdown-row flex items-center justify-between gap-3 p-3.5 transition-colors ${
+                  className={`duel-breakdown-row flex flex-wrap items-center justify-between gap-3 p-3.5 transition-colors ${
                     item.isMatch
                       ? 'bg-emerald-500/5'
                       : ''
@@ -287,15 +287,15 @@ export default function DuelResultPage() {
                         {item.itemName.slice(0, 2)}
                       </div>
                     )}
-                    <span className="text-sm font-semibold text-ink truncate">
+                    <span className="text-sm font-semibold text-ink [overflow-wrap:anywhere]">
                       {item.itemName}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex max-w-full flex-wrap items-center gap-2">
                     {/* Challenger A Placement */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-bold text-muted uppercase">{t('duel.you')}</span>
+                      <span className="text-[11px] font-bold text-muted uppercase">{t('duel.you')}</span>
                       {item.tierA ? (
                         <TierLabel label={item.tierA} color={item.tierColorA} className="text-xs px-2 py-0.5 rounded-md" />
                       ) : (
@@ -303,11 +303,11 @@ export default function DuelResultPage() {
                       )}
                     </div>
 
-                    <span className="text-xs text-muted/60">vs</span>
+                    <span className="text-xs text-muted">vs</span>
 
                     {/* Owner B Placement */}
                     <div className="flex flex-col items-center">
-                      <span className="text-[9px] font-bold text-muted uppercase">@{owner.username.slice(0, 6)}</span>
+                      <span title={owner.username} className="max-w-32 break-words text-[11px] font-bold text-muted">@{owner.username}</span>
                       {item.tierB ? (
                         <TierLabel label={item.tierB} color={item.tierColorB} className="text-xs px-2 py-0.5 rounded-md" />
                       ) : (

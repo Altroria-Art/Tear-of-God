@@ -70,7 +70,7 @@ export default function TopicFollowButton({ topicType, topicKey, className, show
   };
 
   const label = isFollowing ? t('topicFollow.following') : t('topicFollow.follow');
-  const defaultClassName = 'inline-flex min-h-10 items-center gap-2 rounded-full border border-line-soft bg-surface px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-surface-glass disabled:cursor-wait disabled:opacity-60';
+  const defaultClassName = 'inline-flex min-h-11 items-center gap-2 rounded-full border border-line-soft bg-surface px-4 py-2 text-sm font-bold text-ink transition-colors hover:bg-surface-glass disabled:cursor-wait disabled:opacity-60';
 
   return (
     <button

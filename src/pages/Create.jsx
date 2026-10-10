@@ -4,6 +4,7 @@ import TearMascot from '../components/ui/TearMascot';
 import DropZone from '../components/tier/DropZone';
 import PlayHeader from '../components/ui/PlayHeader';
 import { getInsertIndexFromZone, groupEditorItems, normalizeCreateDraft } from '../lib/editorBoard';
+import { findDuplicateNames, prepareCreateItems, removeDuplicateCreateItems } from '../lib/createItems';
 import EditorItem from '../components/tier/EditorItem';
 import AssignTierModal from '../components/tier/AssignTierModal';
 import EditorToolbar from '../components/tier/EditorToolbar';
@@ -149,6 +150,9 @@ const CreateTierList = () => {
   }, [title, description, tiers, items, selectedHashtags, hashtags]);
 
   const itemGroups = useMemo(() => groupEditorItems(items, tiers), [items, tiers]);
+  const duplicateItemNames = useMemo(() => findDuplicateNames(items.map(item => item.content)), [items]);
+  const describeDuplicateNames = names => names.slice(0, 3).join(', ') + (names.length > 3
+    ? t('create.errUnrankedItemsMore', { n: names.length - 3 }) : '');
 
   const BASE_COLORS = [
     '#f87171', '#fdba74', '#fcd34d', '#fde047',
@@ -162,17 +166,19 @@ const CreateTierList = () => {
 
   const handleGenerateCards = () => {
     if (!quickAddText.trim()) return;
-    const newItems = quickAddText.split(/[,\n]+/).map(s => s.trim()).filter(Boolean).map((item, index) => ({
-        id: `item-${Date.now()}-${index}`,
-        content: item,
-        tierId: null
-      }));
+    const { items: newItems, duplicates } = prepareCreateItems(quickAddText, items);
     if (newItems.length && !firstBatchSeen.current) {
       firstBatchSeen.current = true;
       setFirstItemsArrived(true);
     }
     setItems(prev => [...prev, ...newItems]);
     setQuickAddText('');
+    if (duplicates.length) toast.warning(t('create.skippedDuplicateItems', { names: describeDuplicateNames(duplicates) }));
+  };
+
+  const handleRemoveDuplicates = () => {
+    setItems(previous => removeDuplicateCreateItems(previous));
+    toast.success(t('create.duplicatesRemoved'));
   };
 
   const handleDeleteItem = (idToRemove) => setItems(items.filter(item => item.id !== idToRemove));
@@ -361,6 +367,16 @@ const CreateTierList = () => {
       return toast.warning(t('create.warnHashtag'));
     }
 
+    if (duplicateItemNames.length) {
+      quickAddRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return toast.warning(t('create.errDuplicateItems', { names: describeDuplicateNames(duplicateItemNames) }));
+    }
+    const duplicateTierNames = findDuplicateNames(tiers.map(tier => tier.label));
+    if (duplicateTierNames.length) {
+      tierBoardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return toast.warning(t('create.errDuplicateTiers', { names: describeDuplicateNames(duplicateTierNames) }));
+    }
+
     const rankedItems = items.filter(item => tiers.some(tier => tier.id === item.tierId));
     if (items.length === 0) {
       const textarea = quickAddRef.current?.querySelector('textarea');
@@ -428,7 +444,7 @@ const CreateTierList = () => {
   };
 
   return (
-    <div className="create-page min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
+    <main className="create-page min-h-screen font-sans p-4 pb-28 md:p-8 md:pb-32 relative">
 <BackButton fallback="/" className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-soft bg-surface px-3 text-sm text-ink-soft hover:text-ink mb-3"><BackArrow size={16} /><span>{t('common.back')}</span></BackButton>
 
 {/* POPUP SETTINGS MODAL */}
@@ -487,7 +503,12 @@ const CreateTierList = () => {
             <h3 className="font-black text-brand mb-1 flex items-center gap-2"><Zap size={18} className="text-brand shrink-0" /> {t('create.quickAdd')}</h3>
             {items.length === 0 && <p className="create-board-hint create-tear-helper" role="status"><TearMascot pose="point" />{t('create.emptyBoardHint')}</p>}
             <p className="text-xs text-muted font-medium">{t('create.quickAddHelp')}</p>
-            <textarea value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="2" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
+            {duplicateItemNames.length > 0 && <div data-create-duplicate-warning className="rounded-xl border border-line-soft bg-tag p-3 text-sm text-ink">
+              <p className="font-semibold break-words">{t('create.errDuplicateItems', { names: describeDuplicateNames(duplicateItemNames) })}</p>
+              <p className="mt-2 text-xs text-ink-soft">{t('create.duplicateRepairHelp')}</p>
+              <button type="button" onClick={handleRemoveDuplicates} className="mt-3 min-h-11 rounded-lg border border-line-soft bg-surface px-3 font-semibold hover:bg-surface-glass transition-colors">{t('create.removeDuplicateItems')}</button>
+            </div>}
+            <textarea aria-label={t('create.quickAdd')} value={quickAddText} onChange={(e) => setQuickAddText(e.target.value)} placeholder={t('create.quickAddPh')} rows="2" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 text-sm outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none mb-2"></textarea>
             <div className="flex justify-end">
               <button onClick={handleGenerateCards} className="play-button">
                 <Plus size={16} /> {t('create.generate')}
@@ -590,6 +611,7 @@ const CreateTierList = () => {
               {/* 📍 [ใหม่]: unified search/create input */}
               <div ref={hashtagInputRef} className="flex flex-col gap-2 border-t border-line-soft/50 pt-4 relative">
                 <input
+                  aria-label={t('create.hashtags')}
                   type="text"
                   value={tagQuery}
                   onChange={(e) => setTagQuery(e.target.value)}
@@ -635,13 +657,13 @@ const CreateTierList = () => {
 
             <div>
               <label className="block text-sm font-bold mb-2 text-ink-soft uppercase tracking-wider">{t('create.description')} <span className="text-muted font-medium text-xs normal-case">{t('create.optional')}</span></label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('create.descriptionPh')} rows="3" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none"></textarea>
+              <textarea aria-label={t('create.description')} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('create.descriptionPh')} rows="3" className="w-full bg-surface border border-line-soft text-ink rounded-xl p-3 outline-none focus:ring-1 focus:ring-brand placeholder-muted transition-all resize-none"></textarea>
             </div>
           </div>
           </section>
       </div>
       <EditorToolbar ranked={items.length - itemGroups.unranked.length} total={items.length} onSave={handlePublish} saving={isPublishing} />
-    </div>
+    </main>
   );
 };
 

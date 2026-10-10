@@ -98,7 +98,7 @@ export default function AdminLayout() {
             <Icon size={15} strokeWidth={2.2} />
             <span>{t(labelKey)}</span>
             {to === '/admin/reports' && pendingCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[18px] h-4 px-1 rounded-full text-[10px] font-bold bg-status-warning text-canvas animate-pulse shadow-sm">
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 rounded-full text-[11px] font-bold bg-status-warning text-canvas shadow-sm">
                 {pendingCount}
               </span>
             )}
@@ -129,7 +129,7 @@ export default function AdminLayout() {
                 <Icon size={17} strokeWidth={2.2} className="shrink-0" />
                 <span className="flex-1 text-left">{t(labelKey)}</span>
                 {to === '/admin/reports' && pendingCount > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold bg-status-warning text-canvas animate-pulse shadow-sm">
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold bg-status-warning text-canvas shadow-sm">
                     {pendingCount}
                   </span>
                 )}

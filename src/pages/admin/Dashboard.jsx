@@ -26,6 +26,7 @@ import { useUser } from '../../context/UserContext';
 import { fetchAdminStats, fetchAdminAnalytics, fetchAdminReports, setReportStatus } from '../../lib/api';
 import { useToast } from '../../components/ui/Toast';
 import Avatar from '../../components/ui/Avatar';
+import Modal from '../../components/ui/Modal';
 import { timeAgo } from '../../lib/format';
 import { useTranslation } from 'react-i18next';
 
@@ -132,24 +133,14 @@ export default function Dashboard() {
           {/* Action Required Banner */}
           {pendingCount > 0 ? (
             <div
-              onClick={openQuickReports}
-              className="rounded-2xl border border-status-warning/40 bg-status-warning/10 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 cursor-pointer hover:bg-status-warning/15 hover:border-status-warning/60 transition-all shadow-sm group"
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  openQuickReports();
-                }
-              }}
+              className="rounded-2xl border border-status-warning/40 bg-status-warning/10 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm"
             >
               <div className="flex items-center gap-3.5">
                 <div className="relative shrink-0">
-                  <span className="w-11 h-11 rounded-xl bg-status-warning/20 text-status-warning flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span className="w-11 h-11 rounded-xl bg-status-warning/20 text-status-warning flex items-center justify-center">
                     <AlertTriangle size={22} />
                   </span>
                   <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-status-warning opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-status-warning border-2 border-surface"></span>
                   </span>
                 </div>
@@ -161,7 +152,7 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <p className="text-xs text-ink-soft mt-0.5">
-                    {t('admin.pendingReportsAlert', { count: pendingCount })} · <span className="text-brand font-medium group-hover:underline">{t('admin.clickToViewQuick')}</span>
+                    {t('admin.pendingReportsAlert', { count: pendingCount })}
                   </p>
                 </div>
               </div>
@@ -314,7 +305,7 @@ export default function Dashboard() {
                   <div className="rounded-xl border border-line-soft bg-surface/60 p-3">
                     <div className="mb-3 flex items-center justify-between">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-muted">{t('admin.dailyActivity')}</p>
-                      <p className="text-[10px] text-muted">{t('admin.bangkokTime')}</p>
+                      <p className="text-[11px] text-muted">{t('admin.bangkokTime')}</p>
                     </div>
                     <div className="flex h-20 items-end gap-1.5">
                       {dailyActivity.map((day) => (
@@ -582,14 +573,8 @@ export default function Dashboard() {
 
       {/* Quick Notification Modal */}
       {isQuickModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-          onClick={() => setIsQuickModalOpen(false)}
-        >
-          <div
-            className="bg-surface border border-line-soft rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <Modal open onClose={() => setIsQuickModalOpen(false)} title={t('admin.quickReportsTitle')} maxWidth="max-w-2xl">
+          <div>
             {/* Modal Header */}
             <div className="p-4 sm:p-5 border-b border-line-soft flex items-center justify-between gap-3 bg-surface">
               <div className="flex items-center gap-3">
@@ -598,7 +583,6 @@ export default function Dashboard() {
                 </span>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-ink">{t('admin.quickReportsTitle')}</h3>
                     <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-status-warning text-canvas">
                       {modalReports.length}
                     </span>
@@ -606,13 +590,6 @@ export default function Dashboard() {
                   <p className="text-xs text-muted mt-0.5">{t('admin.quickReportsDesc')}</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsQuickModalOpen(false)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted hover:text-ink hover:bg-surface-glass transition-colors"
-              >
-                <X size={18} />
-              </button>
             </div>
 
             {/* Modal Content */}
@@ -726,7 +703,7 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

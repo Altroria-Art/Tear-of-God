@@ -13,7 +13,9 @@ function TierItem({ item, idx, onClick, compact = false }) {
   const itemImg = typeof item === 'object' ? normalizeImageUrl(item.image_url || item.image) : null;
 
   return (
-    <div
+    <button
+      type="button"
+      aria-label={itemName}
       key={itemId}
       onClick={(e) => { e.stopPropagation(); onClick(itemName); }}
       className={`group/item relative flex aspect-square shrink-0 items-center justify-center bg-item-card text-item-card-text backdrop-blur-md border border-line-soft/80 font-bold shadow-xs hover:shadow-md hover:-translate-y-0.5 rounded-xl text-center transition-all duration-200 select-none overflow-hidden cursor-pointer ${compact ? 'h-14 w-14 p-1' : 'h-18 w-18 sm:h-20 sm:w-20 p-1.5 sm:p-2'}`}
@@ -32,7 +34,7 @@ function TierItem({ item, idx, onClick, compact = false }) {
           {itemName}
         </span>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -56,7 +58,7 @@ export default function TierRow({ tier, color, index, items = [], compact = fals
 
         <div className={`${compact ? 'p-1.5 gap-1.5' : 'p-2 sm:p-2.5 gap-2'} flex ${compact && itemLimit ? 'flex-nowrap overflow-hidden' : 'flex-wrap'} items-center flex-grow min-w-0`}>
           {isEmpty ? (
-            <span className="px-2 text-xs italic text-muted/50 font-medium select-none">
+            <span className="px-2 text-xs italic text-muted font-medium select-none">
               {t('feed.emptyTier')}
             </span>
           ) : (

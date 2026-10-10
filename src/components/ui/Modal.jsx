@@ -1,17 +1,38 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon } from './Icons';
 import { useTranslation } from 'react-i18next';
 
+let activeModals = 0;
+let previousOverflow;
+let previousInert;
+
+function lockBackground() {
+  const root = document.getElementById('root');
+  if (activeModals++ === 0) {
+    previousOverflow = document.body.style.overflow;
+    previousInert = root?.inert;
+    document.body.style.overflow = 'hidden';
+    if (root) root.inert = true;
+  }
+  return () => {
+    if (--activeModals === 0) {
+      document.body.style.overflow = previousOverflow;
+      if (root) root.inert = previousInert;
+    }
+  };
+}
+
 export default function Modal({ open, onClose, title, children, footer, maxWidth = 'max-w-md', variant = 'action' }) {
   const { t } = useTranslation();
   const dialog = useRef(null);
+  const titleId = useId();
   const close = useRef(onClose);
   useEffect(() => { close.current = onClose; }, [onClose]);
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
+    const unlock = lockBackground();
     const focusable = () => Array.from(dialog.current?.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') || []).filter(el => el.getClientRects().length);
     const onKey = (e) => {
       if (e.key === 'Escape') { e.preventDefault(); close.current(); }
@@ -24,12 +45,11 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
       else if (!e.shiftKey && (document.activeElement === last || !dialog.current?.contains(document.activeElement))) { e.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
     (focusable()[0] || dialog.current)?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus?.isConnected) previousFocus.focus();
+      unlock();
+      if (previousFocus?.isConnected && !previousFocus.closest('[inert]')) previousFocus.focus();
     };
   }, [open]);
 
@@ -40,15 +60,15 @@ export default function Modal({ open, onClose, title, children, footer, maxWidth
       className={`modal--${variant} fixed inset-0 z-[200] flex items-center justify-center p-4`}
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+      aria-labelledby={titleId}
     >
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="dialog-backdrop absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
       />
       <div ref={dialog} tabIndex={-1} className={`dialog-panel relative flex flex-col w-full max-h-[85dvh] ${maxWidth} rounded-2xl border border-line bg-surface shadow-2xl shadow-black/30`}>
         <div className="flex shrink-0 items-center justify-between border-b border-line-soft px-5 py-4">
-          <h3 className="min-w-0 text-lg font-black text-ink">{title}</h3>
+          <h2 id={titleId} className="min-w-0 text-lg font-black text-ink">{title}</h2>
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onClose(); }}

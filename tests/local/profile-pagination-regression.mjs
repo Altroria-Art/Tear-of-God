@@ -44,11 +44,12 @@ assert.deepEqual(Array.from(posts, post => post.id), ['a', 'b'], 'late old-profi
 
 const discover = await readFile(new URL('../../src/pages/Discover.jsx', import.meta.url), 'utf8');
 const loadStart = discover.indexOf('    async function loadResults()');
-const loadEnd = discover.indexOf('    loadResults();', loadStart);
+const loadEnd = discover.indexOf('\n    loadResults().catch(', loadStart);
 assert(loadStart >= 0 && loadEnd > loadStart);
 let params = new URLSearchParams('view=saved&page=2&q=hello');
 const discoverContext = vm.createContext({
-  saved: true, currentUser: { id: 'user' }, browsingResults: true, q: 'hello', page: 2, cancelled: false,
+  saved: true, currentUser: { id: 'user' }, browsingResults: true, q: 'hello', page: 2,
+  controller: { signal: { aborted: false } },
   URLSearchParams, setIsLoading() {}, setLoadError() {}, setTotal() {},
   setTemplates() { throw Error('must redirect before rendering an invalid page'); },
   fetchTemplates: async () => ({ data: [], total: 12 }),

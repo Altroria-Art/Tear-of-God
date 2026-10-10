@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Trash2, Eye, X, ExternalLink } from 'lucide-react';
+import { Search, Trash2, Eye, ExternalLink } from 'lucide-react';
 import { useUser } from '../../context/UserContext';
 import { useToast } from '../../components/ui/Toast';
 import { fetchAdminTemplates, deleteAdminTemplate, fetchTemplate } from '../../lib/api';
 import Pagination from '../../components/ui/Pagination';
+import TableScroller from '../../components/ui/TableScroller';
 import DeleteConfirmation from '../../components/ui/DeleteConfirmation';
+import Modal from '../../components/ui/Modal';
 import HashtagCell from '../../components/admin/HashtagCell';
 import TierLabel from '../../components/tier/TierLabel';
 import { useTranslation } from 'react-i18next';
@@ -94,6 +96,7 @@ export default function Templates() {
       <div className="relative mb-4 max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input
+          aria-label={t('admin.searchTemplatePh')}
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -108,7 +111,7 @@ export default function Templates() {
         <div className="glass rounded-2xl py-8 text-center text-sm text-muted">{t('admin.noTemplates')}</div>
       ) : (
         <div className="bg-surface border border-line-soft rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+          <TableScroller label={t('admin.templates')}>
             <table className="w-full table-fixed min-w-[820px] text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted border-b border-line-soft">
@@ -176,7 +179,7 @@ export default function Templates() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableScroller>
         </div>
       )}
 
@@ -184,8 +187,8 @@ export default function Templates() {
 
       {/* 📍 in-admin template detail modal */}
       {detail && !detailLoading && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => setDetail(null)}>
-          <div className="glass w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl p-6 shadow-xl relative" onClick={(e) => e.stopPropagation()}>
+        <Modal open onClose={() => setDetail(null)} title={t('admin.view')} maxWidth="max-w-3xl">
+          <div>
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -217,14 +220,6 @@ export default function Templates() {
                   })()}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setDetail(null)}
-                className="rounded-full p-1 text-muted transition-colors hover:bg-surface-glass hover:text-ink"
-                aria-label={t('admin.close')}
-              >
-                <X className="h-5 w-5" />
-              </button>
             </div>
 
             {detail.template.description && (
@@ -349,7 +344,7 @@ export default function Templates() {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

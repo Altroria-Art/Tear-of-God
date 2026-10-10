@@ -1,6 +1,6 @@
 import BackButton from '../components/ui/BackButton';
 import { useState, useEffect, useRef } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { Download, Users } from 'lucide-react'
 import { buildCommunityRows, compareCommunityRanking } from '../lib/communityComparison'
 import ActionButton from '../components/feed/ActionButton'
@@ -40,6 +40,7 @@ export default function CommunityAveragePage() {
 
 function CommunityAverageContent() {
   const { templateId } = useParams()
+  const location = useLocation()
   const { currentUser } = useUser()
   const currentUserId = currentUser?.id
   const toast = useToast()
@@ -51,6 +52,7 @@ function CommunityAverageContent() {
   const [myRankingStatus, setMyRankingStatus] = useState(currentUserId ? 'loading' : 'ready')
   const [myRanking, setMyRanking] = useState(null) // ranking ล่าสุดของผู้ใช้บนเทมเพลตนี้ (สำหรับเทียบ vs ชุมชน)
   const commentInputRef = useRef(null) // ช่องพิมพ์คอมเมนต์ — ไว้โฟกัสเมื่อกดปุ่มคอมเมนต์
+  const commentsRef = useRef(null)
 
   const [template, setTemplate] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -80,6 +82,16 @@ function CommunityAverageContent() {
     load()
     return () => { cancelled = true }
   }, [templateId, currentUserId, periodDays])
+
+  useEffect(() => {
+    if (isLoading || myRankingStatus === 'loading' || !template?.id || location.hash !== '#comments') return undefined
+    const frame = requestAnimationFrame(() => {
+      commentsRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      const target = commentInputRef.current || commentsRef.current
+      target?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [isLoading, myRankingStatus, template?.id, location.hash])
 
   useLiveRefresh({
     resourceKey: templateId + ':' + (currentUserId || 'guest'),
@@ -230,8 +242,8 @@ function CommunityAverageContent() {
   if (!template) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-lg font-bold text-ink">{t('template.communityNotFound')}</p>
-        <Link to={`/template/${templateId}`} className="mt-2 inline-block text-sm text-blue-500 hover:underline">
+        <h1 className="text-2xl font-black text-ink">{t('template.communityNotFound')}</h1>
+        <Link to={`/template/${templateId}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-highlight underline underline-offset-4">
           {t('template.backToTemplate')}
         </Link>
       </main>
@@ -314,7 +326,7 @@ function CommunityAverageContent() {
             <p className="mt-2 text-xs text-muted">{t('stats.matched', { match: myComparison.filter(item => item.gap === 0).length, total: myComparison.length })}</p>
             {myComparison.length ? <ul className="mt-3 divide-y divide-line-soft">
               {differences.slice(0,5).map(item => <li key={item.id} className="community-compare-row flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                <p className="text-sm font-semibold text-ink break-words">{item.name}</p>
+                <p className="min-w-0 max-w-full text-sm font-semibold text-ink [overflow-wrap:anywhere]">{item.name}</p>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                   <TierLabel label={item.myTier} color={item.myColor} className="min-h-7 rounded px-2 text-xs font-bold" />
                   <span aria-hidden="true" className={item.gap < 0 ? 'text-vote-down' : 'text-vote-up'}>{item.gap < 0 ? '↗' : '↘'}</span><TierLabel label={item.commTier} color={item.commColor} className="min-h-7 rounded px-2 text-xs font-bold" /><span className={item.gap < 0 ? 'font-bold text-vote-down' : 'font-bold text-vote-up'}>{t(item.gap < 0 ? 'stats.higher' : 'stats.lower', { n: Math.abs(item.gap) })}</span>
@@ -325,7 +337,9 @@ function CommunityAverageContent() {
             <Link to={`/post/${encodeURIComponent(myRanking.id)}`} className="opinion-secondary mt-3">{t('social.viewYours')}</Link>
           </>}
       </section>
-      <CommentSection comments={comments} onSubmit={handleAddComment} onReportComment={handleReportComment} onDeleteComment={handleDeleteComment} inputRef={commentInputRef} prompt={t('social.discussionPrompt')} />
+      <div id="comments" ref={commentsRef} tabIndex={-1} className="scroll-mt-24">
+        <CommentSection comments={comments} onSubmit={handleAddComment} onReportComment={handleReportComment} onDeleteComment={handleDeleteComment} inputRef={commentInputRef} prompt={t('social.discussionPrompt')} />
+      </div>
 
       </div>
       <aside className="community-about-strip p-4 lg:sticky lg:top-24">

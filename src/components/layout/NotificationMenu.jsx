@@ -166,14 +166,14 @@ export default function NotificationMenu({ userId }) {
       >
         <Bell size={18} strokeWidth={2.5} />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 min-w-4 h-4 px-1 rounded-full bg-status-error text-white text-[9px] font-black leading-4 text-center ring-2 ring-canvas">
+          <span className="absolute -right-1 -top-1 min-w-5 h-5 px-1 rounded-full bg-status-error-solid text-white text-[11px] font-black leading-5 text-center ring-2 ring-canvas">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="notification-sheet fixed left-2 right-2 top-[4.25rem] w-auto overflow-hidden border border-line-soft bg-canvas shadow-xl z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[min(22rem,calc(100vw-1rem))]">
+        <div className="notification-sheet ui-popover fixed left-2 right-2 top-[4.25rem] w-auto overflow-hidden border border-line-soft bg-canvas shadow-xl z-50 sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-[min(22rem,calc(100vw-1rem))]">
           <div className="flex items-center justify-between gap-3 border-b border-line-soft px-4 py-3">
             <div>
               <p className="font-black text-ink">{t('notifications.title')}</p>
