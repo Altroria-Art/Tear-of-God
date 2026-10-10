@@ -285,7 +285,7 @@ export default function CommunityAvgStatsChart({
         background: containerBg,
         borderColor: borderColor,
         color: textMain,
-        minWidth: 320,
+        minWidth: 0,
       }}
     >
       {title && <p className="text-sm font-bold" style={{ color: textMain }}>{title}</p>}
@@ -308,7 +308,7 @@ export default function CommunityAvgStatsChart({
           style={{ borderColor: borderColor, color: textMuted }}
         >
           <span className="w-6 shrink-0 text-right">#</span>
-          <span className="w-36 sm:w-44 shrink-0">{t('stats.item')}</span>
+          <span className="min-w-0 flex-1 sm:w-44 sm:flex-none">{t('stats.item')}</span>
           <span className="flex-1" />
           <span className="w-16 shrink-0 text-right">{t('stats.avg')}</span>
         </div>
@@ -320,13 +320,13 @@ export default function CommunityAvgStatsChart({
         ) : (
           sorted.map((it, idx) => {
             const isTop3 = idx < 3;
-            const rankColor = isTop3 ? (idx === 0 ? '#f59e0b' : idx === 1 ? '#94a3b8' : '#d97706') : textMuted;
+            const rankColor = isTop3 ? 'var(--color-status-warning)' : 'var(--color-muted)';
             return (
               <div key={it.id ?? it.name} className="flex items-center gap-2 sm:gap-3 py-0.5">
                 <span className="w-6 shrink-0 text-right text-[11px] font-bold" style={{ color: rankColor }}>
                   {idx + 1}
                 </span>
-                <span className="w-36 sm:w-44 shrink-0 truncate text-[12px] font-semibold" style={{ color: textMain }} title={it.name}>
+                <span className="min-w-0 flex-1 sm:w-44 sm:flex-none [overflow-wrap:anywhere] text-[12px] font-semibold" style={{ color: textMain }} title={it.name}>
                   {it.name}
                 </span>
                 <div className="h-4 flex-1 overflow-hidden rounded-full" style={{ background: barBg }}>
@@ -342,7 +342,7 @@ export default function CommunityAvgStatsChart({
                 </div>
                 <span
                   className="w-16 shrink-0 text-right text-[11px] font-bold"
-                  style={{ color: isTop3 ? '#f59e0b' : (isDark ? '#e0e7ff' : '#4338ca') }}
+                  style={{ color: isTop3 ? 'var(--color-status-warning)' : 'var(--color-ink-soft)' }}
                 >
                   ★ {it.avg}
                 </span>

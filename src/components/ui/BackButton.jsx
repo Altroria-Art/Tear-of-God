@@ -11,5 +11,5 @@ export default function BackButton({ fallback = '/', children, className }) {
     else navigate(fallback, { replace: true });
   };
 
-  return <button type="button" onClick={goBack} aria-label={t('common.back')} className={className}>{children}</button>;
+  return <button type="button" onClick={goBack} aria-label={t('common.back')} className={`min-h-11 min-w-11 shrink-0 ${className || ''}`}>{children}</button>;
 }

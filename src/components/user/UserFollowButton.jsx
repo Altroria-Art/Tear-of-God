@@ -132,7 +132,7 @@ export default function UserFollowButton({
         aria-pressed={isFollowing}
         aria-label={t('profile.following')}
         title={t('profile.unfollow')}
-        className={`inline-flex min-h-10 items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-line-soft bg-surface-glass text-ink-soft hover:bg-surface hover:text-ink transition-all active:scale-95 disabled:opacity-60 cursor-pointer ${className}`}
+        className={`inline-flex min-h-11 items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-line-soft bg-surface-glass text-ink-soft hover:bg-surface hover:text-ink transition-all active:scale-95 disabled:opacity-60 cursor-pointer ${className}`}
       >
         <Check size={12} strokeWidth={2.5} className="text-brand" />
         <span>{t('profile.following')}</span>
@@ -148,7 +148,7 @@ export default function UserFollowButton({
       aria-pressed={isFollowing}
       aria-label={t('profile.follow')}
       title={t('profile.follow')}
-      className={`inline-flex min-h-10 items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold text-brand bg-brand/10 hover:bg-brand/20 transition-all active:scale-95 disabled:opacity-60 cursor-pointer ${className}`}
+      className={`inline-flex min-h-11 items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold text-brand bg-brand/10 hover:bg-brand/20 transition-all active:scale-95 disabled:opacity-60 cursor-pointer ${className}`}
     >
       <UserPlus size={12} strokeWidth={2.5} />
       <span>{t('profile.follow')}</span>

@@ -1,14 +1,14 @@
 import HomeCommunityPulse from '../components/feed/HomeCommunityPulse';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Bookmark, X, ChevronDown, CircleHelp, Flame, Sparkles, MessageCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useUser } from '../context/UserContext';
 import { useBookmarks } from '../context/BookmarkContext';
 import { trackEvent } from '../lib/analytics';
-import { fetchDiscoverPulse, fetchTemplates, fetchTemplate, fetchHashtags } from '../lib/api';
+import { fetchDiscoverPulse, fetchDiscoverBoards, fetchTemplates, fetchHashtags } from '../lib/api';
 import { loginPath } from '../lib/navigation';
-import TemplateCard from '../components/template/TemplateCard';
+import DiscoverBoardCarousel from '../components/template/DiscoverBoardCarousel';
 import Pagination from '../components/ui/Pagination';
 import TearMascot from '../components/ui/TearMascot';
 
@@ -16,7 +16,18 @@ const WINDOWS = ['now', 'today', 'week', 'last_week'];
 
 const TABS = [{ key: 'popular', Icon: Flame }, { key: 'new', Icon: Sparkles }, { key: 'active', Icon: MessageCircle }];
 function TemplateCardSkeleton() {
-  return <div className="discover-topic-card aspect-square animate-pulse border border-line-soft bg-surface" aria-hidden="true" />;
+  return <div className="discover-ranking-card min-h-80 animate-pulse border border-line-soft bg-surface" aria-hidden="true" />;
+}
+
+async function hydrateBoards(topics, signal) {
+  const result = await fetchDiscoverBoards(topics.map(topic => topic.id), { signal });
+  if (result.error) return { data: [], error: result.error };
+  const boards = new Map((result.data || []).map(board => [board.template.id, board]));
+  // A cached catalog/Pulse may mention a deleted topic. Keep the remaining order.
+  return { data: topics.flatMap(topic => {
+    const board = boards.get(topic.id);
+    return board ? [{ ...board.template, ...(topic.is_saved !== undefined ? { is_saved: topic.is_saved } : {}), board }] : [];
+  }) };
 }
 
 export default function Discover() {
@@ -41,7 +52,8 @@ export default function Discover() {
   const [retry, setRetry] = useState(0);
   const [topicResult, setTopicResult] = useState({ tab: '', data: [], loading: true, error: '' });
   const [tags, setTags] = useState([]);
-  const topicCache = useRef(new Map());
+  const resultKey = `${q}:${saved}:${page}:${currentUser?.id || 'guest'}`;
+  const [loadedResultKey, setLoadedResultKey] = useState('');
 
   useEffect(() => {
     if (browsingResults) return undefined;
@@ -54,47 +66,39 @@ export default function Discover() {
 
   useEffect(() => {
     if (browsingResults || tab === 'active') return undefined;
-    let cancelled = false;
+    const controller = new AbortController();
     setTopicResult({ tab, data: [], loading: true, error: '' });
-    fetchTemplates({ sort: tab === 'new' ? 'recent' : 'popular', limit: 8, page: 1 }).then(result => {
-      if (cancelled) return;
-      const data = result.error ? [] : result.data || [];
-      data.forEach(topic => topicCache.current.set(topic.id, topic));
-      setTopicResult({ tab, data, loading: false, error: result.error || '' });
-    });
-    return () => { cancelled = true; };
+    async function load() {
+      const catalog = await fetchTemplates({ sort: tab === 'new' ? 'recent' : 'popular', limit: 8, page: 1, fields: 'meta', signal: controller.signal });
+      if (controller.signal.aborted) return;
+      const result = catalog.error ? catalog : await hydrateBoards(catalog.data || [], controller.signal);
+      if (!controller.signal.aborted) setTopicResult({ tab, data: result.error ? [] : result.data || [], loading: false, error: result.error || '' });
+    }
+    load().catch(error => { if (!controller.signal.aborted) setTopicResult({ tab, data: [], loading: false, error: error.message }); });
+    return () => controller.abort();
   }, [browsingResults, tab, retry]);
 
   useEffect(() => {
     if (browsingResults || tab !== 'active' || pulseLoading) return undefined;
-    let cancelled = false;
+    const controller = new AbortController();
     setTopicResult({ tab, data: [], loading: true, error: '' });
-    // Preserve Pulse activity order, with full topic metadata for the shared cards.
-    Promise.all((pulse?.templates || []).map(async topic => {
-      const cached = topicCache.current.get(topic.id);
-      if (cached) return { data: cached };
-      const result = await fetchTemplate(topic.id, { light: true });
-      return result.data ? { data: { ...result.data, use_count: result.data.stats?.uses || 0 } } : result;
-    })).then(results => {
-      if (cancelled) return;
-      setTopicResult({ tab, data: results.filter(result => result.data).map(result => result.data), loading: false,
-        // Pulse can outlive a deleted topic while its public cache expires.
-        error: pulseError || results.find(result => result.error && result.status !== 404)?.error || '' });
-    });
-    return () => { cancelled = true; };
+    hydrateBoards(pulse?.templates || [], controller.signal).then(result => {
+      if (!controller.signal.aborted) setTopicResult({ tab, data: result.data, loading: false, error: pulseError || result.error || '' });
+    }).catch(error => { if (!controller.signal.aborted) setTopicResult({ tab, data: [], loading: false, error: error.message }); });
+    return () => controller.abort();
   }, [browsingResults, tab, pulse, pulseLoading, pulseError, retry]);
 
   useEffect(() => {
     if (!browsingResults) return undefined;
-    let cancelled = false;
+    const controller = new AbortController();
     async function loadResults() {
       setIsLoading(true);
       setLoadError('');
       if (saved && !currentUser?.id) {
-        setTemplates([]); setTotal(0); setIsLoading(false); return;
+        setTemplates([]); setTotal(0); setLoadedResultKey(resultKey); setIsLoading(false); return;
       }
-      const result = await fetchTemplates({ q, saved, page, limit: 12 });
-      if (cancelled) return;
+      const result = await fetchTemplates({ q, saved, page, limit: 12, fields: 'meta', signal: controller.signal });
+      if (controller.signal.aborted) return;
       const lastPage = Math.max(1, Math.ceil((result.total || 0) / 12));
       if (!result.error && page > lastPage) {
         setParams(current => {
@@ -104,23 +108,26 @@ export default function Discover() {
         }, { replace: true });
         return;
       }
-      setTemplates(result.data || []);
+      const boards = result.error ? result : await hydrateBoards(result.data || [], controller.signal);
+      if (controller.signal.aborted) return;
+      setTemplates(boards.error ? [] : boards.data || []);
       setTotal(result.total || 0);
-      setLoadError(result.error || '');
+      setLoadError(boards.error || '');
       if (saved && result.data?.length) addSavedIds(result.data.map(template => template.id));
       setIsLoading(false);
+      setLoadedResultKey(resultKey);
     }
-    loadResults();
-    return () => { cancelled = true; };
-  }, [q, saved, page, browsingResults, currentUser?.id, retry, addSavedIds, setParams]);
+    loadResults().catch(error => { if (!controller.signal.aborted) { setLoadError(error.message); setIsLoading(false); setLoadedResultKey(resultKey); } });
+    return () => controller.abort();
+  }, [q, saved, page, browsingResults, currentUser?.id, retry, addSavedIds, setParams, resultKey]);
 
   useEffect(() => {
     if (browsingResults) return undefined;
-    let cancelled = false;
+    const controller = new AbortController();
     setPulseLoading(true);
     setPulseError('');
-    fetchDiscoverPulse(requestedWindow).then(result => {
-      if (cancelled) return;
+    fetchDiscoverPulse(requestedWindow, { signal: controller.signal }).then(result => {
+      if (controller.signal.aborted) return;
       if (result.success && result.fallback_from) {
         trackEvent('discover_fallback', {
           entityType: 'discover_window',
@@ -131,8 +138,8 @@ export default function Discover() {
       setPulse(result.success ? result : null);
       setPulseError(result.error || '');
       setPulseLoading(false);
-    });
-    return () => { cancelled = true; };
+    }).catch(error => { if (!controller.signal.aborted) { setPulseError(error.message); setPulseLoading(false); } });
+    return () => controller.abort();
   }, [browsingResults, requestedWindow, retry]);
 
   useEffect(() => {
@@ -155,13 +162,11 @@ export default function Discover() {
     next.delete('q'); next.delete('page');
     setParams(next);
   };
-  const templateGrid = <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-    {templates.map(template => <TemplateCard compact key={template.id} template={template} onUse={useTemplate} inSavedView={saved} />)}
-  </div>;
+  const gridClass = 'discover-browse-grid discover-board-grid discover-carousel-skeleton';
+  const templateCarousel = <DiscoverBoardCarousel key={resultKey} templates={templates} onUse={useTemplate} inSavedView={saved} />;
 
   const topicsLoading = topicResult.tab !== tab || topicResult.loading || (tab === 'active' && pulseLoading);
   const topics = topicResult.tab === tab ? topicResult.data : [];
-  const gridClass = 'discover-browse-grid grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4';
   const conversations = [...(pulse?.discussions || []), ...(pulse?.rankings || [])]
     .filter((item, index, items) => item.id && items.findIndex(other => other.id === item.id) === index).slice(0, 4);
   const changeTab = nextTab => {
@@ -186,9 +191,9 @@ export default function Discover() {
           <Link to={saved ? '/discover' : '/discover?view=saved'} className="pulse-text-action"><Bookmark size={16} />{t(saved ? 'discover.explore' : 'discover.savedTemplates')}</Link></div>
       </div>
       {saved && !currentUser ? <div className="pulse-empty"><p>{t('discover.savedLogin')}</p><Link to={loginPath('/discover?view=saved')} className="pulse-solid-link">{t('nav.login')}</Link></div>
+        : isLoading || loadedResultKey !== resultKey ? <div className={gridClass} aria-busy="true">{Array.from({ length: 8 }, (_, index) => <TemplateCardSkeleton key={index} />)}</div>
         : loadError ? <div role="alert" className="pulse-empty"><p>{loadError}</p><button type="button" className="pulse-solid-link" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>
-        : isLoading ? <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }, (_, index) => <TemplateCardSkeleton key={index} />)}</div>
-          : templates.length ? templateGrid : saved ? <div className="pulse-empty personality-empty"><TearMascot pose="quiet" /><strong>{t('discover.noSaved')}</strong><p>{t('discover.savedEmptyHelp')}</p><Link to="/discover/templates" className="pulse-solid-link">{t('discover.savedEmptyCta')}</Link></div> : <div className="pulse-empty">{t('discover.noResults')}</div>}
+          : templates.length ? templateCarousel : saved ? <div className="pulse-empty personality-empty"><TearMascot pose="quiet" /><strong>{t('discover.noSaved')}</strong><p>{t('discover.savedEmptyHelp')}</p><Link to="/discover/templates" className="pulse-solid-link">{t('discover.savedEmptyCta')}</Link></div> : <div className="pulse-empty">{t('discover.noResults')}</div>}
       <Pagination page={page} totalPages={Math.ceil(total / 12)} onChange={nextPage => {
         const next = new URLSearchParams(params); next.set('page', String(nextPage)); setParams(next);
       }} />
@@ -214,7 +219,7 @@ export default function Discover() {
         {tab === 'active' && pulse?.fallback_from && !pulseLoading && <p className="discover-activity-note" role="status">{t('pulse.displayedPeriod', { period: t(`pulse.windows.${pulse.window}`) })}</p>}
         {topicsLoading ? <div className={gridClass} aria-busy="true" aria-label={t('discover.loadingTemplates')}>{Array.from({ length: tab === 'active' ? 4 : 8 }, (_, index) => <TemplateCardSkeleton key={index} />)}</div>
           : <>
-            {!!topics.length && <div className={gridClass}>{topics.map(template => <TemplateCard compact key={template.id} template={template} onUse={useTemplate} />)}</div>}
+            {!!topics.length && <DiscoverBoardCarousel key={`${tab}:${requestedWindow}`} templates={topics} onUse={useTemplate} viewAllHref={`/discover/templates?sort=${tab === 'popular' ? 'popular' : 'recent'}`} />}
             {topicResult.error && <div className="discover-inline-error" role="alert"><p>{topicResult.error}</p><button type="button" className="pulse-text-action" onClick={() => setRetry(value => value + 1)}>{t('common.retry')}</button></div>}
             {!topics.length && !topicResult.error && <div className="pulse-empty"><p>{t(tab === 'active' ? 'pulse.quietDescription' : 'discover.emptyTemplates')}</p></div>}
           </>}

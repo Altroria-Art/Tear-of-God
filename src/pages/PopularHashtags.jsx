@@ -97,13 +97,13 @@ export default function PopularHashtags() {
     <div className="text-ink font-sans min-h-screen flex flex-col">
       <main className="flex-grow w-full max-w-[1200px] mx-auto px-6 py-12">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <BackButton fallback="/discover"
               className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </BackButton>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-3xl font-extrabold tracking-tight text-ink">{t('discover.popularHashtags')}</h1>
               <p className="text-sm text-muted">{total.toLocaleString()} {t('common.hashtags')}</p>
             </div>
@@ -112,6 +112,7 @@ export default function PopularHashtags() {
             <div className="relative">
               <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input
+                aria-label={t('discover.filterTags')}
                 type="text"
                 value={inputValue}
                 onChange={(e) => handleFilterChange(e.target.value)}

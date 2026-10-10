@@ -10,6 +10,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import ScrollToTop from './components/layout/ScrollToTop';
 import ErrorBoundary from './components/layout/ErrorBoundary';
 import MobileBottomNav from './components/layout/MobileBottomNav';
+import SkipLink from './components/layout/SkipLink';
 import AnalyticsTracker from './components/analytics/AnalyticsTracker';
 import RequireAuth from './components/auth/RequireAuth';
 import { preloadableImport } from './lib/preloadableImport';
@@ -64,8 +65,10 @@ function App() {
         <ThemeProvider>
           <UserProvider>
             <BookmarkProvider>
+              <SkipLink />
               <Navbar />
 
+            <div id="main-content" tabIndex={-1}>
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
@@ -105,6 +108,7 @@ function App() {
               </Routes>
             </Suspense>
             </ErrorBoundary>
+            </div>
             <MobileBottomNav />
             </BookmarkProvider>
           </UserProvider>

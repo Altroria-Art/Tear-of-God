@@ -5,10 +5,10 @@ import { useTranslation } from 'react-i18next';
 const ToastContext = createContext(null);
 
 const VARIANTS = {
-  success: { icon: CheckCircleIcon, chip: 'bg-status-success', bar: 'bg-status-success' },
-  error: { icon: AlertTriangleIcon, chip: 'bg-status-error', bar: 'bg-status-error' },
-  warning: { icon: AlertTriangleIcon, chip: 'bg-status-warning', bar: 'bg-status-warning' },
-  info: { icon: InfoCircleIcon, chip: 'bg-status-info', bar: 'bg-status-info' },
+  success: { icon: CheckCircleIcon, chip: 'bg-status-success-solid', bar: 'bg-status-success' },
+  error: { icon: AlertTriangleIcon, chip: 'bg-status-error-solid', bar: 'bg-status-error' },
+  warning: { icon: AlertTriangleIcon, chip: 'bg-status-warning-solid', bar: 'bg-status-warning' },
+  info: { icon: InfoCircleIcon, chip: 'bg-status-info-solid', bar: 'bg-status-info' },
 };
 
 const MAX_VISIBLE = 5;

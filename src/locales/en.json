@@ -1,5 +1,7 @@
 {
   "common": {
+    "skipToContent": "Skip to content",
+    "scrollTable": "Swipe sideways to see the full table, or focus it and use the arrow keys.",
     "loading": "Loading...",
     "loadMore": "Load more",
     "endOfFeed": "You're at the end of the feed",
@@ -368,7 +370,13 @@
     "optional": "(Optional)",
     "descriptionPh": "Tell people what you’re ranking",
     "quickAdd": "Add items",
-    "quickAddHelp": "Separate each name with a comma (,)",
+    "quickAddHelp": "Separate names with a comma (,) or a new line. Similar names are fine.",
+    "skippedDuplicateItems": "These names already exist, so they weren't added again: {{names}}. Other names were added as usual.",
+    "errDuplicateItems": "These names repeat exactly: {{names}}. Keep one card per name before posting.",
+    "duplicateRepairHelp": "Similar names are fine. This button keeps the first card for each name, including its tier and order.",
+    "removeDuplicateItems": "Remove repeats, keep the first card",
+    "duplicatesRemoved": "Repeated cards removed. All similar names are still here.",
+    "errDuplicateTiers": "These tier names repeat exactly: {{names}}. Rename the repeated tiers before posting.",
     "quickAddPh": "Thai tea, Matcha, Cocoa",
     "generate": "Add items",
     "modeTitle": "How do you want to rank?",
@@ -631,6 +639,7 @@
     "communityRankings": "Community rankings",
     "communityAverage": "Community ranking",
     "openCommunityAverage": "See community ranking",
+    "rankingPeriod": "Community ranking period",
     "noRankings": "No rankings yet. Want to go first?",
     "warnLoginUse": "Log in to use this feature!",
     "warnLoginVote": "Log in before voting!",
@@ -720,7 +729,7 @@
   },
   "discover": {
     "browseTitle": "What would you rank today?",
-    "browseHelp": "Pick a topic. Make your ranking. Compare with others.",
+    "browseHelp": "See full rankings, try your own take, and open the comments to join in.",
     "howToPlay": "How to play",
     "browseTopics": "Explore topics",
     "interests": "Explore by interest",
@@ -788,6 +797,33 @@
       "choose": "Choose a topic from the cards below",
       "rank": "Tap Make my ranking and arrange the items your way",
       "compare": "Post your ranking and compare with others"
+    },
+    "carousel": {
+      "label": "Topic carousel",
+      "slide": "Topic",
+      "previous": "Previous topic",
+      "next": "Next topic",
+      "help": "Explore with the arrows, or swipe left and right on your phone.",
+      "position": "{{index}} / {{count}}",
+      "choose": "Show {{title}}, topic {{index}} of {{count}}",
+      "moreDescription": "Browse all topics and pick something you want to rank."
+    },
+    "boards": {
+      "rank": "Rank mine",
+      "expand": "View full board",
+      "collapse": "Collapse board",
+      "itemCount": "{{count}} items",
+      "itemCount_one": "{{count}} item",
+      "itemCount_other": "{{count}} items",
+      "community": "Community rankings",
+      "updated": "Updated",
+      "people": "Ranked by {{count}} people",
+      "people_one": "Ranked by {{count}} person",
+      "people_other": "Ranked by {{count}} people",
+      "communityHelp": "Combined rankings for this topic, using each person's current ranking.",
+      "noRanking": "No rankings posted yet",
+      "beFirst": "See all the items below and be the first to rank them.",
+      "unranked": "No community ranking yet for these items"
     }
   },
   "pulse": {

@@ -942,7 +942,7 @@ export default function HomeFeed() {
   const LockedIcon = Users;
 
   return (
-    <div className="min-h-screen font-sans">
+    <main className="min-h-screen font-sans">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-5">
         <PlayHeader variant="home" eyebrow={t('play.homeEyebrow')}
           title={<><span>{t('play.homeTitleLead')}</span><span><em>{t('play.homeTitleAccent')}</em></span></>}
@@ -984,7 +984,7 @@ export default function HomeFeed() {
               className={`flex items-center gap-1.5 rounded-full min-h-11 px-3 sm:px-5 py-1.5 text-[11px] sm:text-xs font-bold transition-all duration-200 ${
                 activeTab === id
                   ? 'opinion-active shadow-xs scale-100'
-                  : 'text-muted hover:text-ink hover:bg-surface-glass scale-95'
+                  : 'text-muted hover:text-ink hover:bg-surface-glass'
               }`}
             >
               {activeTab === id && isRefreshing
@@ -997,7 +997,7 @@ export default function HomeFeed() {
       </div>
 
       <div className="home-content-grid mx-auto max-w-7xl px-4 sm:px-6 pt-3 pb-12">
-        <main className="home-feed-main w-full min-w-0 max-w-[760px] lg:max-w-none">
+        <section className="home-feed-main w-full min-w-0 max-w-[760px] lg:max-w-none">
         <div className="space-y-6">
           {activeTab === 'for_you' && !currentUser && (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-line-soft bg-surface/80 p-3.5 text-xs text-muted shadow-xs">
@@ -1178,14 +1178,14 @@ export default function HomeFeed() {
             </div>
           )}
         </div>
-      </main>
+      </section>
     </div>
       <GuestAuthPrompt
         open={guestPrompt.open}
         next={guestPrompt.next}
         onClose={() => setGuestPrompt((prompt) => ({ ...prompt, open: false }))}
       />
-    </div>
+    </main>
   );
 }
 

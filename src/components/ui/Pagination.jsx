@@ -28,7 +28,7 @@ export default function Pagination({ page, totalPages, onChange }) {
         type="button"
         disabled={page <= 1}
         onClick={() => onChange(page - 1)}
-        className="rounded-md border border-line-soft px-3 py-1.5 text-sm hover:bg-surface-glass disabled:cursor-not-allowed disabled:opacity-40"
+        className="min-h-11 min-w-11 rounded-lg border border-line-soft bg-surface px-3 py-2 text-sm hover:bg-surface-glass disabled:cursor-not-allowed disabled:opacity-40"
       >
         {t('common.prev')}
       </button>
@@ -43,7 +43,7 @@ export default function Pagination({ page, totalPages, onChange }) {
             type="button"
             aria-current={p === page ? 'page' : undefined}
             onClick={() => onChange(p)}
-            className={`rounded-md px-3 py-1.5 text-sm ${p === page ? 'bg-brand text-canvas' : 'border border-line-soft hover:bg-surface'}`}
+            className={`min-h-11 min-w-11 rounded-lg px-3 py-2 text-sm ${p === page ? 'bg-brand text-canvas' : 'border border-line-soft bg-surface hover:bg-surface-glass'}`}
           >
             {p}
           </button>
@@ -53,7 +53,7 @@ export default function Pagination({ page, totalPages, onChange }) {
         type="button"
         disabled={page >= totalPages}
         onClick={() => onChange(page + 1)}
-        className="rounded-md border border-line-soft px-3 py-1.5 text-sm hover:bg-surface-glass disabled:cursor-not-allowed disabled:opacity-40"
+        className="min-h-11 min-w-11 rounded-lg border border-line-soft bg-surface px-3 py-2 text-sm hover:bg-surface-glass disabled:cursor-not-allowed disabled:opacity-40"
       >
         {t('common.next')}
       </button>

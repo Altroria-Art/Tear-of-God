@@ -337,7 +337,7 @@ const RankTierList = () => {
   };
 
   return (
-    <div className="rank-page min-h-screen font-sans text-ink flex flex-col">
+    <main className="rank-page min-h-screen font-sans text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 pt-5 pb-28 sm:pt-5 sm:pb-32 flex-1 flex flex-col gap-3">
 <BackButton fallback={templateId ? `/template/${encodeURIComponent(templateId)}` : "/discover/templates"} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line-soft bg-surface px-3 text-sm text-ink-soft hover:text-ink mb-3"><BackArrow size={16} /><span>{t('common.back')}</span></BackButton>
         <header className="rank-intro">
@@ -396,6 +396,7 @@ const RankTierList = () => {
           <h2 className="min-h-11 py-2 font-bold text-sm text-ink-soft">{t('editor.details')} · {selectedHashtags.length} {t('common.tags')}</h2>
           <div>
             <textarea
+              aria-label={t('rank.description')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('rank.descriptionPh')}
@@ -438,6 +439,7 @@ const RankTierList = () => {
               ))}
 
               <input
+                aria-label={t('rank.searchAddHashtags')}
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
@@ -583,12 +585,6 @@ const RankTierList = () => {
         {/* Footer */}
         <footer className="mt-6 pt-6 border-t border-line-soft flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-muted">
           <p>{t('rank.footerTagline')}</p>
-          <div className="flex gap-4">
-            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.about')}</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.guidelines')}</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.privacy')}</a>
-            <a href="#" className="hover:text-ink-soft hover:underline">{t('rank.terms')}</a>
-          </div>
         </footer>
 
       </div>
@@ -603,7 +599,7 @@ const RankTierList = () => {
         label={isDuel ? t('duel.submitDuel') : undefined}
         icon={isDuel ? Swords : undefined}
       />
-    </div>
+    </main>
   );
 };
 

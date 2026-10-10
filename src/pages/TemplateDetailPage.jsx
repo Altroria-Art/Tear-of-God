@@ -18,6 +18,7 @@ import { fetchTemplate, fetchRankings, recordTemplateView, fetchTemplateReaction
 import { createPendingGuard } from '../lib/pendingGuard'
 import { formatCount, timeAgo, formatRemainingCooldown } from '../lib/format'
 import { shareUrl } from '../lib/share'
+import { normalizeImageUrl } from '../lib/images'
 import TierRow from '../components/feed/TierRow'
 import HashtagList from '../components/template/HashtagList'
 import BookmarkButton from '../components/template/BookmarkButton'
@@ -25,6 +26,21 @@ import TopicFollowButton from '../components/topic/TopicFollowButton'
 import { useTranslation } from 'react-i18next'
 
 const PAGE_SIZE = 5
+
+function TopicPreviewItem({ entry }) {
+  const { t } = useTranslation()
+  const [imageFailed, setImageFailed] = useState(false)
+  const name = entry.item?.name || entry.item_id || t('common.unknownItem')
+  const image = normalizeImageUrl(entry.item?.image_url)
+  return <div data-template-preview-item={entry.item_id || entry.id} className="shrink-0 w-20 flex flex-col gap-1.5 snap-start" title={name}>
+    <div className="w-20 h-20 overflow-hidden rounded-xl bg-surface border border-line-soft/30 shadow-sm flex items-center justify-center p-2 text-center">
+      {image && !imageFailed
+        ? <img src={image} alt="" loading="lazy" onError={() => setImageFailed(true)} className="w-full h-full object-cover rounded-lg" />
+        : <span className="text-[11px] text-muted line-clamp-3 break-words leading-tight">{name}</span>}
+    </div>
+    <span className="text-[11px] font-medium text-ink line-clamp-2 break-words text-center leading-tight">{name}</span>
+  </div>
+}
 const SORT_OPTIONS = [
   { value: 'liked', labelKey: 'sort.mostLiked' },
   { value: 'recent', labelKey: 'sort.recent' },
@@ -156,30 +172,30 @@ function RankingCard({ ranking, tiersDef }) {
       <div
         onClick={() => navigate(`/post/${ranking.id}`)}
         className="cursor-pointer transition-colors hover:bg-surface-glass/40 p-3 space-y-2"
-        role="button"
-                tabIndex={0}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } }}
+        role="link"
+        tabIndex={0}
+        onKeyDown={e => { if (e.target === e.currentTarget && e.key === 'Enter') { e.preventDefault(); navigate(`/post/${ranking.id}`); } }}
         aria-label={t('template.openRankingPost')}
       >
         {tierRows.map(({ tier, color, index, items }) => (
           <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
         ))}
       </div>
-      <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-sm text-muted">
-        <div className="flex items-center gap-5">
-          <span
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-4 py-3 text-sm text-muted">
+        <div className="flex items-center gap-3">
+          <button type="button" aria-label={t('post.like')} aria-pressed={userVote === 'like'}
             onClick={() => handleVote('like')}
-            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'like' ? 'text-blue-500' : 'hover:text-ink'}`}
+            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'like' ? 'text-vote-up' : 'hover:text-ink'}`}
           >
             <ThumbsUp size={16} /> {formatCount(likes)}
-          </span>
-          <span
+          </button>
+          <button type="button" aria-label={t('post.dislike')} aria-pressed={userVote === 'dislike'}
             onClick={() => handleVote('dislike')}
-            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'dislike' ? 'text-red-500' : 'hover:text-ink'}`}
+            className={`flex cursor-pointer items-center gap-1.5 transition-colors ${userVote === 'dislike' ? 'text-vote-down' : 'hover:text-ink'}`}
           >
             <ThumbsDown size={16} /> {formatCount(dislikes)}
-          </span>
-          <Link to={`/post/${ranking.id}`} className="flex items-center gap-1.5 hover:text-ink transition-colors">
+          </button>
+          <Link to={`/post/${ranking.id}#comments`} aria-label={t('post.comments')} className="flex min-h-11 min-w-11 items-center gap-1.5 hover:text-ink transition-colors">
             <MessageSquare size={16} /> {formatCount(ranking.stats?.comments || 0)}
           </Link>
         </div>
@@ -458,7 +474,7 @@ function TemplateDetailContent() {
   if (!template) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-2">
-        <p className="text-lg font-bold text-ink">{t('template.notFound')}</p>
+        <h1 className="text-2xl font-black text-ink">{t('template.notFound')}</h1>
         <Link to="/" className="text-brand-accent hover:underline">{t('common.backHome')}</Link>
       </main>
     )
@@ -534,16 +550,7 @@ function TemplateDetailContent() {
                 </div>
                 <div className="flex gap-3 overflow-x-auto pb-2 snap-x hide-scrollbar">
                   {template.template_items.slice(0, 10).map(ti => (
-                    <div key={ti.id || ti.item_id} className="shrink-0 w-20 flex flex-col gap-1.5 snap-start">
-                      {ti.item?.image_url ? (
-                        <img src={ti.item.image_url} alt={ti.item.name} className="w-20 h-20 object-cover rounded-xl bg-surface border border-line-soft/30 shadow-sm" />
-                      ) : (
-                        <div className="w-20 h-20 rounded-xl bg-surface border border-line-soft/30 shadow-sm flex items-center justify-center p-2 text-center">
-                          <span className="text-[10px] text-muted line-clamp-3 leading-tight">{ti.item?.name || ti.item_id}</span>
-                        </div>
-                      )}
-                      <span className="text-[10px] font-medium text-ink line-clamp-2 break-words text-center leading-tight" title={ti.item?.name}>{ti.item?.name || ti.item_id}</span>
-                    </div>
+                    <TopicPreviewItem key={`${ti.id || ti.item_id}:${ti.item?.image_url || ''}`} entry={ti} />
                   ))}
                   {template.template_items.length > 10 && (
                     <div className="shrink-0 w-20 h-20 rounded-xl bg-surface-glass border border-line-soft/60 flex items-center justify-center snap-start">
@@ -669,6 +676,7 @@ function TemplateDetailContent() {
                         {t('template.updated', { time: timeAgo(template.community_average?.updated_at ?? '') })}
                       </span>
                       <select
+                        aria-label={t('template.rankingPeriod')}
                         value={periodDays}
                         onChange={(e) => setPeriodDays(Number(e.target.value))}
                         className="rounded-lg border border-line-soft bg-surface-glass px-2 py-1.5 text-xs font-bold text-ink-soft outline-none transition-colors hover:bg-surface focus:ring-1 focus:ring-brand"
@@ -686,6 +694,7 @@ function TemplateDetailContent() {
                       </span>
                       {(hasCommunityAverageAllTime || periodDays > 0) && (
                         <select
+                          aria-label={t('template.rankingPeriod')}
                           value={periodDays}
                           onChange={(e) => setPeriodDays(Number(e.target.value))}
                           className="rounded-lg border border-line-soft bg-surface-glass px-2 py-1.5 text-xs font-bold text-ink-soft outline-none transition-colors hover:bg-surface focus:ring-1 focus:ring-brand"
@@ -704,7 +713,9 @@ function TemplateDetailContent() {
                 ref={avgTableRef}
                 onClick={() => navigate(`/template/${templateId}/community`)}
                 className="cursor-pointer transition-colors hover:bg-surface-glass/40 p-3 space-y-2"
-                role="button"
+                role="link"
+                tabIndex={0}
+                onKeyDown={event => { if (event.target === event.currentTarget && event.key === 'Enter') { event.preventDefault(); navigate(`/template/${templateId}/community`); } }}
                 aria-label={t('template.openCommunityAverage')}
               >
                 {!hasAvgData && (
@@ -716,26 +727,25 @@ function TemplateDetailContent() {
                   <TierRow key={tier} tier={tier} color={color} index={index} items={items} />
                 ))}
               </div>
-              <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-sm text-muted">
-                <div className="flex items-center gap-5">
-                  <span
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft px-4 py-3 text-sm text-muted">
+                <div className="flex items-center gap-3">
+                  <button type="button" aria-label={t('post.like')} aria-pressed={templateReaction.userVote === 'like'}
                     onClick={() => handleTemplateVote('like')}
-                    className={`flex cursor-pointer items-center gap-1.5 transition-colors ${templateReaction.userVote === 'like' ? 'text-blue-500' : 'hover:text-ink'}`}
+                    className={`flex cursor-pointer items-center gap-1.5 transition-colors ${templateReaction.userVote === 'like' ? 'text-vote-up' : 'hover:text-ink'}`}
                   >
                     <ThumbsUp size={16} /> {formatCount(templateReaction.likes)}
-                  </span>
-                  <span
+                  </button>
+                  <button type="button" aria-label={t('post.dislike')} aria-pressed={templateReaction.userVote === 'dislike'}
                     onClick={() => handleTemplateVote('dislike')}
-                    className={`flex cursor-pointer items-center gap-1.5 transition-colors ${templateReaction.userVote === 'dislike' ? 'text-red-500' : 'hover:text-ink'}`}
+                    className={`flex cursor-pointer items-center gap-1.5 transition-colors ${templateReaction.userVote === 'dislike' ? 'text-vote-down' : 'hover:text-ink'}`}
                   >
                     <ThumbsDown size={16} /> {formatCount(templateReaction.dislikes)}
-                  </span>
-                  <span
-                    onClick={() => navigate(`/template/${templateId}/community`)}
-                    className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-ink"
+                  </button>
+                  <Link to={`/template/${templateId}/community#comments`} aria-label={t('post.comments')}
+                    className="flex min-h-11 min-w-11 items-center gap-1.5 transition-colors hover:text-ink"
                   >
                     <MessageSquare size={16} /> {formatCount(commentCount)}
-                  </span>
+                  </Link>
                 </div>
                 <div className="flex items-center gap-2">
                   <button

@@ -2,6 +2,7 @@ import { assertId, consumeMemoryRateLimit, internalErrorResponse, isPlainObject,
 import { checkTemplateCooldown } from '../lib/cooldown.js';
 import { publicResponseCache } from '../lib/public-response-cache.js';
 import { templateUsageSql } from '../lib/template-usage.js';
+import { buildCommunityAverage } from '../lib/community-average.js';
 
 function parseTiers(raw) {
   if (!raw) return null;
@@ -19,7 +20,7 @@ export async function onRequestGet(context) {
   const suggest = url.searchParams.get('suggest') === '1';
   if (url.searchParams.get('id') || (!suggest && url.searchParams.get('saved') === 'true')) return queryTemplates(context);
   const keyUrl = new URL('/api/__template_catalog_v1', url);
-  for (const name of ['q', 'hashtag', 'category', 'limit', 'page', 'sort', 'suggest']) {
+  for (const name of ['q', 'hashtag', 'category', 'limit', 'page', 'sort', 'suggest', 'fields']) {
     if (url.searchParams.has(name)) keyUrl.searchParams.set(name, url.searchParams.get(name));
   }
   keyUrl.searchParams.sort();
@@ -65,6 +66,7 @@ async function queryTemplates(context) {
       const hashtag = url.searchParams.get('hashtag') || url.searchParams.get('category'); // legacy filter alias
       const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
       const savedOnly = !suggest && url.searchParams.get('saved') === 'true';
+      const metadataOnly = url.searchParams.get('fields') === 'meta';
       const viewerId = context.data.user?.id || null;
       if (savedOnly && !viewerId) return Response.json({ success: false, error: 'Please log in' }, { status: 401 });
       const limit = Math.min(Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10) || 50), 100);
@@ -145,7 +147,7 @@ async function queryTemplates(context) {
       const itemsMap = Object.create(null);
       const itemCounts = Object.create(null);
       const rankingPreviews = Object.create(null);
-      if (templates.length > 0) {
+      if (templates.length > 0 && !metadataOnly) {
         const templateIds = templates.map(t => t.id);
         const placeholders = templateIds.map(() => '?').join(',');
         // Bound each topic preview to 12 ordered items so lower tier rows can
@@ -203,10 +205,12 @@ async function queryTemplates(context) {
         use_count: t.live_uses || 0,
         view_count: t.live_views || 0,
         profile: { id: t.creator_id, username: t.username, avatar_url: t.avatar_url },
-        template_items: itemsMap[t.id] || [],
-        preview_item_counts: itemCounts[t.id] || [],
-        item_count: (itemCounts[t.id] || []).reduce((sum, row) => sum + row.count, 0),
-        ranking_preview: rankingPreviews[t.id] || null
+        ...(!metadataOnly ? {
+          template_items: itemsMap[t.id] || [],
+          preview_item_counts: itemCounts[t.id] || [],
+          item_count: (itemCounts[t.id] || []).reduce((sum, row) => sum + row.count, 0),
+          ranking_preview: rankingPreviews[t.id] || null
+        } : {})
       }));
 
       // The middleware marks authenticated responses private/no-store because is_saved is personal.
@@ -322,32 +326,7 @@ async function queryTemplates(context) {
          GROUP BY ris.item_id, ris.score`
       ).bind(...whereParams).all();
 
-      const itemAgg = Object.create(null);
-      histogram.forEach(row => {
-        if (!itemAgg[row.item_id]) itemAgg[row.item_id] = { sum: 0, count: 0 };
-        itemAgg[row.item_id].sum += row.score * row.n;
-        itemAgg[row.item_id].count += row.n;
-      });
-
-      const itemAverages = Object.entries(itemAgg).map(([itemId, agg]) => {
-        const avg = agg.sum / agg.count;
-        let idx = tierCount - Math.round(avg);
-        idx = Math.max(0, Math.min(tierCount - 1, idx));
-        return { item_id: itemId, avg, tierIndex: idx, votes: agg.count };
-      });
-
-      communityAverage = {
-        updated_at: lastRanked,
-        period,
-        tiers: tiersDef.map((t, i) => ({
-          label: t.label,
-          color: t.color,
-          items: itemAverages
-            .filter(x => x.tierIndex === i)
-            .sort((a, b) => b.avg - a.avg)
-            .map(x => ({ name: x.item_id, avg: Math.round(x.avg * 100) / 100, votes: x.votes }))
-        }))
-      };
+      communityAverage = buildCommunityAverage(tiersDef, histogram, lastRanked, period);
     }
 
     // has_community_average_all_time: บอกว่า template นี้มี community average

@@ -24,7 +24,7 @@ export default function SearchSuggestions({
 
   return (
     <div
-      className={`absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border border-line-soft bg-surface/95 backdrop-blur-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 ${className}`}
+      className={`ui-popover absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border border-line-soft bg-surface/95 backdrop-blur-xl shadow-xl overflow-hidden ${className}`}
       onMouseDown={(e) => {
         // Prevent search input from blurring before item click
         e.preventDefault();

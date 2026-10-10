@@ -26,10 +26,11 @@ export async function mountPage(file, api, router = {}) {
       export const useParams=()=>h().router.routeParams || {};
       export const useLocation=()=>h().router.location;
       export const useNavigate=()=>h().router.navigate || (()=>{});
-      export const useSearchParams=()=>[h().router.params || new URLSearchParams(),(value,options)=>{const s=h();s.router.params=typeof value==='function'?value(s.router.params):value;s.dirty=true;s.router.onParams?.(s.router.params,options);}];`,
+      const setParams=(value,options)=>{const s=h();s.router.params=typeof value==='function'?value(s.router.params):value;s.dirty=true;s.router.onParams?.(s.router.params,options);};
+      export const useSearchParams=()=>[h().router.params || new URLSearchParams(),setParams];`,
     'react-i18next': `export const useTranslation=()=>({t:key=>key,i18n:{language:globalThis.__pageHarness.language}});`,
     '../context/UserContext': `export const useUser=()=>({currentUser:globalThis.__pageHarness.user,login:()=>{}});`,
-    '../context/BookmarkContext': `export const useBookmarks=()=>({addSavedIds:()=>{}});`,
+    '../context/BookmarkContext': `const addSavedIds=()=>{}; export const useBookmarks=()=>({addSavedIds});`,
     '../components/ui/Toast': `export const useToast=()=>({error:message=>globalThis.__pageHarness.errors.push(message),success:()=>{}});`,
     '../lib/api': apiNames.map(name => `export const ${name}=(...args)=>globalThis.__pageHarness.api.${name}(...args);`).join('\n'),
     '../lib/analytics': `export const trackEvent=()=>{};`,

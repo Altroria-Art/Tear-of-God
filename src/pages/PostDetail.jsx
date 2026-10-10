@@ -42,6 +42,7 @@ function PostDetailContent() {
   const [modal, setModal] = useState(() => ['share', 'export'].includes(location.state?.feedAction) ? location.state.feedAction : null) // 'share' | 'export' | null
   const tableRef = useRef(null)
   const commentInputRef = useRef(null) // ช่องพิมพ์คอมเมนต์ — ไว้โฟกัสเมื่อกดปุ่มคอมเมนต์
+  const commentsRef = useRef(null)
 
   const [post, setPost] = useState(null)
   const [template, setTemplate] = useState(null)
@@ -121,6 +122,16 @@ function PostDetailContent() {
     if (postId) loadPost()
     return () => { cancelled = true }
   }, [postId, currentUser?.id, t])
+
+  useEffect(() => {
+    if (isLoading || !post?.id || location.hash !== '#comments') return undefined
+    const frame = requestAnimationFrame(() => {
+      commentsRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })
+      const target = commentInputRef.current || commentsRef.current
+      target?.focus({ preventScroll: true })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [isLoading, post?.id, location.hash])
 
   useLiveRefresh({
     resourceKey: `${postId}:${currentUser?.id || 'guest'}`,
@@ -347,7 +358,7 @@ function PostDetailContent() {
   if (!post) {
     return (
       <main className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <p className="text-lg font-bold text-ink">{t('post.notFound')}</p>
+        <h1 className="text-2xl font-black text-ink">{t('post.notFound')}</h1>
         <Link to="/" className="mt-2 inline-block text-sm text-status-info hover:underline">
           {t('common.backHome')}
         </Link>
@@ -558,7 +569,7 @@ function PostDetailContent() {
 
           </div>
 
-        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+        <div id="comments" ref={commentsRef} tabIndex={-1} className="min-w-0 scroll-mt-24 lg:col-start-1 lg:row-start-2">
           <CommentSection 
             comments={comments} 
             onSubmit={handleAddComment} 

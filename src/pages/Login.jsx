@@ -136,9 +136,9 @@ export default function Login() {
         >
           <div className="mb-5">
             <p className="club-serial text-muted mb-2">TEAR OF GOD / {t('auth.memberAccess').toUpperCase()}</p>
-            <h2 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
+            <h1 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
               {t('auth.clubWelcomeTitle')}
-            </h2>
+            </h1>
             <p className="mt-2 text-sm text-ink-soft">{t('auth.loginSubtitle')}</p>
           </div>
           
@@ -182,9 +182,9 @@ export default function Login() {
         >
           <div className="mb-5">
             <p className="club-serial text-muted mb-2">TEAR OF GOD / {t('auth.newMember').toUpperCase()}</p>
-            <h2 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
+            <h1 className="font-display text-4xl font-black uppercase leading-none tracking-tight text-ink">
               {t('auth.clubJoinTitle')}
-            </h2>
+            </h1>
             <p className="mt-2 text-sm text-ink-soft">{t('auth.quickTimeSubtitle')}</p>
           </div>
           
@@ -239,7 +239,7 @@ export default function Login() {
           <button 
             type="button" 
             onClick={() => changeMode(!isRegister)}
-            className="min-h-11 px-3 text-sm font-bold text-pop-violet hover:underline uppercase tracking-wide"
+            className="min-h-11 px-3 text-sm font-bold text-highlight hover:underline uppercase tracking-wide"
           >
             {isRegister ? t('auth.backToLoginBtn') : t('auth.createAccountBtn')}
           </button>

@@ -73,13 +73,13 @@ export default function PopularTemplates() {
     <div className="text-ink font-sans min-h-screen flex flex-col">
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 py-12">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <BackButton fallback="/discover"
               className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </BackButton>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-3xl font-extrabold tracking-tight text-ink">{t('discover.popularTemplates')}</h1>
               <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
             </div>

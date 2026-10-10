@@ -564,10 +564,11 @@ export async function fetchTemplate(templateId, { light = false, period = null }
   }
 }
 
-export async function fetchTemplates({ hashtag, limit, page, sort, q, saved, suggest, signal } = {}, options = {}) {
+export async function fetchTemplates({ hashtag, limit, page, sort, q, saved, suggest, fields, signal } = {}, options = {}) {
   try {
     const params = new URLSearchParams();
     if (suggest) params.set('suggest', '1');
+    if (fields === 'meta') params.set('fields', 'meta');
     if (q) params.set('q', q);
     if (saved) params.set('saved', 'true');
     if (hashtag) params.append('hashtag', hashtag.replace('#', ''));
@@ -586,10 +587,22 @@ export async function fetchTemplates({ hashtag, limit, page, sort, q, saved, sug
   }
 }
 
-export async function fetchDiscoverPulse(window = 'now') {
+export async function fetchDiscoverBoards(ids, { signal } = {}) {
+  if (!ids.length) return { success: true, data: [] };
   try {
-    return await getJSON(`${API_URL}/api/discover-pulse?window=${encodeURIComponent(window)}`);
+    const params = new URLSearchParams({ ids: ids.join(',') });
+    return await getJSON(`${API_URL}/api/discover-boards?${params}`, { signal });
   } catch (error) {
+    if (error.name === 'AbortError') throw error;
+    return { data: [], error: i18n.t('errors.fetchFailed') };
+  }
+}
+
+export async function fetchDiscoverPulse(window = 'now', { signal } = {}) {
+  try {
+    return await getJSON(`${API_URL}/api/discover-pulse?window=${encodeURIComponent(window)}`, { signal });
+  } catch (error) {
+    if (error.name === 'AbortError') throw error;
     console.error('fetchDiscoverPulse error:', error);
     return { data: null, error: i18n.t('errors.fetchFailed') };
   }

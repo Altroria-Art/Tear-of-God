@@ -86,7 +86,7 @@ async function layout(page, selector, width, name, columns) {
   assert(result.body <= width + 1, `${name} ${width}: page overflow ${JSON.stringify(result)}`);
   assert.equal(result.outside, 0, `${name}: tile escapes viewport`);
   if (columns) assert.equal(result.columns, columns, `${name} ${width}: columns`);
-  if (name === 'Discover') for (const tile of result.tiles) assert(Math.abs(tile.width - tile.height) <= 2, `Discover ${width}: square cards`);
+  if (name === 'Discover') assert(result.tiles.every(tile => tile.height > 0), `Discover ${width}: full boards have content height`);
   checks.push(`${name} geometry ${width}px`);
 }
 async function login(page, person) {
@@ -125,7 +125,7 @@ function faults(page) {
     },
   };
 }
-const cardCount = `document.querySelectorAll('.discover-browse-grid .discover-topic-card:not(.animate-pulse)').length`;
+const cardCount = `document.querySelectorAll('.discover-squeeze .squeeze-panel:not([data-squeeze-id="discover:all"])').length`;
 try {
   browser = await chromium();
   const page = await browser.page(); pages.push(page);
@@ -135,10 +135,10 @@ try {
   await page.goto(base + '/discover'); await slow.taken();
   await page.until(`!!document.querySelector('.discover-browse-grid[aria-busy=true]')`, 'Discover loading skeleton');
   await page.click(tab('New')); await page.until(`new URLSearchParams(location.search).get('tab')==='new' && ${cardCount}===8`, 'New tab loads independently');
-  const titles = await page.evaluate(`[...document.querySelectorAll('.discover-browse-grid .discover-card-title')].map(e=>e.textContent)`);
+  const titles = await page.evaluate(`[...document.querySelectorAll('.squeeze-panel')].map(e=>e.dataset.squeezeId).filter(id=>id!=='discover:all')`);
   assert.equal(titles.length,8);
   slow.release(); await delay(600);
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('.discover-browse-grid .discover-card-title')].map(e=>e.textContent)`), titles);
+  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('.squeeze-panel')].map(e=>e.dataset.squeezeId).filter(id=>id!=='discover:all')`), titles);
   assert.equal(await page.evaluate(`document.querySelector('.discover-browse-tabs button[aria-pressed=true]').textContent.trim()`), 'New');
   checks.push('Discover loading and late Popular response do not overwrite New');
   const failure = fault.next(list('popular'), { fail: true });
@@ -180,10 +180,17 @@ try {
   assert.equal(await page.evaluate('location.pathname'), `/profile/${profiles[3]}`);
   checks.push('Discover navigation during pending load');
   await spa(page, '/discover'); await page.until(`${cardCount}===8`, 'Discover restored');
-  assert(await page.evaluate(`[...document.querySelectorAll('.discover-card-preview [title]')].some(e=>e.title.startsWith('รายการภาษาไทย'))`), 'Discover renders names for ID-backed items');
-  assert(await page.evaluate(`[...document.querySelectorAll('.discover-card-preview [title]')].every(e=>!e.title.startsWith('browser-qa-'))`), 'Discover does not display internal item IDs');
-  checks.push('Discover ID-backed items display names with tier labels and overflow count');
-  for (const [width, columns] of [[320,1],[390,1],[768,2],[1440,4]]) await layout(page, '.discover-browse-grid', width, 'Discover', columns);
+  assert(await page.evaluate(`[...document.querySelectorAll('.discover-board-item span')].some(e=>e.textContent.startsWith('รายการภาษาไทย'))`), 'Discover renders names for ID-backed items');
+  assert(await page.evaluate(`[...document.querySelectorAll('.discover-board-item span')].every(e=>!e.textContent.startsWith('browser-qa-'))`), 'Discover does not display internal item IDs');
+  checks.push('Discover ID-backed items display complete names and tier labels');
+  for (const width of [320,390,768,1024,1440]) {
+    await page.viewport(width); await delay(1200);
+    const geometry = await page.evaluate(`(() => { const viewport=document.querySelector('.squeeze-viewport'),panel=document.querySelector('.squeeze-panel.is-selected');return {body:document.documentElement.scrollWidth,width:innerWidth,viewport:viewport.clientWidth,active:panel.getBoundingClientRect().width,left:panel.getBoundingClientRect().left-viewport.getBoundingClientRect().left}; })()`);
+    assert(geometry.body<=width+1, 'Discover carousel stays within the viewport');
+    assert(Math.abs(geometry.left)<1, 'Selected board aligns with the viewport');
+    if (width<1024) assert(Math.abs(geometry.active-geometry.viewport)<1); else assert(geometry.active<geometry.viewport);
+    checks.push(`Discover ${width}px: selected full board and horizontal squeeze layout`);
+  }
   await page.viewport(390,844); await page.evaluate('scrollTo(0,0)'); await page.screenshot(path.join(output,'discover-mobile.png'));
   await page.viewport(1440,1000); await page.evaluate('scrollTo(0,0)'); await page.screenshot(path.join(output,'discover-desktop.png'));
 

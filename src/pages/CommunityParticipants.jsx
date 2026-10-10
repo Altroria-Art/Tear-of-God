@@ -344,7 +344,7 @@ function CommunityParticipantsContent() {
     return (
       <main className="mx-auto max-w-4xl px-6 py-16 text-center">
         <AlertTriangleIcon className="mx-auto h-10 w-10 text-status-error mb-3" />
-        <p className="text-lg font-bold text-ink">{t('common.error')}</p>
+        <h1 className="text-2xl font-black text-ink">{t('common.error')}</h1>
         <p className="mt-1 text-sm text-muted">{error}</p>
         <Link to={`/template/${templateId}/community`} className="mt-4 inline-block text-sm font-bold text-brand hover:underline">
           {t('template.backToTemplate')}
@@ -361,7 +361,7 @@ function CommunityParticipantsContent() {
           <ArrowLeftIcon className="h-5 w-5" />
         </BackButton>
         <Users className="mx-auto h-12 w-12 text-muted mt-6" />
-        <p className="mt-4 text-lg font-bold text-ink">{t('participants.noUsers')}</p>
+        <h1 className="mt-4 text-2xl font-black text-ink">{t('participants.noUsers')}</h1>
         <p className="mt-1 text-sm text-muted">{t('participants.noUsersDesc')}</p>
         <Link to={`/rank?template=${templateId}`} className="mt-4 inline-block rounded-full bg-brand-accent px-5 py-2 text-sm font-bold text-canvas transition-all hover:brightness-110 active:scale-95">
           {t('template.use')}
@@ -405,6 +405,7 @@ function CommunityParticipantsContent() {
                   <button
                     key={tier.label}
                     type="button"
+                    aria-pressed={checked}
                     onClick={() => toggleTier(tier.label)}
                     className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all ${
                       checked
@@ -427,6 +428,7 @@ function CommunityParticipantsContent() {
         <div className="mb-3">
           <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{t('participants.participant')}</label>
           <select
+            aria-label={t('participants.participant')}
             value={participantFilter}
             onChange={(e) => applyParticipantSelection(e.target.value)}
             className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand"
@@ -444,6 +446,7 @@ function CommunityParticipantsContent() {
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{t('participants.faculty')}</label>
             <select
+              aria-label={t('participants.faculty')}
               value={facultyFilter}
               onChange={(e) => handleFacultyChange(e.target.value)}
               className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand"
@@ -458,6 +461,7 @@ function CommunityParticipantsContent() {
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{t('participants.major')}</label>
             <select
+              aria-label={t('participants.major')}
               value={majorFilter}
               onChange={(e) => handleMajorChange(e.target.value)}
               disabled={!facultyFilter}
@@ -473,6 +477,7 @@ function CommunityParticipantsContent() {
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{t('participants.year')}</label>
             <select
+              aria-label={t('participants.year')}
               value={yearFilter}
               onChange={(e) => handleYearChange(e.target.value)}
               className="w-full rounded-lg border border-line-soft bg-surface p-2.5 text-sm text-ink outline-none focus:ring-1 focus:ring-brand"

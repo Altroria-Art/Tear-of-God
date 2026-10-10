@@ -48,7 +48,7 @@ export default function ForgotPassword() {
         <form onSubmit={handleSubmit} className="mt-7 space-y-5">
           <div className="club-field"><label htmlFor="recovery-email">{t('auth.email')}</label><input id="recovery-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@example.com" autoComplete="email" required /></div>
           {errorMsg && <p role="alert" className="club-error">{errorMsg}</p>}
-          <button type="submit" disabled={loading} className="club-primary flex min-h-12 w-full items-center justify-center gap-2">{loading ? <Loader2 size={19} className="animate-spin" /> : t('auth.sendResetLink')}</button>
+          <button type="submit" disabled={loading} aria-busy={loading} className="club-primary flex min-h-12 w-full items-center justify-center gap-2">{loading ? <><Loader2 size={19} aria-hidden="true" className="animate-spin" /><span>{t('common.loading')}</span></> : t('auth.sendResetLink')}</button>
         </form>
         <Link className="mt-5 flex min-h-11 items-center justify-center gap-2 text-sm font-bold text-ink-soft underline underline-offset-4" to="/login"><ArrowLeft size={17} />{t('auth.backToLogin')}</Link>
       </>}
