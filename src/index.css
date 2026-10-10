@@ -776,7 +776,7 @@ html[lang="th"] .pulse-hero h1 { line-height: 1.2; }
 .topic-rank-actions > a { max-width:100%; }
 @media (max-width:639px) { .opinion-home .play-button, .topic-rank-actions > a { flex:1 1 auto; } }
 @media (min-width:768px) {
-  .create-page .editor-toolbar-float { right:auto; left:max(2rem,calc((100vw - 1280px)/2)); }
+  .create-page .editor-toolbar-float { left:auto; right:max(2rem,calc((100% - 1280px)/2)); }
   .create-workspace { grid-template-columns:minmax(0,1fr) minmax(16rem,.55fr); gap:1rem; }
   .create-workspace .quick-add-panel, .create-workspace .create-publish-panel, .create-workspace .create-board { padding:1rem; }
   .create-workspace .create-board > div:first-of-type { gap:.5rem; }
