@@ -254,7 +254,8 @@ export async function onRequest(context) {
         const feedType = ['trending', 'for_you', 'following'].includes(normalizedFeedType)
           ? normalizedFeedType
           : null;
-        if (feedType && !authorId && !templateId && !hashtag && !sort && !url.searchParams.has('days') && url.searchParams.get('mine') !== '1') {
+        const isToday = url.searchParams.get('today') === '1' || url.searchParams.get('time') === 'today';
+        if (feedType && !authorId && !templateId && !hashtag && !sort && !url.searchParams.has('days') && !isToday && url.searchParams.get('mine') !== '1') {
           return await homeFeed(context, feedType);
         }
         // seed สุ่มจาก client (ใหม่ทุก mount) → ลำดับเปลี่ยนทุก reload แต่คงที่ใน session.
@@ -413,15 +414,17 @@ export async function onRequest(context) {
               poolParams.push(currentUserId);
             }
 
-            if (feedType === 'trending') {
+            if (isToday) {
+              poolWhere += ` AND COALESCE(r.last_activity_at, r.created_at) >= datetime(date('now', '+7 hours'), '-7 hours')`;
+            } else if (feedType === 'trending') {
               if (days && days <= 180) {
-                poolWhere += ` AND r.created_at >= datetime('now', '-' || ? || ' days')`;
+                poolWhere += ` AND COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-' || ? || ' days')`;
                 poolParams.push(String(days));
               } else {
                 poolWhere += ` AND r.created_at >= datetime('now', '-180 days')`;
               }
             } else if (days) {
-              poolWhere += ` AND r.created_at >= datetime('now', '-' || ? || ' days')`;
+              poolWhere += ` AND COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-' || ? || ' days')`;
               poolParams.push(String(days));
             }
 
@@ -496,12 +499,12 @@ r.created_at DESC, r.id DESC`;
             let poolOutcome = null;
             if (feedType === 'trending') {
               const poolKey = buildTrendingPoolKey({
-                feedType, seed, hashtag, authorId, templateId, days,
+                feedType, seed, hashtag, authorId, templateId, days, today: isToday,
                 poolCap: HOME_POOL_CAP,
               });
               const poolCache = typeof caches !== 'undefined' ? caches.default : null;
               const poolCacheRequest = trendingPoolCacheRequest(url.origin, poolKey);
-              const eligible = isSharedHomeTrendingEligible({ feedType, hashtag, authorId, templateId, days });
+              const eligible = isSharedHomeTrendingEligible({ feedType, hashtag, authorId, templateId, days, today: isToday });
               let l1 = 'MISS';
               let l2 = 'SKIP';
               let d1Build = false;
@@ -572,8 +575,12 @@ r.created_at DESC, r.id DESC`;
             if (feedType === 'for_you' && poolIds.length === 0) {
               personalizationFallback = true;
               let fbWhere = pageWhere;
-              const fbParams = [...pageWhereParams];
-              if (days) { fbWhere += ` AND r.created_at >= datetime('now', '-' || ? || ' days')`; fbParams.push(String(days)); }
+              if (isToday) {
+                fbWhere += ` AND COALESCE(r.last_activity_at, r.created_at) >= datetime(date('now', '+7 hours'), '-7 hours')`;
+              } else if (days) {
+                fbWhere += ` AND COALESCE(r.last_activity_at, r.created_at) >= datetime('now', '-' || ? || ' days')`;
+                fbParams.push(String(days));
+              }
               const { results: fbRows } = await db.prepare(`
                 SELECT r.id FROM rankings r
                 ${fbWhere}

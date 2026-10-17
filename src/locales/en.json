@@ -36,7 +36,7 @@
     "untitled": "Untitled",
     "itemDetails": "Item details",
     "errorOccurred": "Something went wrong",
-    "unknownError": "This didn't work. Try again.",
+    "unknownError": "Something didn't work. Try again.",
     "pageNotFound": "Page not found",
     "backToHome": "Back to home",
     "tags": "tags",
@@ -282,6 +282,15 @@
     "trending": "Trending",
     "forYou": "For You",
     "following": "Following",
+    "timeToday": "Today",
+    "timeWeek": "This Week",
+    "timeAll": "All Time",
+    "todayHighlightTitle": "Today's Buzz",
+    "todayHighlightDesc": "Rankings with the most likes, comments, and fresh activity in the last 24 hours.",
+    "todayEmptyTitle": "Quiet today so far",
+    "todayEmptyDesc": "No new rankings or buzz today yet. Check what was hot this week, or be the first to rank something today!",
+    "switchWeek": "See this week",
+    "switchAll": "See all time",
     "refresh": "Refresh feed",
     "refreshed": "Feed updated",
     "loadingYourFeed": "Loading your feed...",
@@ -541,8 +550,8 @@
       "ranking_veteran": "Ranking regular",
       "template_creator": "Topic starter",
       "template_builder": "Topic builder",
-      "community_voice": "Community Contributor",
-      "community_star": "Community favorite",
+      "community_voice": "Community Voice",
+      "community_star": "Community Star",
       "template_hit": "Popular topic",
       "trending_template": "Trending topic",
       "template_legend": "Topic legend",
@@ -552,9 +561,9 @@
       "hashtag_master": "Tag expert"
     },
     "badgeDesc": {
-      "first_rank": "Publish your first ranking",
-      "ranker_10": "Publish 10 rankings",
-      "ranking_veteran": "Publish 50 rankings",
+      "first_rank": "Post your first ranking",
+      "ranker_10": "Post 10 rankings",
+      "ranking_veteran": "Post 50 rankings",
       "template_creator": "Create a topic",
       "template_builder": "Create 5 topics",
       "community_voice": "Gain 5 followers",
@@ -562,10 +571,10 @@
       "template_hit": "Create a topic that gets ranked 25 times",
       "trending_template": "Create a topic that gets ranked 100 times",
       "template_legend": "Create a topic that gets ranked 500 times",
-      "all_rounder": "Publish 10 rankings, create 5 topics, and gain 10 followers",
-      "hashtag_enthusiast": "10 contributions in {{hashtag}} (rankings or topics)",
-      "hashtag_specialist": "50 contributions in {{hashtag}} (rankings or topics)",
-      "hashtag_master": "100 contributions in {{hashtag}} (rankings or topics)"
+      "all_rounder": "Post 10 rankings, create 5 topics, and get 10 followers",
+      "hashtag_enthusiast": "Post or rank 10 times in #{{hashtag}}",
+      "hashtag_specialist": "Post or rank 50 times in #{{hashtag}}",
+      "hashtag_master": "Post or rank 100 times in #{{hashtag}}"
     },
     "createNewTemplate": "New ranking",
     "createNewTemplateHelp": "Start with your own items",
@@ -633,7 +642,7 @@
     "beTheFirst": "What do you think? Leave the first comment."
   },
   "template": {
-    "noCommunityAverage": "No community ranking data yet",
+    "noCommunityAverage": "No community rankings yet",
     "loading": "Loading topic...",
     "notFound": "Topic not found",
     "communityRankings": "Community rankings",
@@ -671,7 +680,7 @@
     "updated": "Updated {{time}}",
     "periodAllTime": "All time",
     "periodDays": "Last {{days}} days",
-    "communityNotFound": "Community not found",
+    "communityNotFound": "No community data yet",
     "backToTemplate": "Back to topic",
     "itemsInTemplate": "Items to rank",
     "about": "About this topic",
@@ -749,6 +758,8 @@
     "title": "Discover",
     "subtitle": "Find a topic you like and make your own ranking",
     "popularTemplates": "Popular Topics",
+    "recentTemplates": "Recent Topics",
+    "mostViewedTemplates": "Most Viewed Topics",
     "popularHashtags": "Popular Hashtags",
     "viewAll": "View All",
     "loadingPopular": "Loading popular topics...",
@@ -809,9 +820,9 @@
       "moreDescription": "Browse all topics and pick something you want to rank."
     },
     "boards": {
-      "rank": "Rank mine",
-      "expand": "View full board",
-      "collapse": "Collapse board",
+      "rank": "Rank this",
+      "expand": "Show all",
+      "collapse": "Show less",
       "itemCount": "{{count}} items",
       "itemCount_one": "{{count}} item",
       "itemCount_other": "{{count}} items",
@@ -820,10 +831,28 @@
       "people": "Ranked by {{count}} people",
       "people_one": "Ranked by {{count}} person",
       "people_other": "Ranked by {{count}} people",
-      "communityHelp": "Combined rankings for this topic, using each person's current ranking.",
-      "noRanking": "No rankings posted yet",
-      "beFirst": "See all the items below and be the first to rank them.",
-      "unranked": "No community ranking yet for these items"
+      "communityHelp": "Overall ranking for this topic, based on everyone's latest picks.",
+      "noRanking": "No rankings yet",
+      "beFirst": "Check out the items below and be the first to rank them!",
+      "unranked": "Items not ranked yet",
+      "templateAuthor": "Template Creator"
+    },
+    "dailyHighlights": {
+      "title": "Today's Highlights",
+      "subtitle": "Real highlights from today (Thai time, UTC+7)",
+      "badge": "Today (Thai Time)",
+      "mostDiscussed": "Most Discussed",
+      "mostLiked": "Most Liked",
+      "trending": "Trending Take",
+      "comments": "{{count}} comments",
+      "likes": "{{count}} likes",
+      "readComments": "Read discussion",
+      "viewRanking": "View ranking",
+      "by": "by @{{name}}",
+      "emptyTitle": "No highlights today yet",
+      "emptyDesc": "No rankings or comments have been posted today (Thai time). Be the first to start today's debate!",
+      "createTopic": "Create a topic",
+      "browseTopics": "Rank a topic"
     }
   },
   "pulse": {
@@ -893,19 +922,19 @@
     "empty": "No posts in this category yet",
     "general": {
       "title": "General Topics",
-      "subtitle": "Browse the broadest range of community tier lists."
+      "subtitle": "Browse all kinds of community tier lists."
     },
     "movie": {
       "title": "Movie Topics",
-      "subtitle": "Rank the best films. Discover cinematic favorites."
+      "subtitle": "Rank the best movies and find community favorites."
     },
     "food": {
       "title": "Food Topics",
-      "subtitle": "Rank the best eats. Discover community favorites."
+      "subtitle": "Rank tasty food and find community favorites."
     },
     "sport": {
       "title": "Sport Topics",
-      "subtitle": "Rank the greatest athletes and teams."
+      "subtitle": "Rank your favorite athletes and teams."
     },
     "music": {
       "title": "Music Topics",
@@ -913,19 +942,19 @@
     },
     "game": {
       "title": "Gaming Topics",
-      "subtitle": "Rank the best video games and characters."
+      "subtitle": "Rank your favorite games and characters."
     },
     "anime": {
       "title": "Anime Topics",
-      "subtitle": "Rank the best anime series and characters."
+      "subtitle": "Rank your favorite anime and characters."
     },
     "gaming": {
       "title": "Gaming Topics",
-      "subtitle": "Rank the best video games and characters."
+      "subtitle": "Rank your favorite games and characters."
     },
     "sports": {
       "title": "Sport Topics",
-      "subtitle": "Rank the greatest athletes and teams."
+      "subtitle": "Rank your favorite athletes and teams."
     }
   },
   "sort": {
@@ -1006,7 +1035,7 @@
     "setRoleFailed": "Failed to set role: {{msg}}",
     "noUsers": "No users found",
     "you": "You",
-    "confirmDeleteUser": "Delete user \"{{username}}\"? This cannot be undone",
+    "confirmDeleteUser": "Delete user \"{{username}}\"? You can’t undo this.",
     "userDeleted": "Deleted user {{username}}",
     "deleteUserFailed": "Failed to delete user: {{msg}}",
     "errLoadUsers": "Couldn't load the user list",
@@ -1061,11 +1090,11 @@
     "itemPoolHelp": "The items people can rank in this topic",
     "tierStructure": "Tier names and colors",
     "communityAverage": "Community ranking",
-    "noCommunityAverage": "No community average data yet",
+    "noCommunityAverage": "No community rankings yet",
     "viewOriginalPost": "View original post",
     "viewOriginalTemplate": "View original topic",
     "actionRequired": "Action Required",
-    "pendingReportsAlert": "{{count}} pending reports require admin review",
+    "pendingReportsAlert": "{{count}} reports waiting for admin review",
     "manageReportsNow": "Manage reports",
     "allClear": "No reports waiting for review",
     "recentPosts": "Recent posts",
@@ -1081,7 +1110,7 @@
     "newReportToast": "{{count}} new reports to review",
     "clickToViewQuick": "See reports to review",
     "noPendingToReview": "No reports waiting for review",
-    "administrators": "Administrators",
+    "administrators": "Admins",
     "allUsers": "All users",
     "confirmDeleteReportContent": "Delete this reported content? You can’t undo this. The report and saved text will stay.",
     "deleteContentSuccess": "Content deleted.",
@@ -1121,32 +1150,32 @@
   "errors": {
     "serverUnreachable": "Can’t connect right now. Check your connection and try again.",
     "syncFailed": "Couldn’t update your data. Try again.",
-    "profileUpdateFailed": "Failed to update profile",
+    "profileUpdateFailed": "Couldn't update profile. Try again.",
     "uploadFailed": "Couldn’t upload the photo. Check your connection and try again.",
     "fetchFailed": "Couldn’t load this. Try again.",
     "profileFetchFailed": "Couldn't load the profile. Try again.",
     "actionFailed": "That didn't work. Try again.",
     "apiNotFound": "This page can’t load right now. Try again later.",
-    "saveFailed": "Couldn't save data",
+    "saveFailed": "Couldn't save your changes. Try again.",
     "commentFetchFailed": "Couldn't load comments. Try again.",
     "commentCreateFailed": "Couldn't post your comment. Try again.",
     "templateFetchFailed": "Couldn't load this topic. Try again.",
     "hashtagFetchFailed": "Couldn't load hashtags. Try again.",
-    "viewRecordFailed": "Couldn't record the view",
+    "viewRecordFailed": "Couldn't update view count",
     "statsFetchFailed": "Couldn't load the stats. Try again.",
     "userListFetchFailed": "Couldn't load people. Try again.",
     "roleSetFailed": "Couldn't change the account role. Try again.",
-    "userDeleteFailed": "Couldn't delete the user",
+    "userDeleteFailed": "Couldn't delete this user. Try again.",
     "rankingListFetchFailed": "Couldn't load rankings. Try again.",
-    "postDeleteFailed": "Couldn't delete the post",
-    "templateListFetchFailed": "Couldn't fetch the topic list",
-    "templateDeleteFailed": "Couldn't delete the topic",
-    "reportFailed": "Couldn't submit the report",
-    "reportListFetchFailed": "Couldn't fetch the report list",
-    "reportStatusFailed": "Couldn't update the status",
-    "reportDeleteFailed": "Couldn't delete the report",
-    "commentFailed": "Couldn't create comment",
-    "commentDeleteFailed": "Failed to delete comment",
+    "postDeleteFailed": "Couldn't delete this post. Try again.",
+    "templateListFetchFailed": "Couldn't load topics. Try again.",
+    "templateDeleteFailed": "Couldn't delete this topic. Try again.",
+    "reportFailed": "Couldn't send the report. Try again.",
+    "reportListFetchFailed": "Couldn't load reports. Try again.",
+    "reportStatusFailed": "Couldn't update the status. Try again.",
+    "reportDeleteFailed": "Couldn't delete this report. Try again.",
+    "commentFailed": "Couldn't post your comment. Try again.",
+    "commentDeleteFailed": "Couldn't delete this comment. Try again.",
     "templateCooldownActive": "You can post a ranking or comparison for this topic once every 7 days. Try again in {{time}}."
   },
   "shareExport": {
@@ -1264,9 +1293,9 @@
     "missingBadge": "404 · PAGE NOT FOUND"
   },
   "social": {
-    "aggregateContext": "This combines the rankings included here. It doesn’t mean everyone agrees.",
+    "aggregateContext": "This combines everyone’s rankings. People may have different picks.",
     "period": "Time period",
-    "allTimeRankings": "{{count}} published rankings · all time",
+    "allTimeRankings": "{{count}} rankings · all time",
     "compareHint": "Rank the same items your way, then see how your picks compare",
     "rankToCompare": "Make my ranking",
     "comparisonContext": "Your latest ranking vs the community result for this time period. Your ranking counts too when it’s included.",
@@ -1323,7 +1352,7 @@
     "fileRequired": "Choose a file first.",
     "imageSize": "Use an image up to 5 MB.",
     "imageType": "Choose a supported image file.",
-    "yearInvalid": "Check your admission year.",
+    "yearInvalid": "Check your start year.",
     "universityInvalid": "Choose a university from the list.",
     "facultyInvalid": "Choose a faculty from the list.",
     "majorInvalid": "Choose a major from your faculty.",
@@ -1374,7 +1403,7 @@
     "user": "Name",
     "faculty": "Faculty",
     "major": "Major",
-    "year": "Admission year",
+    "year": "Start year",
     "similarityCommunity": "Match with the community",
     "differentItem": "Item ranked most differently",
     "strongPref": "Ranked higher than the community",

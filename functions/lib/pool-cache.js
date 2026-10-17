@@ -85,7 +85,7 @@ const MAX_INFLIGHT_POOLS = 100;
 //     but IS included so manual refresh (new seed) always re-queries a fresh
 //     pool — refresh behavior stays bit-identical to before this change.
 //   - user/session/cookie: the trending pool SQL has no user-dependent input.
-export function buildTrendingPoolKey({ feedType, seed, hashtag, authorId, templateId, days, poolCap }) {
+export function buildTrendingPoolKey({ feedType, seed, hashtag, authorId, templateId, days, today, poolCap }) {
   return [
     TRENDING_POOL_CACHE_VERSION,
     feedType ?? '',
@@ -93,7 +93,7 @@ export function buildTrendingPoolKey({ feedType, seed, hashtag, authorId, templa
     hashtag ?? '',
     authorId ?? '',
     templateId ?? '',
-    String(days ?? 0),
+    today ? 'today' : String(days ?? 0),
     String(poolCap),
   ].join('|');
 }
@@ -104,12 +104,13 @@ export function buildTrendingPoolKey({ feedType, seed, hashtag, authorId, templa
 //   - hashtag/authorId/templateId/days must all be filter-absent,
 //     using the SAME truthiness the builder uses (empty hashtag string and
 //     '' hashtag mean "no filter" there, so they mean eligible here).
-export function isSharedHomeTrendingEligible({ feedType, hashtag, authorId, templateId, days }) {
+export function isSharedHomeTrendingEligible({ feedType, hashtag, authorId, templateId, days, today }) {
   if (feedType !== 'trending') return false;
   if (hashtag) return false;
   if (authorId) return false;
   if (templateId) return false;
   if (days) return false;
+  if (today) return false;
   return true;
 }
 
