@@ -58,6 +58,7 @@ export default function PopularTemplates() {
     const next = new URLSearchParams(searchParams);
     next.set('page', String(p));
     setSearchParams(next);
+    document.getElementById('templates-header')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleSortChange = (nextSort) => {
@@ -69,10 +70,17 @@ export default function PopularTemplates() {
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  const pageTitle =
+    sort === 'recent'
+      ? t('discover.recentTemplates')
+      : sort === 'views'
+      ? t('discover.mostViewedTemplates')
+      : t('discover.popularTemplates');
+
   return (
     <div className="text-ink font-sans min-h-screen flex flex-col">
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 py-12">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div id="templates-header" className="mb-8 flex flex-wrap items-center justify-between gap-4 scroll-mt-20">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <BackButton fallback="/discover"
               className="rounded-full border border-line-soft p-2 text-ink-soft transition-colors hover:bg-surface-glass"
@@ -80,8 +88,15 @@ export default function PopularTemplates() {
               <ArrowLeftIcon className="h-5 w-5" />
             </BackButton>
             <div className="min-w-0">
-              <h1 className="text-3xl font-extrabold tracking-tight text-ink">{t('discover.popularTemplates')}</h1>
-              <p className="text-sm text-muted">{total.toLocaleString()} {t('common.templates')}</p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-ink">{pageTitle}</h1>
+              <p className="text-sm text-muted">
+                {total.toLocaleString()} {t('common.templates')}
+                {totalPages > 1 && (
+                  <span className="ml-1 text-ink-soft font-medium">
+                    ({t('common.page')} {page}/{totalPages})
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <SortDropdown value={sort} options={sortOptions} onChange={handleSortChange} label={t('discover.sort')} />
